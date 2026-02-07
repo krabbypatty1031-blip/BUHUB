@@ -1,0 +1,89 @@
+import type { LikeNotification, FollowerNotification, CommentNotification } from '../../types';
+
+export const mockLikeNotifications: LikeNotification[] = [
+  {
+    user: '李同學',
+    avatar: '李',
+    gender: 'female',
+    action: 'likedYourPost',
+    content: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
+    time: '10分鐘前',
+    hasImage: true,
+  },
+  {
+    user: '王同學',
+    avatar: '王',
+    gender: 'male',
+    action: 'likedYourComment',
+    content: '可以試下去 Wing Lung Bank Building',
+    time: '1小時前',
+  },
+  {
+    user: '張同學',
+    avatar: '張',
+    gender: 'male',
+    action: 'likedYourReply',
+    content: '真係好想再見到佢！',
+    time: '3小時前',
+  },
+];
+
+export const mockFollowerNotifications: FollowerNotification[] = [
+  {
+    user: '李同學',
+    avatar: '李',
+    gender: 'female',
+    bio: 'Year 4 · Music',
+    time: '1小時前',
+    isFollowed: false,
+  },
+  {
+    user: '王同學',
+    avatar: '王',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    time: '3小時前',
+    isFollowed: true,
+  },
+  {
+    user: '陳同學',
+    avatar: '陳',
+    gender: 'female',
+    bio: 'Year 3 · Communication',
+    time: '1日前',
+    isFollowed: false,
+  },
+];
+
+export const mockCommentNotifications: CommentNotification[] = [
+  {
+    user: '王同學',
+    avatar: '王',
+    gender: 'male',
+    action: 'commentedYourPost',
+    comment: '好可愛！我都見過佢，應該係學校嘅流浪貓',
+    originalPost: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
+    time: '20分鐘前',
+    type: 'comment',
+  },
+  {
+    user: '李同學',
+    avatar: '李',
+    gender: 'female',
+    action: 'repliedYourComment',
+    comment: '佢成日都喺飯堂出沒㗎！',
+    originalPost: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
+    time: '45分鐘前',
+    type: 'reply',
+  },
+  {
+    user: '張同學',
+    avatar: '張',
+    gender: 'male',
+    action: 'mentionedYou',
+    comment: '@浸大小明 你覺得點呀？',
+    originalPost: '下學期有冇人想一齊選 COMP3015？',
+    time: '2小時前',
+    type: 'mention',
+  },
+];
