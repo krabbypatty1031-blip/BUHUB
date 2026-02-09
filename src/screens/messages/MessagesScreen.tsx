@@ -24,11 +24,11 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
+import Svg, { Defs, RadialGradient, Stop, Circle as SvgCircle } from 'react-native-svg';
 import {
   HeartIcon,
-  UsersIcon,
+  UserIcon,
   CommentIcon,
-  PinIcon,
   SearchIcon,
   CloseIcon,
   MessageIcon,
@@ -41,30 +41,34 @@ interface NotifyEntry {
   icon: React.ReactNode;
   labelKey: string;
   countKey: 'unreadLikes' | 'unreadFollowers' | 'unreadComments';
-  bgColor: string;
+  gradientId: string;
+  gradientColor: string;
 }
 
 const NOTIFY_ENTRIES: NotifyEntry[] = [
   {
     key: 'NotifyLikes',
-    icon: <HeartIcon size={18} color={colors.white} />,
+    icon: <HeartIcon size={20} color={colors.error} fill={colors.error} />,
     labelKey: 'likeNotifications',
     countKey: 'unreadLikes',
-    bgColor: colors.error,
+    gradientId: 'gradLikes',
+    gradientColor: colors.error,
   },
   {
     key: 'NotifyFollowers',
-    icon: <UsersIcon size={18} color={colors.white} />,
+    icon: <UserIcon size={20} color={colors.primary} />,
     labelKey: 'followerNotifications',
     countKey: 'unreadFollowers',
-    bgColor: colors.primary,
+    gradientId: 'gradFollowers',
+    gradientColor: colors.primary,
   },
   {
     key: 'NotifyComments',
-    icon: <CommentIcon size={18} color={colors.white} />,
+    icon: <CommentIcon size={20} color={colors.success} />,
     labelKey: 'commentNotifications',
     countKey: 'unreadComments',
-    bgColor: colors.tertiary,
+    gradientId: 'gradComments',
+    gradientColor: colors.success,
   },
 ];
 
@@ -102,11 +106,6 @@ const ContactRow = React.memo(function ContactRow({
         onPress={onAvatarPress}
       >
         <Avatar text={item.name} uri={item.avatar || null} size="md" gender={item.gender} />
-        {isPinned && (
-          <View style={styles.pinIndicator}>
-            <PinIcon size={10} color={colors.onSurfaceVariant} />
-          </View>
-        )}
       </TouchableOpacity>
       <View style={styles.contactInfo}>
         <View style={styles.contactNameRow}>
@@ -150,6 +149,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const markAsUnread = useMessageStore((s) => s.markAsUnread);
   const markAsRead = useMessageStore((s) => s.markAsRead);
   const clearUnread = useMessageStore((s) => s.clearUnread);
+  const pinnedContacts = useMessageStore((s) => s.pinnedContacts);
   const isPinned = useMessageStore((s) => s.isPinned);
   const isMuted = useMessageStore((s) => s.isMuted);
   const getEffectiveUnread = useMessageStore((s) => s.getEffectiveUnread);
@@ -166,17 +166,24 @@ export default function MessagesScreen({ navigation }: Props) {
     unreadComments,
   };
 
-  /* ── Filter contacts by search query ── */
+  /* ── Filter & sort contacts: pinned first ── */
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
-    if (!searchQuery.trim()) return contacts;
-    const q = searchQuery.trim().toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.message.toLowerCase().includes(q)
-    );
-  }, [contacts, searchQuery]);
+    let list = contacts;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = contacts.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.message.toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aPinned = isPinned(a.name, a.pinned) ? 1 : 0;
+      const bPinned = isPinned(b.name, b.pinned) ? 1 : 0;
+      return bPinned - aPinned;
+    });
+  }, [contacts, searchQuery, pinnedContacts, isPinned]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch((prev) => {
@@ -238,12 +245,17 @@ export default function MessagesScreen({ navigation }: Props) {
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate(entry.key)}
               >
-                <View
-                  style={[
-                    styles.notifyIconCircle,
-                    { backgroundColor: entry.bgColor },
-                  ]}
-                >
+                <View style={styles.notifyIconCircle}>
+                  <Svg width={48} height={48} viewBox="0 0 48 48" style={StyleSheet.absoluteFill}>
+                    <Defs>
+                      <RadialGradient id={entry.gradientId} cx="50%" cy="50%" r="50%">
+                        <Stop offset="0%" stopColor={entry.gradientColor} stopOpacity={0.22} />
+                        <Stop offset="70%" stopColor={entry.gradientColor} stopOpacity={0.08} />
+                        <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+                      </RadialGradient>
+                    </Defs>
+                    <SvgCircle cx={24} cy={24} r={24} fill={`url(#${entry.gradientId})`} />
+                  </Svg>
                   {entry.icon}
                   {count > 0 && (
                     <View style={styles.notifyBadge}>
@@ -522,6 +534,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface2,
+    overflow: 'hidden',
   },
   notifyBadge: {
     position: 'absolute',
@@ -571,21 +585,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   contactItemPinned: {
-    backgroundColor: colors.surface1,
+    backgroundColor: colors.surface3,
   },
   contactAvatarWrap: {
     position: 'relative',
-  },
-  pinIndicator: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   contactInfo: {
     flex: 1,

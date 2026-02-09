@@ -22,8 +22,9 @@ import {
   EditIcon,
   BarChartIcon,
   ChevronRightIcon,
-  ForwardIcon,
+  RepostIcon,
   MessageIcon,
+  UserIcon,
 } from './icons';
 import type { Contact } from '../../types';
 
@@ -36,6 +37,7 @@ interface FunctionForwardSheetProps {
   functionType: 'partner' | 'errand' | 'secondhand';
   functionTitle: string;
   navigation: any;
+  onDmOrganizer?: () => void;
 }
 
 type Step = 'destination' | 'forumType' | 'contact';
@@ -68,6 +70,7 @@ export default function FunctionForwardSheet({
   functionType,
   functionTitle,
   navigation,
+  onDmOrganizer,
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
   const { data: contacts } = useContacts();
@@ -178,7 +181,7 @@ export default function FunctionForwardSheet({
                 onPress={() => setStep('forumType')}
               >
                 <View style={[styles.optionIcon, { backgroundColor: colors.primaryContainer }]}>
-                  <ForwardIcon size={24} color={colors.primary} />
+                  <RepostIcon size={24} color={colors.primary} />
                 </View>
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>{t('forwardToForum')}</Text>
@@ -200,6 +203,26 @@ export default function FunctionForwardSheet({
                 </View>
                 <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
+
+              {onDmOrganizer && (
+                <TouchableOpacity
+                  style={styles.optionRow}
+                  onPress={() => { onClose(); onDmOrganizer(); }}
+                >
+                  <View style={[styles.optionIcon, { backgroundColor: colors.accentContainer }]}>
+                    <UserIcon size={24} color={colors.onAccentContainer} />
+                  </View>
+                  <View style={styles.optionInfo}>
+                    <Text style={styles.optionTitle}>
+                      {t(functionType === 'errand' ? 'errandDmPoster' : functionType === 'secondhand' ? 'secondhandDmSeller' : 'partnerDmOrganizer')}
+                    </Text>
+                    <Text style={styles.optionDesc}>
+                      {t(functionType === 'errand' ? 'errandDmPosterDesc' : functionType === 'secondhand' ? 'secondhandDmSellerDesc' : 'partnerDmOrganizerDesc')}
+                    </Text>
+                  </View>
+                  <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              )}
             </>
           )}
 

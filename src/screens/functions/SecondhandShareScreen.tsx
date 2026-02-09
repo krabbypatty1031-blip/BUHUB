@@ -16,7 +16,7 @@ import { typography } from '../../theme/typography';
 import {
   CloseIcon,
   ShoppingBagIcon,
-  ShareIcon,
+  RepostIcon,
   MessageIcon,
   LinkIcon,
 } from '../../components/common/icons';
@@ -64,7 +64,7 @@ export default function SecondhandShareScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
               <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
-                <ShareIcon size={16} color={shareActionThemes.blue.icon} />
+                <RepostIcon size={16} color={shareActionThemes.blue.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('shareToForumAction')}</Text>
             </View>

@@ -156,6 +156,14 @@ export const ForwardIcon = ({ size = D.size, color = D.color }: IconProps) => (
   </Svg>
 );
 
+export const RepostIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+    strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M15 3l5 5-5 5" />
+    <Path d="M20 8H9a5 5 0 0 0-5 5v5" />
+  </Svg>
+);
+
 export const ShareIcon = ({ size = D.size, color = D.color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
     <Path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
@@ -477,6 +485,7 @@ export const iconMap = {
   heart: HeartIcon,
   comment: CommentIcon,
   forward: ForwardIcon,
+  repost: RepostIcon,
   share: ShareIcon,
   bookmark: BookmarkIcon,
   quote: QuoteIcon,

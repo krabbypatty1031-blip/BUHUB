@@ -21,7 +21,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { BackIcon, PlusIcon, UsersIcon, MessageIcon, ForwardIcon } from '../../components/common/icons';
+import { BackIcon, PlusIcon, UsersIcon, RepostIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -117,22 +117,13 @@ export default function PartnerListScreen({ navigation }: Props) {
               )}
             </View>
             {!item.expired && (
-              <View style={styles.footerRight}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  activeOpacity={0.7}
-                  onPress={() => setShareSheetItem(item)}
-                >
-                  <ForwardIcon size={16} color={colors.onSurfaceVariant} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.dmBtn}
-                  activeOpacity={0.7}
-                  onPress={() => handleDmOrganizer(item)}
-                >
-                  <MessageIcon size={16} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setShareSheetItem(item)}
+              >
+                <RepostIcon size={18} color={colors.onSurface} />
+              </TouchableOpacity>
             )}
           </View>
         </TouchableOpacity>
@@ -198,6 +189,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         functionType="partner"
         functionTitle={shareSheetItem?.title ?? ''}
         navigation={navigation}
+        onDmOrganizer={shareSheetItem ? () => handleDmOrganizer(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
@@ -313,27 +305,6 @@ const styles = StyleSheet.create({
   expiredBadgeText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
-  },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dmBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

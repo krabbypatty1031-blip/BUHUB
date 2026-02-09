@@ -26,7 +26,6 @@ import {
   AlertTriangleIcon,
   TruckIcon,
   MoreHorizontalIcon,
-  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandDetail'>;

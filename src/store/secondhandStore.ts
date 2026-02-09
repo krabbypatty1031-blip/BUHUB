@@ -26,7 +26,8 @@ export const useSecondhandStore = create<SecondhandState>()((set, get) => ({
   toggleWant: (index) =>
     set((state) => {
       const next = new Set(state.wantedItems);
-      next.add(index);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return { wantedItems: next };
     }),
 

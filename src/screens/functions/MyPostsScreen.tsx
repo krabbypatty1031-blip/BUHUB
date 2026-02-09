@@ -28,7 +28,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   ClockIcon,
-  ForwardIcon,
+  RepostIcon,
   MoreHorizontalIcon,
   TrashIcon,
   CheckIcon,
@@ -252,7 +252,7 @@ export default function MyPostsScreen({ navigation }: Props) {
                     onPress={() => setShareSheetItem(item)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <ForwardIcon size={14} color={colors.onSurfaceVariant} />
+                    <RepostIcon size={16} color={colors.onSurface} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -313,7 +313,7 @@ export default function MyPostsScreen({ navigation }: Props) {
                     onPress={() => setShareSheetItem(item)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <ForwardIcon size={14} color={colors.onSurfaceVariant} />
+                    <RepostIcon size={16} color={colors.onSurface} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -374,7 +374,7 @@ export default function MyPostsScreen({ navigation }: Props) {
                   onPress={() => setShareSheetItem(item)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <ForwardIcon size={14} color={colors.onSurfaceVariant} />
+                  <RepostIcon size={16} color={colors.onSurface} />
                 </TouchableOpacity>
               </View>
             )}
@@ -595,8 +595,6 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-    backgroundColor: colors.surface2,
   },
   empty: {
     flex: 1,

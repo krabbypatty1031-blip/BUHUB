@@ -30,7 +30,7 @@ import {
   ShoppingBagIcon,
   MapPinIcon,
   AlertTriangleIcon,
-  ForwardIcon,
+  RepostIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
@@ -122,7 +122,7 @@ const ItemCard = React.memo(function ItemCard({
             activeOpacity={0.7}
             onPress={() => onForward(index)}
           >
-            <ForwardIcon size={14} color={colors.onSurfaceVariant} />
+            <RepostIcon size={16} color={colors.onSurface} />
           </TouchableOpacity>
         )}
       </View>
@@ -183,6 +183,16 @@ export default function SecondhandListScreen({ navigation }: Props) {
   );
 
   const [shareSheetItem, setShareSheetItem] = useState<SecondhandItem | null>(null);
+
+  const handleDmSeller = useCallback(
+    (item: SecondhandItem) => {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title },
+      });
+    },
+    [navigation]
+  );
 
   const handleForward = useCallback(
     (index: number) => {
@@ -277,6 +287,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
         functionType="secondhand"
         functionTitle={shareSheetItem?.title ?? ''}
         navigation={navigation}
+        onDmOrganizer={shareSheetItem ? () => handleDmSeller(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
@@ -472,12 +483,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.sm,
     bottom: spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   /* FAB */

@@ -24,8 +24,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   PlusIcon,
-  MessageIcon,
-  ForwardIcon,
+  RepostIcon,
   TruckIcon,
 } from '../../components/common/icons';
 
@@ -122,22 +121,13 @@ export default function ErrandListScreen({ navigation }: Props) {
               )}
             </View>
             {!item.expired && (
-              <View style={styles.footerRight}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  activeOpacity={0.7}
-                  onPress={() => setShareSheetItem(item)}
-                >
-                  <ForwardIcon size={16} color={colors.onSurfaceVariant} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.dmBtn}
-                  activeOpacity={0.7}
-                  onPress={() => handleDmPoster(item)}
-                >
-                  <MessageIcon size={16} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setShareSheetItem(item)}
+              >
+                <RepostIcon size={18} color={colors.onSurface} />
+              </TouchableOpacity>
             )}
           </View>
         </TouchableOpacity>
@@ -208,6 +198,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         functionType="errand"
         functionTitle={shareSheetItem?.title ?? ''}
         navigation={navigation}
+        onDmOrganizer={shareSheetItem ? () => handleDmPoster(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
@@ -343,27 +334,6 @@ const styles = StyleSheet.create({
   expiredBadgeText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
-  },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dmBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

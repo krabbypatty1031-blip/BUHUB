@@ -24,7 +24,6 @@ import {
   MapPinIcon,
   MessageIcon,
   MoreHorizontalIcon,
-  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;

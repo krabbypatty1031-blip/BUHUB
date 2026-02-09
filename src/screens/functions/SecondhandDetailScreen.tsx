@@ -28,7 +28,6 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   MoreHorizontalIcon,
-  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandDetail'>;
@@ -73,6 +72,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     toggleWant(index);
     if (!isWanted) {
       showSnackbar({ message: t('notifiedSeller'), type: 'info' });
+    } else {
+      showSnackbar({ message: t('wantCancelled'), type: 'info' });
     }
   }, [toggleWant, index, isWanted, showSnackbar, t]);
 
