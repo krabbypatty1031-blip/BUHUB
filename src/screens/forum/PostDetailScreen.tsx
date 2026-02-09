@@ -34,7 +34,7 @@ import {
   HeartIcon,
   CommentIcon,
   SendIcon,
-  RepostIcon,
+  ShareIcon,
   BookmarkIcon,
   QuoteIcon,
   ChevronDownIcon,
@@ -80,7 +80,7 @@ function ItemActions({
         <CommentIcon size={size} color={colors.onSurfaceVariant} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
-        <RepostIcon size={size} color={colors.onSurface} />
+        <ShareIcon size={size} color={colors.onSurfaceVariant} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onBookmark}>
         <BookmarkIcon
@@ -496,7 +496,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleForward}
             >
-              <RepostIcon size={20} color={colors.onSurface} />
+              <ShareIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
 
             <TouchableOpacity
