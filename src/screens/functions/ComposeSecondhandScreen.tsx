@@ -27,7 +27,12 @@ import {
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
-import { enforceTitleLimit, getTitleCountLabel } from '../../utils/textLimit';
+import {
+  enforceTitleLimit,
+  getTitleCountLabel,
+  enforceContentLimit,
+  getContentCountLabel,
+} from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeSecondhand'>;
@@ -46,14 +51,15 @@ const CONDITIONS: Array<{ key: string; labelKey: string }> = [
   { key: 'fair', labelKey: 'conditionFair' },
 ];
 
-export default function ComposeSecondhandScreen({ navigation }: Props) {
+export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 6 });
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState<SecondhandCategory>('electronics');
+  const defaultCategory = (route.params?.category as SecondhandCategory) || 'electronics';
+  const [category, setCategory] = useState<SecondhandCategory>(defaultCategory);
   const [condition, setCondition] = useState('good');
   const [tradeLocation, setTradeLocation] = useState('');
   const [deadline, setDeadline] = useState<Date | null>(
@@ -78,6 +84,10 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
+  }, []);
+
+  const handleDescriptionChange = useCallback((text: string) => {
+    setDescription(enforceContentLimit(text));
   }, []);
 
   const canPost =
@@ -171,12 +181,11 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
             placeholder={placeholders.content}
             placeholderTextColor={colors.outline}
             value={description}
-            onChangeText={setDescription}
+            onChangeText={handleDescriptionChange}
             multiline
             textAlignVertical="top"
-            maxLength={1000}
           />
-          <Text style={styles.charCount}>{description.length}/1000</Text>
+          <Text style={styles.charCount}>{getContentCountLabel(description)}</Text>
         </View>
 
         {/* ── Price & Location Card ── */}
@@ -364,7 +373,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.scrim,
     alignItems: 'center',
     justifyContent: 'center',
   },

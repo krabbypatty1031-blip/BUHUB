@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Switch,
   Alert,
   Modal,
   FlatList,
@@ -25,6 +24,7 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
 } from '../../components/common/icons';
+import IOSSwitch from '../../components/common/IOSSwitch';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Settings'>;
 
@@ -241,11 +241,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.rowLabel}>{t('taskReminder')}</Text>
               <Text style={styles.toggleDesc}>{t('taskReminderDesc')}</Text>
             </View>
-            <Switch
+            <IOSSwitch
               value={taskReminder}
               onValueChange={setTaskReminder}
-              trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
-              thumbColor={taskReminder ? colors.primary : colors.outline}
             />
           </View>
 
@@ -257,11 +255,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.rowLabel}>{t('dmNotification')}</Text>
               <Text style={styles.toggleDesc}>{t('dmNotificationDesc')}</Text>
             </View>
-            <Switch
+            <IOSSwitch
               value={dmNotification}
               onValueChange={setDmNotification}
-              trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
-              thumbColor={dmNotification ? colors.primary : colors.outline}
             />
           </View>
 
@@ -273,11 +269,9 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.rowLabel}>{t('dndMode')}</Text>
               <Text style={styles.toggleDesc}>{t('dndModeDesc')}</Text>
             </View>
-            <Switch
+            <IOSSwitch
               value={dndMode}
               onValueChange={setDndMode}
-              trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
-              thumbColor={dndMode ? colors.primary : colors.outline}
             />
           </View>
         </View>
@@ -329,7 +323,7 @@ export default function SettingsScreen({ navigation }: Props) {
       <Modal
         visible={pickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPickerVisible(false)}
       >
         <TouchableOpacity
@@ -509,7 +503,7 @@ const styles = StyleSheet.create({
   /* Picker Modal (reused from ProfileSetupScreen) */
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   pickerSheet: {

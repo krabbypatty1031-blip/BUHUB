@@ -19,7 +19,7 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import Chip from '../../components/common/Chip';
+import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -163,7 +163,12 @@ export default function SecondhandListScreen({ navigation }: Props) {
     }
   }, [items, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
-  const handleCategoryPress = useCallback(
+  const categoryOptions = useMemo<SegmentedControlOption<SecondhandCategory | 'all'>[]>(
+    () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),
+    [t]
+  );
+
+  const handleCategoryChange = useCallback(
     (key: SecondhandCategory | 'all') => {
       setCategory(key === 'all' ? null : key);
     },
@@ -222,20 +227,13 @@ export default function SecondhandListScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Category Chips */}
-      <View style={styles.chipRow}>
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.key}
-            label={t(cat.labelKey)}
-            selected={
-              cat.key === 'all'
-                ? selectedCategory === null
-                : selectedCategory === cat.key
-            }
-            onPress={() => handleCategoryPress(cat.key)}
-          />
-        ))}
+      {/* Category Tabs */}
+      <View style={styles.tabsContainer}>
+        <SegmentedControl
+          options={categoryOptions}
+          value={selectedCategory ?? 'all'}
+          onChange={handleCategoryChange}
+        />
       </View>
 
       {/* Disclaimer Banner */}
@@ -267,7 +265,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('ComposeSecondhand')}
+        onPress={() => navigation.navigate('ComposeSecondhand', { category: selectedCategory || 'electronics' })}
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
@@ -331,12 +329,10 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
-  /* Chips */
-  chipRow: {
-    flexDirection: 'row',
+  /* Category Tabs */
+  tabsContainer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-    flexWrap: 'wrap',
   },
 
   /* Disclaimer */
@@ -405,7 +401,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.scrim,
   },
   statusBadgeSold: {
     backgroundColor: colors.error,
@@ -441,7 +437,7 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     ...typography.titleSmall,
-    color: colors.primary,
+    color: colors.error,
     fontWeight: '700',
     marginBottom: spacing.sm,
   },

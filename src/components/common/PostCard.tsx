@@ -5,7 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, typography } from '../../theme';
 import { hapticLight } from '../../utils/haptics';
 import type { ForumPost } from '../../types';
 import Avatar from './Avatar';
@@ -240,16 +240,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   name: {
-    fontSize: 14,
+    ...typography.titleSmall,
     fontWeight: '600',
     color: colors.onSurface,
   },
   meta: {
-    fontSize: 12,
+    ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     marginTop: 1,
   },
   content: {
+    ...typography.bodyLarge,
     fontSize: 15,
     lineHeight: 22,
     color: colors.onSurface,
@@ -290,12 +291,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   pollText: {
+    ...typography.bodyMedium,
     flex: 1,
     fontSize: 13,
     color: colors.onSurface,
     zIndex: 1,
   },
   pollPercent: {
+    ...typography.bodyMedium,
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
@@ -316,6 +319,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   pollTextUnvoted: {
+    ...typography.bodyMedium,
     fontSize: 13,
     color: colors.onSurface,
   },
@@ -334,12 +338,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   functionCardType: {
-    fontSize: 11,
+    ...typography.labelSmall,
     fontWeight: '600',
     color: colors.primary,
     marginBottom: 2,
   },
   functionCardTitle: {
+    ...typography.bodyMedium,
     fontSize: 13,
     color: colors.onSurface,
   },

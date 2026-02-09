@@ -235,7 +235,7 @@ export default function DateTimePickerSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <TouchableOpacity

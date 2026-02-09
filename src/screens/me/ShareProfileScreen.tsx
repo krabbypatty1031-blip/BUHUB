@@ -12,7 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
-import { colors } from '../../theme/colors';
+import { colors, shareActionThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
@@ -77,8 +77,8 @@ export default function ShareProfileScreen({ navigation }: Props) {
         <View style={styles.actionsSection}>
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
-                <DownloadIcon size={20} color="#2563EB" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
+                <DownloadIcon size={20} color={shareActionThemes.blue.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('downloadQR')}</Text>
             </View>
@@ -86,8 +86,8 @@ export default function ShareProfileScreen({ navigation }: Props) {
 
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
-                <ScanIcon size={20} color="#16A34A" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.lemon.bg }]}>
+                <ScanIcon size={20} color={shareActionThemes.lemon.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('scanQR')}</Text>
             </View>
@@ -95,8 +95,8 @@ export default function ShareProfileScreen({ navigation }: Props) {
 
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#FFEDD5' }]}>
-                <ShareIcon size={20} color="#EA580C" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
+                <ShareIcon size={20} color={shareActionThemes.blue.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('shareExternal')}</Text>
             </View>
@@ -108,8 +108,8 @@ export default function ShareProfileScreen({ navigation }: Props) {
             onPress={handleCopyLink}
           >
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3E8FF' }]}>
-                <LinkIcon size={20} color="#9333EA" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.lemon.bg }]}>
+                <LinkIcon size={20} color={shareActionThemes.lemon.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('copyLink')}</Text>
             </View>

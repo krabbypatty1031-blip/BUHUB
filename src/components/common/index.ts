@@ -10,3 +10,6 @@ export { default as ConfirmModal } from './ConfirmModal';
 export { default as EmptyState } from './EmptyState';
 export { default as SkeletonBox, PostCardSkeleton, ProfileSkeleton, ListItemSkeleton, ForumListSkeleton, MessageListSkeleton } from './Skeleton';
 export { default as ForwardSheet } from './ForwardSheet';
+export { default as SegmentedControl } from './SegmentedControl';
+export { default as TabBar } from './TabBar';
+export { default as IOSSwitch } from './IOSSwitch';

@@ -73,6 +73,14 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     [tag, posts.length, followed, t]
   );
 
+  const handleTagPress = useCallback(
+    (pressedTag: string) => {
+      if (pressedTag === tag) return; // already on this circle
+      navigation.push('CircleDetail', { tag: pressedTag });
+    },
+    [navigation, tag]
+  );
+
   const renderPost = useCallback(
     ({ item }: { item: ForumPost }) => (
       <PostCard
@@ -80,11 +88,12 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onLike={() => toggleLike(item.id)}
         onBookmark={() => toggleBookmark(item.id)}
+        onTagPress={handleTagPress}
         isLiked={likedPosts.has(item.id)}
         isBookmarked={bookmarkedPosts.has(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark]
+    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark, handleTagPress]
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,17 +17,16 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import Chip from '../../components/common/Chip';
+import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   PlusIcon,
-  DollarIcon,
-  ClockIcon,
   MessageIcon,
   ForwardIcon,
+  TruckIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
@@ -59,7 +58,12 @@ export default function ErrandListScreen({ navigation }: Props) {
     }
   }, [errands, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
-  const handleCategoryPress = useCallback(
+  const categoryOptions = useMemo<SegmentedControlOption<ErrandCategory | 'all'>[]>(
+    () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),
+    [t]
+  );
+
+  const handleCategoryChange = useCallback(
     (key: ErrandCategory | 'all') => {
       setCategory(key === 'all' ? null : key);
     },
@@ -105,14 +109,7 @@ export default function ErrandListScreen({ navigation }: Props) {
           </Text>
           <View style={styles.cardFooter}>
             <View style={styles.footerLeft}>
-              <View style={styles.priceRow}>
-                <DollarIcon size={16} color={colors.primary} />
-                <Text style={styles.priceText}>{item.price}</Text>
-              </View>
-              <View style={styles.deadlineRow}>
-                <ClockIcon size={14} color={colors.onSurfaceVariant} />
-                <Text style={styles.deadlineText}>{item.time}</Text>
-              </View>
+              <Text style={styles.priceText}>{item.price}</Text>
               {isAccepted && (
                 <View style={styles.acceptedBadge}>
                   <Text style={styles.acceptedBadgeText}>{t('accepted')}</Text>
@@ -160,20 +157,13 @@ export default function ErrandListScreen({ navigation }: Props) {
         <View style={styles.iconBtn} />
       </View>
 
-      {/* Category Chips */}
-      <View style={styles.chipRow}>
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.key}
-            label={t(cat.labelKey)}
-            selected={
-              cat.key === 'all'
-                ? selectedCategory === null
-                : selectedCategory === cat.key
-            }
-            onPress={() => handleCategoryPress(cat.key)}
-          />
-        ))}
+      {/* Category Tabs */}
+      <View style={styles.tabsContainer}>
+        <SegmentedControl
+          options={categoryOptions}
+          value={selectedCategory ?? 'all'}
+          onChange={handleCategoryChange}
+        />
       </View>
 
       {/* Disclaimer Banner */}
@@ -192,11 +182,11 @@ export default function ErrandListScreen({ navigation }: Props) {
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState
-              icon={<DollarIcon size={36} color={colors.onSurfaceVariant} />}
+              icon={<TruckIcon size={36} color={colors.onSurfaceVariant} />}
               title={t('noErrands') || 'No errands yet'}
               message={t('createErrandHint') || 'Post an errand to get help!'}
               actionLabel={t('postErrand') || 'Post Errand'}
-              onAction={() => navigation.navigate('ComposeErrand')}
+              onAction={() => navigation.navigate('ComposeErrand', { category: selectedCategory || 'pickup' })}
             />
           ) : null
         }
@@ -206,7 +196,7 @@ export default function ErrandListScreen({ navigation }: Props) {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('ComposeErrand')}
+        onPress={() => navigation.navigate('ComposeErrand', { category: selectedCategory || 'pickup' })}
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
@@ -248,11 +238,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipRow: {
-    flexDirection: 'row',
+  tabsContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    flexWrap: 'wrap',
   },
   disclaimerBar: {
     marginHorizontal: spacing.lg,
@@ -331,23 +319,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   priceText: {
     ...typography.titleSmall,
-    color: colors.primary,
-    marginLeft: spacing.xs,
-  },
-  deadlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deadlineText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginLeft: spacing.xs,
+    color: colors.error,
+    fontWeight: '700',
   },
   acceptedBadge: {
     backgroundColor: colors.primaryContainer,

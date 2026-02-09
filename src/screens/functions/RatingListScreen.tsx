@@ -21,6 +21,7 @@ import { typography } from '../../theme/typography';
 import { BackIcon } from '../../components/common/icons';
 import Avatar from '../../components/common/Avatar';
 import SearchInput from '../../components/common/SearchInput';
+import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingList'>;
 
@@ -42,11 +43,11 @@ const SEARCH_PLACEHOLDERS: Record<RatingCategory, string> = {
 
 function MiniScoreBar({ label, value }: { label: string; value: number }) {
   return (
-    <View style={styles.miniBarCol}>
+    <View style={styles.miniBarRow}>
+      <Text style={styles.miniBarLabel} numberOfLines={1}>{label}</Text>
       <View style={styles.miniBarTrack}>
         <View style={[styles.miniBarFill, { width: `${value}%` }]} />
       </View>
-      <Text style={styles.miniBarLabel} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -63,6 +64,23 @@ export default function RatingListScreen({ navigation, route }: Props) {
 
   const category = route.params?.category || selectedCategory;
   const { data: ratings, isLoading, refetch } = useRatings(category, sortMode);
+
+  const categoryOptions = useMemo<SegmentedControlOption<RatingCategory>[]>(
+    () =>
+      CATEGORIES.map((cat) => ({
+        value: cat,
+        label: t(CATEGORY_LABELS[cat]),
+      })),
+    [t]
+  );
+
+  const sortOptions = useMemo<SegmentedControlOption<RatingSortMode>[]>(
+    () => [
+      { value: 'recent', label: t('sortRecent') },
+      { value: 'controversial', label: t('sortControversial') },
+    ],
+    [t]
+  );
 
   const handleCategoryChange = useCallback(
     (cat: RatingCategory) => {
@@ -104,7 +122,7 @@ export default function RatingListScreen({ navigation, route }: Props) {
               <Text style={styles.cardName} numberOfLines={1}>
                 {translateLabel(item.name, lang)}
               </Text>
-              <View style={styles.miniBarsRow}>
+              <View style={styles.miniBarsColumn}>
                 {item.scores.map((score) => (
                   <MiniScoreBar
                     key={score.key}
@@ -114,15 +132,6 @@ export default function RatingListScreen({ navigation, route }: Props) {
                 ))}
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.ratePill}
-              activeOpacity={0.7}
-              onPress={() =>
-                navigation.navigate('RatingForm', { category, index })
-              }
-            >
-              <Text style={styles.ratePillText}>{t('rateBtn')}</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.cardBottom}>
             {topTags.map((tag) => (
@@ -156,23 +165,11 @@ export default function RatingListScreen({ navigation, route }: Props) {
 
       {/* Category Tabs */}
       <View style={styles.tabsContainer}>
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.tab, category === cat && styles.tabActive]}
-            onPress={() => handleCategoryChange(cat)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                category === cat && styles.tabTextActive,
-              ]}
-            >
-              {t(CATEGORY_LABELS[cat])}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <SegmentedControl
+          options={categoryOptions}
+          value={category}
+          onChange={handleCategoryChange}
+        />
       </View>
 
       {/* Search */}
@@ -186,22 +183,7 @@ export default function RatingListScreen({ navigation, route }: Props) {
 
       {/* Sort Toggle */}
       <View style={styles.sortRow}>
-        <TouchableOpacity
-          style={[styles.sortBtn, sortMode === 'recent' && styles.sortBtnActive]}
-          onPress={() => setSortMode('recent')}
-        >
-          <Text style={[styles.sortBtnText, sortMode === 'recent' && styles.sortBtnTextActive]}>
-            {t('sortRecent')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sortBtn, sortMode === 'controversial' && styles.sortBtnActive]}
-          onPress={() => setSortMode('controversial')}
-        >
-          <Text style={[styles.sortBtnText, sortMode === 'controversial' && styles.sortBtnTextActive]}>
-            {t('sortControversial')}
-          </Text>
-        </TouchableOpacity>
+        <SegmentedControl options={sortOptions} value={sortMode} onChange={setSortMode} />
       </View>
 
       {/* Rating List */}
@@ -250,56 +232,18 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   tabsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: colors.primaryContainer,
-  },
-  tabText: {
-    ...typography.labelLarge,
-    color: colors.onSurfaceVariant,
-  },
-  tabTextActive: {
-    color: colors.onPrimaryContainer,
-    fontWeight: '600',
   },
   searchContainer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
   sortRow: {
-    flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-    gap: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
-  },
-  sortBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  sortBtnActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-  },
-  sortBtnText: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
-  },
-  sortBtnTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -331,39 +275,32 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     marginBottom: spacing.xs,
   },
-  miniBarsRow: {
-    flexDirection: 'row',
+  miniBarsColumn: {
+    flexDirection: 'column',
     gap: spacing.sm,
   },
-  miniBarCol: {
-    flex: 1,
+  miniBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  miniBarLabel: {
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    width: 60,
+    flexShrink: 0,
   },
   miniBarTrack: {
-    height: 4,
-    borderRadius: 2,
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.surface2,
     overflow: 'hidden',
   },
   miniBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 3,
     backgroundColor: colors.primary,
-  },
-  miniBarLabel: {
-    fontSize: 9,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  ratePill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryContainer,
-  },
-  ratePillText: {
-    ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
-    fontWeight: '600',
   },
   cardBottom: {
     flexDirection: 'row',

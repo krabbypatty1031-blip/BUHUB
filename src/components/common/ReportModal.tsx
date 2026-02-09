@@ -72,7 +72,7 @@ export default function ReportModal({ visible, title, onClose, onSubmit }: Repor
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useUIStore } from '../../store/uiStore';
-import { colors } from '../../theme/colors';
+import { colors, shareActionThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import {
@@ -63,8 +63,8 @@ export default function RatingShareScreen({ navigation, route }: Props) {
         <View style={styles.actionsSection}>
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#FFEDD5' }]}>
-                <ShareIcon size={16} color="#EA580C" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
+                <ShareIcon size={16} color={shareActionThemes.blue.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('shareToForumAction')}</Text>
             </View>
@@ -72,8 +72,8 @@ export default function RatingShareScreen({ navigation, route }: Props) {
 
           <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
-                <MessageIcon size={16} color="#2563EB" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.lemon.bg }]}>
+                <MessageIcon size={16} color={shareActionThemes.lemon.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('shareToDmAction')}</Text>
             </View>
@@ -85,8 +85,8 @@ export default function RatingShareScreen({ navigation, route }: Props) {
             onPress={handleCopyLink}
           >
             <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: '#F3E8FF' }]}>
-                <LinkIcon size={16} color="#9333EA" />
+              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
+                <LinkIcon size={16} color={shareActionThemes.blue.icon} />
               </View>
               <Text style={styles.actionLabel}>{t('copyLinkAction')}</Text>
             </View>

@@ -1,54 +1,138 @@
 /**
  * Text input limit utility.
- * Chinese characters count as ~2.67x an English character for limit purposes.
- * Effectively: 30 Chinese chars ≈ 80 English chars.
+ * For Function posts (Partner/Errand/Secondhand):
+ * - Title: 10 CJK chars / 20 English words
+ * - Content: 20 CJK chars / 80 English words
  */
+
+import i18n from '../i18n';
 
 const CJK_REGEX = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u2e80-\u2eff\u3000-\u303f\uff00-\uffef]/;
 
 /**
- * Calculate the "weighted length" of text.
- * Each CJK character counts as 2.67, each other character counts as 1.
- * Max budget = 80 (i.e. 30 CJK chars or 80 ASCII chars).
+ * Check if current language is Chinese
  */
-export function getWeightedLength(text: string): number {
-  let total = 0;
-  for (const char of text) {
-    total += CJK_REGEX.test(char) ? 2.67 : 1;
-  }
-  return Math.round(total);
+function isCurrentLanguageCJK(): boolean {
+  const lang = i18n.language;
+  return lang === 'tc' || lang === 'sc' || lang === 'zh';
 }
 
 /**
- * Check if text exceeds the title limit (30 CJK / 80 ASCII).
+ * Check if text is primarily CJK (>50% CJK characters)
+ * If text is empty, use current i18n language to decide
+ */
+function isCJKPrimary(text: string): boolean {
+  if (text.length === 0) return isCurrentLanguageCJK();
+  const cjkCount = [...text].filter((c) => CJK_REGEX.test(c)).length;
+  return cjkCount / text.length > 0.5;
+}
+
+/**
+ * Count English words (split by whitespace)
+ */
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+/**
+ * Count CJK characters
+ */
+function countCJK(text: string): number {
+  return [...text].filter((c) => CJK_REGEX.test(c)).length;
+}
+
+/* ── Title Limits (10 CJK / 20 words) ── */
+
+/**
+ * Check if title exceeds limit (10 CJK / 20 words)
  */
 export function isTitleOverLimit(text: string): boolean {
-  return getWeightedLength(text) > 80;
+  if (isCJKPrimary(text)) {
+    return countCJK(text) > 10;
+  }
+  return countWords(text) > 20;
 }
 
 /**
  * Enforce title limit on input change.
- * Returns the truncated text if over limit, otherwise the original.
+ * Returns truncated text if over limit.
  */
 export function enforceTitleLimit(text: string): string {
   if (!isTitleOverLimit(text)) return text;
-  let total = 0;
-  let i = 0;
-  for (const char of text) {
-    const w = CJK_REGEX.test(char) ? 2.67 : 1;
-    if (total + w > 80) break;
-    total += w;
-    i++;
+
+  if (isCJKPrimary(text)) {
+    // Limit to 10 CJK characters
+    let count = 0;
+    let result = '';
+    for (const char of text) {
+      if (CJK_REGEX.test(char)) {
+        if (count >= 10) break;
+        count++;
+      }
+      result += char;
+    }
+    return result;
+  } else {
+    // Limit to 20 words
+    const words = text.trim().split(/\s+/);
+    return words.slice(0, 20).join(' ');
   }
-  return [...text].slice(0, i).join('');
 }
 
-/** Display label: "N/30" for CJK-heavy, "N/80" for ASCII-heavy */
+/**
+ * Display label: "N/10" for CJK, "N/20" for English words
+ */
 export function getTitleCountLabel(text: string): string {
-  const cjkCount = [...text].filter((c) => CJK_REGEX.test(c)).length;
-  const ratio = text.length > 0 ? cjkCount / text.length : 0;
-  if (ratio > 0.5) {
-    return `${cjkCount}/30`;
+  if (isCJKPrimary(text)) {
+    return `${countCJK(text)}/10`;
   }
-  return `${text.length}/80`;
+  return `${countWords(text)}/20`;
+}
+
+/* ── Content Limits (20 CJK / 80 words) ── */
+
+/**
+ * Check if content exceeds limit (20 CJK / 80 words)
+ */
+export function isContentOverLimit(text: string): boolean {
+  if (isCJKPrimary(text)) {
+    return countCJK(text) > 20;
+  }
+  return countWords(text) > 80;
+}
+
+/**
+ * Enforce content limit on input change.
+ * Returns truncated text if over limit.
+ */
+export function enforceContentLimit(text: string): string {
+  if (!isContentOverLimit(text)) return text;
+
+  if (isCJKPrimary(text)) {
+    // Limit to 20 CJK characters
+    let count = 0;
+    let result = '';
+    for (const char of text) {
+      if (CJK_REGEX.test(char)) {
+        if (count >= 20) break;
+        count++;
+      }
+      result += char;
+    }
+    return result;
+  } else {
+    // Limit to 80 words
+    const words = text.trim().split(/\s+/);
+    return words.slice(0, 80).join(' ');
+  }
+}
+
+/**
+ * Display label: "N/20" for CJK, "N/80" for English words
+ */
+export function getContentCountLabel(text: string): string {
+  if (isCJKPrimary(text)) {
+    return `${countCJK(text)}/20`;
+  }
+  return `${countWords(text)}/80`;
 }

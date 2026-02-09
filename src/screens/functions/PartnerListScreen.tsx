@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import Chip from '../../components/common/Chip';
+import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -54,7 +54,12 @@ export default function PartnerListScreen({ navigation }: Props) {
     }
   }, [partners, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
-  const handleCategoryPress = useCallback(
+  const categoryOptions = useMemo<SegmentedControlOption<PartnerCategory | 'all'>[]>(
+    () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),
+    [t]
+  );
+
+  const handleCategoryChange = useCallback(
     (key: PartnerCategory | 'all') => {
       setCategory(key === 'all' ? null : key);
     },
@@ -147,20 +152,13 @@ export default function PartnerListScreen({ navigation }: Props) {
         <View style={styles.iconBtn} />
       </View>
 
-      {/* Category Chips */}
-      <View style={styles.chipRow}>
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.key}
-            label={t(cat.labelKey)}
-            selected={
-              cat.key === 'all'
-                ? selectedCategory === null
-                : selectedCategory === cat.key
-            }
-            onPress={() => handleCategoryPress(cat.key)}
-          />
-        ))}
+      {/* Category Tabs */}
+      <View style={styles.tabsContainer}>
+        <SegmentedControl
+          options={categoryOptions}
+          value={selectedCategory ?? 'all'}
+          onChange={handleCategoryChange}
+        />
       </View>
 
       {/* Partner List */}
@@ -178,7 +176,7 @@ export default function PartnerListScreen({ navigation }: Props) {
               title={t('noPartners') || 'No activities yet'}
               message={t('createPartnerHint') || 'Create an activity to find partners!'}
               actionLabel={t('createActivity') || 'Create Activity'}
-              onAction={() => navigation.navigate('ComposePartner', { category: selectedCategory || undefined })}
+              onAction={() => navigation.navigate('ComposePartner', { category: selectedCategory || 'travel' })}
             />
           ) : null
         }
@@ -188,7 +186,7 @@ export default function PartnerListScreen({ navigation }: Props) {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('ComposePartner', { category: selectedCategory || undefined })}
+        onPress={() => navigation.navigate('ComposePartner', { category: selectedCategory || 'travel' })}
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
@@ -230,11 +228,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipRow: {
-    flexDirection: 'row',
+  tabsContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    flexWrap: 'wrap',
   },
   listContent: {
     paddingHorizontal: spacing.lg,

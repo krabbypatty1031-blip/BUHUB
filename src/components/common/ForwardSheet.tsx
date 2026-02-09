@@ -125,7 +125,7 @@ export default function ForwardSheet({ visible, post, onClose }: ForwardSheetPro
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <TouchableOpacity

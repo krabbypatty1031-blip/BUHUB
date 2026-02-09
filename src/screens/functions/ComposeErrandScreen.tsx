@@ -26,7 +26,12 @@ import {
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
-import { enforceTitleLimit, getTitleCountLabel } from '../../utils/textLimit';
+import {
+  enforceTitleLimit,
+  getTitleCountLabel,
+  enforceContentLimit,
+  getContentCountLabel,
+} from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeErrand'>;
@@ -37,13 +42,14 @@ const CATEGORIES: Array<{ key: ErrandCategory; labelKey: string }> = [
   { key: 'other', labelKey: 'other' },
 ];
 
-export default function ComposeErrandScreen({ navigation }: Props) {
+export default function ComposeErrandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState<ErrandCategory>('pickup');
+  const defaultCategory = (route.params?.category as ErrandCategory) || 'pickup';
+  const [category, setCategory] = useState<ErrandCategory>(defaultCategory);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [item, setItem] = useState('');
@@ -67,6 +73,10 @@ export default function ComposeErrandScreen({ navigation }: Props) {
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
+  }, []);
+
+  const handleContentChange = useCallback((text: string) => {
+    setContent(enforceContentLimit(text));
   }, []);
 
   const canPost =
@@ -145,12 +155,11 @@ export default function ComposeErrandScreen({ navigation }: Props) {
             placeholder={placeholders.content}
             placeholderTextColor={colors.outline}
             value={content}
-            onChangeText={setContent}
+            onChangeText={handleContentChange}
             multiline
             textAlignVertical="top"
-            maxLength={1000}
           />
-          <Text style={styles.charCount}>{content.length}/1000</Text>
+          <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
         </View>
 
         {/* ── Task Details Card ── */}

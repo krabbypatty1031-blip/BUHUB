@@ -219,7 +219,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       <Modal
         visible={pickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPickerVisible(false)}
       >
         <TouchableOpacity
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   // Picker Modal
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   pickerSheet: {

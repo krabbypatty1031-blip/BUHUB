@@ -42,11 +42,12 @@ const GENDERS: { key: Gender; label: string }[] = [
   { key: 'secret', label: 'genderSecret' },
 ];
 
+// Gender-specific colors for icons
 const GENDER_COLORS: Record<Gender, string> = {
   male: colors.genderMale,
   female: colors.genderFemale,
-  other: colors.genderOther,
-  secret: colors.outline,
+  other: colors.onSurfaceVariant,
+  secret: colors.onSurfaceVariant,
 };
 
 export default function EditProfileScreen({ navigation }: Props) {
@@ -237,7 +238,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           <View style={styles.genderGrid}>
             {GENDERS.map((g) => {
               const isSelected = gender === g.key;
-              const accentColor = GENDER_COLORS[g.key];
+              const iconColor = GENDER_COLORS[g.key];
 
               return (
                 <TouchableOpacity
@@ -245,8 +246,8 @@ export default function EditProfileScreen({ navigation }: Props) {
                   style={[
                     styles.genderOption,
                     isSelected && {
-                      backgroundColor: accentColor + '18',
-                      borderColor: accentColor,
+                      backgroundColor: iconColor + '18',
+                      borderColor: iconColor,
                     },
                     genderLocked && styles.genderOptionLocked,
                   ]}
@@ -257,19 +258,19 @@ export default function EditProfileScreen({ navigation }: Props) {
                   {g.key === 'male' && (
                     <MaleIcon
                       size={18}
-                      color={isSelected ? accentColor : colors.onSurfaceVariant}
+                      color={iconColor}
                     />
                   )}
                   {g.key === 'female' && (
                     <FemaleIcon
                       size={18}
-                      color={isSelected ? accentColor : colors.onSurfaceVariant}
+                      color={iconColor}
                     />
                   )}
                   <Text
                     style={[
                       styles.genderText,
-                      isSelected && { color: accentColor, fontWeight: '600' },
+                      isSelected && { color: iconColor, fontWeight: '600' },
                     ]}
                   >
                     {t(g.label)}
@@ -287,7 +288,7 @@ export default function EditProfileScreen({ navigation }: Props) {
       <Modal
         visible={pickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPickerVisible(false)}
       >
         <TouchableOpacity
@@ -517,7 +518,7 @@ const styles = StyleSheet.create({
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   pickerSheet: {

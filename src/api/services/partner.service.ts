@@ -26,7 +26,7 @@ export const partnerService = {
 
   async create(post: Omit<PartnerPost, 'user' | 'avatar' | 'gender' | 'bio' | 'expired' | 'joined'>): Promise<PartnerPost> {
     if (USE_MOCK) {
-      return { ...post, user: '我', avatar: '我', gender: 'male', bio: '', expired: false, joined: 0 };
+      return { ...post, user: '我', avatar: '我', gender: 'male', bio: '', expired: false };
     }
     const { data } = await apiClient.post(ENDPOINTS.PARTNER.CREATE, post);
     return data;

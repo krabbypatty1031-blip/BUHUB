@@ -11,7 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { colors } from '../../theme/colors';
+import { colors, functionCardThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import {
@@ -27,48 +27,41 @@ import type { IconProps } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FunctionsHub'>;
 
-interface CardTheme {
-  cardBg: string;
-  iconBg: string;
-  iconColor: string;
-  textColor: string;
-}
-
 interface GridEntry {
   key: string;
   labelKey: string;
   Icon: React.FC<IconProps>;
   route: keyof FunctionsStackParamList;
-  theme: CardTheme;
+  theme: (typeof functionCardThemes)[keyof typeof functionCardThemes];
 }
 
 const GRID_ENTRIES: GridEntry[] = [
   {
     key: 'partner', labelKey: 'findPartner', Icon: UsersIcon, route: 'PartnerList',
-    theme: { cardBg: '#DBEAFE', iconBg: '#EFF6FF', iconColor: '#2563EB', textColor: '#1E3A5F' },
+    theme: functionCardThemes.blue,
   },
   {
     key: 'errand', labelKey: 'errands', Icon: TruckIcon, route: 'ErrandList',
-    theme: { cardBg: '#FFEDD5', iconBg: '#FFF7ED', iconColor: '#EA580C', textColor: '#7C2D12' },
+    theme: functionCardThemes.lemon,
   },
   {
     key: 'secondhand', labelKey: 'secondHand', Icon: ShoppingBagIcon, route: 'SecondhandList',
-    theme: { cardBg: '#D1FAE5', iconBg: '#F0FDF4', iconColor: '#16A34A', textColor: '#14532D' },
+    theme: functionCardThemes.blue,
   },
   {
     key: 'myPosts', labelKey: 'myPosts', Icon: EditIcon, route: 'MyPosts',
-    theme: { cardBg: '#F3E8FF', iconBg: '#FDF4FF', iconColor: '#9333EA', textColor: '#581C87' },
+    theme: functionCardThemes.lemon,
   },
 ];
 
 const RATING_ENTRY: GridEntry = {
   key: 'rating', labelKey: 'ratings', Icon: StarIcon, route: 'RatingList',
-  theme: { cardBg: '#FEF3C7', iconBg: '#FFFBEB', iconColor: '#D97706', textColor: '#78350F' },
+  theme: functionCardThemes.lemon,
 };
 
 const FACILITY_ENTRY: GridEntry = {
   key: 'facility', labelKey: 'facilityBooking', Icon: CalendarIcon, route: 'FacilityBooking',
-  theme: { cardBg: '#E0F7FA', iconBg: '#F0FDFF', iconColor: '#0097A7', textColor: '#004D40' },
+  theme: functionCardThemes.blue,
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

@@ -200,7 +200,7 @@ export default function ForumScreen({ navigation }: Props) {
       <Modal
         visible={composeSheetVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={closeSheet}
       >
         <TouchableOpacity
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   // Compose Sheet
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {

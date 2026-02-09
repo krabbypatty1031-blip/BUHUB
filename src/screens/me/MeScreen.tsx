@@ -21,6 +21,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { ProfileSkeleton } from '../../components/common/Skeleton';
+import TabBar, { type TabOption } from '../../components/common/TabBar';
 import {
   EditIcon,
   ShareIcon,
@@ -44,7 +45,7 @@ interface TabDef {
   locked: boolean;
 }
 
-const TABS: TabDef[] = [
+const TAB_DEFS: TabDef[] = [
   { key: 'posts', labelKey: 'tabPosts', locked: false },
   { key: 'comments', labelKey: 'tabComments', locked: false },
   { key: 'anonPosts', labelKey: 'tabAnonPosts', locked: true },
@@ -146,6 +147,18 @@ export default function MeScreen({ navigation }: Props) {
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
+
+  /* ── Tab options ── */
+  const tabOptions = useMemo<TabOption<MeTab>[]>(
+    () =>
+      TAB_DEFS.map((tab) => ({
+        value: tab.key,
+        label: t(tab.labelKey),
+        icon: tab.locked ? <LockIcon size={12} color={colors.onSurfaceVariant} /> : undefined,
+        disabled: false,
+      })),
+    [t]
+  );
 
   /* ── Empty label map ── */
   const emptyLabels: Record<MeTab, string> = useMemo(
@@ -330,43 +343,7 @@ export default function MeScreen({ navigation }: Props) {
           </View>
 
           {/* Tab bar */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabBarContent}
-            style={styles.tabBar}
-          >
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.tabItem, isActive && styles.tabItemActive]}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  {tab.locked && (
-                    <LockIcon
-                      size={12}
-                      color={
-                        isActive
-                          ? colors.primary
-                          : colors.onSurfaceVariant
-                      }
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.tabText,
-                      isActive && styles.tabTextActive,
-                    ]}
-                  >
-                    {t(tab.labelKey)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <TabBar options={tabOptions} value={activeTab} onChange={setActiveTab} />
 
           {/* Tab content */}
           <View style={styles.tabContent}>{renderTabContent()}</View>
@@ -529,37 +506,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  /* Tab bar */
-  tabBar: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  tabBarContent: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xs,
-  },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.transparent,
-    minHeight: 44,
-  },
-  tabItemActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-
   /* Tab content */
   tabContent: {
     paddingHorizontal: spacing.lg,
@@ -618,7 +564,7 @@ const styles = StyleSheet.create({
   /* Contact Us Modal */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,

@@ -13,7 +13,6 @@ import {
   ScrollView,
   Animated,
   Alert,
-  Switch,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -29,6 +28,7 @@ import Avatar from '../../components/common/Avatar';
 import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import IOSSwitch from '../../components/common/IOSSwitch';
 import {
   BackIcon,
   HeartIcon,
@@ -138,7 +138,7 @@ function ReplyItem({
   const highlightBg = highlighted
     ? flashAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['transparent', 'rgba(0,0,0,0.08)'],
+        outputRange: ['transparent', colors.scrimLight],
       })
     : undefined;
 
@@ -229,7 +229,7 @@ function CommentItem({
   const highlightBg = isHighlighted
     ? flashAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['transparent', 'rgba(0,0,0,0.08)'],
+        outputRange: ['transparent', colors.scrimLight],
       })
     : undefined;
 
@@ -626,12 +626,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         {/* Comment Input Bar */}
         <View style={styles.commentInputBar}>
           <View style={styles.anonToggle}>
-            <Switch
+            <IOSSwitch
               value={isAnonymous}
               onValueChange={setIsAnonymous}
-              trackColor={{ false: colors.surfaceVariant, true: colors.primaryContainer }}
-              thumbColor={isAnonymous ? colors.primary : colors.outline}
-              style={{ transform: [{ scale: 0.7 }] }}
             />
             <Text style={styles.anonToggleText}>{t('anonymous')}</Text>
           </View>
@@ -959,6 +956,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   popoverBubble: {
     position: 'absolute',
@@ -977,7 +975,7 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: colors.error,
   },
 
   /* ── Comment Input Bar ── */

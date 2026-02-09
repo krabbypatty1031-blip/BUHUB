@@ -7,7 +7,6 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Switch,
   Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +19,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { CloseIcon, PlusIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
 import { mockPosts } from '../../data/mock/forum';
+import IOSSwitch from '../../components/common/IOSSwitch';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Compose'>;
 
@@ -221,11 +221,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
               <UserIcon size={20} color={colors.onSurfaceVariant} />
               <Text style={styles.optionText}>{t('anonymous')}</Text>
             </View>
-            <Switch
+            <IOSSwitch
               value={isAnonymous}
               onValueChange={setIsAnonymous}
-              trackColor={{ false: colors.surfaceVariant, true: colors.primaryContainer }}
-              thumbColor={isAnonymous ? colors.primary : colors.outline}
             />
           </View>
         </View>
@@ -312,7 +310,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.scrimHeavy,
     alignItems: 'center',
     justifyContent: 'center',
   },

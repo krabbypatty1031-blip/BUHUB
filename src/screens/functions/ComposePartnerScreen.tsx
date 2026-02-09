@@ -19,12 +19,16 @@ import {
   CloseIcon,
   ClockIcon,
   MapPinIcon,
-  UsersIcon,
   ChevronRightIcon,
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
-import { enforceTitleLimit, getTitleCountLabel } from '../../utils/textLimit';
+import {
+  enforceTitleLimit,
+  getTitleCountLabel,
+  enforceContentLimit,
+  getContentCountLabel,
+} from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposePartner'>;
@@ -42,9 +46,8 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const defaultCategory = (route.params?.category as PartnerCategory) || null;
+  const defaultCategory = (route.params?.category as PartnerCategory) || 'travel';
   const [category, setCategory] = useState<PartnerCategory | null>(defaultCategory);
-  const [maxPeople, setMaxPeople] = useState('');
   const [activityTime, setActivityTime] = useState('');
   const [location, setLocation] = useState('');
   const [deadline, setDeadline] = useState<Date | null>(
@@ -73,6 +76,10 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
+  }, []);
+
+  const handleContentChange = useCallback((text: string) => {
+    setContent(enforceContentLimit(text));
   }, []);
 
   const canPost =
@@ -145,12 +152,11 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             placeholder={placeholders.content}
             placeholderTextColor={colors.outline}
             value={content}
-            onChangeText={setContent}
+            onChangeText={handleContentChange}
             multiline
             textAlignVertical="top"
-            maxLength={1000}
           />
-          <Text style={styles.charCount}>{content.length}/1000</Text>
+          <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
         </View>
 
         {/* ── Details Card ── */}
@@ -187,28 +193,6 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
               onChangeText={setLocation}
               maxLength={50}
             />
-          </View>
-
-          <View style={styles.cardDivider} />
-
-          {/* Max People */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>
-              <UsersIcon size={14} color={colors.primary} />{' '}
-              {t('maxPeople')}
-            </Text>
-            <View style={styles.numberInputRow}>
-              <TextInput
-                style={styles.numberInput}
-                placeholder="4"
-                placeholderTextColor={colors.outline}
-                value={maxPeople}
-                onChangeText={setMaxPeople}
-                keyboardType="number-pad"
-                maxLength={3}
-              />
-              <Text style={styles.numberUnit}>{t('personUnit')}</Text>
-            </View>
           </View>
 
           <View style={styles.cardDivider} />
@@ -364,26 +348,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
-  numberInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  numberInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    width: 80,
-    textAlign: 'center',
-  },
-  numberUnit: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-  },
-
   /* Deadline */
   deadlineInput: {
     flexDirection: 'row',

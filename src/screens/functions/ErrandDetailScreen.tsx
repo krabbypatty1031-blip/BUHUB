@@ -93,7 +93,6 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <ForwardIcon size={16} color={colors.onSurface} />
               <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
             </TouchableOpacity>
           </View>
@@ -345,7 +344,7 @@ const styles = StyleSheet.create({
   },
   priceValue: {
     ...typography.headlineSmall,
-    color: colors.onAccentContainer,
+    color: colors.error,
     fontWeight: '700',
   },
 
@@ -522,6 +521,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   popoverBubble: {
     position: 'absolute' as const,
@@ -542,6 +542,6 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: colors.error,
   },
 });

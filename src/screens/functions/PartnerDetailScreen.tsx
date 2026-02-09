@@ -99,7 +99,6 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <ForwardIcon size={16} color={colors.onSurface} />
               <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
             </TouchableOpacity>
           </View>
@@ -426,6 +425,7 @@ const styles = StyleSheet.create({
   popoverOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   popoverBubble: {
     position: 'absolute',
@@ -447,6 +447,6 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: colors.error,
   },
 });

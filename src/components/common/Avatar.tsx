@@ -16,10 +16,8 @@ function Avatar({ text, uri, size = 'md', gender }: AvatarProps) {
   const s = SIZES[size];
   const fs = FONT[size];
 
-  const bgColor =
-    gender === 'male' ? colors.genderMale :
-    gender === 'female' ? colors.genderFemale :
-    colors.primary;
+  // Always use gray background, regardless of gender
+  const bgColor = colors.secondary;
 
   const isImageUri = uri && (uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('data:'));
 

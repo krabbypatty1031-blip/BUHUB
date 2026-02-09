@@ -59,11 +59,12 @@ export default function SearchScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onLike={() => toggleLike(item.id)}
         onBookmark={() => toggleBookmark(item.id)}
+        onTagPress={(tag) => handleTagPress(tag)}
         isLiked={likedPosts.has(item.id)}
         isBookmarked={bookmarkedPosts.has(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark]
+    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark, handleTagPress]
   );
 
   return (

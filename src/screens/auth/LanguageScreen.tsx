@@ -74,7 +74,7 @@ export default function LanguageScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.continueBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Verify')}
+          onPress={() => navigation.navigate('EmailInput')}
         >
           <Text style={styles.continueBtnText}>{t('continue')}</Text>
         </TouchableOpacity>

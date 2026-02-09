@@ -7,7 +7,8 @@ import { RatingCategory } from './rating';
 // Auth Stack
 export type AuthStackParamList = {
   Language: undefined;
-  Verify: undefined;
+  EmailInput: undefined;
+  VerifyCode: { email: string };
   ProfileSetup: undefined;
 };
 
@@ -30,11 +31,11 @@ export type FunctionsStackParamList = {
   PartnerShare: { activityName: string };
   ErrandList: { category?: ErrandCategory };
   ErrandDetail: { index: number };
-  ComposeErrand: undefined;
+  ComposeErrand: { category?: ErrandCategory } | undefined;
   ErrandShare: { taskName: string };
   SecondhandList: { category?: SecondhandCategory };
   SecondhandDetail: { index: number };
-  ComposeSecondhand: undefined;
+  ComposeSecondhand: { category?: SecondhandCategory } | undefined;
   SecondhandShare: { itemName: string };
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; index: number };
