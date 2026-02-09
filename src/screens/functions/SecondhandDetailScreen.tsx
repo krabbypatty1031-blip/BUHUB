@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -26,7 +27,8 @@ import {
   HeartIcon,
   ClockIcon,
   AlertTriangleIcon,
-  ShareIcon,
+  MoreHorizontalIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandDetail'>;
@@ -47,6 +49,9 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const isExpired = item ? item.expired && !item.sold : false;
   const isDisabled = isSold || isExpired;
 
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+
   const expiryText = useMemo(() => {
     if (!item || isSold || isExpired) return null;
     const expires = new Date(item.expiresAt);
@@ -60,7 +65,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     if (!item) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: item.user, contactAvatar: item.avatar },
+      params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title },
     });
   }, [navigation, item]);
 
@@ -70,11 +75,6 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       showSnackbar({ message: t('notifiedSeller'), type: 'info' });
     }
   }, [toggleWant, index, isWanted, showSnackbar, t]);
-
-  const handleShare = useCallback(() => {
-    if (!item) return;
-    navigation.navigate('SecondhandShare', { itemName: item.title });
-  }, [navigation, item]);
 
   if (!item) {
     return (
@@ -102,10 +102,31 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('secondhandDetail')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-          <ShareIcon size={20} color={colors.onSurfaceVariant} />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={() => setPopoverVisible(false)}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setShareSheetVisible(true);
+              }}
+            >
+              <ForwardIcon size={16} color={colors.onSurface} />
+              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ── Hero Image ── */}
@@ -198,14 +219,6 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 {item.bio}
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.sellerDmBtn}
-              activeOpacity={0.7}
-              onPress={handleContact}
-              disabled={isDisabled}
-            >
-              <MessageIcon size={16} color={colors.primary} />
-            </TouchableOpacity>
           </TouchableOpacity>
         </View>
 
@@ -243,6 +256,15 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <Text style={styles.contactButtonText}>{t('secondhandDmSeller')}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        functionType="secondhand"
+        functionTitle={item.title}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -471,15 +493,6 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
-  sellerDmBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   /* Disclaimer */
   disclaimerCard: {
     flexDirection: 'row',
@@ -553,4 +566,36 @@ const styles = StyleSheet.create({
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
+
+  /* Popover */
+  popoverOverlay: {
+    position: 'absolute' as const,
+    top: 56,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  popoverBubble: {
+    position: 'absolute' as const,
+    top: spacing.sm,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    minWidth: 160,
+    ...elevation[3],
+  },
+  popoverItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+
 });

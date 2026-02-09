@@ -22,6 +22,7 @@ import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   PlusIcon,
@@ -29,6 +30,7 @@ import {
   ShoppingBagIcon,
   MapPinIcon,
   AlertTriangleIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
@@ -50,11 +52,13 @@ const ItemCard = React.memo(function ItemCard({
   item,
   index,
   onPress,
+  onForward,
   t,
 }: {
   item: SecondhandItem;
   index: number;
   onPress: (index: number) => void;
+  onForward: (index: number) => void;
   t: (key: string) => string;
 }) {
   const isSoldOrExpired = item.sold || item.expired;
@@ -112,6 +116,15 @@ const ItemCard = React.memo(function ItemCard({
             </View>
           ) : null}
         </View>
+        {!item.sold && !item.expired && (
+          <TouchableOpacity
+            style={styles.forwardBtn}
+            activeOpacity={0.7}
+            onPress={() => onForward(index)}
+          >
+            <ForwardIcon size={14} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -164,16 +177,24 @@ export default function SecondhandListScreen({ navigation }: Props) {
     [navigation]
   );
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: SecondhandItem; index: number }) => (
-      <ItemCard item={item} index={index} onPress={handleItemPress} t={t} />
-    ),
-    [handleItemPress, t]
+  const [shareSheetItem, setShareSheetItem] = useState<SecondhandItem | null>(null);
+
+  const handleForward = useCallback(
+    (index: number) => {
+      const item = filteredItems[index];
+      if (item) {
+        setShareSheetItem(item);
+      }
+    },
+    [filteredItems]
   );
 
-  // Stats
-  const totalCount = items?.length ?? 0;
-  const forSaleCount = items?.filter((i) => !i.sold && !i.expired).length ?? 0;
+  const renderItem = useCallback(
+    ({ item, index }: { item: SecondhandItem; index: number }) => (
+      <ItemCard item={item} index={index} onPress={handleItemPress} onForward={handleForward} t={t} />
+    ),
+    [handleItemPress, handleForward, t]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -202,32 +223,24 @@ export default function SecondhandListScreen({ navigation }: Props) {
       </View>
 
       {/* Category Chips */}
-      <View style={styles.chipSection}>
-        <View style={styles.chipRow}>
-          {CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.key}
-              label={t(cat.labelKey)}
-              selected={
-                cat.key === 'all'
-                  ? selectedCategory === null
-                  : selectedCategory === cat.key
-              }
-              onPress={() => handleCategoryPress(cat.key)}
-            />
-          ))}
-        </View>
+      <View style={styles.chipRow}>
+        {CATEGORIES.map((cat) => (
+          <Chip
+            key={cat.key}
+            label={t(cat.labelKey)}
+            selected={
+              cat.key === 'all'
+                ? selectedCategory === null
+                : selectedCategory === cat.key
+            }
+            onPress={() => handleCategoryPress(cat.key)}
+          />
+        ))}
+      </View>
 
-        {/* Item count + Disclaimer */}
-        <View style={styles.subHeaderRow}>
-          <Text style={styles.itemCount}>
-            {forSaleCount}/{totalCount} {t('forSale')}
-          </Text>
-          <View style={styles.disclaimerPill}>
-            <AlertTriangleIcon size={12} color={colors.onErrorContainer} />
-            <Text style={styles.disclaimerPillText}>{t('disclaimer')}</Text>
-          </View>
-        </View>
+      {/* Disclaimer Banner */}
+      <View style={styles.disclaimerBar}>
+        <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
       </View>
 
       {/* Grid List */}
@@ -258,6 +271,15 @@ export default function SecondhandListScreen({ navigation }: Props) {
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={!!shareSheetItem}
+        onClose={() => setShareSheetItem(null)}
+        functionType="secondhand"
+        functionTitle={shareSheetItem?.title ?? ''}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -310,41 +332,27 @@ const styles = StyleSheet.create({
   },
 
   /* Chips */
-  chipSection: {
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
   chipRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
     flexWrap: 'wrap',
   },
-  subHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  itemCount: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
-  },
-  disclaimerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+
+  /* Disclaimer */
+  disclaimerBar: {
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs + 1,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.sm,
   },
-  disclaimerPillText: {
-    ...typography.labelSmall,
+  disclaimerText: {
+    ...typography.bodySmall,
     color: colors.onErrorContainer,
-    fontSize: 10,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 
   /* List */
@@ -464,6 +472,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  forwardBtn: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   /* FAB */
   fab: {
     position: 'absolute',
@@ -477,4 +497,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...elevation[3],
   },
+
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,15 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   UsersIcon,
   ClockIcon,
   MapPinIcon,
   MessageIcon,
-  ShareIcon,
-  AlertTriangleIcon,
+  MoreHorizontalIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;
@@ -37,19 +38,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
   const partner = partners?.[index];
   const isJoined = joinedActivities.has(index);
-  const effectiveJoined = partner ? partner.joined + (isJoined ? 1 : 0) : 0;
-
-  const spotsInfo = useMemo(() => {
-    if (!partner) return null;
-    const remaining = partner.maxPeople - effectiveJoined;
-    if (remaining <= 0) return t('spotsFull');
-    return `${t('spotsRemaining')} ${remaining} ${t('spotsUnit')}`;
-  }, [partner, effectiveJoined, t]);
-
-  const progressPercent = useMemo(() => {
-    if (!partner) return 0;
-    return Math.min((effectiveJoined / partner.maxPeople) * 100, 100);
-  }, [partner, effectiveJoined]);
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   const handleJoin = useCallback(() => {
     toggleJoin(index);
@@ -59,13 +49,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     if (!partner) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: partner.user, contactAvatar: partner.avatar },
+      params: { contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title },
     });
-  }, [navigation, partner]);
-
-  const handleShare = useCallback(() => {
-    if (!partner) return;
-    navigation.navigate('PartnerShare', { activityName: partner.title });
   }, [navigation, partner]);
 
   if (!partner) {
@@ -94,10 +79,32 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-          <ShareIcon size={20} color={colors.onSurfaceVariant} />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {/* Popover Menu */}
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={() => setPopoverVisible(false)}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setShareSheetVisible(true);
+              }}
+            >
+              <ForwardIcon size={16} color={colors.onSurface} />
+              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ── Header: Title & Tags ── */}
@@ -151,39 +158,6 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             </>
           ) : null}
 
-          {/* People */}
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconCircle}>
-              <UsersIcon size={16} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('people')}</Text>
-              <Text style={styles.detailValue}>{partner.people}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Participation Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('participation')}</Text>
-          <View style={styles.participationRow}>
-            <Text style={styles.participationCount}>
-              {effectiveJoined}/{partner.maxPeople}
-            </Text>
-            <Text style={styles.participationUnit}>{t('joinedCount')}</Text>
-          </View>
-
-          {/* Progress bar */}
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${progressPercent}%` },
-                progressPercent >= 100 && styles.progressFillFull,
-              ]}
-            />
-          </View>
-          <Text style={styles.spotsText}>{spotsInfo}</Text>
         </View>
 
         {/* ── Organizer Card ── */}
@@ -197,14 +171,6 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 {partner.bio}
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.organizerDmBtn}
-              activeOpacity={0.7}
-              onPress={handleDmOrganizer}
-              disabled={partner.expired}
-            >
-              <MessageIcon size={16} color={colors.primary} />
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -240,6 +206,15 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        functionType="partner"
+        functionTitle={partner.title}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -377,42 +352,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  /* Participation */
-  participationRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  participationCount: {
-    ...typography.headlineMedium,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  participationUnit: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.surface2,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  progressFillFull: {
-    backgroundColor: colors.outline,
-  },
-  spotsText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-
   /* Organizer */
   organizerRow: {
     flexDirection: 'row',
@@ -431,15 +370,6 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
-  organizerDmBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   /* Bottom Bar */
   bottomBar: {
     position: 'absolute',
@@ -491,5 +421,32 @@ const styles = StyleSheet.create({
   },
   joinedButtonText: {
     color: colors.onSurfaceVariant,
+  },
+  // Popover
+  popoverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  popoverBubble: {
+    position: 'absolute',
+    top: 52,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    minWidth: 140,
+    ...elevation[3],
+    zIndex: 11,
+  },
+  popoverItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
   },
 });

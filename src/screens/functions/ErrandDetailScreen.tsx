@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,11 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useErrands } from '../../hooks/useErrands';
-import { useErrandStore } from '../../store/errandStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   DollarIcon,
@@ -23,9 +23,10 @@ import {
   MapPinIcon,
   PackageIcon,
   MessageIcon,
-  ShareIcon,
   AlertTriangleIcon,
   TruckIcon,
+  MoreHorizontalIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandDetail'>;
@@ -34,27 +35,17 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { index } = route.params;
   const { data: errands } = useErrands();
-  const toggleAccept = useErrandStore((s) => s.toggleAccept);
-  const acceptedErrands = useErrandStore((s) => s.acceptedErrands);
-
   const errand = errands?.[index];
-  const isAccepted = acceptedErrands.has(index);
 
-  const handleAccept = useCallback(() => {
-    toggleAccept(index);
-  }, [toggleAccept, index]);
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   const handleDmPoster = useCallback(() => {
     if (!errand) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: errand.user, contactAvatar: errand.avatar },
+      params: { contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title },
     });
-  }, [navigation, errand]);
-
-  const handleShare = useCallback(() => {
-    if (!errand) return;
-    navigation.navigate('ErrandShare', { taskName: errand.title });
   }, [navigation, errand]);
 
   if (!errand) {
@@ -83,10 +74,31 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-          <ShareIcon size={20} color={colors.onSurfaceVariant} />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={() => setPopoverVisible(false)}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setShareSheetVisible(true);
+              }}
+            >
+              <ForwardIcon size={16} color={colors.onSurface} />
+              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ── Header: Tags & Title ── */}
@@ -185,14 +197,6 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                 {errand.bio}
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.posterDmBtn}
-              activeOpacity={0.7}
-              onPress={handleDmPoster}
-              disabled={errand.expired}
-            >
-              <MessageIcon size={16} color={colors.primary} />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -206,34 +210,24 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       {/* ── Bottom Bar ── */}
       <View style={[styles.bottomBar, errand.expired && styles.bottomBarDisabled]}>
         <TouchableOpacity
-          style={styles.dmButton}
+          style={styles.dmButtonFull}
           activeOpacity={0.7}
           onPress={handleDmPoster}
           disabled={errand.expired}
         >
-          <MessageIcon size={18} color={colors.primary} />
-          <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.acceptButton,
-            isAccepted && styles.acceptedButton,
-            errand.expired && styles.disabledButton,
-          ]}
-          activeOpacity={0.7}
-          onPress={handleAccept}
-          disabled={isAccepted || errand.expired}
-        >
-          <Text
-            style={[
-              styles.acceptButtonText,
-              isAccepted && styles.acceptedButtonText,
-            ]}
-          >
-            {isAccepted ? t('alreadyAccepted') : t('acceptErrand')}
-          </Text>
+          <MessageIcon size={18} color={colors.onPrimary} />
+          <Text style={styles.dmButtonFullText}>{t('errandDmPoster')}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        functionType="errand"
+        functionTitle={errand.title}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -471,15 +465,6 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
-  posterDmBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   /* Disclaimer */
   disclaimerCard: {
     flexDirection: 'row',
@@ -516,39 +501,47 @@ const styles = StyleSheet.create({
   bottomBarDisabled: {
     opacity: 0.5,
   },
-  dmButton: {
+  dmButtonFull: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  dmButtonText: {
-    ...typography.labelLarge,
-    color: colors.primary,
-  },
-  acceptButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptedButton: {
-    backgroundColor: colors.surfaceVariant,
-  },
-  disabledButton: {
-    backgroundColor: colors.outlineVariant,
-  },
-  acceptButtonText: {
+  dmButtonFullText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
-  acceptedButtonText: {
-    color: colors.onSurfaceVariant,
+  popoverOverlay: {
+    position: 'absolute' as const,
+    top: 56,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  popoverBubble: {
+    position: 'absolute' as const,
+    top: spacing.sm,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    minWidth: 160,
+    ...elevation[3],
+  },
+  popoverItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
   },
 });

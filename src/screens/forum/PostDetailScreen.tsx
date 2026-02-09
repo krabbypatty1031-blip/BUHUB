@@ -13,6 +13,7 @@ import {
   ScrollView,
   Animated,
   Alert,
+  Switch,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -308,11 +309,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
   const [reportVisible, setReportVisible] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
+  const [popoverVisible, setPopoverVisible] = useState(false);
 
-  /* ── Scroll to target comment ── */
+  /* ── Refs ── */
+  const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const targetCommentIndex = useMemo(() => {
@@ -372,9 +376,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const isLiked = likedPosts.has(postId);
   const isBookmarked = bookmarkedPosts.has(postId);
 
+  const handleComment = useCallback(() => {
+    setReplyTo(null);
+    setCommentText('');
+    inputRef.current?.focus();
+  }, []);
+
   const handleReply = useCallback((name: string) => {
     setReplyTo(name);
     setCommentText(`@${name} `);
+    inputRef.current?.focus();
   }, []);
 
   const handleSendComment = useCallback(() => {
@@ -395,18 +406,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [post, navigation]);
 
   const handleReportPost = useCallback(() => {
-    Alert.alert('', '', [
-      {
-        text: t('reportPost'),
-        style: 'destructive',
-        onPress: () => {
-          setReportTitle(t('reportPost'));
-          setReportVisible(true);
-        },
-      },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
-  }, [t]);
+    setPopoverVisible(true);
+  }, []);
 
   const handleReportComment = useCallback(() => {
     setReportTitle(t('reportComment'));
@@ -444,7 +445,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           {post.tags && post.tags.length > 0 && (
             <View style={styles.postTags}>
               {post.tags.map((tag) => (
-                <Tag key={tag} label={tag} />
+                <TouchableOpacity key={tag} onPress={() => navigation.navigate('CircleDetail', { tag })}>
+                  <Tag label={tag} />
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -483,7 +486,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               style={styles.postActionBtn}
-              onPress={() => handleReply('')}
+              onPress={handleComment}
             >
               <CommentIcon size={20} color={colors.onSurfaceVariant} />
               <Text style={styles.postActionText}>{post.comments}</Text>
@@ -525,7 +528,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, postId, toggleLike, toggleBookmark, handleReply, handleForward, handleQuote, t]);
+  }, [post, isLiked, isBookmarked, postId, toggleLike, toggleBookmark, handleComment, handleForward, handleQuote, t]);
 
   if (!post) return null;
 
@@ -544,6 +547,27 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={() => setPopoverVisible(false)}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setReportTitle(t('reportPost'));
+                setReportVisible(true);
+              }}
+            >
+              <Text style={styles.popoverItemText}>{t('reportAction')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <KeyboardAvoidingView
         style={styles.flex1}
@@ -601,7 +625,18 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
         {/* Comment Input Bar */}
         <View style={styles.commentInputBar}>
+          <View style={styles.anonToggle}>
+            <Switch
+              value={isAnonymous}
+              onValueChange={setIsAnonymous}
+              trackColor={{ false: colors.surfaceVariant, true: colors.primaryContainer }}
+              thumbColor={isAnonymous ? colors.primary : colors.outline}
+              style={{ transform: [{ scale: 0.7 }] }}
+            />
+            <Text style={styles.anonToggleText}>{t('anonymous')}</Text>
+          </View>
           <TextInput
+            ref={inputRef}
             style={styles.commentInput}
             placeholder={
               replyTo
@@ -916,7 +951,46 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  /* ── Popover ── */
+  popoverOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+  },
+  popoverBubble: {
+    position: 'absolute',
+    top: 52,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    minWidth: 140,
+    ...elevation[3],
+    zIndex: 101,
+  },
+  popoverItem: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+
   /* ── Comment Input Bar ── */
+  anonToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.xs,
+  },
+  anonToggleText: {
+    ...typography.labelSmall,
+    color: colors.onSurfaceVariant,
+    fontSize: 10,
+  },
   commentInputBar: {
     flexDirection: 'row',
     alignItems: 'center',

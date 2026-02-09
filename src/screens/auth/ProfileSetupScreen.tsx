@@ -41,7 +41,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const [pickerType, setPickerType] = useState<PickerType>('grade');
 
   const pickerData: Record<PickerType, string[]> = {
-    grade: [t('gradeUndergrad'), t('gradePostgrad'), t('gradePhD')],
+    grade: [t('gradeUndergradY1'), t('gradeUndergradY2'), t('gradeUndergradY3'), t('gradeUndergradY4'), t('gradePostgrad'), t('gradePhD')],
     major: [t('majorBCDA'), t('majorAI'), t('majorSE'), t('majorIDS')],
     gender: [t('genderMale'), t('genderFemale'), t('genderOther'), t('genderSecret')],
   };

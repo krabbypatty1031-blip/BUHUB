@@ -1,8 +1,9 @@
 import type { PartnerPost } from '../../types';
 
 const now = new Date();
-const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
-const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+// Expiry tied to activity time (not fixed 3-day window)
+const twoDaysLater = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
 const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
 
 export const mockPartnerPosts: PartnerPost[] = [
@@ -21,7 +22,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     expired: false,
-    expiresAt: threeDaysLater,
+    expiresAt: twoDaysLater,
   },
   {
     category: 'food',
@@ -38,7 +39,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'female',
     bio: 'Year 4 · Music',
     expired: false,
-    expiresAt: sevenDaysLater,
+    expiresAt: fiveDaysLater,
   },
   {
     category: 'course',
@@ -72,7 +73,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'female',
     bio: 'Year 3 · Communication',
     expired: false,
-    expiresAt: sevenDaysLater,
+    expiresAt: fiveDaysLater,
   },
   {
     category: 'food',
@@ -89,7 +90,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     expired: false,
-    expiresAt: threeDaysLater,
+    expiresAt: twoDaysLater,
   },
   {
     category: 'course',

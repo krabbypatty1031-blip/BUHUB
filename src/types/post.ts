@@ -30,6 +30,7 @@ export interface Comment {
   content: string;
   time: string;
   likes: number;
+  isAnonymous?: boolean;
   replies?: Reply[];
 }
 

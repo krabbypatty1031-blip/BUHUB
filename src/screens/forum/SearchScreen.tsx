@@ -22,14 +22,14 @@ import type { ForumPost } from '../../types';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Search'>;
 
-const OFFICIAL_TAGS = [
-  '#校園生活',
-  '#浸大樹洞',
-  '#課程交流',
-  '#學業求助',
-  '#失物招領',
-  '#工作推薦',
-];
+const CIRCLE_KEYS = [
+  'tagTreehole',
+  'tagJobReferral',
+  'tagCourseExchange',
+  'tagCampusLife',
+  'tagLostFound',
+  'tagStudyHelp',
+] as const;
 
 export default function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -94,13 +94,13 @@ export default function SearchScreen({ navigation }: Props) {
         <View style={styles.emptyState}>
           <Text style={styles.officialTagsTitle}>{t('officialTags')}</Text>
           <View style={styles.officialTagsList}>
-            {OFFICIAL_TAGS.map((tag) => (
+            {CIRCLE_KEYS.map((key) => (
               <TouchableOpacity
-                key={tag}
+                key={key}
                 style={styles.officialTag}
-                onPress={() => handleTagPress(tag)}
+                onPress={() => handleTagPress(t(key))}
               >
-                <Text style={styles.officialTagText}>{tag}</Text>
+                <Text style={styles.officialTagText}>{t(key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -154,7 +154,8 @@ const styles = StyleSheet.create({
     flex: 1,
     ...typography.bodyMedium,
     color: colors.onSurface,
-    padding: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
   },
   emptyState: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,8 @@ import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, PlusIcon, UsersIcon, MessageIcon } from '../../components/common/icons';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { BackIcon, PlusIcon, UsersIcon, MessageIcon, ForwardIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -30,6 +31,7 @@ const CATEGORIES: Array<{ key: PartnerCategory | 'all'; labelKey: string }> = [
   { key: 'food', labelKey: 'food' },
   { key: 'course', labelKey: 'course' },
   { key: 'sports', labelKey: 'sports' },
+  { key: 'other', labelKey: 'other' },
 ];
 
 export default function PartnerListScreen({ navigation }: Props) {
@@ -59,11 +61,13 @@ export default function PartnerListScreen({ navigation }: Props) {
     [setCategory]
   );
 
+  const [shareSheetItem, setShareSheetItem] = useState<PartnerPost | null>(null);
+
   const handleDmOrganizer = useCallback(
     (item: PartnerPost) => {
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar },
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title },
       });
     },
     [navigation]
@@ -72,7 +76,6 @@ export default function PartnerListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item, index }: { item: PartnerPost; index: number }) => {
       const isJoined = joinedActivities.has(index);
-      const effectiveJoined = item.joined + (isJoined ? 1 : 0);
       return (
         <TouchableOpacity
           style={[styles.card, item.expired && styles.cardExpired]}
@@ -97,12 +100,6 @@ export default function PartnerListScreen({ navigation }: Props) {
           </Text>
           <View style={styles.cardFooter}>
             <View style={styles.footerLeft}>
-              <View style={styles.joinInfo}>
-                <UsersIcon size={16} color={colors.onSurfaceVariant} />
-                <Text style={styles.joinText}>
-                  {effectiveJoined}/{item.maxPeople} {t('people')}
-                </Text>
-              </View>
               {isJoined && (
                 <View style={styles.joinedBadge}>
                   <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
@@ -115,13 +112,22 @@ export default function PartnerListScreen({ navigation }: Props) {
               )}
             </View>
             {!item.expired && (
-              <TouchableOpacity
-                style={styles.dmBtn}
-                activeOpacity={0.7}
-                onPress={() => handleDmOrganizer(item)}
-              >
-                <MessageIcon size={16} color={colors.primary} />
-              </TouchableOpacity>
+              <View style={styles.footerRight}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setShareSheetItem(item)}
+                >
+                  <ForwardIcon size={16} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dmBtn}
+                  activeOpacity={0.7}
+                  onPress={() => handleDmOrganizer(item)}
+                >
+                  <MessageIcon size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -172,7 +178,7 @@ export default function PartnerListScreen({ navigation }: Props) {
               title={t('noPartners') || 'No activities yet'}
               message={t('createPartnerHint') || 'Create an activity to find partners!'}
               actionLabel={t('createActivity') || 'Create Activity'}
-              onAction={() => navigation.navigate('ComposePartner')}
+              onAction={() => navigation.navigate('ComposePartner', { category: selectedCategory || undefined })}
             />
           ) : null
         }
@@ -182,10 +188,19 @@ export default function PartnerListScreen({ navigation }: Props) {
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('ComposePartner')}
+        onPress={() => navigation.navigate('ComposePartner', { category: selectedCategory || undefined })}
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={!!shareSheetItem}
+        onClose={() => setShareSheetItem(null)}
+        functionType="partner"
+        functionTitle={shareSheetItem?.title ?? ''}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -283,15 +298,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  joinInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  joinText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginLeft: spacing.xs,
-  },
   joinedBadge: {
     backgroundColor: colors.primaryContainer,
     paddingHorizontal: spacing.sm,
@@ -311,6 +317,19 @@ const styles = StyleSheet.create({
   expiredBadgeText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dmBtn: {
     width: 36,

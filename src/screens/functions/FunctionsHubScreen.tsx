@@ -20,11 +20,7 @@ import {
   ShoppingBagIcon,
   StarIcon,
   EditIcon,
-  HomeIcon,
-  HeartIcon,
-  PackageIcon,
   ChevronRightIcon,
-  DollarIcon,
   CalendarIcon,
 } from '../../components/common/icons';
 import type { IconProps } from '../../components/common/icons';
@@ -43,13 +39,6 @@ interface GridEntry {
   labelKey: string;
   Icon: React.FC<IconProps>;
   route: keyof FunctionsStackParamList;
-  theme: CardTheme;
-}
-
-interface ComingSoonEntry {
-  key: string;
-  labelKey: string;
-  Icon: React.FC<IconProps>;
   theme: CardTheme;
 }
 
@@ -81,25 +70,6 @@ const FACILITY_ENTRY: GridEntry = {
   key: 'facility', labelKey: 'facilityBooking', Icon: CalendarIcon, route: 'FacilityBooking',
   theme: { cardBg: '#E0F7FA', iconBg: '#F0FDFF', iconColor: '#0097A7', textColor: '#004D40' },
 };
-
-const COMING_SOON_ENTRIES: ComingSoonEntry[] = [
-  {
-    key: 'shopping', labelKey: 'shopping', Icon: DollarIcon,
-    theme: { cardBg: '#E0F2F1', iconBg: '#F0F9F8', iconColor: '#80CBC4', textColor: '#546E7A' },
-  },
-  {
-    key: 'renting', labelKey: 'renting', Icon: HomeIcon,
-    theme: { cardBg: '#E8EAF6', iconBg: '#F5F5FF', iconColor: '#9FA8DA', textColor: '#546E7A' },
-  },
-  {
-    key: 'dating', labelKey: 'dating', Icon: HeartIcon,
-    theme: { cardBg: '#FCE4EC', iconBg: '#FFF5F7', iconColor: '#F48FB1', textColor: '#546E7A' },
-  },
-  {
-    key: 'sfExpress', labelKey: 'sfExpress', Icon: PackageIcon,
-    theme: { cardBg: '#EFEBE9', iconBg: '#FAF7F5', iconColor: '#BCAAA4', textColor: '#546E7A' },
-  },
-];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = spacing.md;
@@ -176,22 +146,6 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           <ChevronRightIcon size={20} color={FACILITY_ENTRY.theme.textColor} />
         </TouchableOpacity>
 
-        {/* Row 4-7: Coming Soon (购物, 租房, 约会, 顺丰寄件) */}
-        {COMING_SOON_ENTRIES.map((entry) => (
-          <View key={entry.key} style={[styles.fullCard, styles.disabledCard, { backgroundColor: entry.theme.cardBg }]}>
-            <View style={styles.fullCardLeft}>
-              <View style={[styles.fullCardIcon, { backgroundColor: entry.theme.iconBg }]}>
-                <entry.Icon size={28} color={entry.theme.iconColor} />
-              </View>
-              <Text style={[styles.fullCardTitle, { color: entry.theme.textColor }]}>
-                {t(entry.labelKey)}
-              </Text>
-            </View>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>{t('comingSoon')}</Text>
-            </View>
-          </View>
-        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,19 +222,5 @@ const styles = StyleSheet.create({
   },
   fullCardTitle: {
     ...typography.titleMedium,
-  },
-  /* ── Disabled / Coming Soon ────────────────────────── */
-  disabledCard: {
-    opacity: 0.75,
-  },
-  comingSoonBadge: {
-    backgroundColor: colors.outline,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-  },
-  comingSoonText: {
-    ...typography.labelSmall,
-    color: colors.white,
   },
 });

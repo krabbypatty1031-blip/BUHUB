@@ -38,6 +38,8 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const type = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
   const quotedPost = quotePostId ? mockPosts.find((p) => p.id === quotePostId) : undefined;
+  const functionType = route.params?.functionType;
+  const functionTitle = route.params?.functionTitle;
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
@@ -117,6 +119,18 @@ export default function ComposeScreen({ navigation, route }: Props) {
             </View>
             <Text style={styles.quoteName}>{quotedPost.name}</Text>
             <Text style={styles.quoteContent} numberOfLines={3}>{quotedPost.content}</Text>
+          </View>
+        )}
+
+        {/* Function Reference Card */}
+        {functionType && functionTitle && (
+          <View style={styles.functionRefCard}>
+            <Text style={styles.functionRefType}>
+              {functionType === 'partner' ? t('findPartner') :
+               functionType === 'errand' ? t('errands') :
+               functionType === 'secondhand' ? t('secondhand') : ''}
+            </Text>
+            <Text style={styles.functionRefTitle} numberOfLines={1}>{functionTitle}</Text>
           </View>
         )}
 
@@ -363,7 +377,7 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.surface2,
   },
   tagSelected: {
@@ -371,7 +385,8 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: colors.primary,
+    fontWeight: '500',
   },
   tagTextSelected: {
     color: colors.onPrimaryContainer,
@@ -428,5 +443,25 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     lineHeight: 18,
+  },
+  // Function reference
+  functionRefCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  functionRefType: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  functionRefTitle: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
   },
 });

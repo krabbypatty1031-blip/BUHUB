@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,14 @@ import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import {
   BackIcon,
   PlusIcon,
   DollarIcon,
   ClockIcon,
   MessageIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
@@ -68,11 +70,13 @@ export default function ErrandListScreen({ navigation }: Props) {
     (item: Errand) => {
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar },
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title },
       });
     },
     [navigation]
   );
+
+  const [shareSheetItem, setShareSheetItem] = useState<Errand | null>(null);
 
   const renderItem = useCallback(
     ({ item, index }: { item: Errand; index: number }) => {
@@ -121,13 +125,22 @@ export default function ErrandListScreen({ navigation }: Props) {
               )}
             </View>
             {!item.expired && (
-              <TouchableOpacity
-                style={styles.dmBtn}
-                activeOpacity={0.7}
-                onPress={() => handleDmPoster(item)}
-              >
-                <MessageIcon size={16} color={colors.primary} />
-              </TouchableOpacity>
+              <View style={styles.footerRight}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setShareSheetItem(item)}
+                >
+                  <ForwardIcon size={16} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dmBtn}
+                  activeOpacity={0.7}
+                  onPress={() => handleDmPoster(item)}
+                >
+                  <MessageIcon size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -197,6 +210,15 @@ export default function ErrandListScreen({ navigation }: Props) {
       >
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
+
+      {/* Forward Sheet */}
+      <FunctionForwardSheet
+        visible={!!shareSheetItem}
+        onClose={() => setShareSheetItem(null)}
+        functionType="errand"
+        functionTitle={shareSheetItem?.title ?? ''}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -346,6 +368,19 @@ const styles = StyleSheet.create({
   expiredBadgeText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dmBtn: {
     width: 36,

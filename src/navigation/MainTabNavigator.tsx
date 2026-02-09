@@ -13,26 +13,29 @@ import MeStackNavigator from './MeStackNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TAB_ROOT_SCREENS: Record<string, string> = {
-  ForumTab: 'ForumHome',
-  FunctionsTab: 'FunctionsHub',
-  MessagesTab: 'MessagesList',
-  MeTab: 'MeHome',
-};
-
 export default function MainTabNavigator() {
   const { t } = useTranslation();
 
   return (
     <Tab.Navigator
-      screenListeners={({ route, navigation }) => ({
+      backBehavior="history"
+      screenListeners={({ navigation, route }) => ({
         tabPress: (e) => {
           e.preventDefault();
+          const state = navigation.getState();
+          const targetIndex = state.routes.findIndex(
+            (r) => r.name === route.name,
+          );
           navigation.dispatch(
-            CommonActions.navigate({
-              name: route.name,
-              params: { screen: TAB_ROOT_SCREENS[route.name] },
-            })
+            CommonActions.reset({
+              ...state,
+              index: targetIndex,
+              routes: state.routes.map((r) =>
+                r.name === route.name
+                  ? { ...r, state: undefined }
+                  : r,
+              ),
+            }),
           );
         },
       })}

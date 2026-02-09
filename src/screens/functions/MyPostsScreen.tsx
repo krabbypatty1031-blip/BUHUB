@@ -26,11 +26,11 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
-  UsersIcon,
   DollarIcon,
   ClockIcon,
   ShoppingBagIcon,
   CloseIcon,
+  ForwardIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'MyPosts'>;
@@ -165,10 +165,6 @@ export default function MyPostsScreen({ navigation }: Props) {
             <Text style={styles.cardTitle} numberOfLines={2}>{p.title}</Text>
             <Text style={styles.cardDesc} numberOfLines={2}>{p.desc}</Text>
             <View style={styles.cardFooter}>
-              <UsersIcon size={14} color={colors.onSurfaceVariant} />
-              <Text style={styles.footerText}>
-                {p.joined}/{p.maxPeople} {t('people')}
-              </Text>
               {expired && (
                 <View style={styles.expiredBadge}>
                   <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
@@ -179,16 +175,25 @@ export default function MyPostsScreen({ navigation }: Props) {
                   <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
                 </View>
               )}
-              {showClose && (
+              <View style={styles.footerActions}>
+                {showClose && (
+                  <TouchableOpacity
+                    style={styles.closeBtn}
+                    onPress={() => handleClose(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <CloseIcon size={14} color={colors.error} />
+                    <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => handleClose(item)}
+                  style={styles.forwardBtn}
+                  onPress={() => navigation.navigate('PartnerShare', { activityName: item.data.title })}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <CloseIcon size={14} color={colors.error} />
-                  <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                  <ForwardIcon size={14} color={colors.onSurfaceVariant} />
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
           </TouchableOpacity>
         );
@@ -229,16 +234,25 @@ export default function MyPostsScreen({ navigation }: Props) {
                   <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
                 </View>
               )}
-              {showClose && (
+              <View style={styles.footerActions}>
+                {showClose && (
+                  <TouchableOpacity
+                    style={styles.closeBtn}
+                    onPress={() => handleClose(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <CloseIcon size={14} color={colors.error} />
+                    <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => handleClose(item)}
+                  style={styles.forwardBtn}
+                  onPress={() => navigation.navigate('ErrandShare', { taskName: item.data.title })}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <CloseIcon size={14} color={colors.error} />
-                  <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                  <ForwardIcon size={14} color={colors.onSurfaceVariant} />
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
           </TouchableOpacity>
         );
@@ -279,16 +293,25 @@ export default function MyPostsScreen({ navigation }: Props) {
                 </Text>
               </View>
             )}
-            {showClose && !s.sold && (
+            <View style={styles.footerActions}>
+              {showClose && !s.sold && (
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => handleClose(item)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <CloseIcon size={14} color={colors.error} />
+                  <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={() => handleClose(item)}
+                style={styles.forwardBtn}
+                onPress={() => navigation.navigate('SecondhandShare', { itemName: item.data.title })}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <CloseIcon size={14} color={colors.error} />
-                <Text style={styles.closeBtnText}>{t('closePost')}</Text>
+                <ForwardIcon size={14} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
-            )}
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -463,16 +486,30 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onErrorContainer,
   },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginLeft: 'auto',
+  },
   closeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxs,
-    marginLeft: 'auto',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.xs,
     borderWidth: 1,
     borderColor: colors.error,
+  },
+  forwardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xs,
+    backgroundColor: colors.surface2,
   },
   closeBtnText: {
     ...typography.labelSmall,

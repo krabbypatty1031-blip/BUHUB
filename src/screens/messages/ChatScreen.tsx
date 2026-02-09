@@ -165,17 +165,33 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { contactName, contactAvatar } = route.params;
+  const { contactName, contactAvatar, forwardedType, forwardedTitle } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactName);
   const sendMessage = useSendMessage(contactName);
   const user = useAuthStore((s) => s.user);
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [forwardRef, setForwardRef] = useState<{ type: string; title: string } | null>(
+    forwardedType && forwardedTitle ? { type: forwardedType, title: forwardedTitle } : null
+  );
+
+  // Sync forwardRef when route.params change (screen reused by React Navigation)
+  useEffect(() => {
+    if (forwardedType && forwardedTitle) {
+      setForwardRef({ type: forwardedType, title: forwardedTitle });
+    } else {
+      setForwardRef(null);
+    }
+  }, [forwardedType, forwardedTitle]);
+
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
 
   const myAvatar = user?.name?.charAt(0) || user?.nickname?.charAt(0) || '我';
   const hasText = inputText.trim().length > 0;
+
+  const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand' };
+  const forwardTypeLabel = forwardRef ? (t(TYPE_LABEL_KEYS[forwardRef.type]) || forwardRef.type) : '';
 
   /* ── Chat trigger: disable input if last message is 'sent' (waiting for reply) ── */
   const waitingForReply = useMemo(() => {
@@ -216,11 +232,15 @@ export default function ChatScreen({ navigation, route }: Props) {
   /* ── Send message ── */
   const handleSend = useCallback(() => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text && !forwardRef) return;
     hapticLight();
-    sendMessage.mutate(text);
+    const body = forwardRef
+      ? `[${t('forwardedRef')}: ${forwardTypeLabel}] ${forwardRef.title}${text ? '\n' + text : ''}`
+      : text;
+    sendMessage.mutate(body);
     setInputText('');
-  }, [inputText, sendMessage]);
+    setForwardRef(null);
+  }, [inputText, sendMessage, forwardRef, t]);
 
   /* ── Camera: open device camera ── */
   const handleCamera = useCallback(async () => {
@@ -382,6 +402,24 @@ export default function ChatScreen({ navigation, route }: Props) {
             onContentSizeChange={scrollToBottom}
             onLayout={scrollToBottom}
           />
+        )}
+
+        {/* Forward Quote Card */}
+        {forwardRef && (
+          <View style={styles.quoteCard}>
+            <View style={styles.quoteBar} />
+            <View style={styles.quoteContent}>
+              <Text style={styles.quoteType}>{t('forwardedRef')}: {forwardTypeLabel}</Text>
+              <Text style={styles.quoteTitle} numberOfLines={1}>{forwardRef.title}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.quoteClose}
+              hitSlop={8}
+              onPress={() => setForwardRef(null)}
+            >
+              <CloseIcon size={16} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Input Bar */}
@@ -587,6 +625,45 @@ const styles = StyleSheet.create({
   },
   bubbleTimeLeft: {
     textAlign: 'left',
+  },
+
+  /* ── Forward quote card ── */
+  quoteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+  },
+  quoteBar: {
+    width: 3,
+    height: '100%',
+    minHeight: 32,
+    backgroundColor: colors.primary,
+    borderRadius: 1.5,
+    marginRight: spacing.sm,
+  },
+  quoteContent: {
+    flex: 1,
+  },
+  quoteType: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  quoteTitle: {
+    ...typography.bodySmall,
+    color: colors.onSurface,
+    marginTop: 1,
+  },
+  quoteClose: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
 
   /* ── Input bar ── */

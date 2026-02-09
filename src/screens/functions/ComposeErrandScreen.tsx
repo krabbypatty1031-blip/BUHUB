@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,12 @@ import {
   PackageIcon,
   DollarIcon,
   AlertTriangleIcon,
+  ChevronRightIcon,
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
+import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
+import { enforceTitleLimit, getTitleCountLabel } from '../../utils/textLimit';
+import { formatDeadline } from '../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeErrand'>;
 
@@ -43,15 +47,26 @@ export default function ComposeErrandScreen({ navigation }: Props) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [item, setItem] = useState('');
+  const [deadline, setDeadline] = useState<Date | null>(
+    () => new Date(Date.now() + 24 * 60 * 60 * 1000),
+  );
+  const [pickerVisible, setPickerVisible] = useState(false);
 
-  const endTimeDisplay = useMemo(() => {
-    const end = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const y = end.getFullYear();
-    const m = String(end.getMonth() + 1).padStart(2, '0');
-    const d = String(end.getDate()).padStart(2, '0');
-    const h = String(end.getHours()).padStart(2, '0');
-    const min = String(end.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${d} ${h}:${min}`;
+  const getPlaceholders = useCallback(() => {
+    switch (category) {
+      case 'pickup':
+        return { title: t('errandPlaceholderPickupTitle'), content: t('errandPlaceholderPickupContent') };
+      case 'buy':
+        return { title: t('errandPlaceholderBuyTitle'), content: t('errandPlaceholderBuyContent') };
+      default:
+        return { title: t('errandPlaceholderOtherTitle'), content: t('errandPlaceholderOtherContent') };
+    }
+  }, [category, t]);
+
+  const placeholders = getPlaceholders();
+
+  const handleTitleChange = useCallback((text: string) => {
+    setTitle(enforceTitleLimit(text));
   }, []);
 
   const canPost =
@@ -59,7 +74,8 @@ export default function ComposeErrandScreen({ navigation }: Props) {
     price.trim().length > 0 &&
     from.trim().length > 0 &&
     to.trim().length > 0 &&
-    item.trim().length > 0;
+    item.trim().length > 0 &&
+    deadline !== null;
 
   const handlePost = useCallback(() => {
     if (!canPost) return;
@@ -117,16 +133,16 @@ export default function ComposeErrandScreen({ navigation }: Props) {
         <View style={styles.card}>
           <TextInput
             style={styles.titleInput}
-            placeholder={t('errandTitlePlaceholder')}
+            placeholder={placeholders.title}
             placeholderTextColor={colors.outline}
             value={title}
-            onChangeText={setTitle}
-            maxLength={100}
+            onChangeText={handleTitleChange}
           />
+          <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
           <View style={styles.cardDivider} />
           <TextInput
             style={styles.contentInput}
-            placeholder={t('errandContentPlaceholder')}
+            placeholder={placeholders.content}
             placeholderTextColor={colors.outline}
             value={content}
             onChangeText={setContent}
@@ -217,17 +233,40 @@ export default function ComposeErrandScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── End Time Info ── */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <ClockIcon size={16} color={colors.onSurfaceVariant} />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>{t('endsAt')}</Text>
-              <Text style={styles.infoValue}>{endTimeDisplay}</Text>
-            </View>
+        {/* ── Deadline ── */}
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <ClockIcon size={14} color={colors.primary} />{' '}
+              {t('deadlineLabel')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TouchableOpacity
+              style={styles.deadlineInput}
+              activeOpacity={0.7}
+              onPress={() => setPickerVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.deadlineText,
+                  !deadline && styles.deadlinePlaceholder,
+                ]}
+              >
+                {deadline ? formatDeadline(deadline) : t('deadlinePlaceholder')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.outline} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.infoHint}>{t('errandAutoEndNotice')}</Text>
         </View>
+
+        <DateTimePickerSheet
+          visible={pickerVisible}
+          onClose={() => setPickerVisible(false)}
+          onConfirm={(date) => {
+            setDeadline(date);
+            setPickerVisible(false);
+          }}
+          initialDate={deadline || undefined}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -382,38 +421,21 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xxs,
   },
 
-  /* Info card */
-  infoCard: {
-    backgroundColor: colors.primaryContainer + '30',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  infoRow: {
+  /* Deadline */
+  deadlineInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  infoContent: {
-    flex: 1,
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
-  infoLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
-  },
-  infoValue: {
-    ...typography.bodyMedium,
+  deadlineText: {
+    ...typography.bodyLarge,
     color: colors.onSurface,
-    fontWeight: '600',
   },
-  infoHint: {
-    ...typography.bodySmall,
+  deadlinePlaceholder: {
     color: colors.outline,
-    marginTop: spacing.xs,
-    marginLeft: spacing.xxl,
   },
 });

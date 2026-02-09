@@ -25,12 +25,11 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
 } from '../../components/common/icons';
-import type { Gender } from '../../types/common';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Settings'>;
 
 type Visibility = 'public' | 'mutual' | 'hidden';
-type PickerType = 'visibility' | 'gender' | 'language';
+type PickerType = 'visibility' | 'language';
 
 const LANGUAGE_OPTIONS = [
   { value: 'tc' as const, label: '粵語 🇭🇰' },
@@ -44,7 +43,6 @@ export default function SettingsScreen({ navigation }: Props) {
   const language = useAuthStore((s) => s.language);
   const logout = useAuthStore((s) => s.logout);
   const setLanguage = useAuthStore((s) => s.setLanguage);
-  const updateUser = useAuthStore((s) => s.updateUser);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   // Local state
@@ -64,23 +62,11 @@ export default function SettingsScreen({ navigation }: Props) {
     hidden: t('visibilityHidden'),
   };
 
-  // Gender display mapping
-  const genderLabels: Record<Gender, string> = {
-    male: t('genderMale'),
-    female: t('genderFemale'),
-    other: t('genderOther'),
-    secret: t('genderSecret'),
-  };
-
-  const genderOptions: Gender[] = ['male', 'female', 'other', 'secret'];
-
   // Picker data
   const getPickerData = useCallback((): string[] => {
     switch (pickerType) {
       case 'visibility':
         return [t('visibilityPublic'), t('visibilityMutualOnly'), t('visibilityHidden')];
-      case 'gender':
-        return genderOptions.map((g) => genderLabels[g]);
       case 'language':
         return LANGUAGE_OPTIONS.map((l) => l.label);
     }
@@ -90,8 +76,6 @@ export default function SettingsScreen({ navigation }: Props) {
     switch (pickerType) {
       case 'visibility':
         return t('profileVisibility');
-      case 'gender':
-        return t('genderDisplay');
       case 'language':
         return t('systemLanguage');
     }
@@ -101,12 +85,10 @@ export default function SettingsScreen({ navigation }: Props) {
     switch (pickerType) {
       case 'visibility':
         return visibilityLabels[visibility];
-      case 'gender':
-        return genderLabels[user?.gender || 'male'];
       case 'language':
         return LANGUAGE_OPTIONS.find((l) => l.value === language)?.label || LANGUAGE_OPTIONS[0].label;
     }
-  }, [pickerType, visibility, user?.gender, language, visibilityLabels, genderLabels]);
+  }, [pickerType, visibility, language, visibilityLabels]);
 
   const showPicker = useCallback((type: PickerType) => {
     setPickerType(type);
@@ -125,17 +107,6 @@ export default function SettingsScreen({ navigation }: Props) {
           setVisibility(visibilityMap[value] || 'public');
           break;
         }
-        case 'gender': {
-          const genderMap: Record<string, Gender> = {
-            [t('genderMale')]: 'male',
-            [t('genderFemale')]: 'female',
-            [t('genderOther')]: 'other',
-            [t('genderSecret')]: 'secret',
-          };
-          const mapped = genderMap[value] || 'other';
-          updateUser({ gender: mapped });
-          break;
-        }
         case 'language': {
           const langOption = LANGUAGE_OPTIONS.find((l) => l.label === value);
           if (langOption) {
@@ -147,7 +118,7 @@ export default function SettingsScreen({ navigation }: Props) {
       }
       setPickerVisible(false);
     },
-    [pickerType, t, updateUser, setLanguage]
+    [pickerType, t, setLanguage]
   );
 
   const handleLogout = useCallback(() => {
@@ -235,17 +206,6 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           </TouchableOpacity>
           <Text style={styles.rowHint}>{t('profileVisibilityHint')}</Text>
-
-          <View style={styles.divider} />
-
-          {/* Gender Display */}
-          <TouchableOpacity style={styles.row} onPress={() => showPicker('gender')}>
-            <Text style={styles.rowLabel}>{t('genderDisplay')}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{genderLabels[user?.gender || 'male']}</Text>
-              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
-            </View>
-          </TouchableOpacity>
 
           <View style={styles.divider} />
 

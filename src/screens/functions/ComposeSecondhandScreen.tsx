@@ -22,8 +22,13 @@ import {
   CameraIcon,
   DollarIcon,
   MapPinIcon,
+  ClockIcon,
+  ChevronRightIcon,
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
+import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
+import { enforceTitleLimit, getTitleCountLabel } from '../../utils/textLimit';
+import { formatDeadline } from '../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeSecondhand'>;
 
@@ -51,11 +56,35 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
   const [category, setCategory] = useState<SecondhandCategory>('electronics');
   const [condition, setCondition] = useState('good');
   const [tradeLocation, setTradeLocation] = useState('');
+  const [deadline, setDeadline] = useState<Date | null>(
+    () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  );
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  const getPlaceholders = useCallback(() => {
+    switch (category) {
+      case 'electronics':
+        return { title: t('secondhandPlaceholderElectronicsTitle'), content: t('secondhandPlaceholderElectronicsContent') };
+      case 'books':
+        return { title: t('secondhandPlaceholderBooksTitle'), content: t('secondhandPlaceholderBooksContent') };
+      case 'furniture':
+        return { title: t('secondhandPlaceholderFurnitureTitle'), content: t('secondhandPlaceholderFurnitureContent') };
+      default:
+        return { title: t('secondhandPlaceholderOtherTitle'), content: t('secondhandPlaceholderOtherContent') };
+    }
+  }, [category, t]);
+
+  const placeholders = getPlaceholders();
+
+  const handleTitleChange = useCallback((text: string) => {
+    setTitle(enforceTitleLimit(text));
+  }, []);
 
   const canPost =
     title.trim().length > 0 &&
     price.trim().length > 0 &&
-    condition.length > 0;
+    condition.length > 0 &&
+    deadline !== null;
 
   const handlePost = useCallback(() => {
     if (!canPost) return;
@@ -88,6 +117,21 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        {/* ── Category Selector ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
+          <View style={styles.chipRow}>
+            {CATEGORIES.map((cat) => (
+              <Chip
+                key={cat.key}
+                label={t(cat.labelKey)}
+                selected={category === cat.key}
+                onPress={() => setCategory(cat.key)}
+              />
+            ))}
+          </View>
+        </View>
+
         {/* ── Image Picker Card ── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('itemPhotos')}</Text>
@@ -115,16 +159,16 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
         <View style={styles.card}>
           <TextInput
             style={styles.titleInput}
-            placeholder={t('secondhandTitlePlaceholder')}
+            placeholder={placeholders.title}
             placeholderTextColor={colors.outline}
             value={title}
-            onChangeText={setTitle}
-            maxLength={100}
+            onChangeText={handleTitleChange}
           />
+          <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
           <View style={styles.cardDivider} />
           <TextInput
             style={styles.descInput}
-            placeholder={t('secondhandDescPlaceholder')}
+            placeholder={placeholders.content}
             placeholderTextColor={colors.outline}
             value={description}
             onChangeText={setDescription}
@@ -190,20 +234,40 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── Category Selector ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => (
-              <Chip
-                key={cat.key}
-                label={t(cat.labelKey)}
-                selected={category === cat.key}
-                onPress={() => setCategory(cat.key)}
-              />
-            ))}
+        {/* ── Deadline ── */}
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <ClockIcon size={14} color={colors.primary} />{' '}
+              {t('deadlineLabel')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TouchableOpacity
+              style={styles.deadlineInput}
+              activeOpacity={0.7}
+              onPress={() => setPickerVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.deadlineText,
+                  !deadline && styles.deadlinePlaceholder,
+                ]}
+              >
+                {deadline ? formatDeadline(deadline) : t('deadlinePlaceholder')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.outline} />
+            </TouchableOpacity>
           </View>
         </View>
+
+        <DateTimePickerSheet
+          visible={pickerVisible}
+          onClose={() => setPickerVisible(false)}
+          onConfirm={(date) => {
+            setDeadline(date);
+            setPickerVisible(false);
+          }}
+          initialDate={deadline || undefined}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -371,5 +435,23 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+
+  /* Deadline */
+  deadlineInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  deadlineText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  deadlinePlaceholder: {
+    color: colors.outline,
   },
 });

@@ -15,7 +15,7 @@ export type AuthStackParamList = {
 export type ForumStackParamList = {
   ForumHome: undefined;
   PostDetail: { postId: string; commentId?: string };
-  Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string };
+  Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionIndex?: number };
   Search: undefined;
   CircleDetail: { tag: string };
   UserProfile: { userName: string };
@@ -26,7 +26,7 @@ export type FunctionsStackParamList = {
   FunctionsHub: undefined;
   PartnerList: { category?: PartnerCategory };
   PartnerDetail: { index: number };
-  ComposePartner: undefined;
+  ComposePartner: { category?: string } | undefined;
   PartnerShare: { activityName: string };
   ErrandList: { category?: ErrandCategory };
   ErrandDetail: { index: number };
@@ -47,7 +47,7 @@ export type FunctionsStackParamList = {
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactName: string; contactAvatar: string };
+  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;

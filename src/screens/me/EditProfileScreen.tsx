@@ -9,6 +9,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Image,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -26,6 +28,7 @@ import {
   BackIcon,
   CameraIcon,
   CheckIcon,
+  ChevronRightIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
@@ -64,6 +67,16 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [grade, setGrade] = useState(currentUser?.grade || '');
   const [major, setMajor] = useState(currentUser?.major || '');
   const [gender, setGender] = useState<Gender>(currentUser?.gender || 'secret');
+  const genderLocked = !!currentUser?.gender && currentUser.gender !== 'secret';
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
+
+  const GRADE_OPTIONS = [
+    t('gradeUndergradY1'), t('gradeUndergradY2'), t('gradeUndergradY3'), t('gradeUndergradY4'), t('gradePostgrad'), t('gradePhD'),
+  ];
+  const MAJOR_OPTIONS = [
+    t('majorBCDA'), t('majorAI'), t('majorSE'), t('majorIDS'),
+  ];
 
   const handleSave = useCallback(() => {
     const updates = { nickname, bio, grade, major, gender };
@@ -188,16 +201,16 @@ export default function EditProfileScreen({ navigation }: Props) {
           {/* Major */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('labelMajor')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.fieldInput}
-                value={major}
-                onChangeText={setMajor}
-                placeholder={t('placeholderMajor')}
-                placeholderTextColor={colors.outline}
-                selectionColor={colors.primary}
-              />
-            </View>
+            <TouchableOpacity
+              style={styles.selectWrapper}
+              onPress={() => { setPickerType('major'); setPickerVisible(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.selectText, !major && styles.selectPlaceholder]}>
+                {major || t('major')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.fieldDivider} />
@@ -205,16 +218,16 @@ export default function EditProfileScreen({ navigation }: Props) {
           {/* Grade */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('labelGrade')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.fieldInput}
-                value={grade}
-                onChangeText={setGrade}
-                placeholder={t('grade')}
-                placeholderTextColor={colors.outline}
-                selectionColor={colors.primary}
-              />
-            </View>
+            <TouchableOpacity
+              style={styles.selectWrapper}
+              onPress={() => { setPickerType('grade'); setPickerVisible(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.selectText, !grade && styles.selectPlaceholder]}>
+                {grade || t('grade')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -235,9 +248,11 @@ export default function EditProfileScreen({ navigation }: Props) {
                       backgroundColor: accentColor + '18',
                       borderColor: accentColor,
                     },
+                    genderLocked && styles.genderOptionLocked,
                   ]}
-                  onPress={() => setGender(g.key)}
-                  activeOpacity={0.7}
+                  onPress={() => !genderLocked && setGender(g.key)}
+                  activeOpacity={genderLocked ? 1 : 0.7}
+                  disabled={genderLocked}
                 >
                   {g.key === 'male' && (
                     <MaleIcon
@@ -263,8 +278,58 @@ export default function EditProfileScreen({ navigation }: Props) {
               );
             })}
           </View>
+          {genderLocked && (
+            <Text style={styles.genderLockedHint}>{t('genderLocked')}</Text>
+          )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={pickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setPickerVisible(false)}
+        >
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <Text style={styles.pickerTitle}>
+                {pickerType === 'grade' ? t('labelGrade') : t('labelMajor')}
+              </Text>
+              <View style={{ width: 60 }} />
+            </View>
+            <FlatList
+              data={pickerType === 'grade' ? GRADE_OPTIONS : MAJOR_OPTIONS}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => {
+                const currentVal = pickerType === 'grade' ? grade : major;
+                const isSelected = currentVal === item;
+                return (
+                  <TouchableOpacity
+                    style={[styles.pickerItem, isSelected && styles.pickerItemSelected]}
+                    onPress={() => {
+                      if (pickerType === 'grade') setGrade(item);
+                      else setMajor(item);
+                      setPickerVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextSelected]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -431,6 +496,69 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
     opacity: 0.4,
   },
+  selectWrapper: {
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  selectPlaceholder: {
+    color: colors.outline,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    maxHeight: 360,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
+  },
+  pickerCancel: {
+    ...typography.labelLarge,
+    color: colors.primary,
+  },
+  pickerTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+  },
+  pickerItem: {
+    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  pickerItemSelected: {
+    backgroundColor: colors.primaryContainer + '40',
+  },
+  pickerItemText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  pickerItemTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
 
   /* ── Gender Card ── */
   genderCard: {
@@ -466,8 +594,17 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     minHeight: 44,
   },
+  genderOptionLocked: {
+    opacity: 0.5,
+  },
   genderText: {
     ...typography.labelMedium,
     color: colors.onSurfaceVariant,
+  },
+  genderLockedHint: {
+    ...typography.bodySmall,
+    color: colors.outline,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
 });

@@ -11,35 +11,32 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { RatingItem, ScoreDimension } from '../../types';
-import { useRatings, useRatingDimensions } from '../../hooks/useRatings';
+import type { RatingItem } from '../../types';
+import { useRatings } from '../../hooks/useRatings';
 import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon, StarIcon, ShareIcon } from '../../components/common/icons';
+import { BackIcon, StarIcon } from '../../components/common/icons';
 import Avatar from '../../components/common/Avatar';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingDetail'>;
 
 /* ── Dimension Bar ── */
 function DimensionBar({
-  leftLabel,
-  rightLabel,
+  label,
   value,
 }: {
-  leftLabel: string;
-  rightLabel: string;
+  label: string;
   value: number;
 }) {
   return (
-    <View style={styles.dimRow}>
-      <Text style={styles.dimLeftLabel} numberOfLines={1}>{leftLabel}</Text>
-      <View style={styles.dimTrack}>
-        <View style={[styles.dimFill, { width: `${value}%` }]} />
-        <View style={[styles.dimIndicator, { left: `${value}%` }]} />
+    <View style={styles.dimCol}>
+      <Text style={styles.dimValue}>{value}</Text>
+      <View style={styles.dimVerticalTrack}>
+        <View style={[styles.dimVerticalFill, { height: `${value}%` }]} />
       </View>
-      <Text style={styles.dimRightLabel} numberOfLines={1}>{rightLabel}</Text>
+      <Text style={styles.dimColLabel} numberOfLines={2}>{label}</Text>
     </View>
   );
 }
@@ -49,18 +46,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { category, index } = route.params;
   const { data: ratings, isLoading } = useRatings(category);
-  const { data: dimensions } = useRatingDimensions(category);
-
   const item: RatingItem | undefined = ratings?.[index];
-
-  const dimensionMap = useMemo(() => {
-    if (!dimensions) return {};
-    const map: Record<string, ScoreDimension> = {};
-    dimensions.forEach((d) => {
-      map[d.key] = d;
-    });
-    return map;
-  }, [dimensions]);
 
   const overallScore = useMemo(() => {
     if (!item) return 0;
@@ -90,11 +76,6 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
     return ratingItem.department;
   };
 
-  const handleShare = () => {
-    if (!item) return;
-    navigation.navigate('RatingShare', { category, itemName: item.name });
-  };
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -118,9 +99,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t(category)}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-          <ShareIcon size={20} color={colors.onSurfaceVariant} />
-        </TouchableOpacity>
+        <View style={styles.iconBtn} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -157,27 +136,15 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
         {/* ── Dimension Bars Card ── */}
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{t('scoreDetail')}</Text>
-          {item.scores.map((score, i) => {
-            const dim = dimensionMap[score.key];
-            const leftLabel = dim ? translateLabel(dim.left, lang) : '';
-            const rightLabel = dim ? translateLabel(dim.right, lang) : '';
-            return (
-              <View key={score.key}>
-                <View style={styles.dimHeader}>
-                  <Text style={styles.dimName}>
-                    {translateLabel(score.label, lang)}
-                  </Text>
-                  <Text style={styles.dimScore}>{score.value}</Text>
-                </View>
-                <DimensionBar
-                  leftLabel={leftLabel}
-                  rightLabel={rightLabel}
-                  value={score.value}
-                />
-                {i < item.scores.length - 1 && <View style={styles.dimSpacer} />}
-              </View>
-            );
-          })}
+          <View style={styles.dimVerticalRow}>
+            {item.scores.map((score) => (
+              <DimensionBar
+                key={score.key}
+                label={translateLabel(score.label, lang)}
+                value={score.value}
+              />
+            ))}
+          </View>
         </View>
 
         {/* ── Tag Cloud Card ── */}
@@ -328,64 +295,42 @@ const styles = StyleSheet.create({
   },
 
   /* Dimensions */
-  dimHeader: {
+  dimVerticalRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.sm,
+  },
+  dimCol: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    gap: spacing.xs,
+    flex: 1,
   },
-  dimName: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-  },
-  dimScore: {
+  dimValue: {
     ...typography.titleSmall,
     color: colors.primary,
     fontWeight: '700',
   },
-  dimRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  dimLeftLabel: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    width: 56,
-    fontSize: 10,
-  },
-  dimTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
+  dimVerticalTrack: {
+    width: 24,
+    height: 100,
+    borderRadius: 12,
     backgroundColor: colors.surface2,
     overflow: 'hidden',
-    position: 'relative',
+    justifyContent: 'flex-end',
   },
-  dimFill: {
-    height: '100%',
-    borderRadius: 4,
+  dimVerticalFill: {
+    width: '100%',
+    borderRadius: 12,
     backgroundColor: colors.primary,
     opacity: 0.7,
   },
-  dimIndicator: {
-    position: 'absolute',
-    top: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
-    marginLeft: -6,
-  },
-  dimRightLabel: {
+  dimColLabel: {
     ...typography.labelSmall,
     color: colors.onSurfaceVariant,
-    width: 56,
     fontSize: 10,
-    textAlign: 'right',
-  },
-  dimSpacer: {
-    height: spacing.lg,
+    textAlign: 'center',
+    maxWidth: 60,
   },
 
   /* Tag Cloud */
