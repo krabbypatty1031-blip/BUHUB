@@ -177,6 +177,17 @@ export default function ChatScreen({ navigation, route }: Props) {
   const myAvatar = user?.name?.charAt(0) || user?.nickname?.charAt(0) || '我';
   const hasText = inputText.trim().length > 0;
 
+  /* ── Chat trigger: disable input if last message is 'sent' (waiting for reply) ── */
+  const waitingForReply = useMemo(() => {
+    if (!chatHistory) return false;
+    const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
+    if (histories.length === 0) return false;
+    const lastGroup = histories[histories.length - 1];
+    if (!lastGroup.messages || lastGroup.messages.length === 0) return false;
+    const lastMsg = lastGroup.messages[lastGroup.messages.length - 1];
+    return lastMsg.type === 'sent';
+  }, [chatHistory]);
+
   /* ── Build flat list data with date separators ── */
   const listData = useMemo<ChatListItem[]>(() => {
     if (!chatHistory) return [];
@@ -374,86 +385,93 @@ export default function ChatScreen({ navigation, route }: Props) {
         )}
 
         {/* Input Bar */}
-        <View style={styles.inputBar}>
-          {isRecording ? (
-            /* ── Recording mode: waveform + stop button ── */
-            <>
-              <TouchableOpacity
-                style={styles.mediaBtn}
-                activeOpacity={0.6}
-                onPress={handleMicPress}
-              >
-                <CloseIcon size={22} color={colors.error} />
-              </TouchableOpacity>
-              <View style={styles.recordingArea}>
-                <WaveformBars />
-                <Text style={styles.recordingText}>
-                  {t('recording') || 'Recording...'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.sendBtn}
-                onPress={handleMicPress}
-                activeOpacity={0.7}
-              >
-                <SendIcon size={20} color={colors.onPrimary} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            /* ── Normal mode ── */
-            <>
-              {/* Left icon: camera (hidden when typing) */}
-              {!hasText && (
+        {waitingForReply ? (
+          /* ── Waiting for reply: disabled input with hint ── */
+          <View style={styles.waitingBar}>
+            <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
+          </View>
+        ) : (
+          <View style={styles.inputBar}>
+            {isRecording ? (
+              /* ── Recording mode: waveform + stop button ── */
+              <>
                 <TouchableOpacity
                   style={styles.mediaBtn}
                   activeOpacity={0.6}
-                  onPress={handleCamera}
+                  onPress={handleMicPress}
                 >
-                  <CameraIcon size={22} color={colors.onSurfaceVariant} />
+                  <CloseIcon size={22} color={colors.error} />
                 </TouchableOpacity>
-              )}
-
-              {/* Text input */}
-              <TextInput
-                style={styles.textInput}
-                placeholder={t('inputMessage') || 'Type a message...'}
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={inputText}
-                onChangeText={setInputText}
-                returnKeyType="send"
-                onSubmitEditing={handleSend}
-              />
-
-              {/* Right icons: mic + image (hidden when typing), or send button */}
-              {hasText ? (
+                <View style={styles.recordingArea}>
+                  <WaveformBars />
+                  <Text style={styles.recordingText}>
+                    {t('recording') || 'Recording...'}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={styles.sendBtn}
-                  onPress={handleSend}
+                  onPress={handleMicPress}
                   activeOpacity={0.7}
                 >
                   <SendIcon size={20} color={colors.onPrimary} />
                 </TouchableOpacity>
-              ) : (
-                <>
+              </>
+            ) : (
+              /* ── Normal mode ── */
+              <>
+                {/* Left icon: camera (hidden when typing) */}
+                {!hasText && (
                   <TouchableOpacity
                     style={styles.mediaBtn}
                     activeOpacity={0.6}
-                    onPress={handleMicPress}
+                    onPress={handleCamera}
                   >
-                    <MicIcon size={22} color={colors.onSurfaceVariant} />
+                    <CameraIcon size={22} color={colors.onSurfaceVariant} />
                   </TouchableOpacity>
+                )}
+
+                {/* Text input */}
+                <TextInput
+                  style={styles.textInput}
+                  placeholder={t('inputMessage') || 'Type a message...'}
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSend}
+                />
+
+                {/* Right icons: mic + image (hidden when typing), or send button */}
+                {hasText ? (
                   <TouchableOpacity
-                    style={styles.mediaBtn}
-                    activeOpacity={0.6}
-                    onPress={handlePickImage}
+                    style={styles.sendBtn}
+                    onPress={handleSend}
+                    activeOpacity={0.7}
                   >
-                    <ImageIcon size={22} color={colors.onSurfaceVariant} />
+                    <SendIcon size={20} color={colors.onPrimary} />
                   </TouchableOpacity>
-                </>
-              )}
-            </>
-          )}
-        </View>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.mediaBtn}
+                      activeOpacity={0.6}
+                      onPress={handleMicPress}
+                    >
+                      <MicIcon size={22} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.mediaBtn}
+                      activeOpacity={0.6}
+                      onPress={handlePickImage}
+                    >
+                      <ImageIcon size={22} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -604,6 +622,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* ── Waiting for reply ── */
+  waitingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+    backgroundColor: colors.surface1,
+  },
+  waitingText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
 
   /* ── Recording mode ── */

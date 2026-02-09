@@ -17,4 +17,5 @@ export interface PartnerPost {
   gender: Gender;
   bio: string;
   expired: boolean;
+  expiresAt: string;
 }

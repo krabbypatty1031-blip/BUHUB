@@ -7,15 +7,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
 import { useContacts } from '../../hooks/useMessages';
+import { useMessageStore } from '../../store/messageStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
@@ -67,25 +71,43 @@ const NOTIFY_ENTRIES: NotifyEntry[] = [
 /* ── Memoized contact row ── */
 const ContactRow = React.memo(function ContactRow({
   item,
+  isPinned,
+  isMuted,
+  effectiveUnread,
   onPress,
+  onLongPress,
+  onAvatarPress,
 }: {
   item: Contact;
+  isPinned: boolean;
+  isMuted: boolean;
+  effectiveUnread: number;
   onPress: () => void;
+  onLongPress: () => void;
+  onAvatarPress: () => void;
 }) {
+  const showUnread = effectiveUnread > 0;
+
   return (
     <TouchableOpacity
-      style={styles.contactItem}
+      style={[styles.contactItem, isPinned && styles.contactItemPinned]}
       activeOpacity={0.7}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
     >
-      <View style={styles.contactAvatarWrap}>
+      <TouchableOpacity
+        style={styles.contactAvatarWrap}
+        activeOpacity={0.8}
+        onPress={onAvatarPress}
+      >
         <Avatar text={item.name} uri={item.avatar || null} size="md" gender={item.gender} />
-        {item.pinned && (
+        {isPinned && (
           <View style={styles.pinIndicator}>
             <PinIcon size={10} color={colors.onSurfaceVariant} />
           </View>
         )}
-      </View>
+      </TouchableOpacity>
       <View style={styles.contactInfo}>
         <View style={styles.contactNameRow}>
           <Text style={styles.contactName} numberOfLines={1}>
@@ -94,16 +116,23 @@ const ContactRow = React.memo(function ContactRow({
           <Text style={styles.contactTime}>{item.time}</Text>
         </View>
         <View style={styles.contactMessageRow}>
-          <Text style={styles.contactMessage} numberOfLines={1}>
-            {item.message}
+          <Text
+            style={[styles.contactMessage, isMuted && styles.contactMessageMuted]}
+            numberOfLines={1}
+          >
+            {isMuted ? '🔇 ' : ''}{item.message}
           </Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>
-                {item.unread > 99 ? '99+' : item.unread}
-              </Text>
-            </View>
-          )}
+          {showUnread ? (
+            isMuted ? (
+              <View style={styles.unreadDot} />
+            ) : (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {effectiveUnread > 99 ? '99+' : effectiveUnread}
+                </Text>
+              </View>
+            )
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>
@@ -116,8 +145,20 @@ export default function MessagesScreen({ navigation }: Props) {
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
   const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
   const unreadComments = useNotificationStore((s) => s.unreadComments);
+  const togglePin = useMessageStore((s) => s.togglePin);
+  const toggleMute = useMessageStore((s) => s.toggleMute);
+  const markAsUnread = useMessageStore((s) => s.markAsUnread);
+  const markAsRead = useMessageStore((s) => s.markAsRead);
+  const clearUnread = useMessageStore((s) => s.clearUnread);
+  const isPinned = useMessageStore((s) => s.isPinned);
+  const isMuted = useMessageStore((s) => s.isMuted);
+  const getEffectiveUnread = useMessageStore((s) => s.getEffectiveUnread);
+  const markedUnreadContacts = useMessageStore((s) => s.markedUnreadContacts);
+  const readContacts = useMessageStore((s) => s.readContacts);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
 
   const unreadCounts: Record<string, number> = {
     unreadLikes,
@@ -143,6 +184,44 @@ export default function MessagesScreen({ navigation }: Props) {
       return !prev;
     });
   }, []);
+
+  const handleLongPress = useCallback((contact: Contact) => {
+    setActionSheetContact(contact);
+  }, []);
+
+  const handleAvatarPress = useCallback(
+    (contact: Contact) => {
+      navigation.navigate('UserProfile', { userName: contact.name });
+    },
+    [navigation]
+  );
+
+  const handleActionToggleRead = useCallback(() => {
+    if (actionSheetContact) {
+      const effectiveCount = getEffectiveUnread(actionSheetContact.name, actionSheetContact.unread);
+      if (effectiveCount > 0) {
+        markAsRead(actionSheetContact.name);
+      } else {
+        markAsUnread(actionSheetContact.name);
+        showSnackbar({ message: t('markedAsUnread'), type: 'info' });
+      }
+    }
+    setActionSheetContact(null);
+  }, [actionSheetContact, getEffectiveUnread, markAsRead, markAsUnread, showSnackbar, t]);
+
+  const handleActionPin = useCallback(() => {
+    if (actionSheetContact) {
+      togglePin(actionSheetContact.name);
+    }
+    setActionSheetContact(null);
+  }, [actionSheetContact, togglePin]);
+
+  const handleActionMute = useCallback(() => {
+    if (actionSheetContact) {
+      toggleMute(actionSheetContact.name);
+    }
+    setActionSheetContact(null);
+  }, [actionSheetContact, toggleMute]);
 
   /* ── List header: user avatar + notifications ── */
   const renderHeader = useCallback(() => {
@@ -193,19 +272,41 @@ export default function MessagesScreen({ navigation }: Props) {
   }, [navigation, t, unreadCounts]);
 
   const renderContact = useCallback(
-    ({ item }: { item: Contact }) => (
-      <ContactRow
-        item={item}
-        onPress={() =>
-          navigation.navigate('Chat', {
-            contactName: item.name,
-            contactAvatar: item.avatar,
-          })
-        }
-      />
-    ),
-    [navigation]
+    ({ item }: { item: Contact }) => {
+      const pinned = isPinned(item.name, item.pinned);
+      const muted = isMuted(item.name);
+      const effectiveUnread = getEffectiveUnread(item.name, item.unread);
+      return (
+        <ContactRow
+          item={item}
+          isPinned={pinned}
+          isMuted={muted}
+          effectiveUnread={effectiveUnread}
+          onPress={() => {
+            clearUnread(item.name);
+            navigation.navigate('Chat', {
+              contactName: item.name,
+              contactAvatar: item.avatar,
+            });
+          }}
+          onLongPress={() => handleLongPress(item)}
+          onAvatarPress={() => handleAvatarPress(item)}
+        />
+      );
+    },
+    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread]
   );
+
+  /* ── Action sheet computed labels ── */
+  const actionSheetPinned = actionSheetContact
+    ? isPinned(actionSheetContact.name, actionSheetContact.pinned)
+    : false;
+  const actionSheetMuted = actionSheetContact
+    ? isMuted(actionSheetContact.name)
+    : false;
+  const actionSheetHasUnread = actionSheetContact
+    ? getEffectiveUnread(actionSheetContact.name, actionSheetContact.unread) > 0
+    : false;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -282,6 +383,73 @@ export default function MessagesScreen({ navigation }: Props) {
           }
         />
       )}
+
+      {/* ── Long-press Action Sheet Modal ── */}
+      <Modal
+        visible={!!actionSheetContact}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionSheetContact(null)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setActionSheetContact(null)}
+        >
+          <View style={styles.actionSheet}>
+            {actionSheetContact && (
+              <Text style={styles.actionSheetTitle}>
+                {actionSheetContact.name}
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
+              onPress={handleActionToggleRead}
+            >
+              <Text style={styles.actionSheetText}>
+                {actionSheetHasUnread ? t('markAsRead') : t('markAsUnread')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionSheetDivider} />
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
+              onPress={handleActionPin}
+            >
+              <Text style={styles.actionSheetText}>
+                {actionSheetPinned ? t('unpinChat') : t('pinChat')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionSheetDivider} />
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
+              onPress={handleActionMute}
+            >
+              <Text style={styles.actionSheetText}>
+                {actionSheetMuted ? t('unmuteChat') : t('muteChat')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionSheetDivider} />
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
+              onPress={() => setActionSheetContact(null)}
+            >
+              <Text style={[styles.actionSheetText, { color: colors.onSurfaceVariant }]}>
+                {t('cancel')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -402,6 +570,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.md,
   },
+  contactItemPinned: {
+    backgroundColor: colors.surface1,
+  },
   contactAvatarWrap: {
     position: 'relative',
   },
@@ -446,6 +617,9 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     flex: 1,
   },
+  contactMessageMuted: {
+    color: colors.outline,
+  },
   unreadBadge: {
     minWidth: 20,
     height: 20,
@@ -459,5 +633,45 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.white,
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.outline,
+  },
+
+  /* ── Action Sheet Modal ── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: 34,
+    ...elevation[3],
+  },
+  actionSheetTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+  },
+  actionSheetItem: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+  },
+  actionSheetText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  actionSheetDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.lg,
   },
 });

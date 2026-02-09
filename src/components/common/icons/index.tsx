@@ -81,6 +81,58 @@ export const PlusIcon = ({ size = D.size, color = D.color }: IconProps) => (
   </Svg>
 );
 
+// ─── Tab Bar (active = filled, inactive = outline) ─────────
+
+export const TabHomeIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    {fill ? (
+      <Path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill={fill} />
+    ) : (
+      <>
+        <Path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke={color} strokeWidth={1.8} />
+        <Path d="M9 21v-4a3 3 0 0 1 6 0v4" stroke={color} strokeWidth={1.8} />
+      </>
+    )}
+  </Svg>
+);
+
+export const TabCompassIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx={12} cy={12} r={10} fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
+    <Polygon
+      points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88"
+      fill={fill ? colors.surface : 'none'}
+      stroke={fill ? 'none' : color}
+      strokeWidth={1.8}
+    />
+  </Svg>
+);
+
+export const TabChatIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <Path
+      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+      fill={fill || 'none'}
+      stroke={fill ? 'none' : color}
+      strokeWidth={1.8}
+    />
+    {!fill && (
+      <>
+        <Circle cx={8.5} cy={10} r={0.75} fill={color} stroke="none" />
+        <Circle cx={12} cy={10} r={0.75} fill={color} stroke="none" />
+        <Circle cx={15.5} cy={10} r={0.75} fill={color} stroke="none" />
+      </>
+    )}
+  </Svg>
+);
+
+export const TabProfileIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx={12} cy={8} r={4} fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
+    <Path d="M20 21a8 8 0 0 0-16 0" fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
+  </Svg>
+);
+
 // ─── Post Actions ───────────────────────────────────────────
 
 export const HeartIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
@@ -92,6 +144,15 @@ export const HeartIcon = ({ size = D.size, color = D.color, fill }: IconProps) =
 export const CommentIcon = ({ size = D.size, color = D.color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
     <Path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </Svg>
+);
+
+export const ForwardIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M17 1l4 4-4 4" />
+    <Path d="M3 11V9a4 4 0 0 1 4-4h14" />
+    <Path d="M7 23l-4-4 4-4" />
+    <Path d="M21 13v2a4 4 0 0 1-4 4H3" />
   </Svg>
 );
 
@@ -374,6 +435,15 @@ export const DownloadIcon = ({ size = D.size, color = D.color }: IconProps) => (
   </Svg>
 );
 
+export const CalendarIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+    <Rect x={3} y={4} width={18} height={18} rx={2} ry={2} />
+    <Line x1={16} y1={2} x2={16} y2={6} />
+    <Line x1={8} y1={2} x2={8} y2={6} />
+    <Line x1={3} y1={10} x2={21} y2={10} />
+  </Svg>
+);
+
 export const ScanIcon = ({ size = D.size, color = D.color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
     <Path d="M2 7V2h5" />
@@ -398,6 +468,7 @@ export const iconMap = {
   plus: PlusIcon,
   heart: HeartIcon,
   comment: CommentIcon,
+  forward: ForwardIcon,
   share: ShareIcon,
   bookmark: BookmarkIcon,
   quote: QuoteIcon,
@@ -433,7 +504,12 @@ export const iconMap = {
   at: AtIcon,
   qrCode: QrCodeIcon,
   download: DownloadIcon,
+  calendar: CalendarIcon,
   scan: ScanIcon,
+  tabHome: TabHomeIcon,
+  tabCompass: TabCompassIcon,
+  tabChat: TabChatIcon,
+  tabProfile: TabProfileIcon,
 } as const;
 
 export type IconName = keyof typeof iconMap;

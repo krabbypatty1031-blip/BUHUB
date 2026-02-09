@@ -1,3 +1,4 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { PartnerCategory } from './partner';
 import { ErrandCategory } from './errand';
 import { SecondhandCategory } from './secondhand';
@@ -13,7 +14,7 @@ export type AuthStackParamList = {
 // Forum Stack
 export type ForumStackParamList = {
   ForumHome: undefined;
-  PostDetail: { postId: string };
+  PostDetail: { postId: string; commentId?: string };
   Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string };
   Search: undefined;
   CircleDetail: { tag: string };
@@ -26,16 +27,21 @@ export type FunctionsStackParamList = {
   PartnerList: { category?: PartnerCategory };
   PartnerDetail: { index: number };
   ComposePartner: undefined;
+  PartnerShare: { activityName: string };
   ErrandList: { category?: ErrandCategory };
   ErrandDetail: { index: number };
   ComposeErrand: undefined;
+  ErrandShare: { taskName: string };
   SecondhandList: { category?: SecondhandCategory };
   SecondhandDetail: { index: number };
   ComposeSecondhand: undefined;
+  SecondhandShare: { itemName: string };
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; index: number };
   RatingForm: { category: RatingCategory; index: number };
+  RatingShare: { category: RatingCategory; itemName: string };
   MyPosts: undefined;
+  FacilityBooking: undefined;
 };
 
 // Messages Stack
@@ -45,20 +51,23 @@ export type MessagesStackParamList = {
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;
+  UserProfile: { userName: string };
+  PostDetail: { postId: string; commentId?: string };
 };
 
 // Me Stack
 export type MeStackParamList = {
   MeHome: undefined;
   EditProfile: undefined;
+  ShareProfile: undefined;
   UserProfile: { userName: string };
   Settings: undefined;
 };
 
 // Bottom Tabs
 export type MainTabParamList = {
-  ForumTab: undefined;
-  FunctionsTab: undefined;
-  MessagesTab: undefined;
-  MeTab: undefined;
+  ForumTab: NavigatorScreenParams<ForumStackParamList> | undefined;
+  FunctionsTab: NavigatorScreenParams<FunctionsStackParamList> | undefined;
+  MessagesTab: NavigatorScreenParams<MessagesStackParamList> | undefined;
+  MeTab: NavigatorScreenParams<MeStackParamList> | undefined;
 };

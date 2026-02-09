@@ -7,16 +7,19 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import { usePublicProfile, useFollowUser } from '../../hooks/useUser';
+import { useForumStore } from '../../store/forumStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon } from '../../components/common/icons';
+import { BackIcon, UsersIcon, MoreHorizontalIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
 
@@ -25,7 +28,24 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const { userName } = route.params;
   const { data: profile, isLoading } = usePublicProfile(userName);
   const followUser = useFollowUser();
+  const blockUser = useForumStore((s) => s.blockUser);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  const handleBlock = useCallback(() => {
+    Alert.alert(t('blockUser'), t('blockUserConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          blockUser(userName);
+          showSnackbar({ message: t('blocked'), type: 'success' });
+          navigation.goBack();
+        },
+      },
+    ]);
+  }, [t, blockUser, userName, showSnackbar, navigation]);
 
   const handleFollow = useCallback(() => {
     followUser.mutate(userName, {
@@ -46,7 +66,9 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{userName}</Text>
-          <View style={styles.iconBtn} />
+          <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
+            <MoreHorizontalIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -68,7 +90,9 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         <Text style={styles.topBarTitle} numberOfLines={1}>
           {userName}
         </Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>

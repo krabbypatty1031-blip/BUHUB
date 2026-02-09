@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { UserPost, UserComment } from '../../types';
+import type { UserPost, UserComment, LikedPost, LikedComment } from '../../types';
 import { useProfile, useMyContent } from '../../hooks/useUser';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
@@ -24,18 +25,18 @@ import {
   EditIcon,
   ShareIcon,
   SettingsIcon,
-  LinkIcon,
   HelpCircleIcon,
   LockIcon,
   HeartIcon,
-  UsersIcon,
   BookmarkIcon,
   CommentIcon,
+  CloseIcon,
+  QrCodeIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
-type MeTab = 'posts' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks';
+type MeTab = 'posts' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks' | 'myLikes';
 
 interface TabDef {
   key: MeTab;
@@ -49,9 +50,10 @@ const TABS: TabDef[] = [
   { key: 'anonPosts', labelKey: 'tabAnonPosts', locked: true },
   { key: 'anonComments', labelKey: 'tabAnonComments', locked: true },
   { key: 'bookmarks', labelKey: 'tabBookmarks', locked: true },
+  { key: 'myLikes', labelKey: 'tabMyLikes', locked: false },
 ];
 
-/* ── Post card (used in posts / anonPosts / bookmarks tabs) ── */
+/* ── Post card (own posts / anonPosts / bookmarks) ── */
 const PostItem = React.memo(function PostItem({ post }: { post: UserPost }) {
   return (
     <View style={styles.contentCard}>
@@ -68,7 +70,7 @@ const PostItem = React.memo(function PostItem({ post }: { post: UserPost }) {
   );
 });
 
-/* ── Comment card (used in comments / anonComments tabs) ── */
+/* ── Comment card (own comments / anonComments) ── */
 const CommentItem = React.memo(function CommentItem({
   comment,
   t,
@@ -87,6 +89,52 @@ const CommentItem = React.memo(function CommentItem({
   );
 });
 
+/* ── Liked post card (shows author info) ── */
+const LikedPostItem = React.memo(function LikedPostItem({ post }: { post: LikedPost }) {
+  return (
+    <View style={styles.contentCard}>
+      <View style={styles.likedAuthorRow}>
+        <Avatar text={post.author} size="sm" gender={post.gender} />
+        <Text style={styles.likedAuthorName}>{post.author}</Text>
+      </View>
+      <Text style={styles.cardContent} numberOfLines={3}>
+        {post.content}
+      </Text>
+      <View style={styles.cardFooter}>
+        <Text style={styles.cardTime}>{post.time}</Text>
+        <Text style={styles.cardStats}>
+          {post.likes} likes · {post.comments} comments
+        </Text>
+      </View>
+    </View>
+  );
+});
+
+/* ── Liked comment card (shows who commented on which post) ── */
+const LikedCommentItem = React.memo(function LikedCommentItem({
+  comment,
+  t,
+}: {
+  comment: LikedComment;
+  t: (key: string) => string;
+}) {
+  return (
+    <View style={styles.contentCard}>
+      <Text style={styles.commentRef} numberOfLines={1}>
+        {comment.commentAuthor} {t('replyTo')} {comment.postAuthor}: {comment.postContent}
+      </Text>
+      <Text style={styles.cardContent}>{comment.comment}</Text>
+      <View style={styles.cardFooter}>
+        <Text style={styles.cardTime}>{comment.time}</Text>
+        <View style={styles.likeIndicator}>
+          <HeartIcon size={12} color={colors.error} fill={colors.error} />
+          <Text style={styles.cardStats}>{comment.likes}</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
 export default function MeScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: profile, isLoading } = useProfile();
@@ -94,67 +142,80 @@ export default function MeScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
+  const [contactModalVisible, setContactModalVisible] = useState(false);
 
   const displayUser = profile || user;
+  const stats = myContent?.stats;
 
   /* ── Empty label map ── */
   const emptyLabels: Record<MeTab, string> = useMemo(
     () => ({
-      posts: t('noPosts') || 'No posts',
-      comments: t('noComments') || 'No comments',
-      anonPosts: t('noAnonPosts') || 'No anonymous posts',
-      anonComments: t('noAnonComments') || 'No anonymous comments',
-      bookmarks: t('noBookmarks') || 'No bookmarks',
+      posts: t('noPosts'),
+      comments: t('noComments'),
+      anonPosts: t('noAnonPosts'),
+      anonComments: t('noAnonComments'),
+      bookmarks: t('noBookmarks'),
+      myLikes: t('noLikeRecords'),
     }),
     [t]
   );
 
-  /* ── Tab content data ── */
-  const tabData = useMemo(() => {
-    if (!myContent)
-      return { posts: [], comments: [], anonPosts: [], anonComments: [], bookmarks: [] };
-    return {
-      posts: myContent.posts,
-      comments: myContent.comments,
-      anonPosts: myContent.anonPosts,
-      anonComments: myContent.anonComments,
-      bookmarks: [] as UserPost[], // bookmarked posts would come from a joined query
-    };
-  }, [myContent]);
-
   /* ── Tab content renderer ── */
   const renderTabContent = useCallback(() => {
-    const isComment = activeTab === 'comments' || activeTab === 'anonComments';
-    const isEmpty = isComment
-      ? (tabData[activeTab] as UserComment[]).length === 0
-      : (tabData[activeTab] as UserPost[]).length === 0;
+    if (!myContent) {
+      return <EmptyState icon={<EditIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels[activeTab]} />;
+    }
 
-    if (isEmpty) {
-      const iconMap: Record<MeTab, React.ReactNode> = {
+    /* ── myLikes tab: mixed posts + comments ── */
+    if (activeTab === 'myLikes') {
+      const likedPosts = myContent.myLikes?.posts || [];
+      const likedComments = myContent.myLikes?.comments || [];
+      if (likedPosts.length === 0 && likedComments.length === 0) {
+        return <EmptyState icon={<HeartIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.myLikes} />;
+      }
+      return (
+        <>
+          {likedPosts.map((p, i) => (
+            <LikedPostItem key={`lp-${i}`} post={p} />
+          ))}
+          {likedComments.map((c, i) => (
+            <LikedCommentItem key={`lc-${i}`} comment={c} t={t} />
+          ))}
+        </>
+      );
+    }
+
+    /* ── bookmarks tab ── */
+    if (activeTab === 'bookmarks') {
+      // bookmarked posts placeholder
+      return <EmptyState icon={<BookmarkIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.bookmarks} />;
+    }
+
+    /* ── comment-based tabs ── */
+    const isComment = activeTab === 'comments' || activeTab === 'anonComments';
+    const data = isComment
+      ? (myContent[activeTab] as UserComment[])
+      : (myContent[activeTab] as UserPost[]);
+
+    if (data.length === 0) {
+      const iconMap: Record<string, React.ReactNode> = {
         posts: <EditIcon size={32} color={colors.onSurfaceVariant} />,
         comments: <CommentIcon size={32} color={colors.onSurfaceVariant} />,
         anonPosts: <LockIcon size={32} color={colors.onSurfaceVariant} />,
         anonComments: <LockIcon size={32} color={colors.onSurfaceVariant} />,
-        bookmarks: <BookmarkIcon size={32} color={colors.onSurfaceVariant} />,
       };
-      return (
-        <EmptyState
-          icon={iconMap[activeTab]}
-          title={emptyLabels[activeTab]}
-        />
-      );
+      return <EmptyState icon={iconMap[activeTab]} title={emptyLabels[activeTab]} />;
     }
 
     if (isComment) {
-      return (tabData[activeTab] as UserComment[]).map((c, i) => (
+      return (myContent[activeTab] as UserComment[]).map((c, i) => (
         <CommentItem key={i} comment={c} t={t} />
       ));
     }
-
-    return (tabData[activeTab] as UserPost[]).map((p, i) => (
+    return (myContent[activeTab] as UserPost[]).map((p, i) => (
       <PostItem key={i} post={p} />
     ));
-  }, [activeTab, tabData, emptyLabels, t]);
+  }, [activeTab, myContent, emptyLabels, t]);
 
   if (isLoading && !displayUser) {
     return (
@@ -171,7 +232,11 @@ export default function MeScreen({ navigation }: Props) {
         <View style={styles.profileSection}>
           {/* Top icons row */}
           <View style={styles.topIconsRow}>
-            <TouchableOpacity style={styles.topIconBtn} activeOpacity={0.6}>
+            <TouchableOpacity
+              style={styles.topIconBtn}
+              activeOpacity={0.6}
+              onPress={() => setContactModalVisible(true)}
+            >
               <HelpCircleIcon size={22} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
             <View style={styles.topIconsRight}>
@@ -181,9 +246,6 @@ export default function MeScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('Settings')}
               >
                 <SettingsIcon size={22} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.topIconBtn} activeOpacity={0.6}>
-                <LinkIcon size={22} color={colors.accent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -201,20 +263,31 @@ export default function MeScreen({ navigation }: Props) {
                   .join(' · ')}
               </Text>
 
-              {/* Stats: followers + likes */}
+              {/* Bio (shown only when set) */}
+              {displayUser?.bio ? (
+                <Text style={styles.bio} numberOfLines={2}>
+                  {displayUser.bio}
+                </Text>
+              ) : null}
+
+              {/* Stats: 关注 + 粉丝 + 赞藏 */}
               <View style={styles.miniStats}>
                 <View style={styles.miniStatItem}>
-                  <UsersIcon size={14} color={colors.onSurfaceVariant} />
-                  <Text style={styles.miniStatValue}>0</Text>
+                  <Text style={styles.miniStatValue}>{stats?.following ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
-                    {t('followersStat') || 'Followers'}
+                    {t('followingStat')}
                   </Text>
                 </View>
                 <View style={styles.miniStatItem}>
-                  <HeartIcon size={14} color={colors.onSurfaceVariant} />
-                  <Text style={styles.miniStatValue}>0</Text>
+                  <Text style={styles.miniStatValue}>{stats?.followers ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
-                    {t('receivedLikes') || 'Likes'}
+                    {t('followersStat')}
+                  </Text>
+                </View>
+                <View style={styles.miniStatItem}>
+                  <Text style={styles.miniStatValue}>{stats?.collection ?? 0}</Text>
+                  <Text style={styles.miniStatLabel}>
+                    {t('collectionStat')}
                   </Text>
                 </View>
               </View>
@@ -241,13 +314,17 @@ export default function MeScreen({ navigation }: Props) {
             >
               <EditIcon size={16} color={colors.primary} />
               <Text style={styles.actionBtnText}>
-                {t('editProfile') || 'Edit Profile'}
+                {t('editProfile')}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ShareProfile')}
+            >
               <ShareIcon size={16} color={colors.primary} />
               <Text style={styles.actionBtnText}>
-                {t('shareProfile') || 'Share Profile'}
+                {t('shareProfile')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -284,7 +361,7 @@ export default function MeScreen({ navigation }: Props) {
                       isActive && styles.tabTextActive,
                     ]}
                   >
-                    {t(tab.labelKey) || tab.labelKey}
+                    {t(tab.labelKey)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -295,6 +372,48 @@ export default function MeScreen({ navigation }: Props) {
           <View style={styles.tabContent}>{renderTabContent()}</View>
         </View>
       </ScrollView>
+
+      {/* Contact Us Modal */}
+      <Modal
+        visible={contactModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContactModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setContactModalVisible(false)}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('contactUs')}</Text>
+              <TouchableOpacity
+                onPress={() => setContactModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <CloseIcon size={20} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+
+            {/* QR Code placeholder */}
+            <View style={styles.qrSection}>
+              <View style={styles.qrPlaceholder}>
+                <QrCodeIcon size={80} color={colors.primary} />
+              </View>
+            </View>
+
+            {/* WhatsApp Number */}
+            <View style={styles.contactInfoRow}>
+              <Text style={styles.contactLabel}>{t('whatsappNumber')}</Text>
+              <Text style={styles.contactValue}>+852 1234 5678</Text>
+            </View>
+
+            {/* Description */}
+            <Text style={styles.contactDesc}>{t('contactUsDesc')}</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -354,7 +473,13 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
+    marginBottom: spacing.xs,
+  },
+  bio: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
     marginBottom: spacing.md,
+    fontStyle: 'italic',
   },
   miniStats: {
     flexDirection: 'row',
@@ -470,5 +595,94 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     marginBottom: spacing.xs,
+  },
+
+  /* Liked content specific */
+  likedAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  likedAuthorName: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  likeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+
+  /* Contact Us Modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrSection: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  qrPlaceholder: {
+    width: 160,
+    height: 160,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  contactInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+  },
+  contactLabel: {
+    ...typography.bodyMedium,
+    color: colors.onSurfaceVariant,
+  },
+  contactValue: {
+    ...typography.titleSmall,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  contactDesc: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

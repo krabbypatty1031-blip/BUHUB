@@ -25,16 +25,40 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: notifications, isLoading, refetch } = useCommentNotifications();
 
+  const handleAvatarPress = useCallback(
+    (userName: string) => {
+      navigation.navigate('UserProfile', { userName });
+    },
+    [navigation]
+  );
+
+  const handleContentPress = useCallback(
+    (item: CommentNotification) => {
+      // All comment notifications navigate to the post and scroll to the comment
+      navigation.navigate('PostDetail', {
+        postId: item.postId,
+        commentId: item.commentId,
+      });
+    },
+    [navigation]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: CommentNotification }) => (
       <View style={styles.notificationItem}>
-        <Avatar
-          text={item.user}
-          uri={item.avatar || null}
-          size="md"
-          gender={item.gender}
-        />
-        <View style={styles.notificationContent}>
+        <TouchableOpacity onPress={() => handleAvatarPress(item.user)}>
+          <Avatar
+            text={item.user}
+            uri={item.avatar || null}
+            size="md"
+            gender={item.gender}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.notificationContent}
+          activeOpacity={0.7}
+          onPress={() => handleContentPress(item)}
+        >
           <View style={styles.notificationHeader}>
             <Text style={styles.notificationUser} numberOfLines={1}>
               {item.user}
@@ -64,10 +88,10 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
               </Text>
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
       </View>
     ),
-    [t]
+    [t, handleAvatarPress, handleContentPress]
   );
 
   return (

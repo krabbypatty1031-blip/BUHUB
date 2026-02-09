@@ -13,12 +13,16 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandCategory } from '../../types';
-import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { CloseIcon, CameraIcon, PlusIcon } from '../../components/common/icons';
+import {
+  CloseIcon,
+  CameraIcon,
+  DollarIcon,
+  MapPinIcon,
+} from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeSecondhand'>;
@@ -39,7 +43,6 @@ const CONDITIONS: Array<{ key: string; labelKey: string }> = [
 
 export default function ComposeSecondhandScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 6 });
   const [title, setTitle] = useState('');
@@ -47,17 +50,17 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<SecondhandCategory>('electronics');
   const [condition, setCondition] = useState('good');
+  const [tradeLocation, setTradeLocation] = useState('');
 
   const canPost =
     title.trim().length > 0 &&
-    description.trim().length > 0 &&
-    price.trim().length > 0;
+    price.trim().length > 0 &&
+    condition.length > 0;
 
   const handlePost = useCallback(() => {
     if (!canPost) return;
-    showSnackbar({ message: t('postSuccess'), type: 'success' });
-    navigation.goBack();
-  }, [canPost, showSnackbar, t, navigation]);
+    navigation.replace('SecondhandShare', { itemName: title });
+  }, [canPost, navigation, title]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -75,90 +78,131 @@ export default function ComposeSecondhandScreen({ navigation }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('post')}
+            {t('publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Image Picker */}
-        <View style={styles.imageRow}>
-          {images.map((uri, i) => (
-            <View key={i} style={styles.imageThumb}>
-              <Image source={{ uri }} style={styles.imageThumbImg} />
-              <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
-                <CloseIcon size={14} color={colors.onPrimary} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Image Picker Card ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('itemPhotos')}</Text>
+          <View style={styles.imageGrid}>
+            {images.map((uri, i) => (
+              <View key={i} style={styles.imageThumb}>
+                <Image source={{ uri }} style={styles.imageThumbImg} />
+                <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
+                  <CloseIcon size={12} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {images.length < 6 && (
+              <TouchableOpacity style={styles.imagePicker} activeOpacity={0.7} onPress={pickImages}>
+                <CameraIcon size={28} color={colors.primary} />
+                <Text style={styles.imagePickerCount}>
+                  {images.length}/6
+                </Text>
               </TouchableOpacity>
-            </View>
-          ))}
-          {images.length < 6 && (
-            <TouchableOpacity style={styles.imagePicker} activeOpacity={0.7} onPress={pickImages}>
-              <CameraIcon size={32} color={colors.outline} />
-              <Text style={styles.imagePickerText}>{t('addPhotos')}</Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
         </View>
 
-        {/* Title Input */}
-        <TextInput
-          style={styles.titleInput}
-          placeholder={t('secondhandTitlePlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-        />
-
-        {/* Description Input */}
-        <TextInput
-          style={styles.descInput}
-          placeholder={t('secondhandDescPlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          textAlignVertical="top"
-          maxLength={1000}
-        />
-
-        {/* Price Input */}
-        <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>{t('price')}</Text>
+        {/* ── Title & Description Card ── */}
+        <View style={styles.card}>
           <TextInput
-            style={styles.priceInput}
-            placeholder="HK$ 0"
+            style={styles.titleInput}
+            placeholder={t('secondhandTitlePlaceholder')}
             placeholderTextColor={colors.outline}
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="numeric"
-            maxLength={10}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
           />
+          <View style={styles.cardDivider} />
+          <TextInput
+            style={styles.descInput}
+            placeholder={t('secondhandDescPlaceholder')}
+            placeholderTextColor={colors.outline}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            textAlignVertical="top"
+            maxLength={1000}
+          />
+          <Text style={styles.charCount}>{description.length}/1000</Text>
         </View>
 
-        {/* Condition Selector */}
-        <Text style={styles.sectionLabel}>{t('condition')}</Text>
-        <View style={styles.chipRow}>
-          {CONDITIONS.map((cond) => (
-            <Chip
-              key={cond.key}
-              label={t(cond.labelKey)}
-              selected={condition === cond.key}
-              onPress={() => setCondition(cond.key)}
+        {/* ── Price & Location Card ── */}
+        <View style={styles.card}>
+          {/* Price */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <DollarIcon size={14} color={colors.primary} />{' '}
+              {t('sellingPrice')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="HK$ 0"
+              placeholderTextColor={colors.outline}
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="numeric"
+              maxLength={10}
             />
-          ))}
+          </View>
+
+          <View style={styles.cardDivider} />
+
+          {/* Trade Location */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.primary} />{' '}
+              {t('tradeLocation')}
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('placeholderTradeLocation')}
+              placeholderTextColor={colors.outline}
+              value={tradeLocation}
+              onChangeText={setTradeLocation}
+              maxLength={50}
+            />
+          </View>
         </View>
 
-        {/* Category Selector */}
-        <Text style={styles.sectionLabel}>{t('category')}</Text>
-        <View style={styles.chipRow}>
-          {CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.key}
-              label={t(cat.labelKey)}
-              selected={category === cat.key}
-              onPress={() => setCategory(cat.key)}
-            />
-          ))}
+        {/* ── Condition Selector ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            {t('conditionLabel')} <Text style={styles.required}>*</Text>
+          </Text>
+          <View style={styles.chipRow}>
+            {CONDITIONS.map((cond) => (
+              <Chip
+                key={cond.key}
+                label={t(cond.labelKey)}
+                selected={condition === cond.key}
+                onPress={() => setCondition(cond.key)}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* ── Category Selector ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
+          <View style={styles.chipRow}>
+            {CATEGORIES.map((cat) => (
+              <Chip
+                key={cat.key}
+                label={t(cat.labelKey)}
+                selected={category === cat.key}
+                onPress={() => setCategory(cat.key)}
+              />
+            ))}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -192,32 +236,55 @@ const styles = StyleSheet.create({
   },
   postBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   postBtnDisabled: {
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceVariant,
   },
   postBtnText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
   postBtnTextDisabled: {
-    color: colors.outline,
+    color: colors.onSurfaceVariant,
+  },
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.lg,
+    paddingBottom: 100,
+    gap: spacing.lg,
   },
-  imageRow: {
+
+  /* Card */
+  card: {
+    backgroundColor: colors.surface1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+  },
+  cardTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+    marginBottom: spacing.md,
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginVertical: spacing.md,
+  },
+
+  /* Image grid */
+  imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   imageThumb: {
-    width: 100,
-    height: 100,
+    width: 96,
+    height: 96,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',
@@ -230,63 +297,72 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   imagePicker: {
-    width: 100,
-    height: 100,
+    width: 96,
+    height: 96,
     borderWidth: 2,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.primaryContainer,
     borderStyle: 'dashed',
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryContainer + '20',
+    gap: spacing.xs,
   },
-  imagePickerText: {
-    ...typography.bodyMedium,
-    color: colors.outline,
-    marginTop: spacing.sm,
+  imagePickerCount: {
+    ...typography.labelSmall,
+    color: colors.primary,
   },
+
+  /* Title & Description */
   titleInput: {
     ...typography.titleMedium,
     color: colors.onSurface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
+    padding: 0,
   },
   descInput: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     minHeight: 120,
-    marginBottom: spacing.lg,
+    padding: 0,
   },
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
+  charCount: {
+    ...typography.labelSmall,
+    color: colors.outline,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+  },
+
+  /* Fields */
+  fieldGroup: {
+    gap: spacing.sm,
   },
   fieldLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginRight: spacing.md,
-    width: 60,
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
   },
-  priceInput: {
+  required: {
+    color: colors.error,
+    fontWeight: '500',
+  },
+  fieldInput: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    flex: 1,
+    paddingVertical: spacing.md,
   },
+
+  /* Section */
+  section: {},
   sectionLabel: {
     ...typography.titleSmall,
     color: colors.onSurface,
@@ -295,6 +371,5 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: spacing.lg,
   },
 });

@@ -4,18 +4,23 @@ interface ForumState {
   likedPosts: Set<string>;
   bookmarkedPosts: Set<string>;
   votedPolls: Map<string, number>;
+  blockedUsers: Set<string>;
 
   toggleLike: (postId: string) => void;
   toggleBookmark: (postId: string) => void;
   votePoll: (postId: string, optionIndex: number) => void;
   isLiked: (postId: string) => boolean;
   isBookmarked: (postId: string) => boolean;
+  blockUser: (userName: string) => void;
+  unblockUser: (userName: string) => void;
+  isBlocked: (userName: string) => boolean;
 }
 
 export const useForumStore = create<ForumState>()((set, get) => ({
   likedPosts: new Set<string>(),
   bookmarkedPosts: new Set<string>(),
   votedPolls: new Map<string, number>(),
+  blockedUsers: new Set<string>(),
 
   toggleLike: (postId) =>
     set((state) => {
@@ -49,4 +54,20 @@ export const useForumStore = create<ForumState>()((set, get) => ({
 
   isLiked: (postId) => get().likedPosts.has(postId),
   isBookmarked: (postId) => get().bookmarkedPosts.has(postId),
+
+  blockUser: (userName) =>
+    set((state) => {
+      const next = new Set(state.blockedUsers);
+      next.add(userName);
+      return { blockedUsers: next };
+    }),
+
+  unblockUser: (userName) =>
+    set((state) => {
+      const next = new Set(state.blockedUsers);
+      next.delete(userName);
+      return { blockedUsers: next };
+    }),
+
+  isBlocked: (userName) => get().blockedUsers.has(userName),
 }));

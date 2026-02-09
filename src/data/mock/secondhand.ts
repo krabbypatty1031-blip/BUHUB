@@ -1,5 +1,9 @@
 import type { SecondhandItem } from '../../types';
 
+const now = new Date();
+const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockSecondhandItems: SecondhandItem[] = [
   {
     category: 'electronics',
@@ -14,6 +18,8 @@ export const mockSecondhandItems: SecondhandItem[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     sold: false,
+    expiresAt: thirtyDaysLater,
+    expired: false,
   },
   {
     category: 'books',
@@ -28,6 +34,8 @@ export const mockSecondhandItems: SecondhandItem[] = [
     gender: 'female',
     bio: 'Year 4 · Music',
     sold: false,
+    expiresAt: thirtyDaysLater,
+    expired: false,
   },
   {
     category: 'furniture',
@@ -42,5 +50,39 @@ export const mockSecondhandItems: SecondhandItem[] = [
     gender: 'female',
     bio: 'Year 3 · Communication',
     sold: true,
+    expiresAt: expiredDate,
+    expired: true,
+  },
+  {
+    category: 'electronics',
+    type: '電子產品',
+    title: 'iPad Air 5 WiFi 64GB',
+    desc: 'M1 芯片，太空灰色，配 Apple Pencil 2，適合上堂做筆記',
+    price: 'HK$3,200',
+    condition: '9成新',
+    location: '浸大校園面交',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    sold: false,
+    expiresAt: thirtyDaysLater,
+    expired: false,
+  },
+  {
+    category: 'books',
+    type: '書籍教材',
+    title: 'COMP2012 Data Structures 教科書',
+    desc: '上學期用完，冇劃線冇筆記，接近全新',
+    price: 'HK$120',
+    condition: '95成新',
+    location: '浸大校園面交',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    sold: true,
+    expiresAt: expiredDate,
+    expired: true,
   },
 ];

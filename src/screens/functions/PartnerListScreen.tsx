@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,12 +13,14 @@ import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerPost, PartnerCategory } from '../../types';
 import { usePartners } from '../../hooks/usePartners';
 import { usePartnerStore } from '../../store/partnerStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
-import { BackIcon, PlusIcon, UsersIcon } from '../../components/common/icons';
+import Avatar from '../../components/common/Avatar';
+import { BackIcon, PlusIcon, UsersIcon, MessageIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -36,7 +37,20 @@ export default function PartnerListScreen({ navigation }: Props) {
   const selectedCategory = usePartnerStore((s) => s.selectedCategory);
   const setCategory = usePartnerStore((s) => s.setCategory);
   const joinedActivities = usePartnerStore((s) => s.joinedActivities);
+  const expiredNotified = usePartnerStore((s) => s.expiredNotified);
+  const setExpiredNotified = usePartnerStore((s) => s.setExpiredNotified);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: partners, isLoading, refetch } = usePartners(selectedCategory || undefined);
+
+  useEffect(() => {
+    if (partners && !expiredNotified) {
+      const hasExpired = partners.some((item) => item.expired);
+      if (hasExpired) {
+        showSnackbar({ message: t('partnerExpiryNotice'), type: 'info' });
+        setExpiredNotified(true);
+      }
+    }
+  }, [partners, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
   const handleCategoryPress = useCallback(
     (key: PartnerCategory | 'all') => {
@@ -45,17 +59,28 @@ export default function PartnerListScreen({ navigation }: Props) {
     [setCategory]
   );
 
+  const handleDmOrganizer = useCallback(
+    (item: PartnerPost) => {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: { contactName: item.user, contactAvatar: item.avatar },
+      });
+    },
+    [navigation]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: PartnerPost; index: number }) => {
       const isJoined = joinedActivities.has(index);
+      const effectiveJoined = item.joined + (isJoined ? 1 : 0);
       return (
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, item.expired && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('PartnerDetail', { index })}
         >
           <View style={styles.cardHeader}>
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+            <Avatar text={item.avatar} size="md" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
               <Text style={styles.userName}>{item.user}</Text>
               <Text style={styles.timeMeta}>{item.time}</Text>
@@ -71,22 +96,38 @@ export default function PartnerListScreen({ navigation }: Props) {
             {item.desc}
           </Text>
           <View style={styles.cardFooter}>
-            <View style={styles.joinInfo}>
-              <UsersIcon size={16} color={colors.onSurfaceVariant} />
-              <Text style={styles.joinText}>
-                {item.joined}/{item.maxPeople} {t('people')}
-              </Text>
-            </View>
-            {isJoined && (
-              <View style={styles.joinedBadge}>
-                <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
+            <View style={styles.footerLeft}>
+              <View style={styles.joinInfo}>
+                <UsersIcon size={16} color={colors.onSurfaceVariant} />
+                <Text style={styles.joinText}>
+                  {effectiveJoined}/{item.maxPeople} {t('people')}
+                </Text>
               </View>
+              {isJoined && (
+                <View style={styles.joinedBadge}>
+                  <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
+                </View>
+              )}
+              {item.expired && (
+                <View style={styles.expiredBadge}>
+                  <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
+                </View>
+              )}
+            </View>
+            {!item.expired && (
+              <TouchableOpacity
+                style={styles.dmBtn}
+                activeOpacity={0.7}
+                onPress={() => handleDmOrganizer(item)}
+              >
+                <MessageIcon size={16} color={colors.primary} />
+              </TouchableOpacity>
             )}
           </View>
         </TouchableOpacity>
       );
     },
-    [joinedActivities, navigation, t]
+    [joinedActivities, navigation, t, handleDmOrganizer]
   );
 
   return (
@@ -191,16 +232,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...elevation[1],
   },
+  cardExpired: {
+    opacity: 0.5,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceVariant,
   },
   cardHeaderInfo: {
     flex: 1,
@@ -240,6 +278,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   joinInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -258,6 +301,24 @@ const styles = StyleSheet.create({
   joinedBadgeText: {
     ...typography.labelSmall,
     color: colors.primary,
+  },
+  expiredBadge: {
+    backgroundColor: colors.errorContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xs,
+  },
+  expiredBadgeText: {
+    ...typography.labelSmall,
+    color: colors.onErrorContainer,
+  },
+  dmBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

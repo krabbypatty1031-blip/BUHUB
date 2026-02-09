@@ -1,5 +1,9 @@
 import type { Errand } from '../../types';
 
+const now = new Date();
+const oneDayLater = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
+const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockErrands: Errand[] = [
   {
     category: 'pickup',
@@ -16,6 +20,7 @@ export const mockErrands: Errand[] = [
     gender: 'female',
     bio: 'Year 3 · Communication',
     expired: false,
+    expiresAt: oneDayLater,
   },
   {
     category: 'buy',
@@ -32,6 +37,7 @@ export const mockErrands: Errand[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     expired: false,
+    expiresAt: oneDayLater,
   },
   {
     category: 'pickup',
@@ -48,5 +54,40 @@ export const mockErrands: Errand[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     expired: true,
+    expiresAt: expiredDate,
+  },
+  {
+    category: 'buy',
+    type: '代買',
+    title: '幫忙買文具',
+    desc: '要買幾支 Pilot 原子筆同A4紙，喺校門口嗰間文具店',
+    from: '浸大校門文具店',
+    to: '教學樓 AAB 601',
+    price: 'HK$25',
+    item: '原子筆 x3 + A4紙一包',
+    time: '今日 16:00 前',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    expired: false,
+    expiresAt: oneDayLater,
+  },
+  {
+    category: 'pickup',
+    type: '代取',
+    title: '幫忙攞圖書館嘅書',
+    desc: '預約咗兩本書，但我今日唔得閒去攞',
+    from: '浸大圖書館一樓服務台',
+    to: '學生宿舍 A座大堂',
+    price: 'HK$15',
+    item: '兩本預約書籍',
+    time: '昨日 17:00 前',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    expired: true,
+    expiresAt: expiredDate,
   },
 ];

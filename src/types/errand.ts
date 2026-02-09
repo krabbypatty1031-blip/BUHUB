@@ -17,4 +17,5 @@ export interface Errand {
   gender: Gender;
   bio: string;
   expired: boolean;
+  expiresAt: string;
 }

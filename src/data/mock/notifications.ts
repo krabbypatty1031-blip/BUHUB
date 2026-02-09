@@ -9,6 +9,7 @@ export const mockLikeNotifications: LikeNotification[] = [
     content: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
     time: '10分鐘前',
     hasImage: true,
+    postId: 'cat',
   },
   {
     user: '王同學',
@@ -17,6 +18,8 @@ export const mockLikeNotifications: LikeNotification[] = [
     action: 'likedYourComment',
     content: '可以試下去 Wing Lung Bank Building',
     time: '1小時前',
+    postId: 'library',
+    commentId: 'comment-001',
   },
   {
     user: '張同學',
@@ -25,6 +28,8 @@ export const mockLikeNotifications: LikeNotification[] = [
     action: 'likedYourReply',
     content: '真係好想再見到佢！',
     time: '3小時前',
+    postId: 'cat',
+    commentId: 'comment-002',
   },
 ];
 
@@ -65,6 +70,8 @@ export const mockCommentNotifications: CommentNotification[] = [
     originalPost: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
     time: '20分鐘前',
     type: 'comment',
+    postId: 'cat',
+    commentId: 'comment-003',
   },
   {
     user: '李同學',
@@ -75,6 +82,8 @@ export const mockCommentNotifications: CommentNotification[] = [
     originalPost: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
     time: '45分鐘前',
     type: 'reply',
+    postId: 'cat',
+    commentId: 'comment-004',
   },
   {
     user: '張同學',
@@ -85,5 +94,7 @@ export const mockCommentNotifications: CommentNotification[] = [
     originalPost: '下學期有冇人想一齊選 COMP3015？',
     time: '2小時前',
     type: 'mention',
+    postId: 'comp3015',
+    commentId: 'comment-005',
   },
 ];

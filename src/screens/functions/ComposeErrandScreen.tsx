@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,17 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { ErrandCategory } from '../../types';
-import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { CloseIcon } from '../../components/common/icons';
+import {
+  CloseIcon,
+  ClockIcon,
+  MapPinIcon,
+  PackageIcon,
+  DollarIcon,
+  AlertTriangleIcon,
+} from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeErrand'>;
@@ -29,7 +35,6 @@ const CATEGORIES: Array<{ key: ErrandCategory; labelKey: string }> = [
 
 export default function ComposeErrandScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -37,14 +42,29 @@ export default function ComposeErrandScreen({ navigation }: Props) {
   const [category, setCategory] = useState<ErrandCategory>('pickup');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [item, setItem] = useState('');
 
-  const canPost = title.trim().length > 0 && content.trim().length > 0 && price.trim().length > 0;
+  const endTimeDisplay = useMemo(() => {
+    const end = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, '0');
+    const d = String(end.getDate()).padStart(2, '0');
+    const h = String(end.getHours()).padStart(2, '0');
+    const min = String(end.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}`;
+  }, []);
+
+  const canPost =
+    title.trim().length > 0 &&
+    price.trim().length > 0 &&
+    from.trim().length > 0 &&
+    to.trim().length > 0 &&
+    item.trim().length > 0;
 
   const handlePost = useCallback(() => {
     if (!canPost) return;
-    showSnackbar({ message: t('postSuccess'), type: 'success' });
-    navigation.goBack();
-  }, [canPost, showSnackbar, t, navigation]);
+    navigation.replace('ErrandShare', { taskName: title });
+  }, [canPost, navigation, title]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -62,84 +82,151 @@ export default function ComposeErrandScreen({ navigation }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('post')}
+            {t('publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Title Input */}
-        <TextInput
-          style={styles.titleInput}
-          placeholder={t('errandTitlePlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-        />
-
-        {/* Content Input */}
-        <TextInput
-          style={styles.contentInput}
-          placeholder={t('errandContentPlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={content}
-          onChangeText={setContent}
-          multiline
-          textAlignVertical="top"
-          maxLength={1000}
-        />
-
-        {/* Price Input */}
-        <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>{t('reward')}</Text>
-          <TextInput
-            style={styles.priceInput}
-            placeholder="HK$ 0"
-            placeholderTextColor={colors.outline}
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Disclaimer ── */}
+        <View style={styles.disclaimerCard}>
+          <AlertTriangleIcon size={16} color={colors.onErrorContainer} />
+          <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
-        {/* From / To */}
-        <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>{t('from')}</Text>
-          <TextInput
-            style={styles.locationInput}
-            placeholder={t('locationPlaceholder')}
-            placeholderTextColor={colors.outline}
-            value={from}
-            onChangeText={setFrom}
-            maxLength={50}
-          />
+        {/* ── Category Selector ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
+          <View style={styles.chipRow}>
+            {CATEGORIES.map((cat) => (
+              <Chip
+                key={cat.key}
+                label={t(cat.labelKey)}
+                selected={category === cat.key}
+                onPress={() => setCategory(cat.key)}
+              />
+            ))}
+          </View>
         </View>
 
-        <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>{t('to')}</Text>
+        {/* ── Title & Content Card ── */}
+        <View style={styles.card}>
           <TextInput
-            style={styles.locationInput}
-            placeholder={t('locationPlaceholder')}
+            style={styles.titleInput}
+            placeholder={t('errandTitlePlaceholder')}
             placeholderTextColor={colors.outline}
-            value={to}
-            onChangeText={setTo}
-            maxLength={50}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
           />
+          <View style={styles.cardDivider} />
+          <TextInput
+            style={styles.contentInput}
+            placeholder={t('errandContentPlaceholder')}
+            placeholderTextColor={colors.outline}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            textAlignVertical="top"
+            maxLength={1000}
+          />
+          <Text style={styles.charCount}>{content.length}/1000</Text>
         </View>
 
-        {/* Category Selector */}
-        <Text style={styles.sectionLabel}>{t('category')}</Text>
-        <View style={styles.chipRow}>
-          {CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.key}
-              label={t(cat.labelKey)}
-              selected={category === cat.key}
-              onPress={() => setCategory(cat.key)}
+        {/* ── Task Details Card ── */}
+        <View style={styles.card}>
+          {/* Price */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <DollarIcon size={14} color={colors.primary} />{' '}
+              {t('reward')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="HK$ 0"
+              placeholderTextColor={colors.outline}
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="numeric"
+              maxLength={10}
             />
-          ))}
+          </View>
+
+          <View style={styles.cardDivider} />
+
+          {/* Item */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <PackageIcon size={14} color={colors.primary} />{' '}
+              {t('itemField')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('itemPlaceholder')}
+              placeholderTextColor={colors.outline}
+              value={item}
+              onChangeText={setItem}
+              maxLength={50}
+            />
+          </View>
+        </View>
+
+        {/* ── Route Card ── */}
+        <View style={styles.card}>
+          {/* From */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.accent} />{' '}
+              {t('from')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('placeholderFrom')}
+              placeholderTextColor={colors.outline}
+              value={from}
+              onChangeText={setFrom}
+              maxLength={50}
+            />
+          </View>
+
+          {/* Route connector */}
+          <View style={styles.routeConnector}>
+            <View style={styles.routeLine} />
+            <View style={styles.routeDot} />
+            <View style={styles.routeLine} />
+          </View>
+
+          {/* To */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.error} />{' '}
+              {t('to')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('placeholderTo')}
+              placeholderTextColor={colors.outline}
+              value={to}
+              onChangeText={setTo}
+              maxLength={50}
+            />
+          </View>
+        </View>
+
+        {/* ── End Time Info ── */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <ClockIcon size={16} color={colors.onSurfaceVariant} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>{t('endsAt')}</Text>
+              <Text style={styles.infoValue}>{endTimeDisplay}</Text>
+            </View>
+          </View>
+          <Text style={styles.infoHint}>{t('errandAutoEndNotice')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -173,76 +260,160 @@ const styles = StyleSheet.create({
   },
   postBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   postBtnDisabled: {
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceVariant,
   },
   postBtnText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
   postBtnTextDisabled: {
-    color: colors.outline,
+    color: colors.onSurfaceVariant,
+  },
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.lg,
+    paddingBottom: 100,
+    gap: spacing.lg,
   },
-  titleInput: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
-  },
-  contentInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    minHeight: 120,
-    marginBottom: spacing.lg,
-  },
-  fieldRow: {
+
+  /* Disclaimer */
+  disclaimerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.errorContainer,
+    borderRadius: borderRadius.lg,
   },
-  fieldLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginRight: spacing.md,
-    width: 60,
-  },
-  priceInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  disclaimerText: {
+    ...typography.bodySmall,
+    color: colors.onErrorContainer,
     flex: 1,
+    fontWeight: '500',
   },
-  locationInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    flex: 1,
-  },
+
+  /* Section */
+  section: {},
   sectionLabel: {
     ...typography.titleSmall,
     color: colors.onSurface,
     marginBottom: spacing.sm,
-    marginTop: spacing.sm,
+  },
+  required: {
+    color: colors.error,
+    fontWeight: '500',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+
+  /* Card */
+  card: {
+    backgroundColor: colors.surface1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginVertical: spacing.md,
+  },
+
+  /* Title & Content */
+  titleInput: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+    padding: 0,
+  },
+  contentInput: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+    minHeight: 100,
+    padding: 0,
+  },
+  charCount: {
+    ...typography.labelSmall,
+    color: colors.outline,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+  },
+
+  /* Fields */
+  fieldGroup: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  fieldInput: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+
+  /* Route connector */
+  routeConnector: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  routeLine: {
+    width: 2,
+    height: 8,
+    backgroundColor: colors.outlineVariant,
+  },
+  routeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.outline,
+    marginVertical: spacing.xxs,
+  },
+
+  /* Info card */
+  infoCard: {
+    backgroundColor: colors.primaryContainer + '30',
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  infoValue: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  infoHint: {
+    ...typography.bodySmall,
+    color: colors.outline,
+    marginTop: spacing.xs,
+    marginLeft: spacing.xxl,
   },
 });

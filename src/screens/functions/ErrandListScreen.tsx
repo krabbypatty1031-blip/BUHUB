@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,16 +13,19 @@ import type { FunctionsStackParamList } from '../../types/navigation';
 import type { Errand, ErrandCategory } from '../../types';
 import { useErrands } from '../../hooks/useErrands';
 import { useErrandStore } from '../../store/errandStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import EmptyState from '../../components/common/EmptyState';
+import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
   PlusIcon,
   DollarIcon,
   ClockIcon,
+  MessageIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
@@ -40,7 +42,20 @@ export default function ErrandListScreen({ navigation }: Props) {
   const selectedCategory = useErrandStore((s) => s.selectedCategory);
   const setCategory = useErrandStore((s) => s.setCategory);
   const acceptedErrands = useErrandStore((s) => s.acceptedErrands);
+  const expiredNotified = useErrandStore((s) => s.expiredNotified);
+  const setExpiredNotified = useErrandStore((s) => s.setExpiredNotified);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: errands, isLoading, refetch } = useErrands(selectedCategory || undefined);
+
+  useEffect(() => {
+    if (errands && !expiredNotified) {
+      const hasExpired = errands.some((item) => item.expired);
+      if (hasExpired) {
+        showSnackbar({ message: t('errandExpiryNotice'), type: 'info' });
+        setExpiredNotified(true);
+      }
+    }
+  }, [errands, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
   const handleCategoryPress = useCallback(
     (key: ErrandCategory | 'all') => {
@@ -49,17 +64,27 @@ export default function ErrandListScreen({ navigation }: Props) {
     [setCategory]
   );
 
+  const handleDmPoster = useCallback(
+    (item: Errand) => {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: { contactName: item.user, contactAvatar: item.avatar },
+      });
+    },
+    [navigation]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: Errand; index: number }) => {
       const isAccepted = acceptedErrands.has(index);
       return (
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, item.expired && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('ErrandDetail', { index })}
         >
           <View style={styles.cardHeader}>
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+            <Avatar text={item.avatar} size="md" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
               <Text style={styles.userName}>{item.user}</Text>
               <Text style={styles.timeMeta}>{item.time}</Text>
@@ -75,24 +100,40 @@ export default function ErrandListScreen({ navigation }: Props) {
             {item.desc}
           </Text>
           <View style={styles.cardFooter}>
-            <View style={styles.priceRow}>
-              <DollarIcon size={16} color={colors.primary} />
-              <Text style={styles.priceText}>{item.price}</Text>
-            </View>
-            <View style={styles.deadlineRow}>
-              <ClockIcon size={14} color={colors.onSurfaceVariant} />
-              <Text style={styles.deadlineText}>{item.time}</Text>
-            </View>
-            {isAccepted && (
-              <View style={styles.acceptedBadge}>
-                <Text style={styles.acceptedBadgeText}>{t('accepted')}</Text>
+            <View style={styles.footerLeft}>
+              <View style={styles.priceRow}>
+                <DollarIcon size={16} color={colors.primary} />
+                <Text style={styles.priceText}>{item.price}</Text>
               </View>
+              <View style={styles.deadlineRow}>
+                <ClockIcon size={14} color={colors.onSurfaceVariant} />
+                <Text style={styles.deadlineText}>{item.time}</Text>
+              </View>
+              {isAccepted && (
+                <View style={styles.acceptedBadge}>
+                  <Text style={styles.acceptedBadgeText}>{t('accepted')}</Text>
+                </View>
+              )}
+              {item.expired && (
+                <View style={styles.expiredBadge}>
+                  <Text style={styles.expiredBadgeText}>{t('errandExpired')}</Text>
+                </View>
+              )}
+            </View>
+            {!item.expired && (
+              <TouchableOpacity
+                style={styles.dmBtn}
+                activeOpacity={0.7}
+                onPress={() => handleDmPoster(item)}
+              >
+                <MessageIcon size={16} color={colors.primary} />
+              </TouchableOpacity>
             )}
           </View>
         </TouchableOpacity>
       );
     },
-    [acceptedErrands, navigation, t]
+    [acceptedErrands, navigation, t, handleDmPoster]
   );
 
   return (
@@ -120,6 +161,11 @@ export default function ErrandListScreen({ navigation }: Props) {
             onPress={() => handleCategoryPress(cat.key)}
           />
         ))}
+      </View>
+
+      {/* Disclaimer Banner */}
+      <View style={styles.disclaimerBar}>
+        <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
       </View>
 
       {/* Errand List */}
@@ -186,6 +232,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     flexWrap: 'wrap',
   },
+  disclaimerBar: {
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.errorContainer,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.sm,
+  },
+  disclaimerText: {
+    ...typography.bodySmall,
+    color: colors.onErrorContainer,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
@@ -197,16 +257,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...elevation[1],
   },
+  cardExpired: {
+    opacity: 0.5,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceVariant,
   },
   cardHeaderInfo: {
     flex: 1,
@@ -244,11 +301,17 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: spacing.lg,
   },
   priceText: {
     ...typography.titleSmall,
@@ -258,7 +321,6 @@ const styles = StyleSheet.create({
   deadlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   deadlineText: {
     ...typography.bodySmall,
@@ -274,6 +336,24 @@ const styles = StyleSheet.create({
   acceptedBadgeText: {
     ...typography.labelSmall,
     color: colors.primary,
+  },
+  expiredBadge: {
+    backgroundColor: colors.errorContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xs,
+  },
+  expiredBadgeText: {
+    ...typography.labelSmall,
+    color: colors.onErrorContainer,
+  },
+  dmBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

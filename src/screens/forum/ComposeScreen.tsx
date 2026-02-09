@@ -53,7 +53,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? [] : [tag]
     );
   }, []);
 
@@ -94,7 +94,17 @@ export default function ComposeScreen({ navigation, route }: Props) {
           <CloseIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerType}>{typeLabels[type]}</Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity
+          style={[styles.postBtn, !content.trim() && styles.postBtnDisabled]}
+          onPress={handlePost}
+          disabled={!content.trim()}
+        >
+          <Text
+            style={[styles.postBtnText, !content.trim() && styles.postBtnTextDisabled]}
+          >
+            {t('post')}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -170,7 +180,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
         {/* Tags */}
         <View style={styles.tagsSection}>
-          <Text style={styles.tagsTitle}>{t('selectTags')}</Text>
+          <Text style={styles.tagsTitle}>{t('selectCircle')}</Text>
           <View style={styles.tagsGrid}>
             {TAGS.map((tagKey) => {
               const label = t(tagKey);
@@ -206,20 +216,6 @@ export default function ComposeScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* Post Button */}
-        <View style={styles.postBtnRow}>
-          <TouchableOpacity
-            style={[styles.postBtn, !content.trim() && styles.postBtnDisabled]}
-            onPress={handlePost}
-            disabled={!content.trim()}
-          >
-            <Text
-              style={[styles.postBtnText, !content.trim() && styles.postBtnTextDisabled]}
-            >
-              {t('post')}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -249,11 +245,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...typography.titleSmall,
     color: colors.onSurfaceVariant,
-  },
-  postBtnRow: {
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
   },
   postBtn: {
     backgroundColor: colors.primary,

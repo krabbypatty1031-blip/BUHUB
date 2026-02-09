@@ -38,11 +38,39 @@ export interface UserComment {
   time: string;
 }
 
+export interface LikedPost {
+  author: string;
+  avatar: string;
+  gender: Gender;
+  content: string;
+  time: string;
+  likes: number;
+  comments: number;
+}
+
+export interface LikedComment {
+  postAuthor: string;
+  postContent: string;
+  commentAuthor: string;
+  comment: string;
+  time: string;
+  likes: number;
+}
+
 export interface MyContent {
   posts: UserPost[];
   comments: UserComment[];
   anonPosts: UserPost[];
   anonComments: UserComment[];
+  myLikes: {
+    posts: LikedPost[];
+    comments: LikedComment[];
+  };
+  stats: {
+    following: number;
+    followers: number;
+    collection: number;
+  };
 }
 
 export interface Contact {
@@ -53,4 +81,5 @@ export interface Contact {
   unread: number;
   pinned: boolean;
   gender?: Gender;
+  muted?: boolean;
 }

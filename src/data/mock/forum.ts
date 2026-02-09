@@ -114,6 +114,7 @@ export const mockPosts: ForumPost[] = [
 export const mockCommentsData: Record<string, Comment[]> = {
   cat: [
     {
+      id: 'comment-003',
       name: '王同學',
       avatar: '王',
       content: '好可愛！我都見過佢，應該係學校嘅流浪貓',
@@ -121,6 +122,7 @@ export const mockCommentsData: Record<string, Comment[]> = {
       likes: 23,
       replies: [
         {
+          id: 'comment-002',
           name: '陳同學',
           avatar: '陳',
           replyTo: '王同學',
@@ -131,6 +133,7 @@ export const mockCommentsData: Record<string, Comment[]> = {
       ],
     },
     {
+      id: 'comment-004',
       name: '李同學',
       avatar: '李',
       content: '佢成日都喺飯堂出沒㗎！好多同學都餵佢',
@@ -141,6 +144,7 @@ export const mockCommentsData: Record<string, Comment[]> = {
   ],
   library: [
     {
+      id: 'comment-001',
       name: '陳同學',
       avatar: '陳',
       content: '可以試下去 Wing Lung Bank Building 嘅自習室',
@@ -156,6 +160,15 @@ export const mockCommentsData: Record<string, Comment[]> = {
       content: '我都想選！可以加我一齊組隊',
       time: '4小時前',
       likes: 8,
+      replies: [],
+    },
+    {
+      id: 'comment-005',
+      name: '張同學',
+      avatar: '張',
+      content: '@浸大小明 你覺得點呀？',
+      time: '3小時前',
+      likes: 2,
       replies: [],
     },
   ],

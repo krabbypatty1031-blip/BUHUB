@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,15 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerCategory } from '../../types';
-import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { CloseIcon } from '../../components/common/icons';
+import {
+  CloseIcon,
+  ClockIcon,
+  MapPinIcon,
+  UsersIcon,
+} from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposePartner'>;
@@ -31,20 +35,33 @@ const CATEGORIES: Array<{ key: PartnerCategory; labelKey: string }> = [
 
 export default function ComposePartnerScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<PartnerCategory>('travel');
+  const [category, setCategory] = useState<PartnerCategory | null>(null);
   const [maxPeople, setMaxPeople] = useState('');
+  const [activityTime, setActivityTime] = useState('');
+  const [location, setLocation] = useState('');
 
-  const canPost = title.trim().length > 0 && content.trim().length > 0;
+  const endTimeDisplay = useMemo(() => {
+    const end = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, '0');
+    const d = String(end.getDate()).padStart(2, '0');
+    const h = String(end.getHours()).padStart(2, '0');
+    const min = String(end.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}`;
+  }, []);
+
+  const canPost =
+    title.trim().length > 0 &&
+    category !== null &&
+    activityTime.trim().length > 0;
 
   const handlePost = useCallback(() => {
     if (!canPost) return;
-    showSnackbar({ message: t('postSuccess'), type: 'success' });
-    navigation.goBack();
-  }, [canPost, showSnackbar, t, navigation]);
+    navigation.replace('PartnerShare', { activityName: title });
+  }, [canPost, navigation, title]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -62,59 +79,126 @@ export default function ComposePartnerScreen({ navigation }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('post')}
+            {t('publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Title Input */}
-        <TextInput
-          style={styles.titleInput}
-          placeholder={t('partnerTitlePlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={100}
-        />
-
-        {/* Content Input */}
-        <TextInput
-          style={styles.contentInput}
-          placeholder={t('partnerContentPlaceholder')}
-          placeholderTextColor={colors.outline}
-          value={content}
-          onChangeText={setContent}
-          multiline
-          textAlignVertical="top"
-          maxLength={1000}
-        />
-
-        {/* Max People */}
-        <View style={styles.fieldRow}>
-          <Text style={styles.fieldLabel}>{t('maxPeople')}</Text>
-          <TextInput
-            style={styles.numberInput}
-            placeholder="4"
-            placeholderTextColor={colors.outline}
-            value={maxPeople}
-            onChangeText={setMaxPeople}
-            keyboardType="number-pad"
-            maxLength={3}
-          />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Category Selector ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            {t('categoryLabel')} <Text style={styles.required}>*</Text>
+          </Text>
+          <View style={styles.chipRow}>
+            {CATEGORIES.map((cat) => (
+              <Chip
+                key={cat.key}
+                label={t(cat.labelKey)}
+                selected={category === cat.key}
+                onPress={() => setCategory(cat.key)}
+              />
+            ))}
+          </View>
         </View>
 
-        {/* Category Selector */}
-        <Text style={styles.sectionLabel}>{t('category')}</Text>
-        <View style={styles.chipRow}>
-          {CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.key}
-              label={t(cat.labelKey)}
-              selected={category === cat.key}
-              onPress={() => setCategory(cat.key)}
+        {/* ── Title & Content Card ── */}
+        <View style={styles.card}>
+          <TextInput
+            style={styles.titleInput}
+            placeholder={t('partnerTitlePlaceholder')}
+            placeholderTextColor={colors.outline}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={100}
+          />
+          <View style={styles.cardDivider} />
+          <TextInput
+            style={styles.contentInput}
+            placeholder={t('partnerContentPlaceholder')}
+            placeholderTextColor={colors.outline}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            textAlignVertical="top"
+            maxLength={1000}
+          />
+          <Text style={styles.charCount}>{content.length}/1000</Text>
+        </View>
+
+        {/* ── Details Card ── */}
+        <View style={styles.card}>
+          {/* Activity Time */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <ClockIcon size={14} color={colors.primary} />{' '}
+              {t('activityTime')} <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('activityTimePlaceholder')}
+              placeholderTextColor={colors.outline}
+              value={activityTime}
+              onChangeText={setActivityTime}
+              maxLength={50}
             />
-          ))}
+          </View>
+
+          <View style={styles.cardDivider} />
+
+          {/* Location */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.primary} />{' '}
+              {t('locationLabel')}
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder={t('placeholderLocation')}
+              placeholderTextColor={colors.outline}
+              value={location}
+              onChangeText={setLocation}
+              maxLength={50}
+            />
+          </View>
+
+          <View style={styles.cardDivider} />
+
+          {/* Max People */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <UsersIcon size={14} color={colors.primary} />{' '}
+              {t('maxPeople')}
+            </Text>
+            <View style={styles.numberInputRow}>
+              <TextInput
+                style={styles.numberInput}
+                placeholder="4"
+                placeholderTextColor={colors.outline}
+                value={maxPeople}
+                onChangeText={setMaxPeople}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <Text style={styles.numberUnit}>{t('personUnit')}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── End Time Info ── */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <ClockIcon size={16} color={colors.onSurfaceVariant} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>{t('endsAt')}</Text>
+              <Text style={styles.infoValue}>{endTimeDisplay}</Text>
+            </View>
+          </View>
+          <Text style={styles.infoHint}>{t('autoEndNotice')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -148,65 +232,144 @@ const styles = StyleSheet.create({
   },
   postBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   postBtnDisabled: {
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceVariant,
   },
   postBtnText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
   postBtnTextDisabled: {
-    color: colors.outline,
+    color: colors.onSurfaceVariant,
+  },
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.lg,
+    paddingBottom: 100,
+    gap: spacing.lg,
   },
-  titleInput: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
-  },
-  contentInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    minHeight: 160,
-    marginBottom: spacing.lg,
-  },
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  fieldLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginRight: spacing.md,
-  },
-  numberInput: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    width: 80,
-    textAlign: 'center',
-  },
+
+  /* Section */
+  section: {},
   sectionLabel: {
     ...typography.titleSmall,
     color: colors.onSurface,
     marginBottom: spacing.sm,
   },
+  required: {
+    color: colors.error,
+    fontWeight: '500',
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+
+  /* Card */
+  card: {
+    backgroundColor: colors.surface1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginVertical: spacing.md,
+  },
+
+  /* Title & Content */
+  titleInput: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+    padding: 0,
+  },
+  contentInput: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+    minHeight: 120,
+    padding: 0,
+  },
+  charCount: {
+    ...typography.labelSmall,
+    color: colors.outline,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+  },
+
+  /* Fields */
+  fieldGroup: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  fieldInput: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  numberInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  numberInput: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    width: 80,
+    textAlign: 'center',
+  },
+  numberUnit: {
+    ...typography.bodyMedium,
+    color: colors.onSurfaceVariant,
+  },
+
+  /* Info card */
+  infoCard: {
+    backgroundColor: colors.primaryContainer + '30',
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  infoValue: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  infoHint: {
+    ...typography.bodySmall,
+    color: colors.outline,
+    marginTop: spacing.xs,
+    marginLeft: spacing.xxl,
   },
 });

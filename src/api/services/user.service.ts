@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { User, UserPublicProfile, MyContent } from '../../types';
+import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment } from '../../types';
 
 const USE_MOCK = true;
 
@@ -92,6 +92,43 @@ export const userService = {
             time: '3日前',
           },
         ],
+        myLikes: {
+          posts: [
+            {
+              author: '陳同學',
+              avatar: '陳',
+              gender: 'female' as const,
+              content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人 🐱',
+              time: '2小時前',
+              likes: 128,
+              comments: 24,
+            },
+            {
+              author: '李同學',
+              avatar: '李',
+              gender: 'male' as const,
+              content: '浸大圖書館嘅新自習區真係好正，推薦大家去試下！',
+              time: '1日前',
+              likes: 56,
+              comments: 8,
+            },
+          ] as LikedPost[],
+          comments: [
+            {
+              postAuthor: '王同學',
+              postContent: '下學期有冇人想一齊選 COMP3015？',
+              commentAuthor: '張同學',
+              comment: '我都想選！可以加你一齊組隊',
+              time: '5小時前',
+              likes: 8,
+            },
+          ] as LikedComment[],
+        },
+        stats: {
+          following: 36,
+          followers: 128,
+          collection: 56,
+        },
       };
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/content');

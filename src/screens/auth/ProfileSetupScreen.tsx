@@ -86,33 +86,33 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       [t('genderMale')]: 'male',
       [t('genderFemale')]: 'female',
       [t('genderOther')]: 'other',
-      [t('genderSecret')]: 'other',
+      [t('genderSecret')]: 'secret',
     };
     return genderMap[genderLabel] || 'other';
   };
 
   const handleDone = useCallback(() => {
     setUser({
-      name: nickname || '用戶',
-      nickname: nickname || '用戶',
+      name: nickname || '張小明',
+      nickname: nickname || '浸大小明',
       avatar: avatarUri,
-      grade: grade || '',
-      major: major || '',
+      grade: grade || 'Year 2',
+      major: major || 'Computer Science',
       bio: '',
-      gender: mapGender(gender),
+      gender: mapGender(gender) || 'male',
       isLoggedIn: true,
     });
   }, [nickname, grade, major, gender, avatarUri, setUser]);
 
   const handleSkip = useCallback(() => {
     setUser({
-      name: '用戶',
-      nickname: '用戶',
+      name: '張小明',
+      nickname: '浸大小明',
       avatar: null,
-      grade: '',
-      major: '',
+      grade: 'Year 2',
+      major: 'Computer Science',
       bio: '',
-      gender: 'other',
+      gender: 'male',
       isLoggedIn: true,
     });
   }, [setUser]);

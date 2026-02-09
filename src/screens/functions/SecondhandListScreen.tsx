@@ -1,12 +1,12 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Image,
   Dimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -15,14 +15,20 @@ import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandItem, SecondhandCategory } from '../../types';
 import { useSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
+import EmptyState from '../../components/common/EmptyState';
+import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
   PlusIcon,
+  SearchIcon,
   ShoppingBagIcon,
+  MapPinIcon,
+  AlertTriangleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
@@ -36,14 +42,113 @@ const CATEGORIES: Array<{ key: SecondhandCategory | 'all'; labelKey: string }> =
 ];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = spacing.md;
+const CARD_GAP = spacing.sm;
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - CARD_GAP) / 2;
+
+/* ── Memoized Item Card ── */
+const ItemCard = React.memo(function ItemCard({
+  item,
+  index,
+  onPress,
+  t,
+}: {
+  item: SecondhandItem;
+  index: number;
+  onPress: (index: number) => void;
+  t: (key: string) => string;
+}) {
+  const isSoldOrExpired = item.sold || item.expired;
+
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.7}
+      onPress={() => onPress(index)}
+    >
+      {/* Image area */}
+      <View style={[styles.imageArea, isSoldOrExpired && styles.imageAreaDimmed]}>
+        <ShoppingBagIcon size={32} color={colors.outlineVariant} />
+
+        {/* Condition tag - top left */}
+        <View style={styles.conditionBadge}>
+          <Text style={styles.conditionBadgeText}>{item.condition}</Text>
+        </View>
+
+        {/* Status overlay - sold / expired */}
+        {item.sold && (
+          <View style={styles.statusOverlay}>
+            <View style={styles.statusBadgeSold}>
+              <Text style={styles.statusBadgeText}>{t('sold')}</Text>
+            </View>
+          </View>
+        )}
+        {item.expired && !item.sold && (
+          <View style={styles.statusOverlay}>
+            <View style={styles.statusBadgeExpired}>
+              <Text style={styles.statusBadgeText}>{t('secondhandExpired')}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Card body */}
+      <View style={styles.cardBody}>
+        <Text style={[styles.itemTitle, isSoldOrExpired && styles.textDimmed]} numberOfLines={2}>
+          {item.title}
+        </Text>
+
+        <Text style={styles.itemPrice}>{item.price}</Text>
+
+        {/* Footer: seller + location */}
+        <View style={styles.cardFooter}>
+          <View style={styles.sellerRow}>
+            <Avatar text={item.avatar} size="xs" gender={item.gender} />
+            <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
+          </View>
+          {item.location ? (
+            <View style={styles.locationRow}>
+              <MapPinIcon size={10} color={colors.outline} />
+              <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function SecondhandListScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
   const setCategory = useSecondhandStore((s) => s.setCategory);
+  const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
+  const setExpiredNotified = useSecondhandStore((s) => s.setExpiredNotified);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: items, isLoading, refetch } = useSecondhand(selectedCategory || undefined);
+
+  const [searchText, setSearchText] = useState('');
+
+  // Filter by search text
+  const filteredItems = useMemo(() => {
+    if (!items) return [];
+    if (!searchText.trim()) return items;
+    const query = searchText.trim().toLowerCase();
+    return items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(query) ||
+        item.desc.toLowerCase().includes(query)
+    );
+  }, [items, searchText]);
+
+  useEffect(() => {
+    if (items && !expiredNotified) {
+      const hasExpired = items.some((item) => item.expired);
+      if (hasExpired) {
+        showSnackbar({ message: t('secondhandExpiryNotice'), type: 'info' });
+        setExpiredNotified(true);
+      }
+    }
+  }, [items, expiredNotified, showSnackbar, t, setExpiredNotified]);
 
   const handleCategoryPress = useCallback(
     (key: SecondhandCategory | 'all') => {
@@ -52,34 +157,23 @@ export default function SecondhandListScreen({ navigation }: Props) {
     [setCategory]
   );
 
+  const handleItemPress = useCallback(
+    (index: number) => {
+      navigation.navigate('SecondhandDetail', { index });
+    },
+    [navigation]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: SecondhandItem; index: number }) => (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate('SecondhandDetail', { index })}
-      >
-        <View style={styles.imagePlaceholder}>
-          <ShoppingBagIcon size={32} color={colors.outlineVariant} />
-        </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.itemTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.itemPrice}>{item.price}</Text>
-          <View style={styles.cardMeta}>
-            <Text style={styles.conditionText}>{item.condition}</Text>
-            {item.sold && (
-              <View style={styles.soldBadge}>
-                <Text style={styles.soldBadgeText}>{t('sold')}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
+      <ItemCard item={item} index={index} onPress={handleItemPress} t={t} />
     ),
-    [navigation, t]
+    [handleItemPress, t]
   );
+
+  // Stats
+  const totalCount = items?.length ?? 0;
+  const forSaleCount = items?.filter((i) => !i.sold && !i.expired).length ?? 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -92,25 +186,53 @@ export default function SecondhandListScreen({ navigation }: Props) {
         <View style={styles.iconBtn} />
       </View>
 
-      {/* Category Chips */}
-      <View style={styles.chipRow}>
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.key}
-            label={t(cat.labelKey)}
-            selected={
-              cat.key === 'all'
-                ? selectedCategory === null
-                : selectedCategory === cat.key
-            }
-            onPress={() => handleCategoryPress(cat.key)}
+      {/* Search Bar */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <SearchIcon size={18} color={colors.outline} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('searchSecondhand')}
+            placeholderTextColor={colors.outline}
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
           />
-        ))}
+        </View>
+      </View>
+
+      {/* Category Chips */}
+      <View style={styles.chipSection}>
+        <View style={styles.chipRow}>
+          {CATEGORIES.map((cat) => (
+            <Chip
+              key={cat.key}
+              label={t(cat.labelKey)}
+              selected={
+                cat.key === 'all'
+                  ? selectedCategory === null
+                  : selectedCategory === cat.key
+              }
+              onPress={() => handleCategoryPress(cat.key)}
+            />
+          ))}
+        </View>
+
+        {/* Item count + Disclaimer */}
+        <View style={styles.subHeaderRow}>
+          <Text style={styles.itemCount}>
+            {forSaleCount}/{totalCount} {t('forSale')}
+          </Text>
+          <View style={styles.disclaimerPill}>
+            <AlertTriangleIcon size={12} color={colors.onErrorContainer} />
+            <Text style={styles.disclaimerPillText}>{t('disclaimer')}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Grid List */}
       <FlatList
-        data={items}
+        data={filteredItems}
         renderItem={renderItem}
         keyExtractor={(_, index) => String(index)}
         numColumns={2}
@@ -118,6 +240,14 @@ export default function SecondhandListScreen({ navigation }: Props) {
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          !isLoading ? (
+            <EmptyState
+              icon={<ShoppingBagIcon size={36} color={colors.onSurfaceVariant} />}
+              title={searchText.trim() ? t('noRelatedItems') : t('noRelatedItems')}
+            />
+          ) : null
+        }
       />
 
       {/* FAB */}
@@ -137,13 +267,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
+  /* Top Bar */
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
     ...typography.titleMedium,
@@ -157,67 +287,184 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  /* Search */
+  searchSection: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    height: 44,
+    gap: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    padding: 0,
+  },
+
+  /* Chips */
+  chipSection: {
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
+  },
   chipRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     flexWrap: 'wrap',
   },
+  subHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  itemCount: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  disclaimerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.errorContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs + 1,
+    borderRadius: borderRadius.full,
+  },
+  disclaimerPillText: {
+    ...typography.labelSmall,
+    color: colors.onErrorContainer,
+    fontSize: 10,
+  },
+
+  /* List */
   listContent: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: 100,
   },
   row: {
-    justifyContent: 'space-between',
+    gap: CARD_GAP,
     marginBottom: CARD_GAP,
   },
+
+  /* Card */
   card: {
     width: CARD_WIDTH,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
     ...elevation[1],
   },
-  imagePlaceholder: {
+
+  /* Image area */
+  imageArea: {
     width: '100%',
-    height: CARD_WIDTH * 0.75,
+    height: CARD_WIDTH * 0.8,
     backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  imageAreaDimmed: {
+    opacity: 0.45,
+  },
+  conditionBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.xs,
+  },
+  conditionBadgeText: {
+    ...typography.labelSmall,
+    color: colors.onSurface,
+    fontWeight: '600',
+    fontSize: 10,
+  },
+  statusOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  statusBadgeSold: {
+    backgroundColor: colors.error,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xs,
+  },
+  statusBadgeExpired: {
+    backgroundColor: colors.outline,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xs,
+  },
+  statusBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
+  },
+
+  /* Card body */
   cardBody: {
-    padding: spacing.sm,
+    padding: spacing.md,
   },
   itemTitle: {
-    ...typography.titleSmall,
+    ...typography.bodyMedium,
     color: colors.onSurface,
+    fontWeight: '500',
     marginBottom: spacing.xs,
+    lineHeight: 18,
+  },
+  textDimmed: {
+    color: colors.outline,
   },
   itemPrice: {
     ...typography.titleSmall,
     color: colors.primary,
     fontWeight: '700',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  cardMeta: {
+
+  /* Card footer */
+  cardFooter: {
+    gap: spacing.xxs + 1,
+  },
+  sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.xs,
   },
-  conditionText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  soldBadge: {
-    backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.xs + 2,
-    paddingVertical: 2,
-    borderRadius: borderRadius.xs,
-  },
-  soldBadgeText: {
+  sellerName: {
     ...typography.labelSmall,
-    color: colors.onErrorContainer,
+    color: colors.onSurfaceVariant,
+    flex: 1,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  locationText: {
+    ...typography.labelSmall,
+    color: colors.outline,
+    fontSize: 10,
+    flex: 1,
+  },
+
+  /* FAB */
   fab: {
     position: 'absolute',
     right: 20,

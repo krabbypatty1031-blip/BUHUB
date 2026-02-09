@@ -1,14 +1,20 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { RatingCategory, RatingItem, RatingsData } from '../../types';
+import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from '../../types';
 
 const USE_MOCK = true;
 
 export const ratingService = {
-  async getList(category: RatingCategory): Promise<RatingItem[]> {
+  async getList(category: RatingCategory, sortMode: RatingSortMode = 'recent'): Promise<RatingItem[]> {
     if (USE_MOCK) {
       const { mockRatings } = await import('../../data/mock/ratings');
-      return mockRatings[category];
+      const items = [...mockRatings[category]];
+      if (sortMode === 'recent') {
+        items.sort((a, b) => b.recentCount - a.recentCount);
+      } else {
+        items.sort((a, b) => b.scoreVariance - a.scoreVariance);
+      }
+      return items;
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category));
     return data;
@@ -32,6 +38,24 @@ export const ratingService = {
       return { success: true };
     }
     const { data } = await apiClient.post(ENDPOINTS.RATING.SUBMIT(category, id), rating);
+    return data;
+  },
+
+  async getDimensions(category: RatingCategory): Promise<ScoreDimension[]> {
+    if (USE_MOCK) {
+      const { mockScoreDimensions } = await import('../../data/mock/ratings');
+      return mockScoreDimensions[category] || [];
+    }
+    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category) + '/dimensions');
+    return data;
+  },
+
+  async getTagOptions(category: RatingCategory): Promise<string[]> {
+    if (USE_MOCK) {
+      const { mockTagOptions } = await import('../../data/mock/ratings');
+      return mockTagOptions[category] || [];
+    }
+    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category) + '/tags');
     return data;
   },
 };

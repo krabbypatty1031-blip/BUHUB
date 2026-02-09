@@ -15,4 +15,6 @@ export interface SecondhandItem {
   gender: Gender;
   bio: string;
   sold: boolean;
+  expiresAt: string;
+  expired: boolean;
 }

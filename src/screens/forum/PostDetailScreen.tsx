@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,27 +10,34 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Animated,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, useComments } from '../../hooks/usePosts';
+import { useContacts } from '../../hooks/useMessages';
 import { useForumStore } from '../../store/forumStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
+import ReportModal from '../../components/common/ReportModal';
 import {
   BackIcon,
   HeartIcon,
   CommentIcon,
   SendIcon,
+  ForwardIcon,
   BookmarkIcon,
   QuoteIcon,
   ChevronDownIcon,
+  MoreHorizontalIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply } from '../../types';
 
@@ -72,7 +79,7 @@ function ItemActions({
         <CommentIcon size={size} color={colors.onSurfaceVariant} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
-        <SendIcon size={size} color={colors.onSurfaceVariant} />
+        <ForwardIcon size={size} color={colors.onSurfaceVariant} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onBookmark}>
         <BookmarkIcon
@@ -90,29 +97,72 @@ function ReplyItem({
   reply,
   onReply,
   onForward,
+  onReport,
+  highlighted,
 }: {
   reply: Reply;
   onReply: (name: string) => void;
   onForward: () => void;
+  onReport: () => void;
+  highlighted?: boolean;
 }) {
+  const { t } = useTranslation();
+
+  const handleLongPress = useCallback(() => {
+    Alert.alert('', '', [
+      { text: t('reportComment'), style: 'destructive', onPress: onReport },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }, [t, onReport]);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
+  const flashAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (highlighted) {
+      const timer = setTimeout(() => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
+            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+          ]),
+          { iterations: 2 }
+        ).start();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [highlighted, flashAnim]);
+
+  const highlightBg = highlighted
+    ? flashAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['transparent', 'rgba(0,0,0,0.08)'],
+      })
+    : undefined;
+
   return (
-    <View style={styles.replyItem}>
-      <View style={styles.commentHeader}>
-        <Avatar text={reply.avatar} size="xs" />
-        <View style={styles.commentUserInfo}>
-          <View style={styles.replyNameRow}>
-            <Text style={styles.replyName}>{reply.name}</Text>
-            {reply.replyTo ? (
-              <Text style={styles.replyToLabel}> ▸ {reply.replyTo}</Text>
-            ) : null}
+    <Animated.View
+      style={[
+        styles.replyItem,
+        highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
+      ]}
+    >
+      <TouchableOpacity activeOpacity={1} onLongPress={handleLongPress}>
+        <View style={styles.commentHeader}>
+          <Avatar text={reply.avatar} size="xs" />
+          <View style={styles.commentUserInfo}>
+            <View style={styles.replyNameRow}>
+              <Text style={styles.replyName}>{reply.name}</Text>
+              {reply.replyTo ? (
+                <Text style={styles.replyToLabel}> ▸ {reply.replyTo}</Text>
+              ) : null}
+            </View>
+            <Text style={styles.replyTime}>{reply.time}</Text>
           </View>
-          <Text style={styles.replyTime}>{reply.time}</Text>
         </View>
-      </View>
-      <Text style={styles.replyBody}>{reply.content}</Text>
+        <Text style={styles.replyBody}>{reply.content}</Text>
+      </TouchableOpacity>
       <View style={styles.replyActions}>
         <ItemActions
           likes={reply.likes + (liked ? 1 : 0)}
@@ -125,7 +175,7 @@ function ReplyItem({
           size={14}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -134,27 +184,72 @@ function CommentItem({
   comment,
   onReply,
   onForward,
+  onReport,
+  highlightId,
 }: {
   comment: Comment;
   onReply: (name: string) => void;
   onForward: () => void;
+  onReport: () => void;
+  highlightId?: string;
 }) {
   const { t } = useTranslation();
-  const [showReplies, setShowReplies] = useState(false);
+
+  const handleLongPress = useCallback(() => {
+    Alert.alert('', '', [
+      { text: t('reportComment'), style: 'destructive', onPress: onReport },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }, [t, onReport]);
+  const isHighlighted = !!highlightId && comment.id === highlightId;
+  const highlightedReplyId =
+    highlightId && comment.replies?.find((r) => r.id === highlightId)?.id;
+  const [showReplies, setShowReplies] = useState(!!highlightedReplyId);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
+  const flashAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isHighlighted) {
+      const timer = setTimeout(() => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
+            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+          ]),
+          { iterations: 2 }
+        ).start();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted, flashAnim]);
+
+  const highlightBg = isHighlighted
+    ? flashAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['transparent', 'rgba(0,0,0,0.08)'],
+      })
+    : undefined;
+
   return (
-    <View style={styles.commentItem}>
+    <Animated.View
+      style={[
+        styles.commentItem,
+        highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
+      ]}
+    >
       {/* Comment main */}
-      <View style={styles.commentHeader}>
-        <Avatar text={comment.avatar} size="sm" />
-        <View style={styles.commentUserInfo}>
-          <Text style={styles.commentName}>{comment.name}</Text>
-          <Text style={styles.commentTime}>{comment.time}</Text>
+      <TouchableOpacity activeOpacity={1} onLongPress={handleLongPress}>
+        <View style={styles.commentHeader}>
+          <Avatar text={comment.avatar} size="sm" />
+          <View style={styles.commentUserInfo}>
+            <Text style={styles.commentName}>{comment.name}</Text>
+            <Text style={styles.commentTime}>{comment.time}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={styles.commentBody}>{comment.content}</Text>
+        <Text style={styles.commentBody}>{comment.content}</Text>
+      </TouchableOpacity>
 
       {/* Actions: like, comment, forward, bookmark */}
       <View style={styles.commentActionsRow}>
@@ -185,22 +280,24 @@ function CommentItem({
           {showReplies &&
             comment.replies.map((reply, i) => (
               <ReplyItem
-                key={i}
+                key={reply.id || i}
                 reply={reply}
                 onReply={onReply}
                 onForward={onForward}
+                onReport={onReport}
+                highlighted={reply.id === highlightId}
               />
             ))}
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
 /* ── Main screen ── */
 export default function PostDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { postId } = route.params;
+  const { postId, commentId } = route.params;
   const { data: posts } = usePosts();
   const { data: comments } = useComments(postId);
   const likedPosts = useForumStore((s) => s.likedPosts);
@@ -208,9 +305,64 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportTitle, setReportTitle] = useState('');
+
+  /* ── Scroll to target comment ── */
+  const flatListRef = useRef<FlatList>(null);
+
+  const targetCommentIndex = useMemo(() => {
+    if (!commentId || !comments) return -1;
+    return comments.findIndex(
+      (c) => c.id === commentId || c.replies?.some((r) => r.id === commentId)
+    );
+  }, [commentId, comments]);
+
+  useEffect(() => {
+    if (targetCommentIndex >= 0 && flatListRef.current) {
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: targetCommentIndex,
+          animated: true,
+          viewPosition: 0.3,
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [targetCommentIndex]);
+
+  /* ── @ Mention detection ── */
+  const mentionQuery = useMemo(() => {
+    if (!commentText) return null;
+    const lastAtIndex = commentText.lastIndexOf('@');
+    if (lastAtIndex === -1) return null;
+    const afterAt = commentText.substring(lastAtIndex + 1);
+    // If there's a space after the mention text, it's already completed
+    if (afterAt.includes(' ')) return null;
+    return afterAt;
+  }, [commentText]);
+
+  const mentionSuggestions = useMemo(() => {
+    if (mentionQuery === null || !contacts) return [];
+    if (mentionQuery === '') return contacts;
+    const q = mentionQuery.toLowerCase();
+    return contacts.filter((c) => c.name.toLowerCase().includes(q));
+  }, [mentionQuery, contacts]);
+
+  const showMentions = mentionQuery !== null && mentionSuggestions.length > 0;
+
+  const handleMentionSelect = useCallback(
+    (contactName: string) => {
+      const lastAtIndex = commentText.lastIndexOf('@');
+      const newText = commentText.substring(0, lastAtIndex) + `@${contactName} `;
+      setCommentText(newText);
+    },
+    [commentText]
+  );
 
   const post = useMemo(
     () => posts?.find((p) => p.id === postId) || null,
@@ -241,6 +393,33 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
     }
   }, [post, navigation]);
+
+  const handleReportPost = useCallback(() => {
+    Alert.alert('', '', [
+      {
+        text: t('reportPost'),
+        style: 'destructive',
+        onPress: () => {
+          setReportTitle(t('reportPost'));
+          setReportVisible(true);
+        },
+      },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  }, [t]);
+
+  const handleReportComment = useCallback(() => {
+    setReportTitle(t('reportComment'));
+    setReportVisible(true);
+  }, [t]);
+
+  const handleReportSubmit = useCallback(
+    (_reason: string) => {
+      setReportVisible(false);
+      showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+    },
+    [showSnackbar, t]
+  );
 
   const renderHeader = useCallback(() => {
     if (!post) return null;
@@ -314,7 +493,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleForward}
             >
-              <SendIcon size={20} color={colors.onSurfaceVariant} />
+              <ForwardIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -361,7 +540,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity onPress={handleReportPost} style={styles.iconBtn}>
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -370,6 +551,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         keyboardVerticalOffset={0}
       >
         <FlatList
+          ref={flatListRef}
           data={comments || []}
           ListHeaderComponent={renderHeader}
           renderItem={({ item }) => (
@@ -377,11 +559,45 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               comment={item}
               onReply={handleReply}
               onForward={handleForward}
+              onReport={handleReportComment}
+              highlightId={commentId}
             />
           )}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.listContent}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0.3,
+              });
+            }, 500);
+          }}
         />
+
+        {/* @ Mention Suggestions */}
+        {showMentions && (
+          <View style={styles.mentionOverlay}>
+            <Text style={styles.mentionHeader}>{t('recentChats')}</Text>
+            <ScrollView
+              keyboardShouldPersistTaps="always"
+              style={styles.mentionScroll}
+            >
+              {mentionSuggestions.map((contact) => (
+                <TouchableOpacity
+                  key={contact.name}
+                  style={styles.mentionItem}
+                  activeOpacity={0.7}
+                  onPress={() => handleMentionSelect(contact.name)}
+                >
+                  <Avatar text={contact.avatar} size="sm" gender={contact.gender} />
+                  <Text style={styles.mentionName}>{contact.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Comment Input Bar */}
         <View style={styles.commentInputBar}>
@@ -416,6 +632,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         visible={!!forwardPost}
         post={forwardPost}
         onClose={() => setForwardPost(null)}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        visible={reportVisible}
+        title={reportTitle}
+        onClose={() => setReportVisible(false)}
+        onSubmit={handleReportSubmit}
       />
     </SafeAreaView>
   );
@@ -659,6 +883,37 @@ const styles = StyleSheet.create({
   },
   replyActions: {
     marginLeft: 28,
+  },
+
+  /* ── Mention Suggestions ── */
+  mentionOverlay: {
+    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+    maxHeight: 200,
+    ...elevation[2],
+  },
+  mentionHeader: {
+    ...typography.labelSmall,
+    color: colors.onSurfaceVariant,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  mentionScroll: {
+    maxHeight: 168,
+  },
+  mentionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  mentionName: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    fontWeight: '500',
   },
 
   /* ── Comment Input Bar ── */

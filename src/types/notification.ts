@@ -8,6 +8,8 @@ export interface LikeNotification {
   content: string;
   time: string;
   hasImage?: boolean;
+  postId: string;
+  commentId?: string;
 }
 
 export interface FollowerNotification {
@@ -28,4 +30,6 @@ export interface CommentNotification {
   originalPost: string;
   time: string;
   type: 'comment' | 'reply' | 'mention';
+  postId: string;
+  commentId: string;
 }

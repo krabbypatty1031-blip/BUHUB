@@ -1,5 +1,10 @@
 import type { PartnerPost } from '../../types';
 
+const now = new Date();
+const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockPartnerPosts: PartnerPost[] = [
   {
     category: 'travel',
@@ -16,6 +21,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'male',
     bio: 'Year 2 · Computer Science',
     expired: false,
+    expiresAt: threeDaysLater,
   },
   {
     category: 'food',
@@ -32,6 +38,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'female',
     bio: 'Year 4 · Music',
     expired: false,
+    expiresAt: sevenDaysLater,
   },
   {
     category: 'course',
@@ -47,7 +54,8 @@ export const mockPartnerPosts: PartnerPost[] = [
     avatar: '張',
     gender: 'male',
     bio: 'Year 2 · Computer Science',
-    expired: false,
+    expired: true,
+    expiresAt: expiredDate,
   },
   {
     category: 'sports',
@@ -64,5 +72,40 @@ export const mockPartnerPosts: PartnerPost[] = [
     gender: 'female',
     bio: 'Year 3 · Communication',
     expired: false,
+    expiresAt: sevenDaysLater,
+  },
+  {
+    category: 'food',
+    type: '食飯',
+    title: '搵人一齊食火鍋',
+    desc: '天氣凍想食火鍋，邊間都得，AA制～有冇人想一齊？',
+    time: '本週五 19:00',
+    people: '3-6人',
+    joined: 1,
+    maxPeople: 6,
+    location: '九龍塘',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    expired: false,
+    expiresAt: threeDaysLater,
+  },
+  {
+    category: 'course',
+    type: '課程',
+    title: '搵人一齊做 COMP2012 Project',
+    desc: '下個禮拜交，仲差一個組員，識 Java 優先',
+    time: '本週三 15:00-18:00',
+    people: '1-2人',
+    joined: 2,
+    maxPeople: 3,
+    location: '浸大圖書館 3樓',
+    user: '浸大小明',
+    avatar: '明',
+    gender: 'male',
+    bio: 'Year 2 · Computer Science',
+    expired: true,
+    expiresAt: expiredDate,
   },
 ];

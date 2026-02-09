@@ -7,6 +7,8 @@ import ChatScreen from '../screens/messages/ChatScreen';
 import NotifyLikesScreen from '../screens/notifications/NotifyLikesScreen';
 import NotifyFollowersScreen from '../screens/notifications/NotifyFollowersScreen';
 import NotifyCommentsScreen from '../screens/notifications/NotifyCommentsScreen';
+import UserProfileScreen from '../screens/me/UserProfileScreen';
+import PostDetailScreen from '../screens/forum/PostDetailScreen';
 
 const Stack = createNativeStackNavigator<MessagesStackParamList>();
 
@@ -18,6 +20,8 @@ export default function MessagesStackNavigator() {
       <Stack.Screen name="NotifyLikes" component={NotifyLikesScreen} />
       <Stack.Screen name="NotifyFollowers" component={NotifyFollowersScreen} />
       <Stack.Screen name="NotifyComments" component={NotifyCommentsScreen} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
     </Stack.Navigator>
   );
 }

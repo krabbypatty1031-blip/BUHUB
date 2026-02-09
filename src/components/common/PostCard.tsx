@@ -13,7 +13,7 @@ import Tag from './Tag';
 import {
   HeartIcon,
   CommentIcon,
-  SendIcon,
+  ForwardIcon,
   BookmarkIcon,
   QuoteIcon,
   MaleIcon,
@@ -196,7 +196,7 @@ function PostCard({
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionBtn} onPress={onForward}>
-          <SendIcon size={18} color={colors.onSurfaceVariant} />
+          <ForwardIcon size={18} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionBtn} onPress={handleBookmark}>
