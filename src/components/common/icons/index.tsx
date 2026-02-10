@@ -86,11 +86,14 @@ export const PlusIcon = ({ size = D.size, color = D.color }: IconProps) => (
 export const TabHomeIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
     {fill ? (
-      <Path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill={fill} />
+      <>
+        <Path d="M2.5 10.8L12 3l9.5 7.8V20a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 20V10.8z" fill={fill} />
+        <Path d="M9 22.5v-5.25a3 3 0 0 1 6 0V22.5" stroke={colors.surface} strokeWidth={2.2} />
+      </>
     ) : (
       <>
-        <Path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke={color} strokeWidth={1.8} />
-        <Path d="M9 21v-4a3 3 0 0 1 6 0v4" stroke={color} strokeWidth={1.8} />
+        <Path d="M2.5 10.8L12 3l9.5 7.8V20a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 20V10.8z" stroke={color} strokeWidth={2} />
+        <Path d="M9 22.5v-5.25a3 3 0 0 1 6 0V22.5" stroke={color} strokeWidth={2} />
       </>
     )}
   </Svg>
@@ -98,29 +101,33 @@ export const TabHomeIcon = ({ size = D.size, color = D.color, fill }: IconProps)
 
 export const TabCompassIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <Circle cx={12} cy={12} r={10} fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
+    <Circle cx={12} cy={12} r={10} fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={2} />
     <Polygon
       points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88"
       fill={fill ? colors.surface : 'none'}
       stroke={fill ? 'none' : color}
-      strokeWidth={1.8}
+      strokeWidth={2}
     />
   </Svg>
 );
 
 export const TabChatIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <Path
-      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-      fill={fill || 'none'}
-      stroke={fill ? 'none' : color}
-      strokeWidth={1.8}
-    />
-    {!fill && (
+    {fill ? (
+      <Path
+        d="M12 2C6.477 2 2 5.813 2 10.5c0 2.614 1.384 4.957 3.562 6.563C5.36 18.2 4.5 20.5 2.5 22c0 0 3.5 0 6.5-2.05.98.2 2 .3 3 .3 5.523 0 10-3.813 10-8.5S17.523 2 12 2z"
+        fill={fill}
+      />
+    ) : (
       <>
-        <Circle cx={8.5} cy={10} r={0.75} fill={color} stroke="none" />
-        <Circle cx={12} cy={10} r={0.75} fill={color} stroke="none" />
-        <Circle cx={15.5} cy={10} r={0.75} fill={color} stroke="none" />
+        <Path
+          d="M12 2C6.477 2 2 5.813 2 10.5c0 2.614 1.384 4.957 3.562 6.563C5.36 18.2 4.5 20.5 2.5 22c0 0 3.5 0 6.5-2.05.98.2 2 .3 3 .3 5.523 0 10-3.813 10-8.5S17.523 2 12 2z"
+          stroke={color}
+          strokeWidth={2}
+        />
+        <Circle cx={8} cy={10.5} r={1} fill={color} stroke="none" />
+        <Circle cx={12} cy={10.5} r={1} fill={color} stroke="none" />
+        <Circle cx={16} cy={10.5} r={1} fill={color} stroke="none" />
       </>
     )}
   </Svg>
@@ -128,8 +135,17 @@ export const TabChatIcon = ({ size = D.size, color = D.color, fill }: IconProps)
 
 export const TabProfileIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <Circle cx={12} cy={8} r={4} fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
-    <Path d="M20 21a8 8 0 0 0-16 0" fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={1.8} />
+    {fill ? (
+      <>
+        <Circle cx={12} cy={8} r={4.5} fill={fill} />
+        <Path d="M3.5 21.5a8.5 8.5 0 0 1 17 0" fill={fill} />
+      </>
+    ) : (
+      <>
+        <Circle cx={12} cy={8} r={4.5} stroke={color} strokeWidth={2} />
+        <Path d="M3.5 21.5a8.5 8.5 0 0 1 17 0" stroke={color} strokeWidth={2} />
+      </>
+    )}
   </Svg>
 );
 

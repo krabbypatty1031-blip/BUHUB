@@ -107,109 +107,113 @@ function PostCard({
             {!post.isAnonymous && post.gender === 'female' && (
               <FemaleIcon size={14} color={colors.genderFemale} />
             )}
+            <Text style={styles.timeDot}> · </Text>
+            <Text style={styles.meta}>{post.meta}</Text>
           </View>
-          <Text style={styles.meta}>{post.meta}</Text>
         </View>
       </View>
 
-      {/* Content */}
-      <Text style={styles.content} numberOfLines={4}>{post.content}</Text>
+      {/* Body — aligned with name */}
+      <View style={styles.body}>
+        {/* Content */}
+        <Text style={styles.content} numberOfLines={4}>{post.content}</Text>
 
-      {/* Tags */}
-      {post.tags && post.tags.length > 0 && (
-        <View style={styles.tags}>
-          {post.tags.map((tag) => (
-            <Tag key={tag} label={tag} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
-          ))}
-        </View>
-      )}
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <View style={styles.tags}>
+            {post.tags.map((tag) => (
+              <Tag key={tag} label={tag} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
+            ))}
+          </View>
+        )}
 
-      {/* Image */}
-      {post.hasImage && post.image && (
-        <Image source={{ uri: post.image }} style={styles.image} />
-      )}
+        {/* Image */}
+        {post.hasImage && post.image && (
+          <Image source={{ uri: post.image }} style={styles.image} />
+        )}
 
-      {/* Poll */}
-      {post.isPoll && post.pollOptions && (
-        <View style={styles.pollContainer}>
-          {post.pollOptions.map((opt, i) =>
-            hasVoted ? (
-              <View key={i} style={styles.pollOption}>
-                <AnimatedPollBar percent={opt.percent} />
-                <Text style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}>{opt.text}</Text>
-                <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>{opt.percent}%</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                key={i}
-                style={styles.pollOptionUnvoted}
-                activeOpacity={0.65}
-                onPress={() => onVote?.(i)}
-              >
-                <Text style={styles.pollTextUnvoted}>{opt.text}</Text>
-              </TouchableOpacity>
-            )
-          )}
-        </View>
-      )}
-
-      {/* Forwarded Function Card */}
-      {post.isFunction && post.functionType && (
-        <TouchableOpacity
-          style={styles.functionCard}
-          activeOpacity={0.7}
-          onPress={onFunctionPress}
-        >
-          <View style={styles.functionCardInfo}>
-            <Text style={styles.functionCardType}>
-              {post.functionType === 'partner' ? '找搭子' :
-               post.functionType === 'errand' ? '跑腿' :
-               post.functionType === 'secondhand' ? '二手' :
-               post.functionType === 'rating' ? '评分' : ''}
-            </Text>
-            {post.functionTitle && (
-              <Text style={styles.functionCardTitle} numberOfLines={1}>
-                {post.functionTitle}
-              </Text>
+        {/* Poll */}
+        {post.isPoll && post.pollOptions && (
+          <View style={styles.pollContainer}>
+            {post.pollOptions.map((opt, i) =>
+              hasVoted ? (
+                <View key={i} style={styles.pollOption}>
+                  <AnimatedPollBar percent={opt.percent} />
+                  <Text style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}>{opt.text}</Text>
+                  <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>{opt.percent}%</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.pollOptionUnvoted}
+                  activeOpacity={0.65}
+                  onPress={() => onVote?.(i)}
+                >
+                  <Text style={styles.pollTextUnvoted}>{opt.text}</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
-          <ChevronRightIcon size={16} color={colors.onSurfaceVariant} />
-        </TouchableOpacity>
-      )}
+        )}
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
-          <HeartIcon
-            size={18}
-            color={isLiked ? colors.error : colors.onSurfaceVariant}
-            fill={isLiked ? colors.error : undefined}
-          />
-          <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
-            {post.likes}
-          </Text>
-        </TouchableOpacity>
+        {/* Forwarded Function Card */}
+        {post.isFunction && post.functionType && (
+          <TouchableOpacity
+            style={styles.functionCard}
+            activeOpacity={0.7}
+            onPress={onFunctionPress}
+          >
+            <View style={styles.functionCardInfo}>
+              <Text style={styles.functionCardType}>
+                {post.functionType === 'partner' ? '找搭子' :
+                 post.functionType === 'errand' ? '跑腿' :
+                 post.functionType === 'secondhand' ? '二手' :
+                 post.functionType === 'rating' ? '评分' : ''}
+              </Text>
+              {post.functionTitle && (
+                <Text style={styles.functionCardTitle} numberOfLines={1}>
+                  {post.functionTitle}
+                </Text>
+              )}
+            </View>
+            <ChevronRightIcon size={16} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity style={styles.actionBtn} onPress={onComment}>
-          <CommentIcon size={18} color={colors.onSurfaceVariant} />
-          <Text style={styles.actionText}>{post.comments}</Text>
-        </TouchableOpacity>
+        {/* Actions */}
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+            <HeartIcon
+              size={18}
+              color={isLiked ? colors.error : colors.onSurface}
+              fill={isLiked ? colors.error : undefined}
+            />
+            <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
+              {post.likes}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={onForward}>
-          <ShareIcon size={18} color={colors.onSurfaceVariant} />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={onComment}>
+            <CommentIcon size={18} color={colors.onSurface} />
+            <Text style={styles.actionText}>{post.comments}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={handleBookmark}>
-          <BookmarkIcon
-            size={18}
-            color={isBookmarked ? colors.primary : colors.onSurfaceVariant}
-            fill={isBookmarked ? colors.primary : undefined}
-          />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={onForward}>
+            <ShareIcon size={18} color={colors.onSurface} />
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={onQuote}>
-          <QuoteIcon size={18} color={colors.onSurfaceVariant} />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleBookmark}>
+            <BookmarkIcon
+              size={18}
+              color={isBookmarked ? colors.primary : colors.onSurface}
+              fill={isBookmarked ? colors.primary : undefined}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={onQuote}>
+            <QuoteIcon size={18} color={colors.onSurface} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -220,7 +224,7 @@ export default React.memo(PostCard);
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
@@ -228,11 +232,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   headerInfo: {
-    marginLeft: spacing.sm,
+    marginLeft: spacing.md,
     flex: 1,
+  },
+  body: {
+    marginLeft: 32 + spacing.md,
+    marginTop: spacing.sm,
   },
   nameRow: {
     flexDirection: 'row',
@@ -241,20 +248,23 @@ const styles = StyleSheet.create({
   },
   name: {
     ...typography.titleSmall,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.onSurface,
+  },
+  timeDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 1,
   },
   content: {
     ...typography.bodyLarge,
     fontSize: 15,
     lineHeight: 22,
     color: colors.onSurface,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   tags: {
     flexDirection: 'row',
@@ -351,18 +361,17 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
+    gap: spacing.xl,
   },
   actionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.xs,
-    minHeight: 44,
+    paddingVertical: spacing.sm,
   },
   actionText: {
     fontSize: 13,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
 });

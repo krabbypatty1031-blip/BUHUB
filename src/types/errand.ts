@@ -18,4 +18,5 @@ export interface Errand {
   bio: string;
   expired: boolean;
   expiresAt: string;
+  createdAt: string;
 }

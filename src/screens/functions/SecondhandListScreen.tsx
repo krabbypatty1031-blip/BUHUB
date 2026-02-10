@@ -8,6 +8,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,8 +22,8 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
-import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { getRelativeTime } from '../../utils/formatTime';
 import {
   BackIcon,
   PlusIcon,
@@ -31,7 +32,10 @@ import {
   MapPinIcon,
   AlertTriangleIcon,
   RepostIcon,
+  MoreHorizontalIcon,
+  MessageIcon,
 } from '../../components/common/icons';
+import { mockSecondhandItems } from '../../data/mock/secondhand';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
 
@@ -52,14 +56,16 @@ const ItemCard = React.memo(function ItemCard({
   item,
   index,
   onPress,
-  onForward,
+  onMore,
   t,
+  lang,
 }: {
   item: SecondhandItem;
   index: number;
   onPress: (index: number) => void;
-  onForward: (index: number) => void;
+  onMore: (item: SecondhandItem, index: number) => void;
   t: (key: string) => string;
+  lang: 'tc' | 'sc' | 'en';
 }) {
   const isSoldOrExpired = item.sold || item.expired;
 
@@ -103,26 +109,18 @@ const ItemCard = React.memo(function ItemCard({
 
         <Text style={styles.itemPrice}>{item.price}</Text>
 
-        {/* Footer: seller + location */}
+        {/* Footer: time */}
         <View style={styles.cardFooter}>
-          <View style={styles.sellerRow}>
-            <Avatar text={item.avatar} size="xs" gender={item.gender} />
-            <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
-          </View>
-          {item.location ? (
-            <View style={styles.locationRow}>
-              <MapPinIcon size={10} color={colors.outline} />
-              <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
-            </View>
-          ) : null}
+          <Text style={styles.timeText}>{getRelativeTime(item.createdAt, lang)}</Text>
         </View>
         {!item.sold && !item.expired && (
           <TouchableOpacity
-            style={styles.forwardBtn}
+            style={styles.moreBtn}
             activeOpacity={0.7}
-            onPress={() => onForward(index)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => onMore(item, index)}
           >
-            <RepostIcon size={16} color={colors.onSurface} />
+            <MoreHorizontalIcon size={16} color={colors.onSurfaceVariant} />
           </TouchableOpacity>
         )}
       </View>
@@ -131,7 +129,8 @@ const ItemCard = React.memo(function ItemCard({
 });
 
 export default function SecondhandListScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
   const setCategory = useSecondhandStore((s) => s.setCategory);
   const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
@@ -182,33 +181,36 @@ export default function SecondhandListScreen({ navigation }: Props) {
     [navigation]
   );
 
-  const [shareSheetItem, setShareSheetItem] = useState<SecondhandItem | null>(null);
+  // Action menu state
+  const [actionItem, setActionItem] = useState<{ item: SecondhandItem; index: number } | null>(null);
+  // Forward sheet state
+  const [shareSheetItem, setShareSheetItem] = useState<{ item: SecondhandItem; index: number } | null>(null);
 
   const handleDmSeller = useCallback(
-    (item: SecondhandItem) => {
+    (item: SecondhandItem, itemIndex: number) => {
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title },
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]
   );
 
-  const handleForward = useCallback(
-    (index: number) => {
-      const item = filteredItems[index];
-      if (item) {
-        setShareSheetItem(item);
-      }
+  const handleMore = useCallback(
+    (item: SecondhandItem, index: number) => {
+      setActionItem({ item, index });
     },
-    [filteredItems]
+    []
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: SecondhandItem; index: number }) => (
-      <ItemCard item={item} index={index} onPress={handleItemPress} onForward={handleForward} t={t} />
-    ),
-    [handleItemPress, handleForward, t]
+    ({ item }: { item: SecondhandItem }) => {
+      const index = mockSecondhandItems.indexOf(item);
+      return (
+        <ItemCard item={item} index={index} onPress={handleItemPress} onMore={handleMore} t={t} lang={lang} />
+      );
+    },
+    [handleItemPress, handleMore, t, lang]
   );
 
   return (
@@ -280,14 +282,61 @@ export default function SecondhandListScreen({ navigation }: Props) {
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
 
-      {/* Forward Sheet */}
+      {/* Action Menu */}
+      <Modal
+        visible={!!actionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.actionOverlay}
+          activeOpacity={1}
+          onPress={() => setActionItem(null)}
+        >
+          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.actionHandle} />
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) setShareSheetItem(a);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
+                <RepostIcon size={20} color={colors.onSecondaryContainer} />
+              </View>
+              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) handleDmSeller(a.item, a.index);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
+                <MessageIcon size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
         visible={!!shareSheetItem}
         onClose={() => setShareSheetItem(null)}
         functionType="secondhand"
-        functionTitle={shareSheetItem?.title ?? ''}
+        functionTitle={shareSheetItem?.item.title ?? ''}
+        functionPosterName={shareSheetItem?.item.user ?? ''}
+        functionIndex={shareSheetItem?.index ?? 0}
         navigation={navigation}
-        onDmOrganizer={shareSheetItem ? () => handleDmSeller(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
@@ -379,7 +428,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    ...elevation[1],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
 
   /* Image area */
@@ -457,29 +507,13 @@ const styles = StyleSheet.create({
   cardFooter: {
     gap: spacing.xxs + 1,
   },
-  sellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  sellerName: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    flex: 1,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-  },
-  locationText: {
+  timeText: {
     ...typography.labelSmall,
     color: colors.outline,
     fontSize: 10,
-    flex: 1,
   },
 
-  forwardBtn: {
+  moreBtn: {
     position: 'absolute',
     right: spacing.sm,
     bottom: spacing.sm,
@@ -499,4 +533,43 @@ const styles = StyleSheet.create({
     ...elevation[3],
   },
 
+  /* Action Menu */
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 36,
+  },
+  actionHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
 });

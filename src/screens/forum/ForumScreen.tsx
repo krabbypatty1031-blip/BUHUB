@@ -7,12 +7,16 @@ import {
   SafeAreaView,
   Modal,
 } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
+import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
+import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -42,9 +46,22 @@ export default function ForumScreen({ navigation }: Props) {
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
+  const { onScroll, show } = useScrollTabBarAnimation();
+  const { tabBarTranslateY } = useTabBarAnimation();
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+
+  // Restore tab bar when screen gets focus
+  useFocusEffect(
+    useCallback(() => {
+      show();
+    }, [show])
+  );
+
+  const fabAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: tabBarTranslateY.value }],
+  }));
 
   const handlePostPress = useCallback(
     (post: ForumPost) => {
@@ -154,7 +171,7 @@ export default function ForumScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>BuHub</Text>
+        <Text style={styles.topBarTitle}>BUHUB</Text>
         <TouchableOpacity
           style={styles.iconBtn}
           onPress={() => navigation.navigate('Search')}
@@ -170,6 +187,8 @@ export default function ForumScreen({ navigation }: Props) {
         keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={refetch}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.listContent}
         drawDistance={250}
         ListEmptyComponent={
@@ -188,13 +207,15 @@ export default function ForumScreen({ navigation }: Props) {
       />
 
       {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        activeOpacity={0.85}
-        onPress={() => setComposeSheetVisible(true)}
-      >
-        <PlusIcon size={28} color={colors.onPrimary} />
-      </TouchableOpacity>
+      <Animated.View style={[styles.fabWrapper, fabAnimatedStyle]}>
+        <TouchableOpacity
+          style={styles.fab}
+          activeOpacity={0.85}
+          onPress={() => setComposeSheetVisible(true)}
+        >
+          <PlusIcon size={28} color={colors.onPrimary} />
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Compose Type Sheet */}
       <Modal
@@ -287,9 +308,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
-    ...typography.titleLarge,
-    color: colors.primary,
-    fontWeight: '700',
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.onSurface,
+    fontFamily: 'Poppins_900Black',
+    letterSpacing: -0.5,
   },
   iconBtn: {
     width: 48,
@@ -300,10 +323,12 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 100,
   },
-  fab: {
+  fabWrapper: {
     position: 'absolute',
     right: 20,
     bottom: 24,
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 16,

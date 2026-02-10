@@ -11,11 +11,13 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useErrands } from '../../hooks/useErrands';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import ReportModal from '../../components/common/ReportModal';
 import {
   BackIcon,
   DollarIcon,
@@ -36,16 +38,18 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const { data: errands } = useErrands();
   const errand = errands?.[index];
 
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const handleDmPoster = useCallback(() => {
     if (!errand) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title },
+      params: { contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title, forwardedPosterName: errand.user, forwardedIndex: index },
     });
-  }, [navigation, errand]);
+  }, [navigation, errand, index]);
 
   if (!errand) {
     return (
@@ -92,7 +96,16 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setReportVisible(true);
+              }}
+            >
+              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -203,20 +216,31 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <AlertTriangleIcon size={14} color={colors.onErrorContainer} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
+
+        {/* ── Action Bar ── */}
+        <View style={[styles.bottomBar, errand.expired && styles.bottomBarDisabled]}>
+          <TouchableOpacity
+            style={styles.dmButtonFull}
+            activeOpacity={0.7}
+            onPress={handleDmPoster}
+            disabled={errand.expired}
+          >
+            <MessageIcon size={18} color={colors.onPrimary} />
+            <Text style={styles.dmButtonFullText}>{t('errandDmPoster')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* ── Bottom Bar ── */}
-      <View style={[styles.bottomBar, errand.expired && styles.bottomBarDisabled]}>
-        <TouchableOpacity
-          style={styles.dmButtonFull}
-          activeOpacity={0.7}
-          onPress={handleDmPoster}
-          disabled={errand.expired}
-        >
-          <MessageIcon size={18} color={colors.onPrimary} />
-          <Text style={styles.dmButtonFullText}>{t('errandDmPoster')}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Report Modal */}
+      <ReportModal
+        visible={reportVisible}
+        title={t('reportPost')}
+        onClose={() => setReportVisible(false)}
+        onSubmit={() => {
+          setReportVisible(false);
+          showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+        }}
+      />
 
       {/* Forward Sheet */}
       <FunctionForwardSheet
@@ -224,6 +248,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         onClose={() => setShareSheetVisible(false)}
         functionType="errand"
         functionTitle={errand.title}
+        functionPosterName={errand.user}
+        functionIndex={index}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -484,17 +510,10 @@ const styles = StyleSheet.create({
 
   /* Bottom Bar */
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     gap: spacing.md,
-    ...elevation[2],
   },
   bottomBarDisabled: {
     opacity: 0.5,
@@ -540,6 +559,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  popoverItemTextDanger: {
     ...typography.bodyMedium,
     color: colors.error,
   },

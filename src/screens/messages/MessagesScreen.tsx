@@ -45,30 +45,32 @@ interface NotifyEntry {
   gradientColor: string;
 }
 
+const ICON_SIZE = 60;
+
 const NOTIFY_ENTRIES: NotifyEntry[] = [
   {
     key: 'NotifyLikes',
-    icon: <HeartIcon size={20} color={colors.error} fill={colors.error} />,
+    icon: <HeartIcon size={26} color="#FF6B7A" fill="#FF6B7A" />,
     labelKey: 'likeNotifications',
     countKey: 'unreadLikes',
     gradientId: 'gradLikes',
-    gradientColor: colors.error,
+    gradientColor: '#FF6B7A',
   },
   {
     key: 'NotifyFollowers',
-    icon: <UserIcon size={20} color={colors.primary} />,
+    icon: <UserIcon size={26} color="#4A90FF" />,
     labelKey: 'followerNotifications',
     countKey: 'unreadFollowers',
     gradientId: 'gradFollowers',
-    gradientColor: colors.primary,
+    gradientColor: '#4A90FF',
   },
   {
     key: 'NotifyComments',
-    icon: <CommentIcon size={20} color={colors.success} />,
+    icon: <CommentIcon size={26} color="#4CD964" fill="#4CD964" />,
     labelKey: 'commentNotifications',
     countKey: 'unreadComments',
     gradientId: 'gradComments',
-    gradientColor: colors.success,
+    gradientColor: '#4CD964',
   },
 ];
 
@@ -245,16 +247,16 @@ export default function MessagesScreen({ navigation }: Props) {
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate(entry.key)}
               >
-                <View style={styles.notifyIconCircle}>
-                  <Svg width={48} height={48} viewBox="0 0 48 48" style={StyleSheet.absoluteFill}>
+                <View style={styles.notifyIconSquare}>
+                  <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} style={StyleSheet.absoluteFill}>
                     <Defs>
                       <RadialGradient id={entry.gradientId} cx="50%" cy="50%" r="50%">
-                        <Stop offset="0%" stopColor={entry.gradientColor} stopOpacity={0.22} />
-                        <Stop offset="70%" stopColor={entry.gradientColor} stopOpacity={0.08} />
-                        <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+                        <Stop offset="0%" stopColor={entry.gradientColor} stopOpacity={0.45} />
+                        <Stop offset="60%" stopColor={entry.gradientColor} stopOpacity={0.15} />
+                        <Stop offset="100%" stopColor={entry.gradientColor} stopOpacity={0} />
                       </RadialGradient>
                     </Defs>
-                    <SvgCircle cx={24} cy={24} r={24} fill={`url(#${entry.gradientId})`} />
+                    <SvgCircle cx={ICON_SIZE / 2} cy={ICON_SIZE / 2} r={ICON_SIZE / 2} fill={`url(#${entry.gradientId})`} />
                   </Svg>
                   {entry.icon}
                   {count > 0 && (
@@ -483,9 +485,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
-    ...typography.titleLarge,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.onSurface,
-    fontWeight: '700',
+    fontFamily: 'Poppins_900Black',
+    letterSpacing: -0.5,
   },
   topBarIconBtn: {
     width: 44,
@@ -517,24 +521,23 @@ const styles = StyleSheet.create({
   /* ── Notification section ── */
   notifySection: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.lg,
+    justifyContent: 'space-evenly',
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
   notifyCard: {
     alignItems: 'center',
-    gap: spacing.sm,
-    minWidth: 72,
+    gap: spacing.md,
+    minWidth: 80,
   },
-  notifyIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  notifyIconSquare: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface2,
     overflow: 'hidden',
   },
   notifyBadge: {
@@ -557,7 +560,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   notifyLabel: {
-    ...typography.labelSmall,
+    ...typography.labelMedium,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
   },

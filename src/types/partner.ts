@@ -15,4 +15,5 @@ export interface PartnerPost {
   bio: string;
   expired: boolean;
   expiresAt: string;
+  createdAt: string;
 }

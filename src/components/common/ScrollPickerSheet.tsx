@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,49 +18,36 @@ const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
-interface DateTimePickerSheetProps {
+export interface PickerOption {
+  value: string;
+  label: string;
+}
+
+interface Props {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (date: Date) => void;
-  initialDate?: Date;
-  minimumDate?: Date;
+  onConfirm: (value: string) => void;
+  options: PickerOption[];
+  initialValue?: string;
   title?: string;
 }
 
-/** Generate array [start..end] inclusive */
-function range(start: number, end: number): number[] {
-  const arr: number[] = [];
-  for (let i = start; i <= end; i++) arr.push(i);
-  return arr;
-}
-
-/** Days in a given month (1-indexed month) */
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
 /* ── Single wheel column ── */
-interface WheelColumnProps {
-  data: number[];
-  selected: number;
-  onChange: (value: number) => void;
-  suffix: string;
-  formatValue?: (v: number) => string;
-}
-
 const WheelColumn = React.memo(function WheelColumn({
   data,
   selected,
   onChange,
-  suffix,
   formatValue,
-}: WheelColumnProps) {
+}: {
+  data: number[];
+  selected: number;
+  onChange: (value: number) => void;
+  formatValue: (v: number) => string;
+}) {
   const scrollRef = useRef<ScrollView>(null);
   const isUserScroll = useRef(true);
-
   const selectedIndex = data.indexOf(selected);
 
-  // Scroll to selected item when data or selection changes programmatically
   useEffect(() => {
     if (selectedIndex >= 0 && scrollRef.current) {
       isUserScroll.current = false;
@@ -68,7 +55,6 @@ const WheelColumn = React.memo(function WheelColumn({
         y: selectedIndex * ITEM_HEIGHT,
         animated: false,
       });
-      // Re-enable user scroll detection after a short delay
       const timer = setTimeout(() => {
         isUserScroll.current = true;
       }, 100);
@@ -89,12 +75,8 @@ const WheelColumn = React.memo(function WheelColumn({
     [data, selected, onChange],
   );
 
-  const display = (v: number) =>
-    formatValue ? formatValue(v) : String(v).padStart(2, '0');
-
   return (
     <View style={wheelStyles.container}>
-      {/* Highlight band */}
       <View pointerEvents="none" style={wheelStyles.highlight} />
       <ScrollView
         ref={scrollRef}
@@ -102,9 +84,7 @@ const WheelColumn = React.memo(function WheelColumn({
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         onMomentumScrollEnd={handleMomentumEnd}
-        contentContainerStyle={{
-          paddingVertical: ITEM_HEIGHT * 2, // top/bottom padding for centering
-        }}
+        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
       >
         {data.map((value) => {
           const isSelected = value === selected;
@@ -116,11 +96,8 @@ const WheelColumn = React.memo(function WheelColumn({
                   isSelected && wheelStyles.itemTextSelected,
                 ]}
               >
-                {display(value)}
+                {formatValue(value)}
               </Text>
-              {isSelected && (
-                <Text style={wheelStyles.suffix}>{suffix}</Text>
-              )}
             </View>
           );
         })}
@@ -148,10 +125,8 @@ const wheelStyles = StyleSheet.create({
   },
   item: {
     height: ITEM_HEIGHT,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
   },
   itemText: {
     ...typography.bodyLarge,
@@ -162,135 +137,68 @@ const wheelStyles = StyleSheet.create({
     color: colors.onPrimaryContainer,
     fontWeight: '600',
   },
-  suffix: {
-    ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
-  },
 });
 
 /* ── Main component ── */
-export default function DateTimePickerSheet({
+export default function ScrollPickerSheet({
   visible,
   onClose,
   onConfirm,
-  initialDate,
-  minimumDate,
+  options,
+  initialValue,
   title,
-}: DateTimePickerSheetProps) {
+}: Props) {
   const { t } = useTranslation();
-  const now = minimumDate || new Date();
 
-  const initDate = initialDate || now;
-  const [month, setMonth] = useState(initDate.getMonth() + 1);
-  const [day, setDay] = useState(initDate.getDate());
-  const [hour, setHour] = useState(initDate.getHours());
-  const [minute, setMinute] = useState(initDate.getMinutes());
+  const indexes = useMemo(() => options.map((_, i) => i), [options]);
 
-  // Reset when opening
+  const initialIndex = useMemo(() => {
+    if (initialValue == null) return 0;
+    const idx = options.findIndex((o) => o.value === initialValue);
+    return idx >= 0 ? idx : 0;
+  }, [options, initialValue]);
+
+  const [selectedIdx, setSelectedIdx] = useState(initialIndex);
+
   useEffect(() => {
     if (visible) {
-      const d = initialDate || new Date();
-      setMonth(d.getMonth() + 1);
-      setDay(d.getDate());
-      setHour(d.getHours());
-      setMinute(d.getMinutes());
+      setSelectedIdx(initialIndex);
     }
-  }, [visible, initialDate]);
-
-  // Derive year: if selected month/day is before "now", use next year
-  const currentYear = now.getFullYear();
-  const buildDate = useCallback(
-    (m: number, d: number, h: number, min: number) => {
-      let year = currentYear;
-      const candidate = new Date(year, m - 1, d, h, min, 0, 0);
-      if (candidate.getTime() < now.getTime()) {
-        // Check if pushing to next year makes sense
-        const nextYear = new Date(year + 1, m - 1, d, h, min, 0, 0);
-        if (nextYear.getTime() > now.getTime()) {
-          year = currentYear + 1;
-        }
-      }
-      return new Date(year, m - 1, d, h, min, 0, 0);
-    },
-    [currentYear, now],
-  );
-
-  // Clamp day when month changes
-  const maxDay = daysInMonth(currentYear, month);
-  useEffect(() => {
-    if (day > maxDay) setDay(maxDay);
-  }, [month, day, maxDay]);
-
-  const months = range(1, 12);
-  const days = range(1, maxDay);
-  const hours = range(0, 23);
-  const minutes = range(0, 59);
+  }, [visible, initialIndex]);
 
   const handleConfirm = useCallback(() => {
-    const date = buildDate(month, day, hour, minute);
-    onConfirm(date);
-  }, [buildDate, month, day, hour, minute, onConfirm]);
+    if (options[selectedIdx]) {
+      onConfirm(options[selectedIdx].value);
+    }
+  }, [onConfirm, options, selectedIdx]);
+
+  const formatValue = useCallback(
+    (idx: number) => options[idx]?.label ?? '',
+    [options],
+  );
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        {/* Backdrop – sibling so it never intercepts ScrollView gestures */}
         <TouchableOpacity
           style={StyleSheet.absoluteFillObject}
           activeOpacity={1}
           onPress={onClose}
         />
         <View style={styles.sheet}>
-          {/* Drag handle */}
           <View style={styles.handle} />
-
-          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {title || t('deadlineLabel')}
-            </Text>
-            <TouchableOpacity
-              style={styles.confirmBtn}
-              onPress={handleConfirm}
-            >
-              <Text style={styles.confirmBtnText}>
-                {t('deadlineConfirm')}
-              </Text>
+            <Text style={styles.title}>{title || t('select')}</Text>
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+              <Text style={styles.confirmBtnText}>{t('deadlineConfirm')}</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Wheel columns */}
           <View style={styles.pickerRow}>
             <WheelColumn
-              data={months}
-              selected={month}
-              onChange={setMonth}
-              suffix={t('deadlineMonth')}
-            />
-            <WheelColumn
-              data={days}
-              selected={day}
-              onChange={setDay}
-              suffix={t('deadlineDay')}
-            />
-            <WheelColumn
-              data={hours}
-              selected={hour}
-              onChange={setHour}
-              suffix={t('deadlineHour')}
-              formatValue={(v) => String(v).padStart(2, '0')}
-            />
-            <WheelColumn
-              data={minutes}
-              selected={minute}
-              onChange={setMinute}
-              suffix={t('deadlineMinute')}
-              formatValue={(v) => String(v).padStart(2, '0')}
+              data={indexes}
+              selected={selectedIdx}
+              onChange={setSelectedIdx}
+              formatValue={formatValue}
             />
           </View>
         </View>
@@ -309,7 +217,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 34, // safe area
+    paddingBottom: 34,
   },
   handle: {
     width: 36,

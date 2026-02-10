@@ -19,6 +19,7 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import ReportModal from '../../components/common/ReportModal';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -50,6 +51,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const expiryText = useMemo(() => {
     if (!item || isSold || isExpired) return null;
@@ -64,9 +66,9 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     if (!item) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title },
+      params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: index },
     });
-  }, [navigation, item]);
+  }, [navigation, item, index]);
 
   const handleWant = useCallback(() => {
     toggleWant(index);
@@ -122,7 +124,16 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setReportVisible(true);
+              }}
+            >
+              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -211,7 +222,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         {/* ── Seller Card ── */}
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{t('sellerLabel')}</Text>
-          <TouchableOpacity style={styles.sellerRow} activeOpacity={0.7}>
+          <View style={styles.sellerRow}>
             <Avatar text={item.avatar} size="lg" gender={item.gender} />
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerName}>{item.user}</Text>
@@ -219,7 +230,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 {item.bio}
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Disclaimer ── */}
@@ -227,35 +238,46 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <AlertTriangleIcon size={14} color={colors.onErrorContainer} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
+
+        {/* ── Action Bar ── */}
+        <View style={[styles.bottomBar, isDisabled && styles.bottomBarDisabled]}>
+          <TouchableOpacity
+            style={[styles.wantButton, isWanted && styles.wantedButton]}
+            activeOpacity={0.7}
+            onPress={handleWant}
+            disabled={isDisabled}
+          >
+            <HeartIcon
+              size={18}
+              color={isWanted ? colors.error : colors.onSurfaceVariant}
+              fill={isWanted ? colors.error : undefined}
+            />
+            <Text style={[styles.wantButtonText, isWanted && styles.wantedButtonText]}>
+              {isWanted ? t('wanted') : t('iWant')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.contactButton, isDisabled && styles.contactButtonDisabled]}
+            activeOpacity={0.7}
+            onPress={handleContact}
+            disabled={isDisabled}
+          >
+            <MessageIcon size={18} color={colors.onPrimary} />
+            <Text style={styles.contactButtonText}>{t('secondhandDmSeller')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* ── Bottom Action Bar ── */}
-      <View style={[styles.bottomBar, isDisabled && styles.bottomBarDisabled]}>
-        <TouchableOpacity
-          style={[styles.wantButton, isWanted && styles.wantedButton]}
-          activeOpacity={0.7}
-          onPress={handleWant}
-          disabled={isDisabled}
-        >
-          <HeartIcon
-            size={18}
-            color={isWanted ? colors.error : colors.onSurfaceVariant}
-            fill={isWanted ? colors.error : undefined}
-          />
-          <Text style={[styles.wantButtonText, isWanted && styles.wantedButtonText]}>
-            {isWanted ? t('wanted') : t('iWant')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.contactButton, isDisabled && styles.contactButtonDisabled]}
-          activeOpacity={0.7}
-          onPress={handleContact}
-          disabled={isDisabled}
-        >
-          <MessageIcon size={18} color={colors.onPrimary} />
-          <Text style={styles.contactButtonText}>{t('secondhandDmSeller')}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Report Modal */}
+      <ReportModal
+        visible={reportVisible}
+        title={t('reportPost')}
+        onClose={() => setReportVisible(false)}
+        onSubmit={() => {
+          setReportVisible(false);
+          showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+        }}
+      />
 
       {/* Forward Sheet */}
       <FunctionForwardSheet
@@ -263,6 +285,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         onClose={() => setShareSheetVisible(false)}
         functionType="secondhand"
         functionTitle={item.title}
+        functionPosterName={item.user}
+        functionIndex={index}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -514,17 +538,10 @@ const styles = StyleSheet.create({
 
   /* Bottom Bar */
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     gap: spacing.md,
-    ...elevation[2],
   },
   bottomBarDisabled: {
     opacity: 0.5,
@@ -595,6 +612,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  popoverItemTextDanger: {
     ...typography.bodyMedium,
     color: colors.error,
   },

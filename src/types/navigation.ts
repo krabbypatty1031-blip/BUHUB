@@ -28,15 +28,15 @@ export type FunctionsStackParamList = {
   PartnerList: { category?: PartnerCategory };
   PartnerDetail: { index: number };
   ComposePartner: { category?: string } | undefined;
-  PartnerShare: { activityName: string };
+  PartnerShare: { activityName: string; posterName: string; index: number };
   ErrandList: { category?: ErrandCategory };
   ErrandDetail: { index: number };
   ComposeErrand: { category?: ErrandCategory } | undefined;
-  ErrandShare: { taskName: string };
+  ErrandShare: { taskName: string; posterName: string; index: number };
   SecondhandList: { category?: SecondhandCategory };
   SecondhandDetail: { index: number };
   ComposeSecondhand: { category?: SecondhandCategory } | undefined;
-  SecondhandShare: { itemName: string };
+  SecondhandShare: { itemName: string; posterName: string; index: number };
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; index: number };
   RatingForm: { category: RatingCategory; index: number };
@@ -48,7 +48,7 @@ export type FunctionsStackParamList = {
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string };
+  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;

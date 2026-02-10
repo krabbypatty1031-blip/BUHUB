@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { PartnerCategory } from '../../types';
+import type { PartnerCategory, PartnerPost } from '../../types';
+import { mockPartnerPosts } from '../../data/mock/partner';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -23,6 +24,7 @@ import {
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
+import AdvanceTimePickerSheet from '../../components/common/AdvanceTimePickerSheet';
 import {
   enforceTitleLimit,
   getTitleCountLabel,
@@ -30,6 +32,7 @@ import {
   getContentCountLabel,
 } from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
+import { useAuthStore } from '../../store/authStore';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposePartner'>;
 
@@ -41,6 +44,15 @@ const CATEGORIES: Array<{ key: PartnerCategory; labelKey: string }> = [
   { key: 'other', labelKey: 'other' },
 ];
 
+const ADVANCE_OPTIONS = [
+  { minutes: 0, labelKey: 'advanceSame' },
+  { minutes: 30, labelKey: 'advance30m' },
+  { minutes: 60, labelKey: 'advance1h' },
+  { minutes: 120, labelKey: 'advance2h' },
+  { minutes: 720, labelKey: 'advance12h' },
+  { minutes: 1440, labelKey: 'advance24h' },
+];
+
 export default function ComposePartnerScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
@@ -48,12 +60,11 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   const [content, setContent] = useState('');
   const defaultCategory = (route.params?.category as PartnerCategory) || 'travel';
   const [category, setCategory] = useState<PartnerCategory | null>(defaultCategory);
-  const [activityTime, setActivityTime] = useState('');
+  const [activityTime, setActivityTime] = useState<Date | null>(null);
   const [location, setLocation] = useState('');
-  const [deadline, setDeadline] = useState<Date | null>(
-    () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-  );
+  const [advanceMinutes, setAdvanceMinutes] = useState<number | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [advancePickerVisible, setAdvancePickerVisible] = useState(false);
 
   const getPlaceholders = useCallback(() => {
     switch (category) {
@@ -74,6 +85,36 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const placeholders = getPlaceholders();
 
+  const isActivityTooSoon =
+    activityTime !== null &&
+    activityTime.getTime() - Date.now() < 3600 * 1000;
+
+  const availableAdvanceOptions = useMemo(() => {
+    if (!activityTime) return [];
+    const diffMinutes = (activityTime.getTime() - Date.now()) / (60 * 1000);
+    if (diffMinutes < 60) return [];
+    return ADVANCE_OPTIONS.filter((opt) => diffMinutes >= opt.minutes);
+  }, [activityTime]);
+
+  // Reset advanceMinutes if no longer valid after activityTime change
+  useEffect(() => {
+    if (
+      advanceMinutes !== null &&
+      !availableAdvanceOptions.some((opt) => opt.minutes === advanceMinutes)
+    ) {
+      setAdvanceMinutes(null);
+    }
+  }, [availableAdvanceOptions, advanceMinutes]);
+
+  const selectedAdvanceLabel = advanceMinutes !== null
+    ? t(ADVANCE_OPTIONS.find((o) => o.minutes === advanceMinutes)?.labelKey ?? '')
+    : null;
+
+  const advancePickerOptions = useMemo(
+    () => availableAdvanceOptions.map((opt) => ({ minutes: opt.minutes, label: t(opt.labelKey) })),
+    [availableAdvanceOptions, t],
+  );
+
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
   }, []);
@@ -85,13 +126,32 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   const canPost =
     title.trim().length > 0 &&
     category !== null &&
-    activityTime.trim().length > 0 &&
-    deadline !== null;
+    activityTime !== null &&
+    !isActivityTooSoon &&
+    advanceMinutes !== null;
+
+  const user = useAuthStore((s) => s.user);
 
   const handlePost = useCallback(() => {
-    if (!canPost) return;
-    navigation.replace('PartnerShare', { activityName: title });
-  }, [canPost, navigation, title]);
+    if (!canPost || !user) return;
+    const newPost: PartnerPost = {
+      category: category!,
+      type: t(category!),
+      title: title.trim(),
+      desc: content.trim(),
+      time: formatDeadline(activityTime!),
+      location: location.trim(),
+      user: user.name,
+      avatar: user.defaultAvatar || user.name.charAt(0),
+      gender: user.gender,
+      bio: `${user.grade} · ${user.major}`,
+      expired: false,
+      expiresAt: new Date(activityTime!.getTime() - (advanceMinutes ?? 0) * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    mockPartnerPosts.unshift(newPost);
+    navigation.replace('PartnerShare', { activityName: title, posterName: user.name, index: 0 });
+  }, [canPost, navigation, title, user, category, content, activityTime, location, advanceMinutes, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,6 +198,9 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
         {/* ── Title & Content Card ── */}
         <View style={styles.card}>
+          <Text style={styles.fieldLabel}>
+            {t('titleLabel')} <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.titleInput}
             placeholder={placeholders.title}
@@ -167,14 +230,23 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('activityTime')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('activityTimePlaceholder')}
-              placeholderTextColor={colors.outline}
-              value={activityTime}
-              onChangeText={setActivityTime}
-              maxLength={50}
-            />
+            <TouchableOpacity
+              style={styles.deadlineInput}
+              activeOpacity={0.7}
+              onPress={() => setPickerVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.deadlineText,
+                  !activityTime && styles.deadlinePlaceholder,
+                ]}
+              >
+                {activityTime
+                  ? formatDeadline(activityTime)
+                  : t('activityTimePlaceholder')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.outline} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.cardDivider} />
@@ -197,27 +269,33 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
           <View style={styles.cardDivider} />
 
-          {/* Deadline */}
+          {/* Deadline (Advance Time) */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('deadlineLabel')} <Text style={styles.required}>*</Text>
             </Text>
-            <TouchableOpacity
-              style={styles.deadlineInput}
-              activeOpacity={0.7}
-              onPress={() => setPickerVisible(true)}
-            >
-              <Text
-                style={[
-                  styles.deadlineText,
-                  !deadline && styles.deadlinePlaceholder,
-                ]}
+            {!activityTime ? (
+              <Text style={styles.hintText}>{t('selectActivityFirst')}</Text>
+            ) : isActivityTooSoon ? (
+              <Text style={styles.warningText}>{t('activityTooSoon')}</Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.deadlineInput}
+                activeOpacity={0.7}
+                onPress={() => setAdvancePickerVisible(true)}
               >
-                {deadline ? formatDeadline(deadline) : t('deadlinePlaceholder')}
-              </Text>
-              <ChevronRightIcon size={18} color={colors.outline} />
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.deadlineText,
+                    !selectedAdvanceLabel && styles.deadlinePlaceholder,
+                  ]}
+                >
+                  {selectedAdvanceLabel || t('deadlinePlaceholder')}
+                </Text>
+                <ChevronRightIcon size={18} color={colors.outline} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -225,10 +303,22 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
           visible={pickerVisible}
           onClose={() => setPickerVisible(false)}
           onConfirm={(date) => {
-            setDeadline(date);
+            setActivityTime(date);
             setPickerVisible(false);
           }}
-          initialDate={deadline || undefined}
+          initialDate={activityTime || undefined}
+          title={t('activityTime')}
+        />
+
+        <AdvanceTimePickerSheet
+          visible={advancePickerVisible}
+          onClose={() => setAdvancePickerVisible(false)}
+          onConfirm={(minutes) => {
+            setAdvanceMinutes(minutes);
+            setAdvancePickerVisible(false);
+          }}
+          options={advancePickerOptions}
+          initialValue={advanceMinutes ?? undefined}
         />
       </ScrollView>
     </SafeAreaView>
@@ -317,7 +407,8 @@ const styles = StyleSheet.create({
   titleInput: {
     ...typography.titleMedium,
     color: colors.onSurface,
-    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: spacing.xs,
   },
   contentInput: {
     ...typography.bodyLarge,
@@ -364,5 +455,13 @@ const styles = StyleSheet.create({
   },
   deadlinePlaceholder: {
     color: colors.outline,
+  },
+  hintText: {
+    ...typography.bodyMedium,
+    color: colors.outline,
+  },
+  warningText: {
+    ...typography.bodyMedium,
+    color: colors.error,
   },
 });

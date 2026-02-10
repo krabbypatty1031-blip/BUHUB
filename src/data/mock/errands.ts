@@ -4,6 +4,13 @@ const now = new Date();
 const oneDayLater = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
 const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
 
+// Post creation times
+const fortyMinAgo = new Date(now.getTime() - 40 * 60 * 1000).toISOString();
+const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
+const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
+const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockErrands: Errand[] = [
   {
     category: 'pickup',
@@ -21,6 +28,7 @@ export const mockErrands: Errand[] = [
     bio: 'Year 3 · Communication',
     expired: false,
     expiresAt: oneDayLater,
+    createdAt: fortyMinAgo,
   },
   {
     category: 'buy',
@@ -38,6 +46,7 @@ export const mockErrands: Errand[] = [
     bio: 'Year 2 · Computer Science',
     expired: false,
     expiresAt: oneDayLater,
+    createdAt: threeHoursAgo,
   },
   {
     category: 'pickup',
@@ -55,6 +64,7 @@ export const mockErrands: Errand[] = [
     bio: 'Year 2 · Computer Science',
     expired: true,
     expiresAt: expiredDate,
+    createdAt: twoDaysAgo,
   },
   {
     category: 'buy',
@@ -72,6 +82,7 @@ export const mockErrands: Errand[] = [
     bio: 'Year 2 · Computer Science',
     expired: false,
     expiresAt: oneDayLater,
+    createdAt: sixHoursAgo,
   },
   {
     category: 'pickup',
@@ -89,5 +100,6 @@ export const mockErrands: Errand[] = [
     bio: 'Year 2 · Computer Science',
     expired: true,
     expiresAt: expiredDate,
+    createdAt: oneDayAgo,
   },
 ];

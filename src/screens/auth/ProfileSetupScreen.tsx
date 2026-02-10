@@ -20,6 +20,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon, CameraIcon } from '../../components/common/icons';
+import DefaultAvatarPicker, { DefaultAvatarSvg, InitialAvatar, getAutoAvatar } from '../../components/common/DefaultAvatarPicker';
 import type { Gender } from '../../types/common';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ProfileSetup'>;
@@ -37,6 +38,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const [grade, setGrade] = useState('');
   const [major, setMajor] = useState('');
   const [gender, setGender] = useState('');
+  const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState<string | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('grade');
 
@@ -92,23 +94,26 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   };
 
   const handleDone = useCallback(() => {
+    const resolvedGender = mapGender(gender) || 'male';
     setUser({
       name: nickname || '張小明',
       nickname: nickname || '浸大小明',
       avatar: avatarUri,
+      defaultAvatar: avatarUri ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
       grade: grade || 'Year 2',
       major: major || 'Computer Science',
       bio: '',
-      gender: mapGender(gender) || 'male',
+      gender: resolvedGender,
       isLoggedIn: true,
     });
-  }, [nickname, grade, major, gender, avatarUri, setUser]);
+  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, setUser]);
 
   const handleSkip = useCallback(() => {
     setUser({
       name: '張小明',
       nickname: '浸大小明',
       avatar: null,
+      defaultAvatar: getAutoAvatar('male'),
       grade: 'Year 2',
       major: 'Computer Science',
       bio: '',
@@ -136,10 +141,14 @@ export default function ProfileSetupScreen({ navigation }: Props) {
             <View style={styles.avatarCircle}>
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              ) : selectedDefaultAvatar ? (
+                <DefaultAvatarSvg id={selectedDefaultAvatar} size={96} />
               ) : (
-                <Text style={styles.avatarText}>
-                  {nickname ? nickname.charAt(0) : '?'}
-                </Text>
+                <InitialAvatar
+                  text={nickname || 'U'}
+                  size={96}
+                  gender={gender ? mapGender(gender) : undefined}
+                />
               )}
             </View>
             <View style={styles.avatarEditBadge}>
@@ -148,6 +157,17 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           </TouchableOpacity>
           <Text style={styles.avatarHint}>{t('uploadAvatar')}</Text>
         </View>
+
+        {/* Default Avatar Picker */}
+        {!avatarUri && (
+          <View style={styles.defaultAvatarSection}>
+            <DefaultAvatarPicker
+              selected={selectedDefaultAvatar}
+              onSelect={setSelectedDefaultAvatar}
+              label={t('chooseDefaultAvatar')}
+            />
+          </View>
+        )}
 
         {/* Form Card */}
         <View style={styles.formCard}>
@@ -305,7 +325,7 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
     marginTop: spacing.xxl,
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.lg,
   },
   avatarUpload: {
     position: 'relative',
@@ -314,7 +334,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primaryContainer,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -345,6 +365,9 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     marginTop: spacing.sm,
+  },
+  defaultAvatarSection: {
+    marginBottom: spacing.xxl,
   },
   formCard: {
     backgroundColor: colors.surface1,

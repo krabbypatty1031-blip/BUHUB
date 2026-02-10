@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import {
   UsersIcon,
@@ -104,9 +104,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   topBarTitle: {
-    ...typography.headlineMedium,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.onSurface,
-    fontWeight: '800',
+    fontFamily: 'Poppins_900Black',
+    letterSpacing: -0.5,
   },
   scrollContent: {
     padding: spacing.lg,
@@ -119,18 +121,13 @@ const styles = StyleSheet.create({
   gridCard: {
     width: CARD_WIDTH,
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: borderRadius.lg,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
     marginBottom: CARD_GAP,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.outlineVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
   },
   iconCircle: {
     width: 52,

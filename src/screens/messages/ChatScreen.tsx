@@ -23,6 +23,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { ChatMessage, ChatHistory } from '../../types';
@@ -32,6 +33,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import {
   BackIcon,
   SendIcon,
@@ -39,6 +41,10 @@ import {
   MicIcon,
   ImageIcon,
   CloseIcon,
+  ChevronRightIcon,
+  UsersIcon,
+  TruckIcon,
+  ShoppingBagIcon,
 } from '../../components/common/icons';
 import { hapticLight } from '../../utils/haptics';
 
@@ -64,17 +70,46 @@ const DateSeparator = React.memo(function DateSeparator({
   );
 });
 
+/* ── Type label keys ── */
+const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand' };
+
+/* ── Card theme colours per type ── */
+const CARD_THEMES = {
+  partner: {
+    gradientFrom: '#F5F0FF', gradientTo: '#EBE4FF',
+    iconBg: '#8B5CF6', accent: '#7C3AED',
+    divider: 'rgba(124,58,237,0.1)',
+  },
+  errand: {
+    gradientFrom: '#FFF8EE', gradientTo: '#FFF0D6',
+    iconBg: '#F59E0B', accent: '#D97706',
+    divider: 'rgba(217,119,6,0.1)',
+  },
+  secondhand: {
+    gradientFrom: '#EEFFF6', gradientTo: '#DCFFEC',
+    iconBg: '#10B981', accent: '#059669',
+    divider: 'rgba(5,150,105,0.1)',
+  },
+};
+
+const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon };
+
 /* ── Chat bubble with avatar ── */
 const ChatBubble = React.memo(function ChatBubble({
   message,
   myAvatar,
   theirAvatar,
+  onCardPress,
+  t,
 }: {
   message: ChatMessage;
   myAvatar: string;
   theirAvatar: string;
+  onCardPress?: (card: NonNullable<ChatMessage['functionCard']>) => void;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const isMine = message.type === 'sent';
+  const card = message.functionCard;
 
   return (
     <View
@@ -89,21 +124,69 @@ const ChatBubble = React.memo(function ChatBubble({
         </View>
       )}
       <View style={styles.bubbleCol}>
-        <View
-          style={[
-            styles.bubble,
-            isMine ? styles.bubbleMine : styles.bubbleTheirs,
-          ]}
-        >
-          <Text
+        {card ? (() => {
+          const theme = CARD_THEMES[card.type];
+          const IconComp = TYPE_ICONS[card.type];
+          const shareCount = (card.index * 7 + 3) % 18 + 3;
+          return (
+            <TouchableOpacity
+              style={styles.cardBubble}
+              activeOpacity={0.7}
+              onPress={() => onCardPress?.(card)}
+            >
+              {/* SVG diagonal gradient background */}
+              <View style={styles.cardGradientWrap}>
+                <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+                  <Defs>
+                    <SvgLinearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
+                      <Stop offset="0" stopColor={theme.gradientFrom} />
+                      <Stop offset="1" stopColor={theme.gradientTo} />
+                    </SvgLinearGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardGrad)" rx={14} />
+                </Svg>
+              </View>
+              <View style={styles.cardContent}>
+                {/* Top row: icon + type label + arrow */}
+                <View style={styles.cardTopRow}>
+                  <View style={[styles.cardIconCircle, { backgroundColor: theme.iconBg }]}>
+                    <IconComp size={14} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.cardTypeText, { color: theme.accent }]}>
+                    {t(TYPE_LABEL_KEYS[card.type]) || card.type}
+                  </Text>
+                  <ChevronRightIcon size={14} color={`${theme.accent}50`} />
+                </View>
+                {/* Title */}
+                <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
+                {/* Divider */}
+                <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
+                {/* Footer */}
+                <View style={styles.cardFooter}>
+                  <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
+                  <Text style={styles.cardDot}>·</Text>
+                  <Text style={styles.cardFooterText}>{t('sharedCount', { count: shareCount })}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })() : (
+          <View
             style={[
-              styles.bubbleText,
-              isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+              styles.bubble,
+              isMine ? styles.bubbleMine : styles.bubbleTheirs,
             ]}
           >
-            {message.text}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.bubbleText,
+                isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+              ]}
+            >
+              {message.text}
+            </Text>
+          </View>
+        )}
         <Text
           style={[
             styles.bubbleTime,
@@ -165,33 +248,44 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { contactName, contactAvatar, forwardedType, forwardedTitle } = route.params;
+  const { contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactName);
   const sendMessage = useSendMessage(contactName);
   const user = useAuthStore((s) => s.user);
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [forwardRef, setForwardRef] = useState<{ type: string; title: string } | null>(
-    forwardedType && forwardedTitle ? { type: forwardedType, title: forwardedTitle } : null
-  );
+  const [cardMessages, setCardMessages] = useState<ChatMessage[]>([]);
+  const cardSentRef = useRef<string | null>(null);
 
-  // Sync forwardRef when route.params change (screen reused by React Navigation)
+  // Auto-send card message when forwarded params are present
   useEffect(() => {
-    if (forwardedType && forwardedTitle) {
-      setForwardRef({ type: forwardedType, title: forwardedTitle });
-    } else {
-      setForwardRef(null);
+    if (forwardedType && forwardedTitle && forwardedPosterName && forwardedIndex != null) {
+      const key = `${forwardedType}:${forwardedIndex}:${forwardedTitle}`;
+      if (cardSentRef.current !== key) {
+        cardSentRef.current = key;
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const cardMsg: ChatMessage = {
+          type: 'sent',
+          text: '',
+          time: timeStr,
+          functionCard: {
+            type: forwardedType as 'partner' | 'errand' | 'secondhand',
+            index: forwardedIndex,
+            title: forwardedTitle,
+            posterName: forwardedPosterName,
+          },
+        };
+        setCardMessages((prev) => [...prev, cardMsg]);
+      }
     }
-  }, [forwardedType, forwardedTitle]);
+  }, [forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
 
   const myAvatar = user?.name?.charAt(0) || user?.nickname?.charAt(0) || '我';
   const hasText = inputText.trim().length > 0;
-
-  const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand' };
-  const forwardTypeLabel = forwardRef ? (t(TYPE_LABEL_KEYS[forwardRef.type]) || forwardRef.type) : '';
 
   /* ── Chat trigger: disable input if last message is 'sent' (waiting for reply) ── */
   const waitingForReply = useMemo(() => {
@@ -206,19 +300,23 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   /* ── Build flat list data with date separators ── */
   const listData = useMemo<ChatListItem[]>(() => {
-    if (!chatHistory) return [];
-    const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
     const items: ChatListItem[] = [];
-    histories.forEach((h: ChatHistory, gi: number) => {
-      if (h.date) {
-        items.push({ kind: 'date', date: h.date, key: `date-${gi}` });
-      }
-      h.messages.forEach((m: ChatMessage, mi: number) => {
-        items.push({ kind: 'message', message: m, key: `msg-${gi}-${mi}` });
+    if (chatHistory) {
+      const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
+      histories.forEach((h: ChatHistory, gi: number) => {
+        if (h.date) {
+          items.push({ kind: 'date', date: h.date, key: `date-${gi}` });
+        }
+        h.messages.forEach((m: ChatMessage, mi: number) => {
+          items.push({ kind: 'message', message: m, key: `msg-${gi}-${mi}` });
+        });
       });
+    }
+    cardMessages.forEach((m, i) => {
+      items.push({ kind: 'message', message: m, key: `card-${i}` });
     });
     return items;
-  }, [chatHistory]);
+  }, [chatHistory, cardMessages]);
 
   /* ── Auto-scroll to bottom when data changes ── */
   const scrollToBottom = useCallback(() => {
@@ -229,18 +327,35 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
   }, [listData.length]);
 
+  /* ── Handle card press: navigate to detail ── */
+  const handleCardPress = useCallback(
+    (card: NonNullable<ChatMessage['functionCard']>) => {
+      const screenMap = {
+        partner: 'PartnerDetail',
+        errand: 'ErrandDetail',
+        secondhand: 'SecondhandDetail',
+      } as const;
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'FunctionsTab',
+          params: {
+            screen: screenMap[card.type],
+            params: { index: card.index },
+          },
+        })
+      );
+    },
+    [navigation]
+  );
+
   /* ── Send message ── */
   const handleSend = useCallback(() => {
     const text = inputText.trim();
-    if (!text && !forwardRef) return;
+    if (!text) return;
     hapticLight();
-    const body = forwardRef
-      ? `[${t('forwardedRef')}: ${forwardTypeLabel}] ${forwardRef.title}${text ? '\n' + text : ''}`
-      : text;
-    sendMessage.mutate(body);
+    sendMessage.mutate(text);
     setInputText('');
-    setForwardRef(null);
-  }, [inputText, sendMessage, forwardRef, t]);
+  }, [inputText, sendMessage]);
 
   /* ── Camera: open device camera ── */
   const handleCamera = useCallback(async () => {
@@ -361,10 +476,12 @@ export default function ChatScreen({ navigation, route }: Props) {
           message={item.message}
           myAvatar={myAvatar}
           theirAvatar={contactAvatar}
+          onCardPress={handleCardPress}
+          t={t}
         />
       );
     },
-    [myAvatar, contactAvatar]
+    [myAvatar, contactAvatar, handleCardPress, t]
   );
 
   return (
@@ -402,24 +519,6 @@ export default function ChatScreen({ navigation, route }: Props) {
             onContentSizeChange={scrollToBottom}
             onLayout={scrollToBottom}
           />
-        )}
-
-        {/* Forward Quote Card */}
-        {forwardRef && (
-          <View style={styles.quoteCard}>
-            <View style={styles.quoteBar} />
-            <View style={styles.quoteContent}>
-              <Text style={styles.quoteType}>{t('forwardedRef')}: {forwardTypeLabel}</Text>
-              <Text style={styles.quoteTitle} numberOfLines={1}>{forwardRef.title}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.quoteClose}
-              hitSlop={8}
-              onPress={() => setForwardRef(null)}
-            >
-              <CloseIcon size={16} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* Input Bar */}
@@ -627,43 +726,71 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
 
-  /* ── Forward quote card ── */
-  quoteCard: {
+  /* ── Function card bubble ── */
+  cardBubble: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    maxWidth: 260,
+    minWidth: 220,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardGradientWrap: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cardContent: {
+    padding: spacing.md,
+    gap: 10,
+  },
+  cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface1,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
+    gap: 8,
   },
-  quoteBar: {
-    width: 3,
-    height: '100%',
-    minHeight: 32,
-    backgroundColor: colors.primary,
-    borderRadius: 1.5,
-    marginRight: spacing.sm,
-  },
-  quoteContent: {
-    flex: 1,
-  },
-  quoteType: {
-    ...typography.labelSmall,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  quoteTitle: {
-    ...typography.bodySmall,
-    color: colors.onSurface,
-    marginTop: 1,
-  },
-  quoteClose: {
+  cardIconCircle: {
     width: 28,
     height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.sm,
+  },
+  cardTypeText: {
+    ...typography.labelSmall,
+    fontWeight: '700',
+    flex: 1,
+  },
+  cardTitle: {
+    ...typography.titleSmall,
+    color: '#1A1A1A',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  cardDivider: {
+    height: 1,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cardPosterText: {
+    ...typography.bodySmall,
+    fontSize: 11,
+    color: '#888888',
+    flexShrink: 1,
+  },
+  cardDot: {
+    ...typography.bodySmall,
+    fontSize: 11,
+    color: '#BBBBBB',
+  },
+  cardFooterText: {
+    ...typography.bodySmall,
+    fontSize: 11,
+    color: '#BBBBBB',
   },
 
   /* ── Input bar ── */

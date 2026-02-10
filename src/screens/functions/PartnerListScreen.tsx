@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,7 +22,16 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { BackIcon, PlusIcon, UsersIcon, RepostIcon } from '../../components/common/icons';
+import { getRelativeTime } from '../../utils/formatTime';
+import {
+  BackIcon,
+  PlusIcon,
+  UsersIcon,
+  MoreHorizontalIcon,
+  MessageIcon,
+  RepostIcon,
+} from '../../components/common/icons';
+import { mockPartnerPosts } from '../../data/mock/partner';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -35,7 +45,8 @@ const CATEGORIES: Array<{ key: PartnerCategory | 'all'; labelKey: string }> = [
 ];
 
 export default function PartnerListScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
   const selectedCategory = usePartnerStore((s) => s.selectedCategory);
   const setCategory = usePartnerStore((s) => s.setCategory);
   const joinedActivities = usePartnerStore((s) => s.joinedActivities);
@@ -66,20 +77,24 @@ export default function PartnerListScreen({ navigation }: Props) {
     [setCategory]
   );
 
-  const [shareSheetItem, setShareSheetItem] = useState<PartnerPost | null>(null);
+  // Action menu state (ellipsis popover)
+  const [actionItem, setActionItem] = useState<{ post: PartnerPost; index: number } | null>(null);
+  // Forward sheet state (contact picker)
+  const [shareSheetItem, setShareSheetItem] = useState<{ post: PartnerPost; index: number } | null>(null);
 
   const handleDmOrganizer = useCallback(
-    (item: PartnerPost) => {
+    (item: PartnerPost, itemIndex: number) => {
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title },
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: PartnerPost; index: number }) => {
+    ({ item }: { item: PartnerPost }) => {
+      const index = mockPartnerPosts.indexOf(item);
       const isJoined = joinedActivities.has(index);
       return (
         <TouchableOpacity
@@ -87,49 +102,56 @@ export default function PartnerListScreen({ navigation }: Props) {
           activeOpacity={0.7}
           onPress={() => navigation.navigate('PartnerDetail', { index })}
         >
+          {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
             <Avatar text={item.avatar} size="md" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
-              <Text style={styles.userName}>{item.user}</Text>
-              <Text style={styles.timeMeta}>{item.time}</Text>
-            </View>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{t(item.category)}</Text>
-            </View>
-          </View>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.cardContent} numberOfLines={3}>
-            {item.desc}
-          </Text>
-          <View style={styles.cardFooter}>
-            <View style={styles.footerLeft}>
-              {isJoined && (
-                <View style={styles.joinedBadge}>
-                  <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
-                </View>
-              )}
-              {item.expired && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
-                </View>
-              )}
+              <View style={styles.nameTimeRow}>
+                <Text style={styles.userName}>{item.user}</Text>
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.timeMeta}>{getRelativeTime(item.createdAt, lang)}</Text>
+              </View>
             </View>
             {!item.expired && (
               <TouchableOpacity
-                activeOpacity={0.7}
+                style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setShareSheetItem(item)}
+                onPress={() => setActionItem({ post: item, index })}
               >
-                <RepostIcon size={18} color={colors.onSurface} />
+                <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Row 2+: Title & Content, aligned with name */}
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardContent} numberOfLines={3}>
+              {item.desc}
+            </Text>
+
+            {/* Badges */}
+            {(isJoined || item.expired) && (
+              <View style={styles.badgeRow}>
+                {isJoined && (
+                  <View style={styles.joinedBadge}>
+                    <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
+                  </View>
+                )}
+                {item.expired && (
+                  <View style={styles.expiredBadge}>
+                    <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
+                  </View>
+                )}
+              </View>
             )}
           </View>
         </TouchableOpacity>
       );
     },
-    [joinedActivities, navigation, t, handleDmOrganizer]
+    [joinedActivities, navigation, t, lang]
   );
 
   return (
@@ -182,18 +204,68 @@ export default function PartnerListScreen({ navigation }: Props) {
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
 
-      {/* Forward Sheet */}
+      {/* Action Menu (ellipsis popover) */}
+      <Modal
+        visible={!!actionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.actionOverlay}
+          activeOpacity={1}
+          onPress={() => setActionItem(null)}
+        >
+          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.actionHandle} />
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) setShareSheetItem(a);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
+                <RepostIcon size={20} color={colors.onSecondaryContainer} />
+              </View>
+              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) handleDmOrganizer(a.post, a.index);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
+                <MessageIcon size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
         visible={!!shareSheetItem}
         onClose={() => setShareSheetItem(null)}
         functionType="partner"
-        functionTitle={shareSheetItem?.title ?? ''}
+        functionTitle={shareSheetItem?.post.title ?? ''}
+        functionPosterName={shareSheetItem?.post.user ?? ''}
+        functionIndex={shareSheetItem?.index ?? 0}
         navigation={navigation}
-        onDmOrganizer={shareSheetItem ? () => handleDmOrganizer(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
 }
+
+const AVATAR_SIZE = 40; // md
+const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
   container: {
@@ -228,12 +300,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
   },
+
+  /* Card */
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    ...elevation[1],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   cardExpired: {
     opacity: 0.5,
@@ -241,30 +316,40 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   cardHeaderInfo: {
     flex: 1,
-    marginLeft: spacing.md,
+    marginLeft: AVATAR_GAP,
+  },
+  nameTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   userName: {
     ...typography.titleSmall,
     color: colors.onSurface,
+    fontWeight: '700',
+  },
+  timeDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   timeMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
   },
-  categoryTag: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
-  categoryTagText: {
-    ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
+
+  /* Card body — aligned with name */
+  cardBody: {
+    marginLeft: AVATAR_SIZE + AVATAR_GAP,
+    marginTop: spacing.xs,
   },
   cardTitle: {
     ...typography.titleSmall,
@@ -273,18 +358,13 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
+    color: colors.onSurface,
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerLeft: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   joinedBadge: {
     backgroundColor: colors.primaryContainer,
@@ -306,6 +386,8 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onErrorContainer,
   },
+
+  /* FAB */
   fab: {
     position: 'absolute',
     right: 20,
@@ -317,5 +399,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...elevation[3],
+  },
+
+  /* Action Menu */
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 36,
+  },
+  actionHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
   },
 });

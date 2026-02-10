@@ -38,6 +38,29 @@ export function translateTime(str: string, language: Language): string {
   return str;
 }
 
+export function getRelativeTime(isoDate: string, language: Language): string {
+  const now = Date.now();
+  const then = new Date(isoDate).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+
+  if (diffMin < 1) {
+    return language === 'tc' ? '剛剛' : language === 'sc' ? '刚刚' : 'Just now';
+  }
+  if (diffMin < 60) {
+    return language === 'tc' ? `${diffMin}分鐘前` : language === 'sc' ? `${diffMin}分钟前` : `${diffMin}m ago`;
+  }
+  if (diffHour < 24) {
+    return language === 'tc' ? `${diffHour}小時前` : language === 'sc' ? `${diffHour}小时前` : `${diffHour}h ago`;
+  }
+
+  const date = new Date(isoDate);
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return language === 'en' ? `${month}/${day}` : `${month}月${day}日`;
+}
+
 export function translateMeta(meta: string, language: Language): string {
   if (!meta || language === 'tc') return meta;
 

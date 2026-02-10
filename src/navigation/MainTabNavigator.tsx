@@ -1,10 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
 import type { MainTabParamList } from './types';
 import { colors } from '../theme';
 import { TabHomeIcon, TabCompassIcon, TabChatIcon, TabProfileIcon } from '../components/common/icons';
+import { TabBarAnimationProvider } from '../hooks/TabBarAnimationContext';
+import AnimatedTabBar from '../components/common/AnimatedTabBar';
 
 import ForumStackNavigator from './ForumStackNavigator';
 import FunctionsStackNavigator from './FunctionsStackNavigator';
@@ -14,11 +15,11 @@ import MeStackNavigator from './MeStackNavigator';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
-  const { t } = useTranslation();
-
   return (
+    <TabBarAnimationProvider>
     <Tab.Navigator
       backBehavior="history"
+      tabBar={(props) => <AnimatedTabBar {...props} />}
       screenListeners={({ navigation, route }) => ({
         tabPress: (e) => {
           e.preventDefault();
@@ -41,8 +42,13 @@ export default function MainTabNavigator() {
       })}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: colors.black,
+        tabBarInactiveTintColor: colors.black,
+        tabBarIconStyle: {
+          width: 28,
+          height: 28,
+        },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.outlineVariant,
@@ -50,44 +56,37 @@ export default function MainTabNavigator() {
           paddingBottom: 20,
           paddingTop: 8,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-        },
       }}
     >
       <Tab.Screen
         name="ForumTab"
         component={ForumStackNavigator}
         options={{
-          tabBarLabel: t('forum'),
-          tabBarIcon: ({ color, size, focused }) => <TabHomeIcon size={size} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ color, focused }) => <TabHomeIcon size={28} color={color} fill={focused ? color : undefined} />,
         }}
       />
       <Tab.Screen
         name="FunctionsTab"
         component={FunctionsStackNavigator}
         options={{
-          tabBarLabel: t('functions'),
-          tabBarIcon: ({ color, size, focused }) => <TabCompassIcon size={size} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ color, focused }) => <TabCompassIcon size={28} color={color} fill={focused ? color : undefined} />,
         }}
       />
       <Tab.Screen
         name="MessagesTab"
         component={MessagesStackNavigator}
         options={{
-          tabBarLabel: t('messages'),
-          tabBarIcon: ({ color, size, focused }) => <TabChatIcon size={size} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ color, focused }) => <TabChatIcon size={28} color={color} fill={focused ? color : undefined} />,
         }}
       />
       <Tab.Screen
         name="MeTab"
         component={MeStackNavigator}
         options={{
-          tabBarLabel: t('me'),
-          tabBarIcon: ({ color, size, focused }) => <TabProfileIcon size={size} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ color, focused }) => <TabProfileIcon size={28} color={color} fill={focused ? color : undefined} />,
         }}
       />
     </Tab.Navigator>
+    </TabBarAnimationProvider>
   );
 }

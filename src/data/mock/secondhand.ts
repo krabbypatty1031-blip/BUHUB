@@ -4,6 +4,13 @@ const now = new Date();
 const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
 
+// Post creation times
+const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
+const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
+const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString();
+const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockSecondhandItems: SecondhandItem[] = [
   {
     category: 'electronics',
@@ -20,6 +27,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     sold: false,
     expiresAt: thirtyDaysLater,
     expired: false,
+    createdAt: tenMinAgo,
   },
   {
     category: 'books',
@@ -36,6 +44,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     sold: false,
     expiresAt: thirtyDaysLater,
     expired: false,
+    createdAt: fourHoursAgo,
   },
   {
     category: 'furniture',
@@ -52,6 +61,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     sold: true,
     expiresAt: expiredDate,
     expired: true,
+    createdAt: threeDaysAgo,
   },
   {
     category: 'electronics',
@@ -68,6 +78,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     sold: false,
     expiresAt: thirtyDaysLater,
     expired: false,
+    createdAt: oneHourAgo,
   },
   {
     category: 'books',
@@ -84,5 +95,6 @@ export const mockSecondhandItems: SecondhandItem[] = [
     sold: true,
     expiresAt: expiredDate,
     expired: true,
+    createdAt: twoDaysAgo,
   },
 ];

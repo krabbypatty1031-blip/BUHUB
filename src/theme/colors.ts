@@ -1,26 +1,26 @@
-// Deep Blue + Lemon Yellow Theme
-// Primary: #1E40AF (Deep Blue), Accent: #FDD835 (Lemon Yellow)
+// Threads-style Monochrome Theme
+// Primary: #000000 (Black), Neutral grays for hierarchy
 
 export const colors = {
-  // Primary (Deep Blue)
-  primary: '#1E40AF',
+  // Primary (Black)
+  primary: '#000000',
   onPrimary: '#FFFFFF',
-  primaryContainer: '#DBEAFE',
-  onPrimaryContainer: '#1E3A8A',
+  primaryContainer: '#F0F0F0',
+  onPrimaryContainer: '#000000',
 
   // Secondary (Neutral Gray)
-  secondary: '#6B7280',
+  secondary: '#737373',
   onSecondary: '#FFFFFF',
-  secondaryContainer: '#F3F4F6',
-  onSecondaryContainer: '#1F2937',
+  secondaryContainer: '#F5F5F5',
+  onSecondaryContainer: '#1A1A1A',
 
   // Tertiary (Neutral Gray, unified with secondary)
-  tertiary: '#6B7280',
+  tertiary: '#737373',
   onTertiary: '#FFFFFF',
-  tertiaryContainer: '#F9FAFB',
-  onTertiaryContainer: '#1F2937',
+  tertiaryContainer: '#FAFAFA',
+  onTertiaryContainer: '#1A1A1A',
 
-  // Error (Instagram Red)
+  // Error
   error: '#ED4956',
   onError: '#FFFFFF',
   errorContainer: '#FEE2E2',
@@ -28,24 +28,24 @@ export const colors = {
 
   // Background & Surface (Pure White)
   background: '#FFFFFF',
-  onBackground: '#262626',
+  onBackground: '#000000',
   surface: '#FFFFFF',
-  onSurface: '#262626',
-  surfaceVariant: '#F3F4F6',
-  onSurfaceVariant: '#8E8E8E',
+  onSurface: '#000000',
+  surfaceVariant: '#F5F5F5',
+  onSurfaceVariant: '#999999',
 
-  // Outline (Neutral, no tint)
+  // Outline (Threads-style divider)
   outline: '#C7C7CC',
   outlineVariant: '#EFEFEF',
 
-  // Surface Levels (Pure neutral gray, no purple tint)
+  // Surface Levels (Pure neutral gray)
   surface1: '#FAFAFA',
   surface2: '#F5F5F5',
   surface3: '#EEEEEE',
   surface4: '#E8E8E8',
   surface5: '#E0E0E0',
 
-  // Gender Colors
+  // Gender Colors (preserved)
   genderMale: '#1E40AF',
   genderFemale: '#E91E8C',
   genderOther: '#8E8E8E',
@@ -53,13 +53,13 @@ export const colors = {
   // Status Colors
   success: '#22C55E',
   warning: '#F59E0B',
-  info: '#1E40AF',
+  info: '#000000',
 
-  // Accent / CTA (Lemon Yellow)
-  accent: '#FDD835',
-  onAccent: '#262626',
-  accentContainer: '#FFF9C4',
-  onAccentContainer: '#5D4E00',
+  // Accent / CTA (Black, unified with primary)
+  accent: '#000000',
+  onAccent: '#FFFFFF',
+  accentContainer: '#F0F0F0',
+  onAccentContainer: '#000000',
 
   // Scrim (modal overlay)
   scrim: 'rgba(0,0,0,0.4)',
@@ -74,14 +74,14 @@ export const colors = {
 
 export type ColorKey = keyof typeof colors;
 
-// Function card themes (blue + lemon, replacing 6 color schemes)
+// Function card themes (monochrome)
 export const functionCardThemes = {
-  blue: { cardBg: '#EBF5FF', iconBg: '#DBEAFE', iconColor: '#1E40AF', textColor: '#1E3A5F' },
-  lemon: { cardBg: '#FFFDE7', iconBg: '#FFF9C4', iconColor: '#F9A825', textColor: '#5D4E00' },
+  blue: { cardBg: '#F5F5F5', iconBg: '#E8E8E8', iconColor: '#000000', textColor: '#000000' },
+  lemon: { cardBg: '#F5F5F5', iconBg: '#E8E8E8', iconColor: '#666666', textColor: '#333333' },
 } as const;
 
-// Share button themes
+// Share button themes (monochrome)
 export const shareActionThemes = {
-  blue: { bg: '#DBEAFE', icon: '#1E40AF' },
-  lemon: { bg: '#FFF9C4', icon: '#F9A825' },
+  blue: { bg: '#F0F0F0', icon: '#000000' },
+  lemon: { bg: '#F0F0F0', icon: '#666666' },
 } as const;

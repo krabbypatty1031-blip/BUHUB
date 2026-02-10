@@ -1,4 +1,5 @@
 export { default as Avatar } from './Avatar';
+export { default as DefaultAvatarPicker, DefaultAvatarSvg, InitialAvatar, getAvatarDef, getAutoAvatar, getInitialBgColor, DEFAULT_AVATARS } from './DefaultAvatarPicker';
 export { default as TopBar } from './TopBar';
 export { default as Snackbar } from './Snackbar';
 export { default as Chip } from './Chip';
@@ -10,6 +11,8 @@ export { default as ConfirmModal } from './ConfirmModal';
 export { default as EmptyState } from './EmptyState';
 export { default as SkeletonBox, PostCardSkeleton, ProfileSkeleton, ListItemSkeleton, ForumListSkeleton, MessageListSkeleton } from './Skeleton';
 export { default as ForwardSheet } from './ForwardSheet';
+export { default as FunctionShareLayout } from './FunctionShareLayout';
 export { default as SegmentedControl } from './SegmentedControl';
 export { default as TabBar } from './TabBar';
 export { default as IOSSwitch } from './IOSSwitch';
+export { default as AnimatedTabBar } from './AnimatedTabBar';

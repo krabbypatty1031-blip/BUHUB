@@ -11,7 +11,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { ErrandCategory } from '../../types';
+import type { ErrandCategory, Errand } from '../../types';
+import { mockErrands } from '../../data/mock/errands';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -33,6 +34,7 @@ import {
   getContentCountLabel,
 } from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
+import { useAuthStore } from '../../store/authStore';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeErrand'>;
 
@@ -87,10 +89,31 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
     item.trim().length > 0 &&
     deadline !== null;
 
+  const user = useAuthStore((s) => s.user);
+
   const handlePost = useCallback(() => {
-    if (!canPost) return;
-    navigation.replace('ErrandShare', { taskName: title });
-  }, [canPost, navigation, title]);
+    if (!canPost || !user) return;
+    const newErrand: Errand = {
+      category,
+      type: t(category),
+      title: title.trim(),
+      desc: content.trim(),
+      from: from.trim(),
+      to: to.trim(),
+      price: `HK$${price.trim()}`,
+      item: item.trim(),
+      time: formatDeadline(deadline!),
+      user: user.name,
+      avatar: user.defaultAvatar || user.name.charAt(0),
+      gender: user.gender,
+      bio: `${user.grade} · ${user.major}`,
+      expired: false,
+      expiresAt: deadline!.toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    mockErrands.unshift(newErrand);
+    navigation.replace('ErrandShare', { taskName: title, posterName: user.name, index: 0 });
+  }, [canPost, navigation, title, user, category, content, from, to, price, item, deadline, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -141,6 +164,9 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
 
         {/* ── Title & Content Card ── */}
         <View style={styles.card}>
+          <Text style={styles.fieldLabel}>
+            {t('titleLabel')} <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.titleInput}
             placeholder={placeholders.title}
@@ -380,7 +406,8 @@ const styles = StyleSheet.create({
   titleInput: {
     ...typography.titleMedium,
     color: colors.onSurface,
-    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: spacing.xs,
   },
   contentInput: {
     ...typography.bodyLarge,

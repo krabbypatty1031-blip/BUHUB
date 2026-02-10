@@ -240,29 +240,30 @@ export default function MeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* ── Top Bar ── */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>{t('myProfile')}</Text>
+        <View style={styles.topBarRight}>
+          <TouchableOpacity
+            style={styles.topBarIconBtn}
+            activeOpacity={0.6}
+            onPress={() => setContactModalVisible(true)}
+          >
+            <HelpCircleIcon size={22} color="#000" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.topBarIconBtn}
+            activeOpacity={0.6}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <SettingsIcon size={22} color="#000" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* ── Upper Half: Profile ── */}
         <View style={styles.profileSection}>
-          {/* Top icons row */}
-          <View style={styles.topIconsRow}>
-            <TouchableOpacity
-              style={styles.topIconBtn}
-              activeOpacity={0.6}
-              onPress={() => setContactModalVisible(true)}
-            >
-              <HelpCircleIcon size={22} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
-            <View style={styles.topIconsRight}>
-              <TouchableOpacity
-                style={styles.topIconBtn}
-                activeOpacity={0.6}
-                onPress={() => navigation.navigate('Settings')}
-              >
-                <SettingsIcon size={22} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Profile info row: left info + right avatar */}
           <View style={styles.profileInfoRow}>
             {/* Left: info */}
@@ -407,29 +408,39 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  /* ── Upper: Profile section ── */
-  profileSection: {
+  /* ── Top Bar ── */
+  topBar: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
-  topIconsRow: {
+  topBarTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.onSurface,
+    fontFamily: 'Poppins_900Black',
+    letterSpacing: -0.5,
+  },
+  topBarRight: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
-  topIconsRight: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  topIconBtn: {
+  topBarIconBtn: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* ── Upper: Profile section ── */
+  profileSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
 
   profileInfoRow: {

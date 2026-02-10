@@ -6,6 +6,14 @@ const twoDaysLater = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOStri
 const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
 const expiredDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
 
+// Post creation times
+const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
+const fiveHoursAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString();
+const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString();
+const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
 export const mockPartnerPosts: PartnerPost[] = [
   {
     category: 'travel',
@@ -20,6 +28,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 2 · Computer Science',
     expired: false,
     expiresAt: twoDaysLater,
+    createdAt: twoHoursAgo,
   },
   {
     category: 'food',
@@ -34,6 +43,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 4 · Music',
     expired: false,
     expiresAt: fiveDaysLater,
+    createdAt: thirtyMinAgo,
   },
   {
     category: 'course',
@@ -48,6 +58,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 2 · Computer Science',
     expired: true,
     expiresAt: expiredDate,
+    createdAt: threeDaysAgo,
   },
   {
     category: 'sports',
@@ -62,6 +73,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 3 · Communication',
     expired: false,
     expiresAt: fiveDaysLater,
+    createdAt: fiveHoursAgo,
   },
   {
     category: 'food',
@@ -76,6 +88,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 2 · Computer Science',
     expired: false,
     expiresAt: twoDaysLater,
+    createdAt: oneHourAgo,
   },
   {
     category: 'course',
@@ -90,5 +103,6 @@ export const mockPartnerPosts: PartnerPost[] = [
     bio: 'Year 2 · Computer Science',
     expired: true,
     expiresAt: expiredDate,
+    createdAt: twoDaysAgo,
   },
 ];

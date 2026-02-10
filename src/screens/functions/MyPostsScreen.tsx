@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   FlatList,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,13 +25,12 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { getRelativeTime } from '../../utils/formatTime';
 import {
   BackIcon,
-  ClockIcon,
   RepostIcon,
+  ShareIcon,
   MoreHorizontalIcon,
-  TrashIcon,
-  CheckIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'MyPosts'>;
@@ -42,7 +41,8 @@ type CardItem =
   | { kind: 'secondhand'; data: SecondhandItem; index: number };
 
 export default function MyPostsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
   const currentUser = useAuthStore((s) => s.user);
   const nickname = currentUser?.nickname || currentUser?.name || '浸大小明';
   const { data: partners } = usePartners();
@@ -56,10 +56,8 @@ export default function MyPostsScreen({ navigation }: Props) {
   const secondhandClosed = useSecondhandStore((s) => s.closedPosts);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
-  const [popoverVisible, setPopoverVisible] = useState(false);
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [shareSheetItem, setShareSheetItem] = useState<CardItem | null>(null);
+  const [actionItem, setActionItem] = useState<CardItem | null>(null);
 
   const allPosts = useMemo(() => {
     const items: CardItem[] = [];
@@ -84,19 +82,6 @@ export default function MyPostsScreen({ navigation }: Props) {
 
   const handlePress = useCallback(
     (card: CardItem) => {
-      if (deleteMode) {
-        const key = `${card.kind}-${card.index}`;
-        setSelectedForDelete((prev) => {
-          const next = new Set(prev);
-          if (next.has(key)) {
-            next.delete(key);
-          } else {
-            next.add(key);
-          }
-          return next;
-        });
-        return;
-      }
       switch (card.kind) {
         case 'partner':
           navigation.navigate('PartnerDetail', { index: card.index });
@@ -109,7 +94,7 @@ export default function MyPostsScreen({ navigation }: Props) {
           break;
       }
     },
-    [navigation, deleteMode]
+    [navigation]
   );
 
   const isItemClosed = useCallback(
@@ -127,282 +112,93 @@ export default function MyPostsScreen({ navigation }: Props) {
     return card.data.expired;
   };
 
-  const enterDeleteMode = useCallback(() => {
-    setPopoverVisible(false);
-    setDeleteMode(true);
-    setSelectedForDelete(new Set());
-  }, []);
-
-  const exitDeleteMode = useCallback(() => {
-    setDeleteMode(false);
-    setSelectedForDelete(new Set());
-  }, []);
-
-  const handleBatchDelete = useCallback(() => {
-    Alert.alert(t('deleteExistingPosts'), t('confirmDeletePosts'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('confirmBtn'),
-        style: 'destructive',
-        onPress: () => {
-          let count = 0;
-          selectedForDelete.forEach((key) => {
-            const [kind, idx] = key.split('-');
-            const index = Number(idx);
-            switch (kind) {
-              case 'partner': closePartner(index); break;
-              case 'errand': closeErrand(index); break;
-              case 'secondhand': closeSecondhand(index); break;
-            }
-            count++;
-          });
-          showSnackbar({ message: t('postsDeleted', { count }), type: 'success' });
-          exitDeleteMode();
-        },
-      },
-    ]);
-  }, [selectedForDelete, closePartner, closeErrand, closeSecondhand, showSnackbar, t, exitDeleteMode]);
-
-  // Hide/restore tab bar based on deleteMode
-  useEffect(() => {
-    const parent = navigation.getParent();
-    if (deleteMode) {
-      parent?.setOptions({ tabBarStyle: { display: 'none' } });
-    } else {
-      parent?.setOptions({
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.outlineVariant,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 8,
-        },
-      });
-    }
-  }, [deleteMode, navigation]);
-
-  // Restore tab bar on unmount
-  useEffect(() => {
-    return () => {
-      navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.outlineVariant,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 8,
-        },
-      });
-    };
-  }, [navigation]);
+  const handleClosePost = useCallback(
+    (item: CardItem) => {
+      switch (item.kind) {
+        case 'partner': closePartner(item.index); break;
+        case 'errand': closeErrand(item.index); break;
+        case 'secondhand': closeSecondhand(item.index); break;
+      }
+      showSnackbar({ message: t('postClosed'), type: 'success' });
+    },
+    [closePartner, closeErrand, closeSecondhand, showSnackbar, t]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: CardItem }) => {
       const expired = isExpired(item);
       const closed = isItemClosed(item);
-      const itemKey = `${item.kind}-${item.index}`;
-      const isSelected = selectedForDelete.has(itemKey);
+      const d = item.data;
 
-      if (item.kind === 'partner') {
-        const p = item.data;
-        return (
-          <TouchableOpacity
-            style={[styles.card, (expired || closed) && styles.cardExpired]}
-            activeOpacity={0.7}
-            onPress={() => handlePress(item)}
-          >
-            {deleteMode && (
-              <View style={styles.selectCircle}>
-                {isSelected ? (
-                  <View style={styles.selectCircleFilled}>
-                    <CheckIcon size={14} color={colors.onPrimary} />
-                  </View>
-                ) : (
-                  <View style={styles.selectCircleEmpty} />
-                )}
-              </View>
-            )}
-            <View style={styles.cardHeader}>
-              <Avatar text={p.avatar} size="md" gender={p.gender} />
-              <View style={styles.cardHeaderInfo}>
-                <Text style={styles.userName}>{p.user}</Text>
-                <Text style={styles.timeMeta}>{p.time}</Text>
-              </View>
-              <View style={styles.tagPartner}>
-                <Text style={styles.tagText}>{t(p.category)}</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle} numberOfLines={2}>{p.title}</Text>
-            <Text style={styles.cardDesc} numberOfLines={2}>{p.desc}</Text>
-            <View style={styles.cardFooter}>
-              {expired && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
-                </View>
-              )}
-              {closed && !expired && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
-                </View>
-              )}
-              {!deleteMode && (
-                <View style={styles.footerActions}>
-                  <TouchableOpacity
-                    style={styles.forwardBtn}
-                    onPress={() => setShareSheetItem(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <RepostIcon size={16} color={colors.onSurface} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        );
-      }
-
-      if (item.kind === 'errand') {
-        const e = item.data;
-        return (
-          <TouchableOpacity
-            style={[styles.card, (expired || closed) && styles.cardExpired]}
-            activeOpacity={0.7}
-            onPress={() => handlePress(item)}
-          >
-            {deleteMode && (
-              <View style={styles.selectCircle}>
-                {isSelected ? (
-                  <View style={styles.selectCircleFilled}>
-                    <CheckIcon size={14} color={colors.onPrimary} />
-                  </View>
-                ) : (
-                  <View style={styles.selectCircleEmpty} />
-                )}
-              </View>
-            )}
-            <View style={styles.cardHeader}>
-              <Avatar text={e.avatar} size="md" gender={e.gender} />
-              <View style={styles.cardHeaderInfo}>
-                <Text style={styles.userName}>{e.user}</Text>
-                <Text style={styles.timeMeta}>{e.time}</Text>
-              </View>
-              <View style={styles.tagErrand}>
-                <Text style={styles.tagText}>{t(e.category)}</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle} numberOfLines={2}>{e.title}</Text>
-            <Text style={styles.cardDesc} numberOfLines={2}>{e.desc}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.priceText}>{e.price}</Text>
-              <ClockIcon size={14} color={colors.onSurfaceVariant} />
-              <Text style={styles.footerText}>{e.time}</Text>
-              {expired && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('errandExpired')}</Text>
-                </View>
-              )}
-              {closed && !expired && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
-                </View>
-              )}
-              {!deleteMode && (
-                <View style={styles.footerActions}>
-                  <TouchableOpacity
-                    style={styles.forwardBtn}
-                    onPress={() => setShareSheetItem(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <RepostIcon size={16} color={colors.onSurface} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        );
-      }
-
-      // secondhand
-      const s = item.data;
       return (
         <TouchableOpacity
           style={[styles.card, (expired || closed) && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => handlePress(item)}
         >
-          {deleteMode && (
-            <View style={styles.selectCircle}>
-              {isSelected ? (
-                <View style={styles.selectCircleFilled}>
-                  <CheckIcon size={14} color={colors.onPrimary} />
+          <View style={styles.cardHeader}>
+            <Avatar text={d.avatar} size="md" gender={d.gender} />
+            <View style={styles.cardHeaderInfo}>
+              <View style={styles.nameTimeRow}>
+                <Text style={styles.userName}>{d.user}</Text>
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.timeMeta}>{getRelativeTime(d.createdAt, lang)}</Text>
+              </View>
+            </View>
+            {!expired && !closed && (
+              <TouchableOpacity
+                style={styles.moreBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setActionItem(item)}
+              >
+                <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
+            <Text style={styles.cardDesc} numberOfLines={2}>{d.desc}</Text>
+            <View style={styles.cardFooter}>
+              {item.kind !== 'partner' && (
+                <Text style={styles.priceText}>
+                  {(d as Errand | SecondhandItem).price}
+                </Text>
+              )}
+              {item.kind === 'secondhand' && (d as SecondhandItem).sold && (
+                <View style={styles.soldBadge}>
+                  <Text style={styles.soldBadgeText}>{t('sold')}</Text>
                 </View>
-              ) : (
-                <View style={styles.selectCircleEmpty} />
+              )}
+              {expired && (
+                <View style={styles.expiredBadge}>
+                  <Text style={styles.expiredBadgeText}>
+                    {item.kind === 'partner' ? t('partnerExpired') :
+                     item.kind === 'errand' ? t('errandExpired') :
+                     t('secondhandExpired')}
+                  </Text>
+                </View>
+              )}
+              {closed && !expired && !(item.kind === 'secondhand' && (d as SecondhandItem).sold) && (
+                <View style={styles.expiredBadge}>
+                  <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
+                </View>
               )}
             </View>
-          )}
-          <View style={styles.cardHeader}>
-            <Avatar text={s.avatar} size="md" gender={s.gender} />
-            <View style={styles.cardHeaderInfo}>
-              <Text style={styles.userName}>{s.user}</Text>
-              <Text style={styles.timeMeta}>{s.condition}</Text>
-            </View>
-            <View style={styles.tagSecondhand}>
-              <Text style={styles.tagText}>{t(s.category)}</Text>
-            </View>
-          </View>
-          <Text style={styles.cardTitle} numberOfLines={2}>{s.title}</Text>
-          <Text style={styles.cardDesc} numberOfLines={2}>{s.desc}</Text>
-          <View style={styles.cardFooter}>
-            <Text style={styles.priceText}>{s.price}</Text>
-            {s.sold && (
-              <View style={styles.soldBadge}>
-                <Text style={styles.soldBadgeText}>{t('sold')}</Text>
-              </View>
-            )}
-            {(expired || closed) && !s.sold && (
-              <View style={styles.expiredBadge}>
-                <Text style={styles.expiredBadgeText}>
-                  {closed && !expired ? t('postClosed') : t('secondhandExpired')}
-                </Text>
-              </View>
-            )}
-            {!deleteMode && (
-              <View style={styles.footerActions}>
-                <TouchableOpacity
-                  style={styles.forwardBtn}
-                  onPress={() => setShareSheetItem(item)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <RepostIcon size={16} color={colors.onSurface} />
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         </TouchableOpacity>
       );
     },
-    [handlePress, isItemClosed, t, deleteMode, selectedForDelete, navigation]
+    [handlePress, isItemClosed, t, lang]
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => { if (deleteMode) exitDeleteMode(); else navigation.goBack(); }} style={styles.iconBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
-          {deleteMode ? t('selectedCount', { count: selectedForDelete.size }) : t('myPosts')}
-        </Text>
-        {deleteMode ? (
-          <TouchableOpacity onPress={exitDeleteMode} style={styles.iconBtn}>
-            <Text style={styles.cancelText}>{t('cancel')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.iconBtn}>
-            <MoreHorizontalIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-        )}
+        <Text style={styles.topBarTitle}>{t('myPosts')}</Text>
+        <View style={styles.iconBtn} />
       </View>
 
       <FlatList
@@ -417,44 +213,83 @@ export default function MyPostsScreen({ navigation }: Props) {
         }
       />
 
-      {/* Popover menu */}
-      {popoverVisible && (
-        <TouchableOpacity style={styles.popoverOverlay} activeOpacity={1} onPress={() => setPopoverVisible(false)}>
-          <View style={styles.popoverBubble}>
-            <TouchableOpacity style={styles.popoverItem} onPress={enterDeleteMode}>
-              <Text style={styles.popoverItemText}>{t('deleteExistingPosts')}</Text>
+      {/* Action Menu (ellipsis popover) */}
+      <Modal
+        visible={!!actionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.actionOverlay}
+          activeOpacity={1}
+          onPress={() => setActionItem(null)}
+        >
+          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.actionHandle} />
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const item = actionItem;
+                setActionItem(null);
+                if (item) setShareSheetItem(item);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
+                <RepostIcon size={20} color={colors.onSecondaryContainer} />
+              </View>
+              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const item = actionItem;
+                setActionItem(null);
+                if (item) {
+                  navigation.getParent()?.navigate('ForumTab', {
+                    screen: 'Compose',
+                    params: { functionType: item.kind, functionTitle: item.data.title },
+                  });
+                }
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
+                <ShareIcon size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const item = actionItem;
+                setActionItem(null);
+                if (item) handleClosePost(item);
+              }}
+            >
+              <Text style={styles.actionTextDanger}>{t('closePost')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-      )}
+      </Modal>
 
-      {/* Bottom delete bar */}
-      {deleteMode && (
-        <View style={styles.deleteBar}>
-          <Text style={styles.deleteBarCount}>
-            {t('selectedCount', { count: selectedForDelete.size })}
-          </Text>
-          <TouchableOpacity
-            style={[styles.deleteBarBtn, selectedForDelete.size === 0 && styles.deleteBarBtnDisabled]}
-            onPress={handleBatchDelete}
-            disabled={selectedForDelete.size === 0}
-          >
-            <Text style={[styles.deleteBarBtnText, selectedForDelete.size === 0 && styles.deleteBarBtnTextDisabled]}>
-              {t('deleteExistingPosts')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
         visible={!!shareSheetItem}
         onClose={() => setShareSheetItem(null)}
         functionType={shareSheetItem?.kind ?? 'partner'}
         functionTitle={shareSheetItem?.data.title ?? ''}
+        functionPosterName={shareSheetItem?.data.user ?? ''}
+        functionIndex={shareSheetItem?.index ?? 0}
         navigation={navigation}
       />
     </SafeAreaView>
   );
 }
+
+const AVATAR_SIZE = 40; // md
+const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
   container: {
@@ -481,10 +316,6 @@ const styles = StyleSheet.create({
     ...typography.titleMedium,
     color: colors.onSurface,
   },
-  cancelText: {
-    ...typography.titleSmall,
-    color: colors.primary,
-  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
@@ -495,7 +326,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    ...elevation[1],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   cardExpired: {
     opacity: 0.5,
@@ -503,42 +335,38 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   cardHeaderInfo: {
     flex: 1,
-    marginLeft: spacing.md,
+    marginLeft: AVATAR_GAP,
+  },
+  nameTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   userName: {
     ...typography.titleSmall,
     color: colors.onSurface,
+    fontWeight: '700',
+  },
+  timeDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   timeMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
   },
-  tagPartner: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
-  tagErrand: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-  },
-  tagSecondhand: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-  },
-  tagText: {
-    ...typography.labelSmall,
-    color: colors.onSurface,
+  cardBody: {
+    marginLeft: AVATAR_SIZE + AVATAR_GAP,
+    marginTop: spacing.xs,
   },
   cardTitle: {
     ...typography.titleSmall,
@@ -547,21 +375,18 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
+    color: colors.onSurface,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  footerText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    marginTop: spacing.sm,
   },
   priceText: {
     ...typography.titleSmall,
     color: colors.error,
+    fontWeight: '700',
   },
   expiredBadge: {
     backgroundColor: colors.errorContainer,
@@ -583,18 +408,48 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onErrorContainer,
   },
-  footerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginLeft: 'auto',
+  /* Action Menu */
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
   },
-  forwardBtn: {
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 36,
+  },
+  actionHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  actionTextDanger: {
+    ...typography.bodyLarge,
+    color: colors.error,
   },
   empty: {
     flex: 1,
@@ -604,89 +459,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
-  },
-  // Popover
-  popoverOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-  },
-  popoverBubble: {
-    marginTop: 56,
-    marginRight: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.xs,
-    ...elevation[3],
-    minWidth: 180,
-  },
-  popoverItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  popoverItemText: {
-    ...typography.bodyMedium,
-    color: colors.error,
-  },
-  // Select circle
-  selectCircle: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    zIndex: 1,
-  },
-  selectCircleFilled: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectCircleEmpty: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surface,
-  },
-  // Bottom delete bar
-  deleteBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingBottom: 28,
-    backgroundColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
-    ...elevation[2],
-  },
-  deleteBarCount: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-  },
-  deleteBarBtn: {
-    backgroundColor: colors.error,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-  },
-  deleteBarBtnDisabled: {
-    backgroundColor: colors.outlineVariant,
-  },
-  deleteBarBtnText: {
-    ...typography.titleSmall,
-    color: colors.onPrimary,
-  },
-  deleteBarBtnTextDisabled: {
     color: colors.onSurfaceVariant,
   },
 });

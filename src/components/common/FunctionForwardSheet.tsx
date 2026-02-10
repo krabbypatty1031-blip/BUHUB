@@ -17,14 +17,7 @@ import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import {
   CloseIcon,
-  BackIcon,
-  ImageIcon,
-  EditIcon,
-  BarChartIcon,
   ChevronRightIcon,
-  RepostIcon,
-  MessageIcon,
-  UserIcon,
 } from './icons';
 import type { Contact } from '../../types';
 
@@ -36,11 +29,10 @@ interface FunctionForwardSheetProps {
   onClose: () => void;
   functionType: 'partner' | 'errand' | 'secondhand';
   functionTitle: string;
+  functionPosterName: string;
+  functionIndex: number;
   navigation: any;
-  onDmOrganizer?: () => void;
 }
-
-type Step = 'destination' | 'forumType' | 'contact';
 
 /* ── Memoised contact row ── */
 interface ContactRowProps {
@@ -69,19 +61,18 @@ export default function FunctionForwardSheet({
   onClose,
   functionType,
   functionTitle,
+  functionPosterName,
+  functionIndex,
   navigation,
-  onDmOrganizer,
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
   const { data: contacts } = useContacts();
 
-  const [step, setStep] = useState<Step>('destination');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Reset state when sheet closes
   useEffect(() => {
     if (!visible) {
-      setStep('destination');
       setSearchQuery('');
     }
   }, [visible]);
@@ -90,17 +81,6 @@ export default function FunctionForwardSheet({
     contacts?.filter((c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) ?? [];
-
-  const handleForumType = useCallback(
-    (type: 'text' | 'image' | 'poll') => {
-      onClose();
-      navigation.getParent()?.navigate('ForumTab', {
-        screen: 'Compose',
-        params: { type, functionType, functionTitle },
-      });
-    },
-    [navigation, functionType, functionTitle, onClose]
-  );
 
   const handleSelectContact = useCallback(
     (contact: Contact) => {
@@ -112,16 +92,13 @@ export default function FunctionForwardSheet({
           contactAvatar: contact.avatar || '',
           forwardedType: functionType,
           forwardedTitle: functionTitle,
+          forwardedPosterName: functionPosterName,
+          forwardedIndex: functionIndex,
         },
       });
     },
-    [navigation, functionType, functionTitle, onClose]
+    [navigation, functionType, functionTitle, functionPosterName, functionIndex, onClose]
   );
-
-  const handleBack = useCallback(() => {
-    setStep('destination');
-    setSearchQuery('');
-  }, []);
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => (
@@ -129,15 +106,6 @@ export default function FunctionForwardSheet({
     ),
     [handleSelectContact]
   );
-
-  const title =
-    step === 'destination'
-      ? t('forwardDestination')
-      : step === 'forumType'
-        ? t('shareToForum')
-        : t('selectContact');
-
-  const showBack = step !== 'destination';
 
   return (
     <Modal
@@ -152,7 +120,7 @@ export default function FunctionForwardSheet({
         onPress={onClose}
       >
         <View
-          style={[styles.sheet, step === 'contact' && styles.sheetTall]}
+          style={[styles.sheet, styles.sheetTall]}
           onStartShouldSetResponder={() => true}
         >
           {/* ── Drag handle ── */}
@@ -160,140 +128,30 @@ export default function FunctionForwardSheet({
 
           {/* ── Header ── */}
           <View style={styles.header}>
-            {showBack ? (
-              <TouchableOpacity onPress={handleBack} hitSlop={8} style={styles.headerBtn}>
-                <BackIcon size={20} color={colors.onSurface} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.headerBtn} />
-            )}
-            <Text style={styles.title}>{title}</Text>
+            <View style={styles.headerBtn} />
+            <Text style={styles.title}>{t('selectContact')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8} style={styles.headerBtn}>
               <CloseIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
-          {/* ── Step: Destination ── */}
-          {step === 'destination' && (
-            <>
-              <TouchableOpacity
-                style={styles.optionRow}
-                onPress={() => setStep('forumType')}
-              >
-                <View style={[styles.optionIcon, { backgroundColor: colors.primaryContainer }]}>
-                  <RepostIcon size={24} color={colors.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{t('forwardToForum')}</Text>
-                  <Text style={styles.optionDesc}>{t('forwardToForumDesc')}</Text>
-                </View>
-                <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.optionRow}
-                onPress={() => setStep('contact')}
-              >
-                <View style={[styles.optionIcon, { backgroundColor: colors.secondaryContainer }]}>
-                  <MessageIcon size={24} color={colors.onSecondaryContainer} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{t('forwardToContact')}</Text>
-                  <Text style={styles.optionDesc}>{t('forwardToContactDesc')}</Text>
-                </View>
-                <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-
-              {onDmOrganizer && (
-                <TouchableOpacity
-                  style={styles.optionRow}
-                  onPress={() => { onClose(); onDmOrganizer(); }}
-                >
-                  <View style={[styles.optionIcon, { backgroundColor: colors.accentContainer }]}>
-                    <UserIcon size={24} color={colors.onAccentContainer} />
-                  </View>
-                  <View style={styles.optionInfo}>
-                    <Text style={styles.optionTitle}>
-                      {t(functionType === 'errand' ? 'errandDmPoster' : functionType === 'secondhand' ? 'secondhandDmSeller' : 'partnerDmOrganizer')}
-                    </Text>
-                    <Text style={styles.optionDesc}>
-                      {t(functionType === 'errand' ? 'errandDmPosterDesc' : functionType === 'secondhand' ? 'secondhandDmSellerDesc' : 'partnerDmOrganizerDesc')}
-                    </Text>
-                  </View>
-                  <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-
-          {/* ── Step: Forum Type ── */}
-          {step === 'forumType' && (
-            <>
-              <TouchableOpacity
-                style={styles.optionRow}
-                onPress={() => handleForumType('image')}
-              >
-                <View style={styles.optionIcon}>
-                  <ImageIcon size={24} color={colors.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{t('imagePost')}</Text>
-                  <Text style={styles.optionDesc}>{t('imagePostDesc')}</Text>
-                </View>
-                <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.optionRow}
-                onPress={() => handleForumType('text')}
-              >
-                <View style={styles.optionIcon}>
-                  <EditIcon size={24} color={colors.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{t('textPost')}</Text>
-                  <Text style={styles.optionDesc}>{t('textPostDesc')}</Text>
-                </View>
-                <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.optionRow}
-                onPress={() => handleForumType('poll')}
-              >
-                <View style={styles.optionIcon}>
-                  <BarChartIcon size={24} color={colors.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>{t('poll')}</Text>
-                  <Text style={styles.optionDesc}>{t('pollDesc')}</Text>
-                </View>
-                <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* ── Step: Contact ── */}
-          {step === 'contact' && (
-            <>
-              <View style={styles.searchWrap}>
-                <SearchInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder={t('searchContacts') || 'Search contacts...'}
-                />
-              </View>
-              <FlatList
-                data={filteredContacts}
-                keyExtractor={(item) => item.name}
-                renderItem={renderContact}
-                style={styles.list}
-                contentContainerStyle={styles.listContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              />
-            </>
-          )}
+          {/* ── Contact List ── */}
+          <View style={styles.searchWrap}>
+            <SearchInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t('searchContacts') || 'Search contacts...'}
+            />
+          </View>
+          <FlatList
+            data={filteredContacts}
+            keyExtractor={(item) => item.name}
+            renderItem={renderContact}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          />
         </View>
       </TouchableOpacity>
     </Modal>
@@ -346,36 +204,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* Option rows (destination + forumType) */
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  optionInfo: {
-    flex: 1,
-  },
-  optionTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-  },
-  optionDesc: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-
-  /* Contact step */
+  /* Contact list */
   searchWrap: {
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.sm,

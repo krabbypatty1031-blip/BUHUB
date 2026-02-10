@@ -17,4 +17,5 @@ export interface SecondhandItem {
   sold: boolean;
   expiresAt: string;
   expired: boolean;
+  createdAt: string;
 }

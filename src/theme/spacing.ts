@@ -1,4 +1,4 @@
-// Spacing & Border Radius - extracted from styles.css :root
+// Spacing & Border Radius — Threads-style
 
 export const spacing = {
   xxs: 2,
@@ -14,48 +14,28 @@ export const spacing = {
 export const borderRadius = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 28,
+  md: 10,
+  lg: 12,
+  xl: 20,
   full: 9999,
 } as const;
 
+// Elevation — zeroed out for flat Threads-style design.
+// Kept as tokens so existing ...elevation[N] spreads don't break.
+const _flat = {
+  shadowColor: 'transparent',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
+} as const;
+
 export const elevation = {
-  1: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 1.5,
-    elevation: 1,
-  },
-  2: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  3: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  4: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  5: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 5,
-  },
+  1: _flat,
+  2: _flat,
+  3: _flat,
+  4: _flat,
+  5: _flat,
 } as const;
 
 // Layout constants

@@ -11,12 +11,13 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { usePartners } from '../../hooks/usePartners';
-import { usePartnerStore } from '../../store/partnerStore';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import ReportModal from '../../components/common/ReportModal';
 import {
   BackIcon,
   UsersIcon,
@@ -32,25 +33,19 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { index } = route.params;
   const { data: partners } = usePartners();
-  const toggleJoin = usePartnerStore((s) => s.toggleJoin);
-  const joinedActivities = usePartnerStore((s) => s.joinedActivities);
-
   const partner = partners?.[index];
-  const isJoined = joinedActivities.has(index);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
-
-  const handleJoin = useCallback(() => {
-    toggleJoin(index);
-  }, [toggleJoin, index]);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const handleDmOrganizer = useCallback(() => {
     if (!partner) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title },
+      params: { contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title, forwardedPosterName: partner.user, forwardedIndex: index },
     });
-  }, [navigation, partner]);
+  }, [navigation, partner, index]);
 
   if (!partner) {
     return (
@@ -98,7 +93,16 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardAction')}</Text>
+              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.popoverItem}
+              onPress={() => {
+                setPopoverVisible(false);
+                setReportVisible(true);
+              }}
+            >
+              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -171,39 +175,31 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             </View>
           </View>
         </View>
+
+        {/* ── Action Bar ── */}
+        <View style={[styles.bottomBar, partner.expired && styles.bottomBarDisabled]}>
+          <TouchableOpacity
+            style={styles.dmButton}
+            activeOpacity={0.7}
+            onPress={handleDmOrganizer}
+            disabled={partner.expired}
+          >
+            <MessageIcon size={18} color={colors.onPrimary} />
+            <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* ── Bottom Bar ── */}
-      <View style={[styles.bottomBar, partner.expired && styles.bottomBarDisabled]}>
-        <TouchableOpacity
-          style={styles.dmButton}
-          activeOpacity={0.7}
-          onPress={handleDmOrganizer}
-          disabled={partner.expired}
-        >
-          <MessageIcon size={18} color={colors.primary} />
-          <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.joinButton,
-            isJoined && styles.joinedButton,
-            partner.expired && styles.disabledButton,
-          ]}
-          activeOpacity={0.7}
-          onPress={handleJoin}
-          disabled={partner.expired}
-        >
-          <Text
-            style={[
-              styles.joinButtonText,
-              isJoined && styles.joinedButtonText,
-            ]}
-          >
-            {isJoined ? t('cancelJoin') : t('joinNow')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Report Modal */}
+      <ReportModal
+        visible={reportVisible}
+        title={t('reportPost')}
+        onClose={() => setReportVisible(false)}
+        onSubmit={() => {
+          setReportVisible(false);
+          showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+        }}
+      />
 
       {/* Forward Sheet */}
       <FunctionForwardSheet
@@ -211,6 +207,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         onClose={() => setShareSheetVisible(false)}
         functionType="partner"
         functionTitle={partner.title}
+        functionPosterName={partner.user}
+        functionIndex={index}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -370,17 +368,10 @@ const styles = StyleSheet.create({
   },
   /* Bottom Bar */
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     gap: spacing.md,
-    ...elevation[2],
   },
   bottomBarDisabled: {
     opacity: 0.5,
@@ -388,7 +379,7 @@ const styles = StyleSheet.create({
   dmButton: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
     alignItems: 'center',
@@ -397,28 +388,7 @@ const styles = StyleSheet.create({
   },
   dmButtonText: {
     ...typography.labelLarge,
-    color: colors.primary,
-  },
-  joinButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  joinedButton: {
-    backgroundColor: colors.surfaceVariant,
-  },
-  disabledButton: {
-    backgroundColor: colors.outlineVariant,
-  },
-  joinButtonText: {
-    ...typography.labelLarge,
     color: colors.onPrimary,
-  },
-  joinedButtonText: {
-    color: colors.onSurfaceVariant,
   },
   // Popover
   popoverOverlay: {
@@ -445,6 +415,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  popoverItemTextDanger: {
     ...typography.bodyMedium,
     color: colors.error,
   },

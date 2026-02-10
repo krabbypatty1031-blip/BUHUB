@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,12 +22,16 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { getRelativeTime } from '../../utils/formatTime';
 import {
   BackIcon,
   PlusIcon,
   RepostIcon,
   TruckIcon,
+  MoreHorizontalIcon,
+  MessageIcon,
 } from '../../components/common/icons';
+import { mockErrands } from '../../data/mock/errands';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
 
@@ -38,7 +43,8 @@ const CATEGORIES: Array<{ key: ErrandCategory | 'all'; labelKey: string }> = [
 ];
 
 export default function ErrandListScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
   const selectedCategory = useErrandStore((s) => s.selectedCategory);
   const setCategory = useErrandStore((s) => s.setCategory);
   const acceptedErrands = useErrandStore((s) => s.acceptedErrands);
@@ -70,19 +76,23 @@ export default function ErrandListScreen({ navigation }: Props) {
   );
 
   const handleDmPoster = useCallback(
-    (item: Errand) => {
+    (item: Errand, itemIndex: number) => {
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title },
+        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]
   );
 
-  const [shareSheetItem, setShareSheetItem] = useState<Errand | null>(null);
+  // Action menu state (ellipsis popover)
+  const [actionItem, setActionItem] = useState<{ post: Errand; index: number } | null>(null);
+  // Forward sheet state (contact picker)
+  const [shareSheetItem, setShareSheetItem] = useState<{ post: Errand; index: number } | null>(null);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Errand; index: number }) => {
+    ({ item }: { item: Errand }) => {
+      const index = mockErrands.indexOf(item);
       const isAccepted = acceptedErrands.has(index);
       return (
         <TouchableOpacity
@@ -90,24 +100,38 @@ export default function ErrandListScreen({ navigation }: Props) {
           activeOpacity={0.7}
           onPress={() => navigation.navigate('ErrandDetail', { index })}
         >
+          {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
             <Avatar text={item.avatar} size="md" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
-              <Text style={styles.userName}>{item.user}</Text>
-              <Text style={styles.timeMeta}>{item.time}</Text>
+              <View style={styles.nameTimeRow}>
+                <Text style={styles.userName}>{item.user}</Text>
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.timeMeta}>{getRelativeTime(item.createdAt, lang)}</Text>
+              </View>
             </View>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{t(item.category)}</Text>
-            </View>
+            {!item.expired && (
+              <TouchableOpacity
+                style={styles.moreBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setActionItem({ post: item, index })}
+              >
+                <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            )}
           </View>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.cardContent} numberOfLines={2}>
-            {item.desc}
-          </Text>
-          <View style={styles.cardFooter}>
-            <View style={styles.footerLeft}>
+
+          {/* Row 2+: Title & Content, aligned with name */}
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardContent} numberOfLines={2}>
+              {item.desc}
+            </Text>
+
+            {/* Footer: price + badges */}
+            <View style={styles.cardFooter}>
               <Text style={styles.priceText}>{item.price}</Text>
               {isAccepted && (
                 <View style={styles.acceptedBadge}>
@@ -120,20 +144,11 @@ export default function ErrandListScreen({ navigation }: Props) {
                 </View>
               )}
             </View>
-            {!item.expired && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setShareSheetItem(item)}
-              >
-                <RepostIcon size={18} color={colors.onSurface} />
-              </TouchableOpacity>
-            )}
           </View>
         </TouchableOpacity>
       );
     },
-    [acceptedErrands, navigation, t, handleDmPoster]
+    [acceptedErrands, navigation, t, lang]
   );
 
   return (
@@ -191,18 +206,68 @@ export default function ErrandListScreen({ navigation }: Props) {
         <PlusIcon size={28} color={colors.onPrimary} />
       </TouchableOpacity>
 
-      {/* Forward Sheet */}
+      {/* Action Menu (ellipsis popover) */}
+      <Modal
+        visible={!!actionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.actionOverlay}
+          activeOpacity={1}
+          onPress={() => setActionItem(null)}
+        >
+          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.actionHandle} />
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) setShareSheetItem(a);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
+                <RepostIcon size={20} color={colors.onSecondaryContainer} />
+              </View>
+              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                const a = actionItem;
+                setActionItem(null);
+                if (a) handleDmPoster(a.post, a.index);
+              }}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
+                <MessageIcon size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.actionText}>{t('errandDmPoster')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
         visible={!!shareSheetItem}
         onClose={() => setShareSheetItem(null)}
         functionType="errand"
-        functionTitle={shareSheetItem?.title ?? ''}
+        functionTitle={shareSheetItem?.post.title ?? ''}
+        functionPosterName={shareSheetItem?.post.user ?? ''}
+        functionIndex={shareSheetItem?.index ?? 0}
         navigation={navigation}
-        onDmOrganizer={shareSheetItem ? () => handleDmPoster(shareSheetItem) : undefined}
       />
     </SafeAreaView>
   );
 }
+
+const AVATAR_SIZE = 40; // md
+const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
   container: {
@@ -251,12 +316,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
   },
+  /* Card */
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    ...elevation[1],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   cardExpired: {
     opacity: 0.5,
@@ -264,30 +331,40 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   cardHeaderInfo: {
     flex: 1,
-    marginLeft: spacing.md,
+    marginLeft: AVATAR_GAP,
+  },
+  nameTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   userName: {
     ...typography.titleSmall,
     color: colors.onSurface,
+    fontWeight: '700',
+  },
+  timeDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   timeMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
   },
-  categoryTag: {
-    backgroundColor: colors.secondaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
+  moreBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
-  categoryTagText: {
-    ...typography.labelSmall,
-    color: colors.onSecondaryContainer,
+
+  /* Card body — aligned with name */
+  cardBody: {
+    marginLeft: AVATAR_SIZE + AVATAR_GAP,
+    marginTop: spacing.xs,
   },
   cardTitle: {
     ...typography.titleSmall,
@@ -296,19 +373,13 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
+    color: colors.onSurface,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
-    flex: 1,
+    marginTop: spacing.sm,
   },
   priceText: {
     ...typography.titleSmall,
@@ -335,6 +406,8 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onErrorContainer,
   },
+
+  /* FAB */
   fab: {
     position: 'absolute',
     right: 20,
@@ -346,5 +419,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...elevation[3],
+  },
+
+  /* Action Menu */
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 36,
+  },
+  actionHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
   },
 });

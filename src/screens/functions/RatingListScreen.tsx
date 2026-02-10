@@ -116,32 +116,32 @@ export default function RatingListScreen({ navigation, route }: Props) {
             navigation.navigate('RatingDetail', { category, index })
           }
         >
-          <View style={styles.cardRow}>
+          <View style={styles.cardHeader}>
             <Avatar text={item.name} uri={item.avatar} size="sm" />
-            <View style={styles.cardCenter}>
-              <Text style={styles.cardName} numberOfLines={1}>
-                {translateLabel(item.name, lang)}
-              </Text>
-              <View style={styles.miniBarsColumn}>
-                {item.scores.map((score) => (
-                  <MiniScoreBar
-                    key={score.key}
-                    label={translateLabel(score.label, lang)}
-                    value={score.value}
-                  />
-                ))}
-              </View>
-            </View>
-          </View>
-          <View style={styles.cardBottom}>
-            {topTags.map((tag) => (
-              <View key={tag} style={styles.tagChip}>
-                <Text style={styles.tagChipText}>{translateLabel(tag, lang)}</Text>
-              </View>
-            ))}
-            <Text style={styles.ratingCount}>
-              {item.ratingCount} {t('personRated')}
+            <Text style={styles.cardName} numberOfLines={1}>
+              {translateLabel(item.name, lang)}
             </Text>
+          </View>
+          <View style={styles.cardBody}>
+            <View style={styles.miniBarsColumn}>
+              {item.scores.map((score) => (
+                <MiniScoreBar
+                  key={score.key}
+                  label={translateLabel(score.label, lang)}
+                  value={score.value}
+                />
+              ))}
+            </View>
+            <View style={styles.cardBottom}>
+              {topTags.map((tag) => (
+                <View key={tag} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>{translateLabel(tag, lang)}</Text>
+                </View>
+              ))}
+              <Text style={styles.ratingCount}>
+                {item.ratingCount} {t('personRated')}
+              </Text>
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -257,27 +257,28 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    padding: spacing.lg,
     marginBottom: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.outlineVariant,
   },
-  cardRow: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  cardCenter: {
-    flex: 1,
   },
   cardName: {
     ...typography.titleSmall,
     color: colors.onSurface,
-    marginBottom: spacing.xs,
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  cardBody: {
+    marginLeft: 32 + spacing.md,
+    marginTop: spacing.md,
   },
   miniBarsColumn: {
     flexDirection: 'column',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   miniBarRow: {
     flexDirection: 'row',
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   tagChip: {
     paddingHorizontal: spacing.sm,

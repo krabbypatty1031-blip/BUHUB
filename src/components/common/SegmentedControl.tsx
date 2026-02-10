@@ -118,9 +118,9 @@ const styles = StyleSheet.create({
       shadow: {
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        shadowOpacity: 0.06,
+        shadowRadius: 1,
+        elevation: 1,
       },
     }).shadow,
   },

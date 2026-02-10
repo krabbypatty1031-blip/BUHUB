@@ -24,8 +24,8 @@ import { BackIcon, CheckIcon } from '../../components/common/icons';
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SLIDER_WIDTH = 50;
-const TRACK_WIDTH = Math.min(SCREEN_WIDTH - 80, 300);
+const TRACK_WIDTH = Math.min(SCREEN_WIDTH - 32 - 32, 340); // paddingHorizontal 16*2
+const SLIDER_WIDTH = 46;
 const SUCCESS_THRESHOLD = TRACK_WIDTH - SLIDER_WIDTH - 4;
 
 export default function EmailInputScreen({ navigation }: Props) {
@@ -36,21 +36,20 @@ export default function EmailInputScreen({ navigation }: Props) {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
-  // Use ref to always hold latest email, solving PanResponder stale closure
   const emailRef = useRef(email);
   emailRef.current = email;
 
   const pan = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const onCaptchaSuccess = useCallback(() => {
     const currentEmail = emailRef.current;
     showSnackbar({ message: t('codeSent'), type: 'success' });
     setTimeout(() => {
       navigation.navigate('VerifyCode', { email: currentEmail });
-    }, 300);
+    }, 400);
   }, [navigation, showSnackbar, t]);
 
-  // Same ref pattern for the success callback
   const onCaptchaSuccessRef = useRef(onCaptchaSuccess);
   onCaptchaSuccessRef.current = onCaptchaSuccess;
 
@@ -70,7 +69,6 @@ export default function EmailInputScreen({ navigation }: Props) {
           }).start(() => {
             setCaptchaVerified(true);
             setTimeout(() => {
-              setShowCaptcha(false);
               onCaptchaSuccessRef.current();
             }, 500);
           });
@@ -88,7 +86,6 @@ export default function EmailInputScreen({ navigation }: Props) {
   const handleRequestCode = useCallback(() => {
     const trimmed = email.trim();
     if (!trimmed) return;
-    // Basic email format check
     if (!trimmed.includes('@') || !trimmed.includes('.')) {
       showSnackbar({ message: t('emailPlaceholder'), type: 'error' });
       return;
@@ -96,7 +93,12 @@ export default function EmailInputScreen({ navigation }: Props) {
     setShowCaptcha(true);
     pan.setValue(0);
     setCaptchaVerified(false);
-  }, [email, showSnackbar, t, pan]);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [email, showSnackbar, t, pan, fadeAnim]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -116,7 +118,8 @@ export default function EmailInputScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputField}>
+          {/* Email Input */}
+          <View style={[styles.inputField, showCaptcha && styles.inputFieldLocked]}>
             <TextInput
               style={styles.emailInput}
               placeholder={t('emailPlaceholder')}
@@ -130,6 +133,51 @@ export default function EmailInputScreen({ navigation }: Props) {
             />
           </View>
 
+          {/* Inline Captcha */}
+          {showCaptcha && (
+            <Animated.View style={[styles.captchaInline, { opacity: fadeAnim }]}>
+              <Text style={styles.captchaHint}>
+                {captchaVerified ? t('captchaSuccess') : t('captchaDesc')}
+              </Text>
+
+              <View style={styles.sliderTrackWrapper}>
+                <View style={styles.track}>
+                  <Animated.View
+                    style={[
+                      styles.trackFill,
+                      {
+                        width: pan.interpolate({
+                          inputRange: [0, SUCCESS_THRESHOLD],
+                          outputRange: [0, SUCCESS_THRESHOLD + SLIDER_WIDTH],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ]}
+                  />
+                  <Text style={styles.trackText}>
+                    {captchaVerified ? t('captchaSuccess') : t('dragToVerify')}
+                  </Text>
+                </View>
+
+                <Animated.View
+                  style={[
+                    styles.slider,
+                    captchaVerified && styles.sliderSuccess,
+                    { transform: [{ translateX: pan }] },
+                  ]}
+                  {...panResponder.panHandlers}
+                >
+                  {captchaVerified ? (
+                    <CheckIcon size={22} color={colors.onPrimary} />
+                  ) : (
+                    <Text style={styles.sliderArrow}>{'>>'}</Text>
+                  )}
+                </Animated.View>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Send Code Button */}
           <TouchableOpacity
             style={[styles.sendBtn, (!email.trim() || showCaptcha) && styles.sendBtnDisabled]}
             activeOpacity={0.8}
@@ -142,61 +190,6 @@ export default function EmailInputScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Captcha Overlay — outside KeyboardAvoidingView to cover full screen */}
-      {showCaptcha && (
-        <View style={styles.captchaOverlay}>
-          <View style={styles.captchaCard}>
-            <Text style={styles.captchaTitle}>{t('captchaTitle')}</Text>
-            <Text style={styles.captchaDesc}>{t('captchaDesc')}</Text>
-
-            <View style={styles.sliderTrackWrapper}>
-              <View style={styles.track}>
-                <Animated.View
-                  style={[
-                    styles.trackFill,
-                    {
-                      width: pan.interpolate({
-                        inputRange: [0, SUCCESS_THRESHOLD],
-                        outputRange: [0, SUCCESS_THRESHOLD + SLIDER_WIDTH],
-                        extrapolate: 'clamp',
-                      }),
-                    },
-                  ]}
-                />
-                <Text style={styles.trackText}>
-                  {captchaVerified ? t('captchaSuccess') : t('dragToVerify')}
-                </Text>
-              </View>
-
-              <Animated.View
-                style={[
-                  styles.slider,
-                  captchaVerified && styles.sliderSuccess,
-                  { transform: [{ translateX: pan }] },
-                ]}
-                {...panResponder.panHandlers}
-              >
-                {captchaVerified ? (
-                  <CheckIcon size={24} color={colors.onPrimary} />
-                ) : (
-                  <Text style={styles.sliderArrow}>{'>>'}</Text>
-                )}
-              </Animated.View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.captchaCloseBtn}
-              onPress={() => {
-                setShowCaptcha(false);
-                pan.setValue(0);
-              }}
-            >
-              <Text style={styles.captchaCloseBtnText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -245,6 +238,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 4,
   },
+  inputFieldLocked: {
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surface1,
+  },
   emailInput: {
     ...typography.bodyLarge,
     color: colors.onSurface,
@@ -268,39 +265,24 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
 
-  /* Captcha Overlay — covers entire SafeAreaView */
-  captchaOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.scrim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
+  /* Inline Captcha */
+  captchaInline: {
+    backgroundColor: colors.surface1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
   },
-  captchaCard: {
-    width: TRACK_WIDTH + 48,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    gap: spacing.lg,
-    alignItems: 'center',
-  },
-  captchaTitle: {
-    ...typography.titleLarge,
-    color: colors.onSurface,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  captchaDesc: {
-    ...typography.bodyMedium,
+  captchaHint: {
+    ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    textAlign: 'center',
   },
 
   /* Slider */
   sliderTrackWrapper: {
     width: TRACK_WIDTH,
     height: SLIDER_WIDTH,
-    marginVertical: spacing.md,
+    alignSelf: 'center',
   },
   track: {
     width: TRACK_WIDTH,
@@ -336,20 +318,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sliderSuccess: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
   },
   sliderArrow: {
     color: colors.onPrimary,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 15,
     letterSpacing: -2,
-  },
-  captchaCloseBtn: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  captchaCloseBtnText: {
-    ...typography.labelLarge,
-    color: colors.onSurfaceVariant,
   },
 });

@@ -7,91 +7,99 @@ export const fontFamily = {
   en: 'Inter',
 } as const;
 
-// Typography scale based on Material Design 3
+// Inter weight-to-family mapping (custom fonts require explicit family per weight)
+const inter = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+} as const;
+
+// Typography scale — Instagram-style: Inter font, tight spacing, strong weight contrast
 export const typography: Record<string, TextStyle> = {
   displayLarge: {
     fontSize: 57,
     lineHeight: 64,
-    fontWeight: '400',
+    fontFamily: inter.bold,
     letterSpacing: -0.25,
   },
   displayMedium: {
     fontSize: 45,
     lineHeight: 52,
-    fontWeight: '400',
+    fontFamily: inter.bold,
   },
   displaySmall: {
     fontSize: 36,
     lineHeight: 44,
-    fontWeight: '400',
+    fontFamily: inter.bold,
   },
   headlineLarge: {
     fontSize: 32,
     lineHeight: 40,
-    fontWeight: '400',
+    fontFamily: inter.bold,
   },
   headlineMedium: {
     fontSize: 28,
     lineHeight: 36,
-    fontWeight: '400',
+    fontFamily: inter.bold,
   },
   headlineSmall: {
     fontSize: 24,
     lineHeight: 32,
-    fontWeight: '400',
+    fontFamily: inter.bold,
   },
   titleLarge: {
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: '500',
+    fontFamily: inter.bold,
   },
   titleMedium: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '500',
-    letterSpacing: 0.15,
+    fontFamily: inter.semibold,
+    letterSpacing: 0,
   },
   titleSmall: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
-    letterSpacing: 0.1,
+    fontFamily: inter.semibold,
+    letterSpacing: 0,
   },
   bodyLarge: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '400',
-    letterSpacing: 0.5,
+    fontFamily: inter.regular,
+    letterSpacing: 0,
   },
   bodyMedium: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '400',
-    letterSpacing: 0.25,
+    fontFamily: inter.regular,
+    letterSpacing: 0,
   },
   bodySmall: {
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '400',
-    letterSpacing: 0.4,
+    fontFamily: inter.regular,
+    letterSpacing: 0,
   },
   labelLarge: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
-    letterSpacing: 0.1,
+    fontFamily: inter.semibold,
+    letterSpacing: 0,
   },
   labelMedium: {
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+    fontFamily: inter.semibold,
+    letterSpacing: 0,
   },
   labelSmall: {
     fontSize: 11,
     lineHeight: 16,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+    fontFamily: inter.semibold,
+    letterSpacing: 0,
   },
 };
 

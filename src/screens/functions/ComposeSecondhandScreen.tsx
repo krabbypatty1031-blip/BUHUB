@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { SecondhandCategory } from '../../types';
+import type { SecondhandCategory, SecondhandItem } from '../../types';
+import { mockSecondhandItems } from '../../data/mock/secondhand';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -27,6 +28,8 @@ import {
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
+import ScrollPickerSheet from '../../components/common/ScrollPickerSheet';
+import { useAuthStore } from '../../store/authStore';
 import {
   enforceTitleLimit,
   getTitleCountLabel,
@@ -60,7 +63,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const [price, setPrice] = useState('');
   const defaultCategory = (route.params?.category as SecondhandCategory) || 'electronics';
   const [category, setCategory] = useState<SecondhandCategory>(defaultCategory);
-  const [condition, setCondition] = useState('good');
+  const [condition, setCondition] = useState<string | null>(null);
+  const [conditionPickerVisible, setConditionPickerVisible] = useState(false);
   const [tradeLocation, setTradeLocation] = useState('');
   const [deadline, setDeadline] = useState<Date | null>(
     () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -82,6 +86,15 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 
   const placeholders = getPlaceholders();
 
+  const conditionPickerOptions = useMemo(
+    () => CONDITIONS.map((c) => ({ value: c.key, label: t(c.labelKey) })),
+    [t],
+  );
+
+  const selectedConditionLabel = condition
+    ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '')
+    : null;
+
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
   }, []);
@@ -93,13 +106,32 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const canPost =
     title.trim().length > 0 &&
     price.trim().length > 0 &&
-    condition.length > 0 &&
     deadline !== null;
 
+  const user = useAuthStore((s) => s.user);
+
   const handlePost = useCallback(() => {
-    if (!canPost) return;
-    navigation.replace('SecondhandShare', { itemName: title });
-  }, [canPost, navigation, title]);
+    if (!canPost || !user) return;
+    const newItem: SecondhandItem = {
+      category,
+      type: t(category),
+      title: title.trim(),
+      desc: description.trim(),
+      price: `HK$${price.trim()}`,
+      condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
+      location: tradeLocation.trim(),
+      user: user.name,
+      avatar: user.defaultAvatar || user.name.charAt(0),
+      gender: user.gender,
+      bio: `${user.grade} · ${user.major}`,
+      sold: false,
+      expiresAt: deadline!.toISOString(),
+      expired: false,
+      createdAt: new Date().toISOString(),
+    };
+    mockSecondhandItems.unshift(newItem);
+    navigation.replace('SecondhandShare', { itemName: title, posterName: user.name, index: 0 });
+  }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,6 +199,9 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 
         {/* ── Title & Description Card ── */}
         <View style={styles.card}>
+          <Text style={styles.fieldLabel}>
+            {t('titleLabel')} <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.titleInput}
             placeholder={placeholders.title}
@@ -227,19 +262,26 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         </View>
 
         {/* ── Condition Selector ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            {t('conditionLabel')} <Text style={styles.required}>*</Text>
-          </Text>
-          <View style={styles.chipRow}>
-            {CONDITIONS.map((cond) => (
-              <Chip
-                key={cond.key}
-                label={t(cond.labelKey)}
-                selected={condition === cond.key}
-                onPress={() => setCondition(cond.key)}
-              />
-            ))}
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              {t('conditionLabel')}
+            </Text>
+            <TouchableOpacity
+              style={styles.deadlineInput}
+              activeOpacity={0.7}
+              onPress={() => setConditionPickerVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.deadlineText,
+                  !selectedConditionLabel && styles.deadlinePlaceholder,
+                ]}
+              >
+                {selectedConditionLabel || t('conditionPlaceholder')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.outline} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -276,6 +318,18 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             setPickerVisible(false);
           }}
           initialDate={deadline || undefined}
+        />
+
+        <ScrollPickerSheet
+          visible={conditionPickerVisible}
+          onClose={() => setConditionPickerVisible(false)}
+          onConfirm={(value) => {
+            setCondition(value);
+            setConditionPickerVisible(false);
+          }}
+          options={conditionPickerOptions}
+          initialValue={condition ?? undefined}
+          title={t('conditionLabel')}
         />
       </ScrollView>
     </SafeAreaView>
@@ -398,7 +452,8 @@ const styles = StyleSheet.create({
   titleInput: {
     ...typography.titleMedium,
     color: colors.onSurface,
-    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: spacing.xs,
   },
   descInput: {
     ...typography.bodyLarge,

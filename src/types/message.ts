@@ -3,6 +3,12 @@ export interface ChatMessage {
   text: string;
   time: string;
   status?: 'read' | 'delivered' | 'sent';
+  functionCard?: {
+    type: 'partner' | 'errand' | 'secondhand';
+    index: number;
+    title: string;
+    posterName: string;
+  };
 }
 
 export interface ChatHistory {
