@@ -43,12 +43,13 @@ export type FunctionsStackParamList = {
   RatingShare: { category: RatingCategory; itemName: string };
   MyPosts: undefined;
   FacilityBooking: undefined;
+  LibraryDetail: undefined;
 };
 
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number };
+  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;
@@ -61,7 +62,9 @@ export type MeStackParamList = {
   MeHome: undefined;
   EditProfile: undefined;
   ShareProfile: undefined;
+  FollowList: { type: 'following' | 'followers' };
   UserProfile: { userName: string };
+  PostDetail: { postId: string; commentId?: string };
   Settings: undefined;
 };
 

@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { ChatMessage, ChatHistory } from '../../types';
@@ -33,7 +33,6 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import {
   BackIcon,
   SendIcon,
@@ -45,8 +44,12 @@ import {
   UsersIcon,
   TruckIcon,
   ShoppingBagIcon,
+  EditIcon,
 } from '../../components/common/icons';
+import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
+
+const TAB_BAR_HEIGHT = 80;
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 
@@ -71,28 +74,18 @@ const DateSeparator = React.memo(function DateSeparator({
 });
 
 /* ── Type label keys ── */
-const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand' };
+const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand', post: 'forum' };
 
-/* ── Card theme colours per type ── */
-const CARD_THEMES = {
-  partner: {
-    gradientFrom: '#F5F0FF', gradientTo: '#EBE4FF',
-    iconBg: '#8B5CF6', accent: '#7C3AED',
-    divider: 'rgba(124,58,237,0.1)',
-  },
-  errand: {
-    gradientFrom: '#FFF8EE', gradientTo: '#FFF0D6',
-    iconBg: '#F59E0B', accent: '#D97706',
-    divider: 'rgba(217,119,6,0.1)',
-  },
-  secondhand: {
-    gradientFrom: '#EEFFF6', gradientTo: '#DCFFEC',
-    iconBg: '#10B981', accent: '#059669',
-    divider: 'rgba(5,150,105,0.1)',
-  },
+/* ── Card theme – unified monochrome ── */
+const CARD_THEME = {
+  bg: '#FFFFFF',
+  iconBg: '#F5F5F5',
+  iconColor: '#000000',
+  accent: '#999999',
+  divider: 'rgba(0,0,0,0.06)',
 };
 
-const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon };
+const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon, post: EditIcon };
 
 /* ── Chat bubble with avatar ── */
 const ChatBubble = React.memo(function ChatBubble({
@@ -125,42 +118,29 @@ const ChatBubble = React.memo(function ChatBubble({
       )}
       <View style={styles.bubbleCol}>
         {card ? (() => {
-          const theme = CARD_THEMES[card.type];
           const IconComp = TYPE_ICONS[card.type];
           const shareCount = (card.index * 7 + 3) % 18 + 3;
           return (
             <TouchableOpacity
               style={styles.cardBubble}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
               onPress={() => onCardPress?.(card)}
             >
-              {/* SVG diagonal gradient background */}
-              <View style={styles.cardGradientWrap}>
-                <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-                  <Defs>
-                    <SvgLinearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
-                      <Stop offset="0" stopColor={theme.gradientFrom} />
-                      <Stop offset="1" stopColor={theme.gradientTo} />
-                    </SvgLinearGradient>
-                  </Defs>
-                  <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardGrad)" rx={14} />
-                </Svg>
-              </View>
               <View style={styles.cardContent}>
                 {/* Top row: icon + type label + arrow */}
                 <View style={styles.cardTopRow}>
-                  <View style={[styles.cardIconCircle, { backgroundColor: theme.iconBg }]}>
-                    <IconComp size={14} color="#FFFFFF" />
+                  <View style={styles.cardIconCircle}>
+                    <IconComp size={13} color={CARD_THEME.iconColor} />
                   </View>
-                  <Text style={[styles.cardTypeText, { color: theme.accent }]}>
+                  <Text style={styles.cardTypeText}>
                     {t(TYPE_LABEL_KEYS[card.type]) || card.type}
                   </Text>
-                  <ChevronRightIcon size={14} color={`${theme.accent}50`} />
+                  <ChevronRightIcon size={12} color="#CCCCCC" />
                 </View>
                 {/* Title */}
                 <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
                 {/* Divider */}
-                <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
+                <View style={styles.cardDivider} />
                 {/* Footer */}
                 <View style={styles.cardFooter}>
                   <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
@@ -205,22 +185,32 @@ const ChatBubble = React.memo(function ChatBubble({
   );
 });
 
-/* ── Waveform bar (single animated bar) ── */
+/* ── Waveform color palette ── */
+const WAVE_COLORS = [colors.error];
+
+/* ── Waveform bar (single animated bar with staggered start) ── */
+const WAVE_BAR_COUNT = 24;
+const BAR_STAGGER_MS = 60;
+
 const WaveBar = React.memo(function WaveBar({ index }: { index: number }) {
-  const height = useSharedValue(4);
+  const height = useSharedValue(3);
 
   useEffect(() => {
-    const dur = 150 + (index % 5) * 60;
-    const maxH = 8 + (index % 4) * 6;
-    height.value = withRepeat(
-      withSequence(
-        withTiming(maxH, { duration: dur }),
-        withTiming(4, { duration: dur })
-      ),
-      -1,
-      true
-    );
+    const delay = index * BAR_STAGGER_MS;
+    const dur = 200 + (index % 5) * 50;
+    const maxH = 10 + (index % 4) * 5;
+    const timer = setTimeout(() => {
+      height.value = withRepeat(
+        withSequence(
+          withTiming(maxH, { duration: dur }),
+          withTiming(4, { duration: dur })
+        ),
+        -1,
+        true
+      );
+    }, delay);
     return () => {
+      clearTimeout(timer);
       cancelAnimation(height);
     };
   }, [height, index]);
@@ -229,11 +219,14 @@ const WaveBar = React.memo(function WaveBar({ index }: { index: number }) {
     height: height.value,
   }));
 
-  return <Animated.View style={[styles.waveBar, barStyle]} />;
+  return (
+    <Animated.View
+      style={[styles.waveBar, { backgroundColor: WAVE_COLORS[index % WAVE_COLORS.length] }, barStyle]}
+    />
+  );
 });
 
 /* ── Waveform bars container ── */
-const WAVE_BAR_COUNT = 24;
 const waveBars = Array.from({ length: WAVE_BAR_COUNT }, (_, i) => i);
 
 function WaveformBars() {
@@ -248,10 +241,22 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex } = route.params;
+  const { contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactName);
   const sendMessage = useSendMessage(contactName);
   const user = useAuthStore((s) => s.user);
+  const { tabBarTranslateY } = useTabBarAnimation();
+
+  // Hide tab bar when chat is focused, restore when leaving
+  useFocusEffect(
+    useCallback(() => {
+      tabBarTranslateY.value = withTiming(TAB_BAR_HEIGHT, { duration: 250 });
+      return () => {
+        tabBarTranslateY.value = withTiming(0, { duration: 250 });
+      };
+    }, [tabBarTranslateY])
+  );
+
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [cardMessages, setCardMessages] = useState<ChatMessage[]>([]);
@@ -260,26 +265,37 @@ export default function ChatScreen({ navigation, route }: Props) {
   // Auto-send card message when forwarded params are present
   useEffect(() => {
     if (forwardedType && forwardedTitle && forwardedPosterName && forwardedIndex != null) {
-      const key = `${forwardedType}:${forwardedIndex}:${forwardedTitle}`;
+      const key = `${forwardedType}:${forwardedIndex}:${forwardedTitle}:${forwardedPostId || ''}`;
       if (cardSentRef.current !== key) {
         cardSentRef.current = key;
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        const cardMsg: ChatMessage = {
+        const newMessages: ChatMessage[] = [];
+        // If there's a forwarded message, create a text message first
+        if (forwardedMessage?.trim()) {
+          newMessages.push({
+            type: 'sent',
+            text: forwardedMessage.trim(),
+            time: timeStr,
+          });
+        }
+        // Create the card message
+        newMessages.push({
           type: 'sent',
           text: '',
           time: timeStr,
           functionCard: {
-            type: forwardedType as 'partner' | 'errand' | 'secondhand',
+            type: forwardedType as 'partner' | 'errand' | 'secondhand' | 'post',
             index: forwardedIndex,
             title: forwardedTitle,
             posterName: forwardedPosterName,
+            ...(forwardedPostId ? { postId: forwardedPostId } : {}),
           },
-        };
-        setCardMessages((prev) => [...prev, cardMsg]);
+        });
+        setCardMessages((prev) => [...prev, ...newMessages]);
       }
     }
-  }, [forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex]);
+  }, [forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
@@ -330,20 +346,26 @@ export default function ChatScreen({ navigation, route }: Props) {
   /* ── Handle card press: navigate to detail ── */
   const handleCardPress = useCallback(
     (card: NonNullable<ChatMessage['functionCard']>) => {
+      if (card.type === 'post' && card.postId) {
+        navigation.navigate('PostDetail', { postId: card.postId });
+        return;
+      }
       const screenMap = {
         partner: 'PartnerDetail',
         errand: 'ErrandDetail',
         secondhand: 'SecondhandDetail',
       } as const;
-      navigation.dispatch(
-        CommonActions.navigate({
-          name: 'FunctionsTab',
-          params: {
-            screen: screenMap[card.type],
-            params: { index: card.index },
-          },
-        })
-      );
+      if (card.type !== 'post') {
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'FunctionsTab',
+            params: {
+              screen: screenMap[card.type],
+              params: { index: card.index },
+            },
+          })
+        );
+      }
     },
     [navigation]
   );
@@ -728,69 +750,74 @@ const styles = StyleSheet.create({
 
   /* ── Function card bubble ── */
   cardBubble: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    maxWidth: 260,
-    minWidth: 220,
+    maxWidth: 264,
+    minWidth: 224,
+    backgroundColor: CARD_THEME.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  cardGradientWrap: {
-    ...StyleSheet.absoluteFillObject,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   cardContent: {
-    padding: spacing.md,
-    gap: 10,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   cardIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: CARD_THEME.iconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTypeText: {
     ...typography.labelSmall,
-    fontWeight: '700',
+    color: CARD_THEME.accent,
+    fontWeight: '600',
     flex: 1,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   cardTitle: {
     ...typography.titleSmall,
-    color: '#1A1A1A',
-    fontWeight: '600',
-    lineHeight: 20,
+    color: '#000000',
+    fontWeight: '700',
+    lineHeight: 22,
   },
   cardDivider: {
     height: 1,
+    backgroundColor: CARD_THEME.divider,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   cardPosterText: {
     ...typography.bodySmall,
     fontSize: 11,
-    color: '#888888',
+    color: '#AAAAAA',
     flexShrink: 1,
   },
   cardDot: {
     ...typography.bodySmall,
     fontSize: 11,
-    color: '#BBBBBB',
+    color: '#CCCCCC',
   },
   cardFooterText: {
     ...typography.bodySmall,
     fontSize: 11,
-    color: '#BBBBBB',
+    color: '#CCCCCC',
   },
 
   /* ── Input bar ── */
@@ -860,13 +887,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'space-evenly',
     height: 24,
   },
   waveBar: {
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: colors.primary,
   },
   recordingText: {
     ...typography.labelSmall,

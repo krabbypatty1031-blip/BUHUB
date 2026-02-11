@@ -17,6 +17,7 @@ import { useImagePicker } from '../../hooks/useImagePicker';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
+import GradientCard from '../../components/common/GradientCard';
 import { CloseIcon, PlusIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
 import { mockPosts } from '../../data/mock/forum';
 import IOSSwitch from '../../components/common/IOSSwitch';
@@ -112,26 +113,26 @@ export default function ComposeScreen({ navigation, route }: Props) {
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Quoted Post */}
         {quotedPost && (
-          <View style={styles.quoteCard}>
+          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
             <View style={styles.quoteHeader}>
-              <QuoteIcon size={14} color={colors.primary} />
-              <Text style={styles.quoteLabel}>{t('quotedPost') || 'Quoted Post'}</Text>
+              <QuoteIcon size={12} color="#999999" />
+              <Text style={styles.quoteLabel}>{t('quotePost')}</Text>
             </View>
-            <Text style={styles.quoteName}>{quotedPost.name}</Text>
             <Text style={styles.quoteContent} numberOfLines={3}>{quotedPost.content}</Text>
-          </View>
+            <Text style={styles.quoteMeta}>{quotedPost.name} · {quotedPost.meta}</Text>
+          </GradientCard>
         )}
 
         {/* Function Reference Card */}
         {functionType && functionTitle && (
-          <View style={styles.functionRefCard}>
+          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
             <Text style={styles.functionRefType}>
               {functionType === 'partner' ? t('findPartner') :
                functionType === 'errand' ? t('errands') :
                functionType === 'secondhand' ? t('secondhand') : ''}
             </Text>
             <Text style={styles.functionRefTitle} numberOfLines={1}>{functionTitle}</Text>
-          </View>
+          </GradientCard>
         )}
 
         {/* Content */}
@@ -224,6 +225,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
             <IOSSwitch
               value={isAnonymous}
               onValueChange={setIsAnonymous}
+              activeColor={colors.onSurface}
             />
           </View>
         </View>
@@ -256,7 +258,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     ...typography.titleSmall,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   postBtn: {
     backgroundColor: colors.primary,
@@ -411,55 +413,49 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.onSurface,
   },
-  // Quote
+  // Quote card — gradient gray
   quoteCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
   },
   quoteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   quoteLabel: {
     ...typography.labelSmall,
-    color: colors.primary,
-  },
-  quoteName: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-    fontWeight: '600',
-    marginBottom: 2,
+    color: '#999999',
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   quoteContent: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: '#000000',
+    fontWeight: '600',
     lineHeight: 18,
+    marginBottom: spacing.xs,
   },
-  // Function reference
-  functionRefCard: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+  quoteMeta: {
+    ...typography.labelSmall,
+    color: '#999999',
+    fontWeight: '400',
   },
   functionRefType: {
     ...typography.labelSmall,
-    color: colors.primary,
+    color: '#999999',
     fontWeight: '600',
-    marginBottom: 2,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
   },
   functionRefTitle: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: '#000000',
+    fontWeight: '500',
   },
 });

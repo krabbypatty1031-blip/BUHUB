@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment } from '../../types';
+import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem } from '../../types';
 
 const USE_MOCK = true;
 
@@ -11,8 +11,8 @@ export const userService = {
         name: '張小明',
         nickname: '浸大小明',
         avatar: null,
-        grade: 'Year 2',
-        major: 'Computer Science',
+        grade: 'gradeUndergradY2',
+        major: 'majorCS',
         bio: '',
         gender: 'male',
         isLoggedIn: true,
@@ -44,57 +44,61 @@ export const userService = {
       return {
         posts: [
           {
+            postId: 'library',
             lang: 'tc',
             content: '圖書館自習室今日好多人，有冇人知其他安靜嘅讀書地方？考試週真係壓力好大...',
-            translated: { sc: '图书馆自习室今天好多人...', en: 'The library study room is packed today...' },
+            translated: { sc: '图书馆自习室今天好多人，有没有人知道其他安静的读书地方？考试周真的压力好大...', en: 'The library study room is packed today. Does anyone know other quiet study spots? Exam week is really stressful...' },
             time: '5小時前',
             likes: 67,
             comments: 18,
           },
-          {
-            lang: 'tc',
-            content: '今個學期嘅 CS 課程真係好充實，學到好多嘢！推薦大家試下 COMP3015',
-            translated: { sc: '这个学期的CS课程真的好充实...', en: 'This semester CS courses are really fulfilling...' },
-            time: '2日前',
-            likes: 23,
-            comments: 5,
-          },
         ],
         comments: [
           {
+            postId: 'comp3015',
+            commentId: 'comment-006',
             postAuthor: '王同學',
-            postContent: '下學期有冇人想一齊選 COMP3015？',
+            postContent: '下學期有冇人想一齊選 COMP3015？聽講呢門課嘅 Group Project 好有趣，想搵隊友一齊做！有興趣嘅留言啦～',
             comment: '我都想選！可以加我一齊組隊',
             time: '4小時前',
+            likes: 8,
           },
           {
+            postId: 'cat',
+            commentId: 'comment-007',
             postAuthor: '陳同學',
-            postContent: '今日喺飯堂遇到一隻超可愛嘅貓咪！',
+            postContent: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
             comment: '好可愛！我都想見到佢',
             time: '1日前',
+            likes: 3,
           },
         ],
         anonPosts: [
           {
+            postId: 'concert',
             lang: 'tc',
-            content: '有冇人覺得學校嘅 Wi-Fi 真係好慢？每次上堂都連唔到...',
-            translated: { sc: '有没有人觉得学校的Wi-Fi真的好慢？', en: "Does anyone find the school Wi-Fi really slow?" },
-            time: '1日前',
+            content: '有冇人上個禮拜去咗呢個演唱會？今年最令人期待嘅演出！',
+            translated: { sc: '有没有人上个星期去了这个演唱会？今年最令人期待的演出！', en: 'Did anyone go to this concert last week? Most anticipated performance this year!' },
+            time: '8小時前',
             likes: 89,
             comments: 31,
           },
         ],
         anonComments: [
           {
+            postId: 'concert',
+            commentId: 'comment-008',
             postAuthor: '匿名用戶',
-            postContent: '大家覺得學校餐廳邊間最好食？',
-            comment: '個人覺得新開嗰間唔錯',
-            time: '3日前',
+            postContent: '有冇人上個禮拜去咗呢個演唱會？今年最令人期待嘅演出！',
+            comment: '去咗！真係好正，下次一定再去',
+            time: '6小時前',
+            likes: 2,
           },
         ],
         myLikes: {
           posts: [
             {
+              postId: 'cat',
               author: '陳同學',
               avatar: '陳',
               gender: 'female' as const,
@@ -104,6 +108,7 @@ export const userService = {
               comments: 24,
             },
             {
+              postId: 'library',
               author: '李同學',
               avatar: '李',
               gender: 'male' as const,
@@ -115,6 +120,8 @@ export const userService = {
           ] as LikedPost[],
           comments: [
             {
+              postId: 'comp3015',
+              commentId: 'comment-002',
               postAuthor: '王同學',
               postContent: '下學期有冇人想一齊選 COMP3015？',
               commentAuthor: '張同學',
@@ -124,6 +131,28 @@ export const userService = {
             },
           ] as LikedComment[],
         },
+        myWants: [
+          {
+            itemIndex: 0,
+            title: 'MacBook Pro 2021 14寸',
+            price: 'HK$8,500',
+            condition: '9成新',
+            seller: '張同學',
+            avatar: '張',
+            gender: 'male' as const,
+            time: '1小時前',
+          },
+          {
+            itemIndex: 1,
+            title: 'COMP1001 教科書',
+            price: 'HK$80',
+            condition: '8成新',
+            seller: '李同學',
+            avatar: '李',
+            gender: 'female' as const,
+            time: '3小時前',
+          },
+        ],
         stats: {
           following: 36,
           followers: 128,
@@ -132,6 +161,36 @@ export const userService = {
       };
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/content');
+    return data;
+  },
+
+  async getFollowingList(): Promise<FollowListItem[]> {
+    if (USE_MOCK) {
+      const { mockUsers } = await import('../../data/mock/users');
+      return Object.entries(mockUsers).map(([name, u]) => ({
+        userName: name,
+        avatar: u.avatar,
+        gender: u.gender,
+        bio: u.bio,
+        isFollowed: true,
+      }));
+    }
+    const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/following');
+    return data;
+  },
+
+  async getFollowersList(): Promise<FollowListItem[]> {
+    if (USE_MOCK) {
+      const { mockUsers } = await import('../../data/mock/users');
+      return Object.entries(mockUsers).map(([name, u]) => ({
+        userName: name,
+        avatar: u.avatar,
+        gender: u.gender,
+        bio: u.bio,
+        isFollowed: false,
+      }));
+    }
+    const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/followers');
     return data;
   },
 

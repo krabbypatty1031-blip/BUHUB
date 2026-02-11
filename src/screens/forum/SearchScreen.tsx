@@ -9,14 +9,17 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { useSearch } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
+import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 
@@ -40,6 +43,10 @@ export default function SearchScreen({ navigation }: Props) {
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
+  const votedPolls = useForumStore((s) => s.votedPolls);
+  const votePoll = useForumStore((s) => s.votePoll);
+  const currentUser = useAuthStore((s) => s.user);
+  const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 300);
@@ -52,19 +59,83 @@ export default function SearchScreen({ navigation }: Props) {
     [navigation]
   );
 
+  const handleAvatarPress = useCallback(
+    (post: ForumPost) => {
+      if (!post.isAnonymous) {
+        if (post.name === currentUser?.nickname) {
+          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
+        } else {
+          navigation.navigate('UserProfile', { userName: post.name });
+        }
+      }
+    },
+    [navigation, currentUser]
+  );
+
+  const handleCommentPress = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('PostDetail', { postId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleForward = useCallback(
+    (post: ForumPost) => {
+      setForwardPost(post);
+    },
+    []
+  );
+
+  const handleQuote = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleFunctionPress = useCallback(
+    (post: ForumPost) => {
+      if (!post.functionType || post.functionIndex == null) return;
+      const nav = navigation.getParent();
+      if (!nav) return;
+      switch (post.functionType) {
+        case 'partner':
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { index: post.functionIndex } });
+          break;
+        case 'errand':
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { index: post.functionIndex } });
+          break;
+        case 'secondhand':
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { index: post.functionIndex } });
+          break;
+        case 'rating':
+          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, index: post.functionIndex } });
+          break;
+      }
+    },
+    [navigation]
+  );
+
   const renderResult = useCallback(
     ({ item }: { item: ForumPost }) => (
       <PostCard
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
         onLike={() => toggleLike(item.id)}
+        onComment={() => handleCommentPress(item)}
+        onForward={() => handleForward(item)}
         onBookmark={() => toggleBookmark(item.id)}
+        onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
+        onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
         isLiked={likedPosts.has(item.id)}
         isBookmarked={bookmarkedPosts.has(item.id)}
+        votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark, handleTagPress]
+    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (
@@ -99,7 +170,7 @@ export default function SearchScreen({ navigation }: Props) {
               <TouchableOpacity
                 key={key}
                 style={styles.officialTag}
-                onPress={() => handleTagPress(t(key))}
+                onPress={() => handleTagPress(t(key, { lng: 'tc' }))}
               >
                 <Text style={styles.officialTagText}>{t(key)}</Text>
               </TouchableOpacity>
@@ -119,6 +190,13 @@ export default function SearchScreen({ navigation }: Props) {
           contentContainerStyle={styles.listContent}
         />
       )}
+
+      <ForwardSheet
+        visible={!!forwardPost}
+        post={forwardPost}
+        onClose={() => setForwardPost(null)}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }

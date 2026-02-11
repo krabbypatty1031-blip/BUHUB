@@ -144,7 +144,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
       user: user.name,
       avatar: user.defaultAvatar || user.name.charAt(0),
       gender: user.gender,
-      bio: `${user.grade} · ${user.major}`,
+      bio: `${t(user.grade)} · ${t(user.major)}`,
       expired: false,
       expiresAt: new Date(activityTime!.getTime() - (advanceMinutes ?? 0) * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   fieldInput: {
     ...typography.bodyLarge,

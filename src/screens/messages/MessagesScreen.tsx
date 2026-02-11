@@ -168,24 +168,24 @@ export default function MessagesScreen({ navigation }: Props) {
     unreadComments,
   };
 
-  /* ── Filter & sort contacts: pinned first ── */
+  /* ── Filter & sort contacts: pinned first (skip pin sort when searching) ── */
+  const isSearching = showSearch && searchQuery.trim().length > 0;
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
-    let list = contacts;
-    if (searchQuery.trim()) {
+    if (isSearching) {
       const q = searchQuery.trim().toLowerCase();
-      list = contacts.filter(
+      return contacts.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.message.toLowerCase().includes(q)
       );
     }
-    return [...list].sort((a, b) => {
+    return [...contacts].sort((a, b) => {
       const aPinned = isPinned(a.name, a.pinned) ? 1 : 0;
       const bPinned = isPinned(b.name, b.pinned) ? 1 : 0;
       return bPinned - aPinned;
     });
-  }, [contacts, searchQuery, pinnedContacts, isPinned]);
+  }, [contacts, isSearching, searchQuery, pinnedContacts, isPinned]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch((prev) => {
@@ -287,7 +287,7 @@ export default function MessagesScreen({ navigation }: Props) {
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => {
-      const pinned = isPinned(item.name, item.pinned);
+      const pinned = isSearching ? false : isPinned(item.name, item.pinned);
       const muted = isMuted(item.name);
       const effectiveUnread = getEffectiveUnread(item.name, item.unread);
       return (
@@ -308,7 +308,7 @@ export default function MessagesScreen({ navigation }: Props) {
         />
       );
     },
-    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread]
+    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, isSearching]
   );
 
   /* ── Action sheet computed labels ── */
@@ -333,9 +333,9 @@ export default function MessagesScreen({ navigation }: Props) {
           onPress={toggleSearch}
         >
           {showSearch ? (
-            <CloseIcon size={22} color={colors.onSurface} />
+            <CloseIcon size={24} color={colors.onSurface} />
           ) : (
-            <SearchIcon size={22} color={colors.onSurface} />
+            <SearchIcon size={24} color={colors.onSurface} />
           )}
         </TouchableOpacity>
       </View>
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   },
   notifyLabel: {
     ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     textAlign: 'center',
   },
 
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.titleSmall,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
 
   /* ── Contact list ── */

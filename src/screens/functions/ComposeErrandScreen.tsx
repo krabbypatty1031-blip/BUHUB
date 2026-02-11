@@ -106,7 +106,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
       user: user.name,
       avatar: user.defaultAvatar || user.name.charAt(0),
       gender: user.gender,
-      bio: `${user.grade} · ${user.major}`,
+      bio: `${t(user.grade)} · ${t(user.major)}`,
       expired: false,
       expiresAt: deadline!.toISOString(),
       createdAt: new Date().toISOString(),
@@ -231,7 +231,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
           {/* From */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
-              <MapPinIcon size={14} color={colors.accent} />{' '}
+              <MapPinIcon size={14} color={colors.success} />{' '}
               {t('from')} <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   fieldInput: {
     ...typography.bodyLarge,

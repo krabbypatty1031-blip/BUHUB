@@ -6,6 +6,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { colors, spacing, borderRadius, typography } from '../../theme';
+import GradientCard from './GradientCard';
 import { hapticLight } from '../../utils/haptics';
 import type { ForumPost } from '../../types';
 import Avatar from './Avatar';
@@ -159,25 +160,38 @@ function PostCard({
         {/* Forwarded Function Card */}
         {post.isFunction && post.functionType && (
           <TouchableOpacity
-            style={styles.functionCard}
             activeOpacity={0.7}
             onPress={onFunctionPress}
           >
-            <View style={styles.functionCardInfo}>
-              <Text style={styles.functionCardType}>
-                {post.functionType === 'partner' ? '找搭子' :
-                 post.functionType === 'errand' ? '跑腿' :
-                 post.functionType === 'secondhand' ? '二手' :
-                 post.functionType === 'rating' ? '评分' : ''}
-              </Text>
-              {post.functionTitle && (
-                <Text style={styles.functionCardTitle} numberOfLines={1}>
-                  {post.functionTitle}
+            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.functionCard}>
+              <View style={styles.functionCardInfo}>
+                <Text style={styles.functionCardType}>
+                  {post.functionType === 'partner' ? '找搭子' :
+                   post.functionType === 'errand' ? '跑腿' :
+                   post.functionType === 'secondhand' ? '二手' :
+                   post.functionType === 'rating' ? '评分' : ''}
                 </Text>
-              )}
-            </View>
-            <ChevronRightIcon size={16} color={colors.onSurfaceVariant} />
+                {post.functionTitle && (
+                  <Text style={styles.functionCardTitle} numberOfLines={1}>
+                    {post.functionTitle}
+                  </Text>
+                )}
+              </View>
+              <ChevronRightIcon size={14} color="#999999" />
+            </GradientCard>
           </TouchableOpacity>
+        )}
+
+        {/* Quoted Post */}
+        {post.quotedPost && (
+          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quotedCard}>
+            <View style={styles.quotedHeader}>
+              <QuoteIcon size={12} color="#999999" />
+              <Text style={styles.quotedLabel}>引用帖子</Text>
+            </View>
+            <Text style={styles.quotedContent} numberOfLines={3}>{post.quotedPost.content}</Text>
+            <Text style={styles.quotedMeta}>{post.quotedPost.name} · {post.quotedPost.meta}</Text>
+          </GradientCard>
         )}
 
         {/* Actions */}
@@ -336,13 +350,9 @@ const styles = StyleSheet.create({
   functionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    padding: spacing.md,
   },
   functionCardInfo: {
     flex: 1,
@@ -350,13 +360,46 @@ const styles = StyleSheet.create({
   functionCardType: {
     ...typography.labelSmall,
     fontWeight: '600',
-    color: colors.primary,
+    color: '#999999',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
   functionCardTitle: {
     ...typography.bodyMedium,
     fontSize: 13,
-    color: colors.onSurface,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  quotedCard: {
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  quotedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  quotedLabel: {
+    ...typography.labelSmall,
+    color: '#999999',
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  quotedContent: {
+    ...typography.bodySmall,
+    color: '#000000',
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: spacing.xs,
+  },
+  quotedMeta: {
+    ...typography.labelSmall,
+    color: '#999999',
+    fontWeight: '400',
   },
   actions: {
     flexDirection: 'row',

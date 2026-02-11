@@ -244,6 +244,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <IOSSwitch
               value={taskReminder}
               onValueChange={setTaskReminder}
+              activeColor={colors.onSurface}
             />
           </View>
 
@@ -258,6 +259,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <IOSSwitch
               value={dmNotification}
               onValueChange={setDmNotification}
+              activeColor={colors.onSurface}
             />
           </View>
 
@@ -272,6 +274,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <IOSSwitch
               value={dndMode}
               onValueChange={setDndMode}
+              activeColor={colors.onSurface}
             />
           </View>
         </View>
@@ -401,7 +404,7 @@ const styles = StyleSheet.create({
   /* Section */
   sectionHeader: {
     ...typography.labelLarge,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.sm,

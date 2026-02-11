@@ -4,10 +4,11 @@ export interface ChatMessage {
   time: string;
   status?: 'read' | 'delivered' | 'sent';
   functionCard?: {
-    type: 'partner' | 'errand' | 'secondhand';
+    type: 'partner' | 'errand' | 'secondhand' | 'post';
     index: number;
     title: string;
     posterName: string;
+    postId?: string;
   };
 }
 

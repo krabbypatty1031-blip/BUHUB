@@ -6,7 +6,7 @@ export const mockPosts: ForumPost[] = [
     avatar: '陳',
     name: '陳同學',
     gender: 'female',
-    meta: 'Year 3 · Communication · 2小時前',
+    meta: '本科三年級 · 傳理學 · 2小時前',
     lang: 'tc',
     content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
     translated: {
@@ -21,10 +21,10 @@ export const mockPosts: ForumPost[] = [
   },
   {
     id: 'library',
-    avatar: '張',
-    name: '張同學',
+    avatar: '浸',
+    name: '浸大小明',
     gender: 'male',
-    meta: 'Year 2 · Computer Science · 5小時前',
+    meta: '本科二年級 · 計算機科學 · 5小時前',
     lang: 'tc',
     content: '圖書館自習室今日好多人，有冇人知其他安靜嘅讀書地方？考試週真係壓力好大...',
     translated: {
@@ -40,7 +40,7 @@ export const mockPosts: ForumPost[] = [
     avatar: '王',
     name: '王同學',
     gender: 'male',
-    meta: 'Year 2 · Computer Science · 5小時前',
+    meta: '本科二年級 · 計算機科學 · 5小時前',
     lang: 'tc',
     content: '下學期有冇人想一齊選 COMP3015？聽講呢門課嘅 Group Project 好有趣，想搵隊友一齊做！有興趣嘅留言啦～',
     translated: {
@@ -73,7 +73,7 @@ export const mockPosts: ForumPost[] = [
     avatar: '林',
     name: '林同學',
     gender: 'female',
-    meta: 'Year 2 · Communication · 3小時前',
+    meta: '本科二年級 · 傳理學 · 3小時前',
     lang: 'tc',
     content: '呢個週末有冇人想一齊去行山？我搵到一條好靚嘅路線！已經喺找搭子發咗帖，有興趣嘅快啲加入～',
     translated: {
@@ -89,11 +89,32 @@ export const mockPosts: ForumPost[] = [
     functionTitle: '週末大嶼山行山團 🏔️',
   },
   {
+    id: 'quote1',
+    avatar: '張',
+    name: '張同學',
+    gender: 'male',
+    meta: '本科三年級 · 新聞學 · 1小時前',
+    lang: 'tc',
+    content: '哈哈我都見過呢隻貓！佢好鍾意曬太陽，之前仲瞓咗喺長凳上面～',
+    translated: {
+      sc: '哈哈我也见过这只猫！它很喜欢晒太阳，之前还睡在长凳上面～',
+      en: 'Haha I\'ve seen this cat too! It loves sunbathing, was even sleeping on the bench before~',
+    },
+    likes: 23,
+    comments: 5,
+    tags: ['#校園生活'],
+    quotedPost: {
+      name: '陳同學',
+      content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
+      meta: '2小時前',
+    },
+  },
+  {
     id: 'poll1',
     avatar: '李',
     name: '李同學',
     gender: 'female',
-    meta: 'Year 4 · Music · 12小時前',
+    meta: '本科四年級 · 音樂學 · 12小時前',
     lang: 'tc',
     content: '大家覺得浸大應唔應該搞更多課外活動？',
     translated: {
@@ -141,6 +162,15 @@ export const mockCommentsData: Record<string, Comment[]> = {
       likes: 15,
       replies: [],
     },
+    {
+      id: 'comment-007',
+      name: '浸大小明',
+      avatar: '浸',
+      content: '好可愛！我都想見到佢',
+      time: '1日前',
+      likes: 3,
+      replies: [],
+    },
   ],
   library: [
     {
@@ -153,10 +183,23 @@ export const mockCommentsData: Record<string, Comment[]> = {
       replies: [],
     },
   ],
+  concert: [
+    {
+      id: 'comment-008',
+      name: '匿名用戶',
+      avatar: '匿',
+      content: '去咗！真係好正，下次一定再去',
+      time: '6小時前',
+      likes: 2,
+      isAnonymous: true,
+      replies: [],
+    },
+  ],
   comp3015: [
     {
-      name: '張同學',
-      avatar: '張',
+      id: 'comment-006',
+      name: '浸大小明',
+      avatar: '浸',
       content: '我都想選！可以加我一齊組隊',
       time: '4小時前',
       likes: 8,
@@ -164,8 +207,8 @@ export const mockCommentsData: Record<string, Comment[]> = {
     },
     {
       id: 'comment-005',
-      name: '張同學',
-      avatar: '張',
+      name: '王同學',
+      avatar: '王',
       content: '@浸大小明 你覺得點呀？',
       time: '3小時前',
       likes: 2,

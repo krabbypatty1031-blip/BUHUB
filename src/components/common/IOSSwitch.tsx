@@ -15,6 +15,7 @@ interface IOSSwitchProps {
   disabled?: boolean;
   activeColor?: string;
   inactiveColor?: string;
+  thumbIcon?: React.ReactNode;
 }
 
 const SWITCH_WIDTH = 51;
@@ -29,6 +30,7 @@ export default function IOSSwitch({
   disabled = false,
   activeColor = colors.success,
   inactiveColor = colors.surfaceVariant,
+  thumbIcon,
 }: IOSSwitchProps) {
   const progress = useSharedValue(value ? 1 : 0);
 
@@ -69,7 +71,9 @@ export default function IOSSwitch({
       style={[styles.container, disabled && styles.disabled]}
     >
       <Animated.View style={[styles.track, trackStyle]}>
-        <Animated.View style={[styles.thumb, thumbStyle]} />
+        <Animated.View style={[styles.thumb, thumbStyle]}>
+          {thumbIcon}
+        </Animated.View>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -95,6 +99,8 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: colors.black,
     shadowOffset: {
       width: 0,

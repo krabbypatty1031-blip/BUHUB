@@ -12,9 +12,9 @@ import {
   Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { CommonActions } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { useContacts } from '../../hooks';
-import { useUIStore } from '../../store/uiStore';
 import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import { CloseIcon, SendIcon, CheckIcon } from './icons';
@@ -27,6 +27,7 @@ interface ForwardSheetProps {
   visible: boolean;
   post: ForumPost | null;
   onClose: () => void;
+  navigation: any;
 }
 
 /* ── Memoised contact row (per RN stack guideline) ── */
@@ -59,9 +60,8 @@ const ContactRow = React.memo(function ContactRow({ item, isSelected, onPress }:
   );
 });
 
-export default function ForwardSheet({ visible, post, onClose }: ForwardSheetProps) {
+export default function ForwardSheet({ visible, post, onClose, navigation }: ForwardSheetProps) {
   const { t } = useTranslation();
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: contacts } = useContacts();
   const inputRef = useRef<TextInput>(null);
 
@@ -91,22 +91,26 @@ export default function ForwardSheet({ visible, post, onClose }: ForwardSheetPro
 
   const handleSend = useCallback(() => {
     if (!selectedContact || !post) return;
-    const forwardLabel = t('forwardPost') || 'Forwarded Post';
-    const body = messageText.trim();
-    const text = body
-      ? `${body}\n\n[${forwardLabel}] ${post.name}: ${post.content}`
-      : `[${forwardLabel}] ${post.name}: ${post.content}`;
-
-    import('../../api/services/message.service').then(({ messageService }) => {
-      messageService.sendMessage(selectedContact.name, text);
-    });
-
-    showSnackbar({
-      message: t('forwardSuccess', { name: selectedContact.name }),
-      type: 'success',
-    });
     onClose();
-  }, [selectedContact, post, messageText, t, showSnackbar, onClose]);
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'MessagesTab',
+        params: {
+          screen: 'Chat',
+          params: {
+            contactName: selectedContact.name,
+            contactAvatar: selectedContact.avatar || selectedContact.name,
+            forwardedType: 'post',
+            forwardedTitle: post.content,
+            forwardedPosterName: post.name,
+            forwardedIndex: 0,
+            forwardedPostId: post.id,
+            forwardedMessage: messageText.trim() || undefined,
+          },
+        },
+      })
+    );
+  }, [selectedContact, post, messageText, onClose, navigation]);
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => (

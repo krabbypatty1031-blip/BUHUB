@@ -44,16 +44,14 @@ function FollowerItem({ item }: { item: FollowerNotification }) {
         gender={item.gender}
       />
       <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <Text style={styles.notificationUser} numberOfLines={1}>
-            {item.user}
-          </Text>
-          <Text style={styles.notificationTime}>{item.time}</Text>
-        </View>
+        <Text style={styles.notificationUser} numberOfLines={1}>
+          {item.user}
+        </Text>
         <View style={styles.actionRow}>
+          <Text style={styles.notificationTime}>{item.time}</Text>
           <UsersIcon size={14} color={colors.primary} />
           <Text style={styles.notificationAction}>
-            {t('followedYou') || 'followed you'}
+            {t('followedYou')}
           </Text>
         </View>
         {item.bio ? (
@@ -81,8 +79,8 @@ function FollowerItem({ item }: { item: FollowerNotification }) {
             ]}
           >
             {followed
-              ? t('following') || 'Following'
-              : t('followBack') || 'Follow'}
+              ? t('followed')
+              : t('followBack')}
           </Text>
         )}
       </TouchableOpacity>
@@ -195,17 +193,10 @@ const styles = StyleSheet.create({
   notificationContent: {
     flex: 1,
   },
-  notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xxs,
-  },
   notificationUser: {
     ...typography.titleSmall,
     color: colors.onSurface,
-    flex: 1,
-    marginRight: spacing.sm,
+    marginBottom: spacing.xxs,
   },
   notificationTime: {
     ...typography.bodySmall,

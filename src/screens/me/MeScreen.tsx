@@ -11,10 +11,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { UserPost, UserComment, LikedPost, LikedComment } from '../../types';
+import type { UserPost, UserComment, LikedPost, LikedComment, WantedItem, ForumPost } from '../../types';
 import { useProfile, useMyContent } from '../../hooks/useUser';
+import { usePosts } from '../../hooks/usePosts';
+import { useSecondhand } from '../../hooks/useSecondhand';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
+import { useSecondhandStore } from '../../store/secondhandStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -33,11 +36,12 @@ import {
   CommentIcon,
   CloseIcon,
   QrCodeIcon,
+  ShoppingBagIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
-type MeTab = 'posts' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks' | 'myLikes';
+type MeTab = 'posts' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks' | 'myLikes' | 'myWants';
 
 interface TabDef {
   key: MeTab;
@@ -52,22 +56,35 @@ const TAB_DEFS: TabDef[] = [
   { key: 'anonComments', labelKey: 'tabAnonComments', locked: true },
   { key: 'bookmarks', labelKey: 'tabBookmarks', locked: true },
   { key: 'myLikes', labelKey: 'tabMyLikes', locked: false },
+  { key: 'myWants', labelKey: 'tabMyWants', locked: false },
 ];
 
-/* ── Post card (own posts / anonPosts / bookmarks) ── */
-const PostItem = React.memo(function PostItem({ post }: { post: UserPost }) {
+/*
+ * Unified content card layout:
+ *   [Context line]   ← optional, only for comment-type
+ *   [Body text]      ← main content, max 3 lines
+ *   [Footer]         ← left: metrics/author info, right: time
+ */
+
+/* ── Post card (own posts / anonPosts) ── */
+const PostItem = React.memo(function PostItem({ post, author, onPress }: { post: UserPost; author: string; onPress: () => void }) {
   return (
-    <View style={styles.contentCard}>
-      <Text style={styles.cardContent} numberOfLines={3}>
+    <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.cardBody} numberOfLines={3}>
         {post.content}
       </Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.cardTime}>{post.time}</Text>
-        <Text style={styles.cardStats}>
-          {post.likes} likes · {post.comments} comments
-        </Text>
+        <View style={styles.footerMetrics}>
+          <Text style={styles.footerAuthor}>{author}</Text>
+          <Text style={styles.footerDot}>·</Text>
+          <HeartIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{post.likes}</Text>
+          <CommentIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{post.comments}</Text>
+        </View>
+        <Text style={styles.footerTime}>{post.time}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 
@@ -75,64 +92,96 @@ const PostItem = React.memo(function PostItem({ post }: { post: UserPost }) {
 const CommentItem = React.memo(function CommentItem({
   comment,
   t,
+  onPress,
 }: {
   comment: UserComment;
   t: (key: string) => string;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.contentCard}>
-      <Text style={styles.commentRef} numberOfLines={1}>
+    <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.cardContext} numberOfLines={1}>
         {t('replyTo')} {comment.postAuthor}: {comment.postContent}
       </Text>
-      <Text style={styles.cardContent}>{comment.comment}</Text>
-      <Text style={styles.cardTime}>{comment.time}</Text>
-    </View>
+      <Text style={styles.cardBody} numberOfLines={3}>{comment.comment}</Text>
+      <View style={styles.cardFooter}>
+        <View style={styles.footerMetrics}>
+          <HeartIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{comment.likes}</Text>
+        </View>
+        <Text style={styles.footerTime}>{comment.time}</Text>
+      </View>
+    </TouchableOpacity>
   );
 });
 
-/* ── Liked post card (shows author info) ── */
-const LikedPostItem = React.memo(function LikedPostItem({ post }: { post: LikedPost }) {
+/* ── Liked post card ── */
+const LikedPostItem = React.memo(function LikedPostItem({ post, onPress }: { post: LikedPost; onPress: () => void }) {
   return (
-    <View style={styles.contentCard}>
-      <View style={styles.likedAuthorRow}>
-        <Avatar text={post.author} size="sm" gender={post.gender} />
-        <Text style={styles.likedAuthorName}>{post.author}</Text>
-      </View>
-      <Text style={styles.cardContent} numberOfLines={3}>
+    <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.cardBody} numberOfLines={3}>
         {post.content}
       </Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.cardTime}>{post.time}</Text>
-        <Text style={styles.cardStats}>
-          {post.likes} likes · {post.comments} comments
-        </Text>
+        <View style={styles.footerMetrics}>
+          <Text style={styles.footerAuthor}>{post.author}</Text>
+          <Text style={styles.footerDot}>·</Text>
+          <HeartIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{post.likes}</Text>
+          <CommentIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{post.comments}</Text>
+        </View>
+        <Text style={styles.footerTime}>{post.time}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 
-/* ── Liked comment card (shows who commented on which post) ── */
+/* ── Liked comment card ── */
 const LikedCommentItem = React.memo(function LikedCommentItem({
   comment,
   t,
+  onPress,
 }: {
   comment: LikedComment;
   t: (key: string) => string;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.contentCard}>
-      <Text style={styles.commentRef} numberOfLines={1}>
+    <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.cardContext} numberOfLines={1}>
         {comment.commentAuthor} {t('replyTo')} {comment.postAuthor}: {comment.postContent}
       </Text>
-      <Text style={styles.cardContent}>{comment.comment}</Text>
+      <Text style={styles.cardBody} numberOfLines={3}>{comment.comment}</Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.cardTime}>{comment.time}</Text>
-        <View style={styles.likeIndicator}>
-          <HeartIcon size={12} color={colors.error} fill={colors.error} />
-          <Text style={styles.cardStats}>{comment.likes}</Text>
+        <View style={styles.footerMetrics}>
+          <HeartIcon size={13} color={colors.onSurfaceVariant} />
+          <Text style={styles.footerMetricText}>{comment.likes}</Text>
         </View>
+        <Text style={styles.footerTime}>{comment.time}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
+  );
+});
+
+/* ── Wanted item card ── */
+const WantedItemCard = React.memo(function WantedItemCard({ item, onPress }: { item: WantedItem; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.cardBody} numberOfLines={3}>
+        {item.title}
+      </Text>
+      <View style={styles.cardFooter}>
+        <View style={styles.footerMetrics}>
+          <Text style={styles.footerAuthor}>{item.seller}</Text>
+          <Text style={styles.footerDot}>·</Text>
+          <Text style={styles.footerMetricText}>{item.price}</Text>
+          <Text style={styles.footerDot}>·</Text>
+          <Text style={styles.footerMetricText}>{item.condition}</Text>
+        </View>
+        <Text style={styles.footerTime}>{item.time}</Text>
+      </View>
+    </TouchableOpacity>
   );
 });
 
@@ -140,13 +189,68 @@ export default function MeScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: profile, isLoading } = useProfile();
   const { data: myContent } = useMyContent();
+  const { data: allPosts } = usePosts();
+  const { data: allSecondhand } = useSecondhand();
   const user = useAuthStore((s) => s.user);
-  const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
+  const likedPostIds = useForumStore((s) => s.likedPosts);
+  const bookmarkedPostIds = useForumStore((s) => s.bookmarkedPosts);
+  const wantedItemIds = useSecondhandStore((s) => s.wantedItems);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
+
+  /* ── Derive liked & bookmarked posts from forumStore + real data ── */
+  const storeLikedPosts = useMemo<LikedPost[]>(() => {
+    if (!allPosts) return [];
+    return allPosts
+      .filter((p) => likedPostIds.has(p.id))
+      .map((p) => ({
+        postId: p.id,
+        author: p.name,
+        avatar: p.avatar,
+        gender: p.gender,
+        content: p.content,
+        time: p.meta.split('·').pop()?.trim() || '',
+        likes: p.likes,
+        comments: p.comments,
+      }));
+  }, [allPosts, likedPostIds]);
+
+  const storeBookmarkedPosts = useMemo<LikedPost[]>(() => {
+    if (!allPosts) return [];
+    return allPosts
+      .filter((p) => bookmarkedPostIds.has(p.id))
+      .map((p) => ({
+        postId: p.id,
+        author: p.name,
+        avatar: p.avatar,
+        gender: p.gender,
+        content: p.content,
+        time: p.meta.split('·').pop()?.trim() || '',
+        likes: p.likes,
+        comments: p.comments,
+      }));
+  }, [allPosts, bookmarkedPostIds]);
+
+  /* ── Derive wanted items from secondhandStore + real data ── */
+  const storeWantedItems = useMemo<WantedItem[]>(() => {
+    if (!allSecondhand) return [];
+    return allSecondhand
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ idx }) => wantedItemIds.has(idx))
+      .map(({ item, idx }) => ({
+        itemIndex: idx,
+        title: item.title,
+        price: item.price,
+        condition: item.condition,
+        seller: item.user,
+        avatar: item.avatar,
+        gender: item.gender,
+        time: item.createdAt,
+      }));
+  }, [allSecondhand, wantedItemIds]);
 
   /* ── Tab options ── */
   const tabOptions = useMemo<TabOption<MeTab>[]>(
@@ -169,8 +273,27 @@ export default function MeScreen({ navigation }: Props) {
       anonComments: t('noAnonComments'),
       bookmarks: t('noBookmarks'),
       myLikes: t('noLikeRecords'),
+      myWants: t('noWantRecords'),
     }),
     [t]
+  );
+
+  /* ── Navigation helpers ── */
+  const goToPost = useCallback(
+    (postId: string) => navigation.navigate('PostDetail', { postId }),
+    [navigation]
+  );
+  const goToComment = useCallback(
+    (postId: string, commentId: string) => navigation.navigate('PostDetail', { postId, commentId }),
+    [navigation]
+  );
+  const goToSecondhand = useCallback(
+    (index: number) =>
+      navigation.getParent()?.navigate('FunctionsTab', {
+        screen: 'SecondhandDetail',
+        params: { index },
+      }),
+    [navigation]
   );
 
   /* ── Tab content renderer ── */
@@ -179,29 +302,47 @@ export default function MeScreen({ navigation }: Props) {
       return <EmptyState icon={<EditIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels[activeTab]} />;
     }
 
-    /* ── myLikes tab: mixed posts + comments ── */
+    /* ── myLikes tab: derived from forumStore ── */
     if (activeTab === 'myLikes') {
-      const likedPosts = myContent.myLikes?.posts || [];
-      const likedComments = myContent.myLikes?.comments || [];
-      if (likedPosts.length === 0 && likedComments.length === 0) {
+      if (storeLikedPosts.length === 0) {
         return <EmptyState icon={<HeartIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.myLikes} />;
       }
       return (
         <>
-          {likedPosts.map((p, i) => (
-            <LikedPostItem key={`lp-${i}`} post={p} />
-          ))}
-          {likedComments.map((c, i) => (
-            <LikedCommentItem key={`lc-${i}`} comment={c} t={t} />
+          {storeLikedPosts.map((p) => (
+            <LikedPostItem key={p.postId} post={p} onPress={() => goToPost(p.postId)} />
           ))}
         </>
       );
     }
 
-    /* ── bookmarks tab ── */
+    /* ── myWants tab: secondhand items user wants ── */
+    if (activeTab === 'myWants') {
+      const wants = storeWantedItems;
+      if (wants.length === 0) {
+        return <EmptyState icon={<ShoppingBagIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.myWants} />;
+      }
+      return (
+        <>
+          {wants.map((item, i) => (
+            <WantedItemCard key={`w-${i}`} item={item} onPress={() => goToSecondhand(item.itemIndex)} />
+          ))}
+        </>
+      );
+    }
+
+    /* ── bookmarks tab: derived from forumStore ── */
     if (activeTab === 'bookmarks') {
-      // bookmarked posts placeholder
-      return <EmptyState icon={<BookmarkIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.bookmarks} />;
+      if (storeBookmarkedPosts.length === 0) {
+        return <EmptyState icon={<BookmarkIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.bookmarks} />;
+      }
+      return (
+        <>
+          {storeBookmarkedPosts.map((p) => (
+            <LikedPostItem key={p.postId} post={p} onPress={() => goToPost(p.postId)} />
+          ))}
+        </>
+      );
     }
 
     /* ── comment-based tabs ── */
@@ -222,13 +363,14 @@ export default function MeScreen({ navigation }: Props) {
 
     if (isComment) {
       return (myContent[activeTab] as UserComment[]).map((c, i) => (
-        <CommentItem key={i} comment={c} t={t} />
+        <CommentItem key={i} comment={c} t={t} onPress={() => goToComment(c.postId, c.commentId)} />
       ));
     }
+    const postAuthor = activeTab === 'anonPosts' ? t('anonymousUser') : (displayUser?.nickname || displayUser?.name || '');
     return (myContent[activeTab] as UserPost[]).map((p, i) => (
-      <PostItem key={i} post={p} />
+      <PostItem key={i} post={p} author={postAuthor} onPress={() => goToPost(p.postId)} />
     ));
-  }, [activeTab, myContent, emptyLabels, t]);
+  }, [activeTab, myContent, emptyLabels, t, goToPost, goToComment, goToSecondhand, storeLikedPosts, storeBookmarkedPosts, storeWantedItems, displayUser]);
 
   if (isLoading && !displayUser) {
     return (
@@ -242,21 +384,20 @@ export default function MeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* ── Top Bar ── */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>{t('myProfile')}</Text>
+        <TouchableOpacity
+          style={styles.topBarIconBtn}
+          activeOpacity={0.6}
+          onPress={() => setContactModalVisible(true)}
+        >
+          <HelpCircleIcon size={24} color="#000" />
+        </TouchableOpacity>
         <View style={styles.topBarRight}>
-          <TouchableOpacity
-            style={styles.topBarIconBtn}
-            activeOpacity={0.6}
-            onPress={() => setContactModalVisible(true)}
-          >
-            <HelpCircleIcon size={22} color="#000" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.topBarIconBtn}
             activeOpacity={0.6}
             onPress={() => navigation.navigate('Settings')}
           >
-            <SettingsIcon size={22} color="#000" />
+            <SettingsIcon size={24} color="#000" />
           </TouchableOpacity>
         </View>
       </View>
@@ -272,7 +413,7 @@ export default function MeScreen({ navigation }: Props) {
                 {displayUser?.nickname || displayUser?.name || '---'}
               </Text>
               <Text style={styles.meta}>
-                {[displayUser?.major, displayUser?.grade]
+                {[displayUser?.major ? t(displayUser.major) : undefined, displayUser?.grade ? t(displayUser.grade) : undefined]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
@@ -286,18 +427,26 @@ export default function MeScreen({ navigation }: Props) {
 
               {/* Stats: 关注 + 粉丝 + 赞藏 */}
               <View style={styles.miniStats}>
-                <View style={styles.miniStatItem}>
+                <TouchableOpacity
+                  style={styles.miniStatItem}
+                  activeOpacity={0.6}
+                  onPress={() => navigation.navigate('FollowList', { type: 'following' })}
+                >
                   <Text style={styles.miniStatValue}>{stats?.following ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
                     {t('followingStat')}
                   </Text>
-                </View>
-                <View style={styles.miniStatItem}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.miniStatItem}
+                  activeOpacity={0.6}
+                  onPress={() => navigation.navigate('FollowList', { type: 'followers' })}
+                >
                   <Text style={styles.miniStatValue}>{stats?.followers ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
                     {t('followersStat')}
                   </Text>
-                </View>
+                </TouchableOpacity>
                 <View style={styles.miniStatItem}>
                   <Text style={styles.miniStatValue}>{stats?.collection ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
@@ -326,7 +475,7 @@ export default function MeScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('EditProfile')}
             >
-              <EditIcon size={16} color={colors.primary} />
+              <EditIcon size={16} color={colors.onPrimary} />
               <Text style={styles.actionBtnText}>
                 {t('editProfile')}
               </Text>
@@ -336,7 +485,7 @@ export default function MeScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('ShareProfile')}
             >
-              <ShareIcon size={16} color={colors.primary} />
+              <ShareIcon size={16} color={colors.onPrimary} />
               <Text style={styles.actionBtnText}>
                 {t('shareProfile')}
               </Text>
@@ -370,7 +519,7 @@ export default function MeScreen({ navigation }: Props) {
                 onPress={() => setContactModalVisible(false)}
                 style={styles.modalCloseBtn}
               >
-                <CloseIcon size={20} color={colors.onSurfaceVariant} />
+                <CloseIcon size={20} color={colors.onSurface} />
               </TouchableOpacity>
             </View>
 
@@ -418,13 +567,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
-  topBarTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.onSurface,
-    fontFamily: 'Poppins_900Black',
-    letterSpacing: -0.5,
-  },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,17 +598,17 @@ const styles = StyleSheet.create({
     ...typography.headlineSmall,
     color: colors.onSurface,
     fontWeight: '700',
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.sm,
   },
   meta: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   bio: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     fontStyle: 'italic',
   },
   miniStats: {
@@ -476,15 +618,15 @@ const styles = StyleSheet.create({
   miniStatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
+    gap: spacing.xs,
   },
   miniStatValue: {
-    ...typography.titleSmall,
+    ...typography.titleMedium,
     color: colors.onSurface,
     fontWeight: '700',
   },
   miniStatLabel: {
-    ...typography.bodySmall,
+    ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
   },
 
@@ -508,13 +650,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     height: 40,
     borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.onSurface,
   },
   actionBtnText: {
     ...typography.labelMedium,
-    color: colors.primary,
+    color: colors.onPrimary,
   },
 
   /* Tab content */
@@ -523,14 +663,19 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
 
-  /* Content cards */
+  /* ── Unified content cards ── */
   contentCard: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
     backgroundColor: colors.surface1,
     marginBottom: spacing.sm,
   },
-  cardContent: {
+  cardContext: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.xs,
+  },
+  cardBody: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     marginBottom: spacing.sm,
@@ -540,36 +685,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardTime: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  cardStats: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  commentRef: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xs,
-  },
-
-  /* Liked content specific */
-  likedAuthorRow: {
+  footerMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
-  likedAuthorName: {
-    ...typography.labelMedium,
+  footerMetricText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  footerAuthor: {
+    ...typography.bodySmall,
     color: colors.onSurface,
     fontWeight: '600',
   },
-  likeIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
+  footerDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  footerTime: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
 
   /* Contact Us Modal */
@@ -629,16 +765,16 @@ const styles = StyleSheet.create({
   },
   contactLabel: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   contactValue: {
     ...typography.titleSmall,
-    color: colors.primary,
+    color: colors.onSurface,
     fontWeight: '600',
   },
   contactDesc: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     textAlign: 'center',
     lineHeight: 18,
   },

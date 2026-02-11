@@ -15,13 +15,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { Gender } from '../../types';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import {
@@ -29,29 +28,13 @@ import {
   CameraIcon,
   CheckIcon,
   ChevronRightIcon,
-  MaleIcon,
-  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'EditProfile'>;
 
-const GENDERS: { key: Gender; label: string }[] = [
-  { key: 'male', label: 'genderMale' },
-  { key: 'female', label: 'genderFemale' },
-  { key: 'other', label: 'genderOther' },
-  { key: 'secret', label: 'genderSecret' },
-];
-
-// Gender-specific colors for icons
-const GENDER_COLORS: Record<Gender, string> = {
-  male: colors.genderMale,
-  female: colors.genderFemale,
-  other: colors.onSurfaceVariant,
-  secret: colors.onSurfaceVariant,
-};
-
 export default function EditProfileScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const bioMaxLength = i18n.language === 'en' ? 80 : 20;
   const { data: profile } = useProfile();
   const user = useAuthStore((s) => s.user);
   const updateUserStore = useAuthStore((s) => s.updateUser);
@@ -67,20 +50,14 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [grade, setGrade] = useState(currentUser?.grade || '');
   const [major, setMajor] = useState(currentUser?.major || '');
-  const [gender, setGender] = useState<Gender>(currentUser?.gender || 'secret');
-  const genderLocked = !!currentUser?.gender && currentUser.gender !== 'secret';
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
 
-  const GRADE_OPTIONS = [
-    t('gradeUndergradY1'), t('gradeUndergradY2'), t('gradeUndergradY3'), t('gradeUndergradY4'), t('gradePostgrad'), t('gradePhD'),
-  ];
-  const MAJOR_OPTIONS = [
-    t('majorBCDA'), t('majorAI'), t('majorSE'), t('majorIDS'),
-  ];
+  const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
+  const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
 
   const handleSave = useCallback(() => {
-    const updates = { nickname, bio, grade, major, gender };
+    const updates = { nickname, bio, grade, major };
     updateUserStore(updates);
     updateProfile.mutate(updates, {
       onSuccess: () => {
@@ -91,7 +68,7 @@ export default function EditProfileScreen({ navigation }: Props) {
         showSnackbar({ message: t('saveError') || 'Failed to save', type: 'error' });
       },
     });
-  }, [nickname, bio, grade, major, gender, updateUserStore, updateProfile, showSnackbar, navigation, t]);
+  }, [nickname, bio, grade, major, updateUserStore, updateProfile, showSnackbar, navigation, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -129,21 +106,19 @@ export default function EditProfileScreen({ navigation }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Hero Avatar Section ── */}
+        {/* ── Avatar Section ── */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarGlow}>
-            <View style={styles.avatarRing}>
-              <View style={styles.avatarWrapper}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-                ) : (
-                  <Avatar
-                    text={nickname || currentUser?.name || '?'}
-                    size="xl"
-                    gender={gender}
-                  />
-                )}
-              </View>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarWrapper}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              ) : (
+                <Avatar
+                  text={nickname || currentUser?.name || '?'}
+                  size="xl"
+                  gender={currentUser?.gender}
+                />
+              )}
             </View>
             <TouchableOpacity
               style={styles.cameraBtn}
@@ -160,8 +135,8 @@ export default function EditProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* ── Form Card ── */}
-        <View style={styles.formCard}>
+        {/* ── Form Section ── */}
+        <View style={styles.formSection}>
           {/* Nickname */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('labelNickname')}</Text>
@@ -177,8 +152,6 @@ export default function EditProfileScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <View style={styles.fieldDivider} />
-
           {/* Bio */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('labelBio')}</Text>
@@ -192,12 +165,11 @@ export default function EditProfileScreen({ navigation }: Props) {
                 multiline
                 textAlignVertical="top"
                 selectionColor={colors.primary}
+                maxLength={bioMaxLength}
               />
             </View>
-            <Text style={styles.charCount}>{bio.length}/120</Text>
+            <Text style={styles.charCount}>{bio.length}/{bioMaxLength}</Text>
           </View>
-
-          <View style={styles.fieldDivider} />
 
           {/* Major */}
           <View style={styles.fieldGroup}>
@@ -208,13 +180,11 @@ export default function EditProfileScreen({ navigation }: Props) {
               activeOpacity={0.7}
             >
               <Text style={[styles.selectText, !major && styles.selectPlaceholder]}>
-                {major || t('major')}
+                {major ? t(major) : t('major')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
-
-          <View style={styles.fieldDivider} />
 
           {/* Grade */}
           <View style={styles.fieldGroup}>
@@ -225,64 +195,13 @@ export default function EditProfileScreen({ navigation }: Props) {
               activeOpacity={0.7}
             >
               <Text style={[styles.selectText, !grade && styles.selectPlaceholder]}>
-                {grade || t('grade')}
+                {grade ? t(grade) : t('grade')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Gender Card ── */}
-        <View style={styles.genderCard}>
-          <Text style={styles.genderCardLabel}>{t('gender')}</Text>
-          <View style={styles.genderGrid}>
-            {GENDERS.map((g) => {
-              const isSelected = gender === g.key;
-              const iconColor = GENDER_COLORS[g.key];
-
-              return (
-                <TouchableOpacity
-                  key={g.key}
-                  style={[
-                    styles.genderOption,
-                    isSelected && {
-                      backgroundColor: iconColor + '18',
-                      borderColor: iconColor,
-                    },
-                    genderLocked && styles.genderOptionLocked,
-                  ]}
-                  onPress={() => !genderLocked && setGender(g.key)}
-                  activeOpacity={genderLocked ? 1 : 0.7}
-                  disabled={genderLocked}
-                >
-                  {g.key === 'male' && (
-                    <MaleIcon
-                      size={18}
-                      color={iconColor}
-                    />
-                  )}
-                  {g.key === 'female' && (
-                    <FemaleIcon
-                      size={18}
-                      color={iconColor}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.genderText,
-                      isSelected && { color: iconColor, fontWeight: '600' },
-                    ]}
-                  >
-                    {t(g.label)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {genderLocked && (
-            <Text style={styles.genderLockedHint}>{t('genderLocked')}</Text>
-          )}
-        </View>
       </ScrollView>
 
       <Modal
@@ -307,7 +226,7 @@ export default function EditProfileScreen({ navigation }: Props) {
               <View style={{ width: 60 }} />
             </View>
             <FlatList
-              data={pickerType === 'grade' ? GRADE_OPTIONS : MAJOR_OPTIONS}
+              data={pickerType === 'grade' ? GRADE_KEYS : MAJOR_KEYS}
               keyExtractor={(item) => item}
               renderItem={({ item }) => {
                 const currentVal = pickerType === 'grade' ? grade : major;
@@ -322,7 +241,7 @@ export default function EditProfileScreen({ navigation }: Props) {
                     }}
                   >
                     <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextSelected]}>
-                      {item}
+                      {t(item)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -338,7 +257,7 @@ export default function EditProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface1,
+    backgroundColor: colors.surface,
   },
 
   /* ── Top Bar ── */
@@ -388,29 +307,15 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  /* ── Avatar Hero Section ── */
+  /* ── Avatar Section ── */
   avatarSection: {
     alignItems: 'center',
     paddingTop: spacing.xxxl,
     paddingBottom: spacing.xxl,
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: borderRadius.xl,
-    borderBottomRightRadius: borderRadius.xl,
-    ...elevation[2],
   },
-  avatarGlow: {
+  avatarContainer: {
     position: 'relative',
     marginBottom: spacing.md,
-  },
-  avatarRing: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface2,
   },
   avatarWrapper: {
     width: 88,
@@ -435,41 +340,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.surface,
-    ...elevation[3],
   },
   changeAvatarText: {
     ...typography.labelMedium,
-    color: colors.primary,
+    color: colors.onSurface,
     fontWeight: '600',
   },
 
-  /* ── Form Card ── */
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+  /* ── Form Section ── */
+  formSection: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    ...elevation[1],
   },
   fieldGroup: {
     paddingVertical: spacing.md,
   },
   fieldLabel: {
     ...typography.labelMedium,
-    color: colors.primary,
+    color: colors.onSurface,
     fontWeight: '600',
     marginBottom: spacing.sm,
-    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   inputWrapper: {
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
   },
   fieldInput: {
     ...typography.bodyMedium,
@@ -487,21 +384,13 @@ const styles = StyleSheet.create({
   },
   charCount: {
     ...typography.bodySmall,
-    color: colors.outline,
+    color: colors.onSurface,
     textAlign: 'right',
     marginTop: spacing.xs,
   },
-  fieldDivider: {
-    height: 1,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.xs,
-    opacity: 0.4,
-  },
   selectWrapper: {
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: 48,
@@ -538,7 +427,7 @@ const styles = StyleSheet.create({
   },
   pickerCancel: {
     ...typography.labelLarge,
-    color: colors.primary,
+    color: colors.onSurface,
   },
   pickerTitle: {
     ...typography.titleMedium,
@@ -550,62 +439,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerItemSelected: {
-    backgroundColor: colors.primaryContainer + '40',
+    backgroundColor: colors.surface3,
   },
   pickerItemText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
   },
   pickerItemTextSelected: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.onSurface,
+    fontWeight: '700',
   },
 
-  /* ── Gender Card ── */
-  genderCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-    ...elevation[1],
-  },
-  genderCardLabel: {
-    ...typography.labelMedium,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: spacing.lg,
-    letterSpacing: 0.3,
-  },
-  genderGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  genderOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.surface2,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    minHeight: 44,
-  },
-  genderOptionLocked: {
-    opacity: 0.5,
-  },
-  genderText: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
-  },
-  genderLockedHint: {
-    ...typography.bodySmall,
-    color: colors.outline,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
 });

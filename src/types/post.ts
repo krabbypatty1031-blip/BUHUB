@@ -21,6 +21,11 @@ export interface ForumPost {
   functionType?: 'partner' | 'errand' | 'secondhand' | 'rating';
   functionIndex?: number;
   functionTitle?: string;
+  quotedPost?: {
+    name: string;
+    content: string;
+    meta: string;
+  };
 }
 
 export interface Comment {

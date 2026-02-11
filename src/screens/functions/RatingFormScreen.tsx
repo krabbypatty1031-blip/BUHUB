@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   targetCategory: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   section: {
     padding: spacing.lg,

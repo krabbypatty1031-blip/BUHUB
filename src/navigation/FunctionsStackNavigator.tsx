@@ -21,6 +21,7 @@ import RatingShareScreen from '../screens/functions/RatingShareScreen';
 import SecondhandShareScreen from '../screens/functions/SecondhandShareScreen';
 import MyPostsScreen from '../screens/functions/MyPostsScreen';
 import FacilityBookingScreen from '../screens/functions/FacilityBookingScreen';
+import LibraryDetailScreen from '../screens/functions/LibraryDetailScreen';
 
 const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
@@ -46,6 +47,7 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="RatingShare" component={RatingShareScreen} />
       <Stack.Screen name="MyPosts" component={MyPostsScreen} />
       <Stack.Screen name="FacilityBooking" component={FacilityBookingScreen} />
+      <Stack.Screen name="LibraryDetail" component={LibraryDetailScreen} />
     </Stack.Navigator>
   );
 }

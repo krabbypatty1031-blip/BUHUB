@@ -42,7 +42,7 @@ export default function LanguageScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>BuHub</Text>
+          <Text style={styles.logoText}>BUHUB</Text>
           <Text style={styles.subtitle}>{t('selectLanguage')}</Text>
         </View>
 
@@ -98,9 +98,11 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   logoText: {
-    ...typography.displaySmall,
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.onSurface,
+    fontFamily: 'Poppins_900Black',
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...typography.bodyLarge,

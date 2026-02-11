@@ -30,6 +30,20 @@ export function usePublicProfile(userName: string) {
   });
 }
 
+export function useFollowingList() {
+  return useQuery({
+    queryKey: ['followingList'],
+    queryFn: () => userService.getFollowingList(),
+  });
+}
+
+export function useFollowersList() {
+  return useQuery({
+    queryKey: ['followersList'],
+    queryFn: () => userService.getFollowersList(),
+  });
+}
+
 export function useFollowUser() {
   return useMutation({
     mutationFn: (userName: string) => userService.followUser(userName),

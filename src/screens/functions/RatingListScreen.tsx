@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   miniBarLabel: {
     fontSize: 11,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     width: 60,
     flexShrink: 0,
   },

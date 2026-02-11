@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,6 @@ import {
   MapPinIcon,
   MessageIcon,
   HeartIcon,
-  ClockIcon,
   AlertTriangleIcon,
   MoreHorizontalIcon,
 } from '../../components/common/icons';
@@ -52,15 +51,6 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
-
-  const expiryText = useMemo(() => {
-    if (!item || isSold || isExpired) return null;
-    const expires = new Date(item.expiresAt);
-    const now = new Date();
-    const days = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (days > 0) return t('expiresIn', { days });
-    return null;
-  }, [item, isSold, isExpired, t]);
 
   const handleContact = useCallback(() => {
     if (!item) return;
@@ -144,7 +134,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         <View style={[styles.heroImage, isDisabled && styles.heroImageDimmed]}>
           <ShoppingBagIcon size={56} color={colors.outlineVariant} />
 
-          {/* Condition badge - top left */}
+          {/* Condition badge */}
           <View style={styles.conditionBadge}>
             <Text style={styles.conditionBadgeText}>{item.condition}</Text>
           </View>
@@ -166,62 +156,62 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {/* ── Price & Title Section ── */}
-        <View style={styles.priceSection}>
+        {/* ── Price & Title ── */}
+        <View style={styles.headerSection}>
           <Text style={styles.price}>{item.price}</Text>
           <Text style={styles.title}>{item.title}</Text>
-
-          {/* Tags row */}
           <View style={styles.tagRow}>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{t(item.category)}</Text>
-            </View>
-            <View style={styles.conditionTag}>
-              <Text style={styles.conditionTagText}>{item.condition}</Text>
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{t(item.category)}</Text>
             </View>
             {isSold && (
-              <View style={styles.soldTag}>
-                <Text style={styles.soldTagText}>{t('sold')}</Text>
-              </View>
+              <>
+                <View style={styles.tagDot} />
+                <View style={styles.statusTag}>
+                  <Text style={styles.statusTagText}>{t('sold')}</Text>
+                </View>
+              </>
             )}
             {isExpired && (
-              <View style={styles.expiredTag}>
-                <Text style={styles.expiredTagText}>{t('secondhandExpired')}</Text>
-              </View>
+              <>
+                <View style={styles.tagDot} />
+                <View style={styles.statusTag}>
+                  <Text style={styles.statusTagText}>{t('secondhandExpired')}</Text>
+                </View>
+              </>
             )}
           </View>
-
-          {/* Expiry countdown */}
-          {expiryText && (
-            <View style={styles.expiryRow}>
-              <ClockIcon size={14} color={colors.outline} />
-              <Text style={styles.expiryText}>{expiryText}</Text>
-            </View>
-          )}
         </View>
 
-        {/* ── Description Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('itemDescription')}</Text>
+        <View style={styles.divider} />
+
+        {/* ── Description ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{item.desc}</Text>
         </View>
 
-        {/* ── Trade Location Card ── */}
+        <View style={styles.divider} />
+
+        {/* ── Trade Location ── */}
         {item.location ? (
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('tradeLocation')}</Text>
-            <View style={styles.locationRow}>
-              <View style={styles.locationIconCircle}>
-                <MapPinIcon size={16} color={colors.primary} />
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t('tradeLocation')}</Text>
+              <View style={styles.locationRow}>
+                <View style={styles.locationIcon}>
+                  <MapPinIcon size={16} color={colors.onSurface} />
+                </View>
+                <Text style={styles.locationText}>{item.location}</Text>
               </View>
-              <Text style={styles.locationText}>{item.location}</Text>
             </View>
-          </View>
+            <View style={styles.divider} />
+          </>
         ) : null}
 
-        {/* ── Seller Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('sellerLabel')}</Text>
+        {/* ── Seller ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('sellerLabel')}</Text>
           <View style={styles.sellerRow}>
             <Avatar text={item.avatar} size="lg" gender={item.gender} />
             <View style={styles.sellerInfo}>
@@ -233,14 +223,16 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
 
+        <View style={styles.divider} />
+
         {/* ── Disclaimer ── */}
-        <View style={styles.disclaimerCard}>
-          <AlertTriangleIcon size={14} color={colors.onErrorContainer} />
+        <View style={styles.disclaimerSection}>
+          <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
         {/* ── Action Bar ── */}
-        <View style={[styles.bottomBar, isDisabled && styles.bottomBarDisabled]}>
+        <View style={[styles.actionBar, isDisabled && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={[styles.wantButton, isWanted && styles.wantedButton]}
             activeOpacity={0.7}
@@ -249,7 +241,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           >
             <HeartIcon
               size={18}
-              color={isWanted ? colors.error : colors.onSurfaceVariant}
+              color={isWanted ? colors.error : colors.onSurface}
               fill={isWanted ? colors.error : undefined}
             />
             <Text style={[styles.wantButtonText, isWanted && styles.wantedButtonText]}>
@@ -299,12 +291,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* Top Bar */
+  /* ── Top Bar ── */
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
     ...typography.titleMedium,
@@ -319,7 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* Empty */
+  /* ── Empty ── */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -332,10 +326,10 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
 
-  /* Hero Image */
+  /* ── Hero Image ── */
   heroImage: {
     width: SCREEN_WIDTH,
     height: SCREEN_WIDTH * 0.65,
@@ -348,13 +342,14 @@ const styles = StyleSheet.create({
   },
   conditionBadge: {
     position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-    ...elevation[1],
+    top: spacing.lg,
+    left: spacing.lg,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   conditionBadgeText: {
     ...typography.labelSmall,
@@ -369,13 +364,13 @@ const styles = StyleSheet.create({
   },
   statusBadgeSold: {
     backgroundColor: colors.error,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
   },
   statusBadgeExpired: {
     backgroundColor: colors.outline,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
   },
@@ -385,111 +380,96 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Price & Title */
-  priceSection: {
-    padding: spacing.lg,
-    gap: spacing.sm,
+  /* ── Header: Price & Title ── */
+  headerSection: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   price: {
     ...typography.headlineMedium,
     color: colors.error,
     fontWeight: '700',
+    letterSpacing: -0.5,
   },
   title: {
     ...typography.titleLarge,
     color: colors.onSurface,
+    lineHeight: 30,
+    marginTop: spacing.sm,
   },
   tagRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
+    marginTop: spacing.lg,
     gap: spacing.sm,
   },
-  categoryTag: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  tag: {
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  categoryTagText: {
+  tagText: {
     ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
+    color: colors.onSurface,
     fontWeight: '600',
   },
-  conditionTag: {
-    backgroundColor: colors.secondaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+  tagDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.outline,
   },
-  conditionTagText: {
-    ...typography.labelSmall,
-    color: colors.onSecondaryContainer,
-    fontWeight: '600',
-  },
-  soldTag: {
+  statusTag: {
     backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  soldTagText: {
+  statusTagText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
     fontWeight: '600',
   },
-  expiredTag: {
-    backgroundColor: colors.surfaceVariant,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  expiredTagText: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    fontWeight: '600',
-  },
-  expiryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  expiryText: {
-    ...typography.bodySmall,
-    color: colors.outline,
-  },
 
-  /* Card */
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  /* ── Shared ── */
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.xl,
   },
-  cardLabel: {
-    ...typography.titleSmall,
+  section: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+  },
+  sectionLabel: {
+    ...typography.labelMedium,
     color: colors.onSurface,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginBottom: spacing.md,
   },
 
-  /* Description */
+  /* ── Description ── */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-    lineHeight: 24,
+    lineHeight: 26,
   },
 
-  /* Location */
+  /* ── Location ── */
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  locationIconCircle: {
+  locationIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -497,9 +477,10 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.onSurface,
     flex: 1,
+    lineHeight: 22,
   },
 
-  /* Seller */
+  /* ── Seller ── */
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -507,6 +488,7 @@ const styles = StyleSheet.create({
   sellerInfo: {
     flex: 1,
     marginLeft: spacing.md,
+    gap: spacing.xxs,
   },
   sellerName: {
     ...typography.titleSmall,
@@ -515,35 +497,33 @@ const styles = StyleSheet.create({
   sellerBio: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+    lineHeight: 18,
   },
-  /* Disclaimer */
-  disclaimerCard: {
+
+  /* ── Disclaimer ── */
+  disclaimerSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   disclaimerText: {
     ...typography.bodySmall,
-    color: colors.onErrorContainer,
+    color: colors.onSurfaceVariant,
     flex: 1,
-    fontWeight: '500',
+    lineHeight: 18,
   },
 
-  /* Bottom Bar */
-  bottomBar: {
+  /* ── Action Bar ── */
+  actionBar: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     gap: spacing.md,
   },
-  bottomBarDisabled: {
+  actionBarDisabled: {
     opacity: 0.5,
   },
   wantButton: {
@@ -551,17 +531,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: borderRadius.xl,
+    height: 48,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   wantedButton: {
     backgroundColor: colors.errorContainer,
+    borderColor: colors.error,
   },
   wantButtonText: {
     ...typography.labelLarge,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   wantedButtonText: {
     color: colors.error,
@@ -570,8 +553,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
@@ -584,7 +567,7 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  /* Popover */
+  /* ── Popover ── */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,
@@ -619,5 +602,4 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.error,
   },
-
 });

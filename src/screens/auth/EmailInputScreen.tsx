@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     marginTop: spacing.sm,
   },
   form: {
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   captchaHint: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
 
   /* Slider */
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   trackText: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     textAlign: 'center',
     fontWeight: '500',
   },

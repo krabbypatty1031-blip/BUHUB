@@ -15,7 +15,7 @@ import type { RatingItem } from '../../types';
 import { useRatings } from '../../hooks/useRatings';
 import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, StarIcon } from '../../components/common/icons';
 import Avatar from '../../components/common/Avatar';
@@ -110,32 +110,38 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           <Text style={styles.itemSubtitle}>{translateLabel(getSubtitle(item), lang)}</Text>
         </View>
 
-        {/* ── Overall Score Card ── */}
-        <View style={styles.scoreCard}>
-          <View style={styles.scoreCircle}>
-            <Text style={styles.scoreNumber}>{overallScore}</Text>
-          </View>
-          <View style={styles.scoreInfo}>
-            <Text style={styles.scoreTitle}>{t('overallScore')}</Text>
-            <Text style={styles.scoreCount}>
-              {item.ratingCount} {t('participatedRating')}
-            </Text>
-          </View>
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <StarIcon
-                key={star}
-                size={16}
-                color={star <= Math.round(overallScore / 20) ? colors.warning : colors.outlineVariant}
-                fill={star <= Math.round(overallScore / 20) ? colors.warning : undefined}
-              />
-            ))}
+        <View style={styles.divider} />
+
+        {/* ── Overall Score ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('overallScore')}</Text>
+          <View style={styles.scoreRow}>
+            <View style={styles.scoreCircle}>
+              <Text style={styles.scoreNumber}>{overallScore}</Text>
+            </View>
+            <View style={styles.scoreInfo}>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <StarIcon
+                    key={star}
+                    size={16}
+                    color={star <= Math.round(overallScore / 20) ? colors.warning : colors.outlineVariant}
+                    fill={star <= Math.round(overallScore / 20) ? colors.warning : undefined}
+                  />
+                ))}
+              </View>
+              <Text style={styles.scoreCount}>
+                {item.ratingCount} {t('participatedRating')}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* ── Dimension Bars Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('scoreDetail')}</Text>
+        <View style={styles.divider} />
+
+        {/* ── Dimension Bars ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('scoreDetail')}</Text>
           <View style={styles.dimVerticalRow}>
             {item.scores.map((score) => (
               <DimensionBar
@@ -147,36 +153,43 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* ── Tag Cloud Card ── */}
+        <View style={styles.divider} />
+
+        {/* ── Tag Cloud ── */}
         {tagCloud.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('commonTags')}</Text>
-            <View style={styles.tagCloudContainer}>
-              {tagCloud.map(({ tag, count, fontSize }) => (
-                <View key={tag} style={styles.tagCloudPill}>
-                  <Text style={[styles.tagCloudText, { fontSize }]}>
-                    {translateLabel(tag, lang)}
-                  </Text>
-                  <Text style={styles.tagCloudCount}>{count}</Text>
-                </View>
-              ))}
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t('commonTags')}</Text>
+              <View style={styles.tagCloudContainer}>
+                {tagCloud.map(({ tag, count, fontSize }) => (
+                  <View key={tag} style={styles.tagCloudPill}>
+                    <Text style={[styles.tagCloudText, { fontSize }]}>
+                      {translateLabel(tag, lang)}
+                    </Text>
+                    <Text style={styles.tagCloudCount}>{count}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+            <View style={styles.divider} />
+          </>
         )}
 
         {/* ── Rate Button ── */}
-        <TouchableOpacity
-          style={styles.rateButton}
-          activeOpacity={0.85}
-          onPress={() =>
-            navigation.navigate('RatingForm', { category, index })
-          }
-        >
-          <StarIcon size={20} color={colors.onPrimary} />
-          <Text style={styles.rateButtonText}>
-            {t(`rate${category.charAt(0).toUpperCase() + category.slice(1)}` as any) || t('rate')}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={styles.rateButton}
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate('RatingForm', { category, index })
+            }
+          >
+            <StarIcon size={18} color={colors.onPrimary} />
+            <Text style={styles.rateButtonText}>
+              {t(`rate${category.charAt(0).toUpperCase() + category.slice(1)}` as any) || t('rate')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -188,12 +201,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* Top Bar */
+  /* ── Top Bar ── */
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
   iconBtn: {
     width: 48,
@@ -216,44 +231,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
 
-  /* Header */
+  /* ── Header ── */
   headerSection: {
     alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   itemName: {
     ...typography.headlineSmall,
     color: colors.onSurface,
     marginTop: spacing.md,
     textAlign: 'center',
+    lineHeight: 32,
   },
   itemSubtitle: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
     marginTop: spacing.xs,
     textAlign: 'center',
+    lineHeight: 22,
   },
 
-  /* Score Card */
-  scoreCard: {
+  /* ── Shared ── */
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.xl,
+  },
+  section: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+  },
+  sectionLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.lg,
+  },
+
+  /* ── Score ── */
+  scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   scoreCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.onSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -264,37 +295,18 @@ const styles = StyleSheet.create({
   },
   scoreInfo: {
     flex: 1,
-  },
-  scoreTitle: {
-    ...typography.titleSmall,
-    color: colors.onPrimaryContainer,
-  },
-  scoreCount: {
-    ...typography.bodySmall,
-    color: colors.onPrimaryContainer,
-    opacity: 0.7,
-    marginTop: 2,
+    gap: spacing.xs,
   },
   starsRow: {
     flexDirection: 'row',
     gap: 2,
   },
-
-  /* Card */
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  cardLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.lg,
+  scoreCount: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
 
-  /* Dimensions */
+  /* ── Dimensions ── */
   dimVerticalRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -308,7 +320,7 @@ const styles = StyleSheet.create({
   },
   dimValue: {
     ...typography.titleSmall,
-    color: colors.primary,
+    color: colors.onSurface,
     fontWeight: '700',
   },
   dimVerticalTrack: {
@@ -322,7 +334,7 @@ const styles = StyleSheet.create({
   dimVerticalFill: {
     width: '100%',
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.onSurface,
     opacity: 0.7,
   },
   dimColLabel: {
@@ -333,7 +345,7 @@ const styles = StyleSheet.create({
     maxWidth: 60,
   },
 
-  /* Tag Cloud */
+  /* ── Tag Cloud ── */
   tagCloudContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -349,28 +361,28 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   tagCloudText: {
-    color: colors.primary,
+    color: colors.onSurface,
     fontWeight: '500',
   },
   tagCloudCount: {
     ...typography.labelSmall,
-    color: colors.outline,
+    color: colors.onSurfaceVariant,
     fontSize: 10,
   },
 
-  /* Rate Button */
+  /* ── Action Bar ── */
+  actionBar: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+  },
   rateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    marginBottom: spacing.xxl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.xl,
+    height: 48,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.primary,
-    ...elevation[2],
   },
   rateButtonText: {
     ...typography.labelLarge,

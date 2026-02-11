@@ -112,94 +112,109 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Header: Tags & Title ── */}
+        {/* ── Header: Title & Tags ── */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{t(errand.category)}</Text>
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{t(errand.category)}</Text>
             </View>
             {errand.expired && (
-              <View style={styles.expiredTag}>
-                <Text style={styles.expiredTagText}>{t('errandExpired')}</Text>
-              </View>
+              <>
+                <View style={styles.tagDot} />
+                <View style={styles.statusTag}>
+                  <Text style={styles.statusTagText}>{t('errandExpired')}</Text>
+                </View>
+              </>
             )}
           </View>
           <Text style={styles.title}>{errand.title}</Text>
         </View>
 
-        {/* ── Price Card (prominent) ── */}
-        <View style={styles.priceCard}>
-          <View style={styles.priceIconCircle}>
-            <DollarIcon size={20} color={colors.primary} />
+        <View style={styles.divider} />
+
+        {/* ── Reward ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('reward')}</Text>
+          <View style={styles.rewardRow}>
+            <View style={styles.detailIcon}>
+              <DollarIcon size={16} color={colors.onSurface} />
+            </View>
+            <View style={styles.rewardContent}>
+              <Text style={styles.rewardPrice}>{errand.price}</Text>
+              <Text style={styles.rewardHint}>{t('paidOnComplete')}</Text>
+            </View>
           </View>
-          <View style={styles.priceContent}>
-            <Text style={styles.priceLabel}>{t('reward')}</Text>
-            <Text style={styles.priceHint}>{t('paidOnComplete')}</Text>
-          </View>
-          <Text style={styles.priceValue}>{errand.price}</Text>
         </View>
 
-        {/* ── Description Card ── */}
-        <View style={styles.card}>
+        <View style={styles.divider} />
+
+        {/* ── Description ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{errand.desc}</Text>
         </View>
 
-        {/* ── Route Card ── */}
-        <View style={styles.card}>
-          {/* From */}
-          <View style={styles.routeRow}>
-            <View style={styles.routeIndicator}>
-              <View style={styles.routeDotFrom} />
-              <View style={styles.routeLine} />
-            </View>
-            <View style={styles.routeContent}>
-              <Text style={styles.routeLabel}>{t('pickupLocation')}</Text>
-              <Text style={styles.routeValue}>{errand.from}</Text>
-            </View>
-          </View>
+        <View style={styles.divider} />
 
-          {/* To */}
-          <View style={styles.routeRow}>
-            <View style={styles.routeIndicator}>
-              <View style={styles.routeDotTo} />
+        {/* ── Route ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('pickupLocation')}</Text>
+          <View style={styles.routeWrap}>
+            {/* From */}
+            <View style={styles.routeRow}>
+              <View style={styles.routeIndicator}>
+                <View style={styles.routeDotFrom} />
+                <View style={styles.routeLine} />
+              </View>
+              <View style={styles.routeContent}>
+                <Text style={styles.routeLabel}>{t('pickupLocation')}</Text>
+                <Text style={styles.routeValue}>{errand.from}</Text>
+              </View>
             </View>
-            <View style={styles.routeContent}>
-              <Text style={styles.routeLabel}>{t('deliveryLocation')}</Text>
-              <Text style={styles.routeValue}>{errand.to}</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* ── Details Card ── */}
-        <View style={styles.card}>
-          {/* Item */}
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconCircle}>
-              <PackageIcon size={16} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('itemLabel')}</Text>
-              <Text style={styles.detailValue}>{errand.item}</Text>
-            </View>
-          </View>
-
-          <View style={styles.cardDivider} />
-
-          {/* Deadline */}
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconCircle}>
-              <ClockIcon size={16} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('deadline')}</Text>
-              <Text style={styles.detailValue}>{errand.time}</Text>
+            {/* To */}
+            <View style={styles.routeRow}>
+              <View style={styles.routeIndicator}>
+                <View style={styles.routeDotTo} />
+              </View>
+              <View style={styles.routeContent}>
+                <Text style={styles.routeLabel}>{t('deliveryLocation')}</Text>
+                <Text style={styles.routeValue}>{errand.to}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* ── Poster Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('poster')}</Text>
+        <View style={styles.divider} />
+
+        {/* ── Details: Item & Deadline ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('itemLabel')}</Text>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <PackageIcon size={16} color={colors.onSurface} />
+            </View>
+            <Text style={styles.detailValue}>{errand.item}</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('deadline')}</Text>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIcon}>
+              <ClockIcon size={16} color={colors.onSurface} />
+            </View>
+            <Text style={styles.detailValue}>{errand.time}</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* ── Poster ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('poster')}</Text>
           <View style={styles.posterRow}>
             <Avatar text={errand.avatar} size="lg" gender={errand.gender} />
             <View style={styles.posterInfo}>
@@ -211,22 +226,24 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
 
+        <View style={styles.divider} />
+
         {/* ── Disclaimer ── */}
-        <View style={styles.disclaimerCard}>
-          <AlertTriangleIcon size={14} color={colors.onErrorContainer} />
+        <View style={styles.disclaimerSection}>
+          <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
         {/* ── Action Bar ── */}
-        <View style={[styles.bottomBar, errand.expired && styles.bottomBarDisabled]}>
+        <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
           <TouchableOpacity
-            style={styles.dmButtonFull}
+            style={styles.dmButton}
             activeOpacity={0.7}
             onPress={handleDmPoster}
             disabled={errand.expired}
           >
             <MessageIcon size={18} color={colors.onPrimary} />
-            <Text style={styles.dmButtonFullText}>{t('errandDmPoster')}</Text>
+            <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -262,12 +279,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* Top Bar */
+  /* ── Top Bar ── */
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
     ...typography.titleMedium,
@@ -282,7 +301,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* Empty */
+  /* ── Empty ── */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -295,37 +314,46 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
 
-  /* Header */
+  /* ── Header ── */
   headerSection: {
-    padding: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   tagRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  categoryTag: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  tag: {
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  categoryTagText: {
+  tagText: {
     ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
+    color: colors.onSurface,
     fontWeight: '600',
   },
-  expiredTag: {
+  tagDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.outline,
+  },
+  statusTag: {
     backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  expiredTagText: {
+  statusTagText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
     fontWeight: '600',
@@ -333,73 +361,59 @@ const styles = StyleSheet.create({
   title: {
     ...typography.headlineSmall,
     color: colors.onSurface,
+    lineHeight: 32,
   },
 
-  /* Price Card */
-  priceCard: {
+  /* ── Shared ── */
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.xl,
+  },
+  section: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+  },
+  sectionLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.md,
+  },
+
+  /* ── Reward ── */
+  rewardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.accentContainer,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
     gap: spacing.md,
   },
-  priceIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priceContent: {
+  rewardContent: {
     flex: 1,
   },
-  priceLabel: {
-    ...typography.titleSmall,
-    color: colors.onAccentContainer,
-  },
-  priceHint: {
-    ...typography.bodySmall,
-    color: colors.onAccentContainer,
-    opacity: 0.7,
-    marginTop: 1,
-  },
-  priceValue: {
+  rewardPrice: {
     ...typography.headlineSmall,
     color: colors.error,
     fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  rewardHint: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xxs,
   },
 
-  /* Card */
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  cardLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.md,
-  },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.md,
-  },
-
-  /* Description */
+  /* ── Description ── */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-    lineHeight: 24,
+    lineHeight: 26,
   },
 
-  /* Route */
+  /* ── Route ── */
+  routeWrap: {
+    gap: 0,
+  },
   routeRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -410,22 +424,22 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   routeDotFrom: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.accent,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.success,
   },
   routeLine: {
-    width: 2,
+    width: 1.5,
     flex: 1,
     minHeight: 24,
     backgroundColor: colors.outlineVariant,
     marginVertical: spacing.xxs,
   },
   routeDotTo: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.error,
   },
   routeContent: {
@@ -435,43 +449,38 @@ const styles = StyleSheet.create({
   routeLabel: {
     ...typography.labelSmall,
     color: colors.onSurfaceVariant,
-    marginBottom: 2,
+    marginBottom: spacing.xxs,
   },
   routeValue: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     fontWeight: '500',
+    lineHeight: 22,
   },
 
-  /* Detail rows */
+  /* ── Detail rows ── */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  detailIconCircle: {
+  detailIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: 2,
   },
   detailValue: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     fontWeight: '500',
+    flex: 1,
+    lineHeight: 22,
   },
 
-  /* Poster */
+  /* ── Poster ── */
   posterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,6 +488,7 @@ const styles = StyleSheet.create({
   posterInfo: {
     flex: 1,
     marginLeft: spacing.md,
+    gap: spacing.xxs,
   },
   posterName: {
     ...typography.titleSmall,
@@ -487,51 +497,51 @@ const styles = StyleSheet.create({
   posterBio: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+    lineHeight: 18,
   },
-  /* Disclaimer */
-  disclaimerCard: {
+
+  /* ── Disclaimer ── */
+  disclaimerSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   disclaimerText: {
     ...typography.bodySmall,
-    color: colors.onErrorContainer,
+    color: colors.onSurfaceVariant,
     flex: 1,
-    fontWeight: '500',
+    lineHeight: 18,
   },
 
-  /* Bottom Bar */
-  bottomBar: {
+  /* ── Action Bar ── */
+  actionBar: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     gap: spacing.md,
   },
-  bottomBarDisabled: {
+  actionBarDisabled: {
     opacity: 0.5,
   },
-  dmButtonFull: {
+  dmButton: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  dmButtonFullText: {
+  dmButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
+
+  /* ── Popover ── */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,

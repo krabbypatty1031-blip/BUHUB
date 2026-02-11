@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,17 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
+import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 
@@ -29,7 +32,25 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
+  const votedPolls = useForumStore((s) => s.votedPolls);
+  const votePoll = useForumStore((s) => s.votePoll);
+  const currentUser = useAuthStore((s) => s.user);
   const [followed, setFollowed] = useState(false);
+  const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+
+  // Reverse-lookup: find the i18n key for this tag so we can display
+  // the circle name in the user's current locale
+  const CIRCLE_KEYS = [
+    'tagTreehole', 'tagJobReferral', 'tagCourseExchange',
+    'tagCampusLife', 'tagLostFound', 'tagStudyHelp',
+  ] as const;
+
+  const displayName = useMemo(() => {
+    for (const key of CIRCLE_KEYS) {
+      if (t(key, { lng: 'tc' }) === tag) return t(key);
+    }
+    return tag; // custom / non-official tag, show raw value
+  }, [tag, t]);
 
   // Filter posts by tag
   const posts = allPosts?.filter((p) => p.tags?.includes(tag)) || [];
@@ -39,10 +60,12 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
       <View style={styles.circleHeader}>
         <View style={styles.circleBody}>
           <View style={styles.circleIcon}>
-            <Text style={styles.circleIconText}>#</Text>
+            <Text style={styles.circleIconText}>
+              {displayName.replace(/^#/, '').charAt(0) || '#'}
+            </Text>
           </View>
           <View style={styles.circleInfo}>
-            <Text style={styles.circleName}>{tag}</Text>
+            <Text style={styles.circleName}>{displayName}</Text>
             <Text style={styles.circleDesc}>
               {t('circleDetail')}
             </Text>
@@ -70,7 +93,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     ),
-    [tag, posts.length, followed, t]
+    [displayName, posts.length, followed, t]
   );
 
   const handleTagPress = useCallback(
@@ -81,19 +104,83 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     [navigation, tag]
   );
 
+  const handleAvatarPress = useCallback(
+    (post: ForumPost) => {
+      if (!post.isAnonymous) {
+        if (post.name === currentUser?.nickname) {
+          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
+        } else {
+          navigation.navigate('UserProfile', { userName: post.name });
+        }
+      }
+    },
+    [navigation, currentUser]
+  );
+
+  const handleCommentPress = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('PostDetail', { postId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleForward = useCallback(
+    (post: ForumPost) => {
+      setForwardPost(post);
+    },
+    []
+  );
+
+  const handleQuote = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleFunctionPress = useCallback(
+    (post: ForumPost) => {
+      if (!post.functionType || post.functionIndex == null) return;
+      const nav = navigation.getParent();
+      if (!nav) return;
+      switch (post.functionType) {
+        case 'partner':
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { index: post.functionIndex } });
+          break;
+        case 'errand':
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { index: post.functionIndex } });
+          break;
+        case 'secondhand':
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { index: post.functionIndex } });
+          break;
+        case 'rating':
+          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, index: post.functionIndex } });
+          break;
+      }
+    },
+    [navigation]
+  );
+
   const renderPost = useCallback(
     ({ item }: { item: ForumPost }) => (
       <PostCard
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
         onLike={() => toggleLike(item.id)}
+        onComment={() => handleCommentPress(item)}
+        onForward={() => handleForward(item)}
         onBookmark={() => toggleBookmark(item.id)}
-        onTagPress={handleTagPress}
+        onQuote={() => handleQuote(item)}
+        onTagPress={(pressedTag) => handleTagPress(pressedTag)}
+        onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
         isLiked={likedPosts.has(item.id)}
         isBookmarked={bookmarkedPosts.has(item.id)}
+        votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, navigation, toggleLike, toggleBookmark, handleTagPress]
+    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (
@@ -112,6 +199,13 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+      />
+
+      <ForwardSheet
+        visible={!!forwardPost}
+        post={forwardPost}
+        onClose={() => setForwardPost(null)}
+        navigation={navigation}
       />
     </SafeAreaView>
   );
@@ -148,7 +242,7 @@ const styles = StyleSheet.create({
   // Circle Header
   circleHeader: {
     padding: spacing.lg,
-    backgroundColor: colors.surface1,
+    backgroundColor: colors.surface3,
     marginBottom: spacing.sm,
   },
   circleBody: {
@@ -161,6 +255,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primaryContainer,
+    borderWidth: 2.5,
+    borderColor: colors.onSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,

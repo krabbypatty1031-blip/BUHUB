@@ -39,9 +39,9 @@ export const CloseIcon = ({ size = D.size, color = D.color }: IconProps) => (
 );
 
 export const SearchIcon = ({ size = D.size, color = D.color }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
-    <Circle cx={11} cy={11} r={8} />
-    <Line x1={21} y1={21} x2={16.65} y2={16.65} />
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx={10} cy={10} r={9} />
+    <Line x1={17} y1={17} x2={21} y2={21} />
   </Svg>
 );
 
@@ -75,9 +75,9 @@ export const UserIcon = ({ size = D.size, color = D.color }: IconProps) => (
 );
 
 export const PlusIcon = ({ size = D.size, color = D.color }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
-    <Line x1={12} y1={5} x2={12} y2={19} />
-    <Line x1={5} y1={12} x2={19} y2={12} />
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.8} strokeLinecap="round">
+    <Line x1={12} y1={4} x2={12} y2={20} />
+    <Line x1={4} y1={12} x2={20} y2={12} />
   </Svg>
 );
 
@@ -157,9 +157,11 @@ export const HeartIcon = ({ size = D.size, color = D.color, fill }: IconProps) =
   </Svg>
 );
 
-export const CommentIcon = ({ size = D.size, color = D.color }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+export const CommentIcon = ({ size = D.size, color = D.color, fill }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill || 'none'} stroke={fill ? 'none' : color} strokeWidth={2}>
     <Path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    {fill && <Circle cx={9.5} cy={10.5} r={1.2} fill="#000000" />}
+    {fill && <Circle cx={14.5} cy={10.5} r={1.2} fill="#000000" />}
   </Svg>
 );
 
@@ -253,9 +255,9 @@ export const ChevronDownIcon = ({ size = D.size, color = D.color }: IconProps) =
 );
 
 export const SettingsIcon = ({ size = D.size, color = D.color }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx={12} cy={12} r={3} />
-    <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </Svg>
 );
 
@@ -343,10 +345,10 @@ export const EditIcon = ({ size = D.size, color = D.color }: IconProps) => (
 );
 
 export const HelpCircleIcon = ({ size = D.size, color = D.color }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx={12} cy={12} r={10} />
     <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <Line x1={12} y1={17} x2={12.01} y2={17} />
+    <Circle cx={12} cy={17} r={0.5} fill={color} />
   </Svg>
 );
 
@@ -388,6 +390,16 @@ export const MicIcon = ({ size = D.size, color = D.color }: IconProps) => (
     <Path d="M19 10v2a7 7 0 0 1-14 0v-2" />
     <Line x1={12} y1={19} x2={12} y2={23} />
     <Line x1={8} y1={23} x2={16} y2={23} />
+  </Svg>
+);
+
+export const IncognitoIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx={7} cy={15} r={3} />
+    <Circle cx={17} cy={15} r={3} />
+    <Path d="M10 15h4" />
+    <Path d="M2 11h20" />
+    <Path d="M5 11c0-3 1.5-7 7-7s7 4 7 7" />
   </Svg>
 );
 

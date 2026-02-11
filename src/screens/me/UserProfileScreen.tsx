@@ -10,8 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
+import type { UserPost } from '../../types/user';
 import { usePublicProfile, useFollowUser } from '../../hooks/useUser';
 import { useForumStore } from '../../store/forumStore';
 import { useUIStore } from '../../store/uiStore';
@@ -19,12 +21,19 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon, MoreHorizontalIcon } from '../../components/common/icons';
+import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon, HeartIcon, CommentIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
 
+function getPostContent(post: UserPost, lang: string): string {
+  if (lang === 'tc' || lang === post.lang) return post.content;
+  if (lang === 'sc' && post.translated?.sc) return post.translated.sc;
+  if (lang === 'en' && post.translated?.en) return post.translated.en;
+  return post.content;
+}
+
 export default function UserProfileScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { userName } = route.params;
   const { data: profile, isLoading } = usePublicProfile(userName);
   const followUser = useFollowUser();
@@ -54,6 +63,21 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       },
     });
   }, [userName, followUser]);
+
+  const handleMessage = useCallback(() => {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'MessagesTab',
+        params: {
+          screen: 'Chat',
+          params: {
+            contactName: userName,
+            contactAvatar: profile?.avatar || userName,
+          },
+        },
+      })
+    );
+  }, [navigation, userName, profile]);
 
   if (isLoading) {
     return (
@@ -114,92 +138,100 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile?.posts ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('posts') || 'Posts'}</Text>
+              <Text style={styles.statLabel}>{t('postsStat')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile?.likes ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('likes') || 'Likes'}</Text>
+              <Text style={styles.statLabel}>{t('likesStat')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile?.followers ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('followers') || 'Followers'}</Text>
+              <Text style={styles.statLabel}>{t('followersStat')}</Text>
             </View>
           </View>
 
-          {/* Follow Button */}
-          <TouchableOpacity
-            style={[
-              styles.followBtn,
-              isFollowing && styles.followBtnFollowing,
-            ]}
-            activeOpacity={0.85}
-            onPress={handleFollow}
-            disabled={followUser.isPending}
-          >
-            {followUser.isPending ? (
-              <ActivityIndicator
-                size="small"
-                color={isFollowing ? colors.primary : colors.onPrimary}
-              />
-            ) : (
-              <>
-                <UsersIcon
-                  size={18}
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            {/* Message Button */}
+            <TouchableOpacity
+              style={styles.messageBtn}
+              activeOpacity={0.85}
+              onPress={handleMessage}
+            >
+              <MessageIcon size={18} color={colors.onPrimary} />
+              <Text style={styles.messageBtnText}>{t('message')}</Text>
+            </TouchableOpacity>
+
+            {/* Follow Button */}
+            <TouchableOpacity
+              style={[
+                styles.followBtn,
+                isFollowing && styles.followBtnFollowing,
+              ]}
+              activeOpacity={0.85}
+              onPress={handleFollow}
+              disabled={followUser.isPending}
+            >
+              {followUser.isPending ? (
+                <ActivityIndicator
+                  size="small"
                   color={isFollowing ? colors.primary : colors.onPrimary}
                 />
-                <Text
-                  style={[
-                    styles.followBtnText,
-                    isFollowing && styles.followBtnTextFollowing,
-                  ]}
-                >
-                  {isFollowing
-                    ? t('following') || 'Following'
-                    : t('follow') || 'Follow'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+              ) : (
+                <>
+                  <UsersIcon
+                    size={18}
+                    color={isFollowing ? colors.primary : colors.onPrimary}
+                  />
+                  <Text
+                    style={[
+                      styles.followBtnText,
+                      isFollowing && styles.followBtnTextFollowing,
+                    ]}
+                  >
+                    {isFollowing
+                      ? t('following') || 'Following'
+                      : t('follow') || 'Follow'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* User Posts */}
         {profile?.userPosts && profile.userPosts.length > 0 && (
           <View style={styles.postsSection}>
-            <Text style={styles.sectionTitle}>{t('posts') || 'Posts'}</Text>
+            <Text style={styles.sectionTitle}>{t('tabPosts')}</Text>
             {profile.userPosts.map((post, i) => (
-              <View key={i} style={styles.postCard}>
+              <TouchableOpacity
+                key={i}
+                style={styles.postCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('PostDetail', { postId: post.postId })}
+              >
                 <Text style={styles.postContent} numberOfLines={3}>
-                  {post.content}
+                  {getPostContent(post, i18n.language)}
                 </Text>
                 <View style={styles.postFooter}>
+                  <View style={styles.postMetrics}>
+                    <Text style={styles.postAuthor}>{userName}</Text>
+                    <Text style={styles.postDot}>·</Text>
+                    <HeartIcon size={13} color={colors.onSurfaceVariant} />
+                    <Text style={styles.postMetricText}>{post.likes}</Text>
+                    <CommentIcon size={13} color={colors.onSurfaceVariant} />
+                    <Text style={styles.postMetricText}>{post.comments}</Text>
+                  </View>
                   <Text style={styles.postTime}>{post.time}</Text>
-                  <Text style={styles.postStats}>
-                    {post.likes} {t('likes') || 'likes'} · {post.comments}{' '}
-                    {t('comments') || 'comments'}
-                  </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* User Comments */}
-        {profile?.userComments && profile.userComments.length > 0 && (
-          <View style={styles.postsSection}>
-            <Text style={styles.sectionTitle}>{t('comments') || 'Comments'}</Text>
-            {profile.userComments.map((comment, i) => (
-              <View key={i} style={styles.commentCard}>
-                <Text style={styles.commentRef} numberOfLines={1}>
-                  {t('replyTo')} {comment.postAuthor}: {comment.postContent}
-                </Text>
-                <Text style={styles.commentBody}>{comment.comment}</Text>
-                <Text style={styles.postTime}>{comment.time}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -287,12 +319,31 @@ const styles = StyleSheet.create({
     height: 32,
     backgroundColor: colors.outlineVariant,
   },
-  followBtn: {
+  actionRow: {
+    flexDirection: 'row',
+    width: '80%',
+    gap: spacing.sm,
+  },
+  messageBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    width: '80%',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.onSurface,
+  },
+  messageBtnText: {
+    ...typography.labelLarge,
+    color: colors.onPrimary,
+  },
+  followBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.xl,
     backgroundColor: colors.primary,
@@ -336,28 +387,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  postMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  postAuthor: {
+    ...typography.bodySmall,
+    color: colors.onSurface,
+    fontWeight: '600',
+  },
+  postDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  postMetricText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
   postTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-  },
-  postStats: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  commentCard: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface1,
-    marginBottom: spacing.sm,
-  },
-  commentRef: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xs,
-  },
-  commentBody: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    marginBottom: spacing.xs,
   },
 });

@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     marginTop: spacing.sm,
   },
   form: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   resendText: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   resendLink: {
     ...typography.bodyMedium,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   agreementText: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     flex: 1,
   },
   termsLink: {

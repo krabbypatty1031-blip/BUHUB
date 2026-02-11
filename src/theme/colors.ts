@@ -36,7 +36,7 @@ export const colors = {
 
   // Outline (Threads-style divider)
   outline: '#C7C7CC',
-  outlineVariant: '#EFEFEF',
+  outlineVariant: 'rgba(0,0,0,0.15)',
 
   // Surface Levels (Pure neutral gray)
   surface1: '#FAFAFA',

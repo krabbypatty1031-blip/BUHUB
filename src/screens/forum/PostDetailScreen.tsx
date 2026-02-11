@@ -12,7 +12,7 @@ import {
   Platform,
   ScrollView,
   Animated,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -39,6 +39,7 @@ import {
   QuoteIcon,
   ChevronDownIcon,
   MoreHorizontalIcon,
+  IncognitoIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply } from '../../types';
 
@@ -69,7 +70,7 @@ function ItemActions({
       <TouchableOpacity style={styles.itemActionBtn} onPress={onLike}>
         <HeartIcon
           size={size}
-          color={liked ? colors.error : colors.onSurfaceVariant}
+          color={liked ? colors.error : colors.onSurface}
           fill={liked ? colors.error : undefined}
         />
         <Text style={[styles.itemActionText, liked && { color: colors.error }]}>
@@ -77,15 +78,15 @@ function ItemActions({
         </Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onComment}>
-        <CommentIcon size={size} color={colors.onSurfaceVariant} />
+        <CommentIcon size={size} color={colors.onSurface} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
-        <ShareIcon size={size} color={colors.onSurfaceVariant} />
+        <ShareIcon size={size} color={colors.onSurface} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onBookmark}>
         <BookmarkIcon
           size={size}
-          color={bookmarked ? colors.primary : colors.onSurfaceVariant}
+          color={bookmarked ? colors.primary : colors.onSurface}
           fill={bookmarked ? colors.primary : undefined}
         />
       </TouchableOpacity>
@@ -107,14 +108,6 @@ function ReplyItem({
   onReport: () => void;
   highlighted?: boolean;
 }) {
-  const { t } = useTranslation();
-
-  const handleLongPress = useCallback(() => {
-    Alert.alert('', '', [
-      { text: t('reportComment'), style: 'destructive', onPress: onReport },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
-  }, [t, onReport]);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
@@ -149,7 +142,7 @@ function ReplyItem({
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
       ]}
     >
-      <TouchableOpacity activeOpacity={1} onLongPress={handleLongPress}>
+      <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
           <Avatar text={reply.avatar} size="xs" />
           <View style={styles.commentUserInfo}>
@@ -195,13 +188,6 @@ function CommentItem({
   highlightId?: string;
 }) {
   const { t } = useTranslation();
-
-  const handleLongPress = useCallback(() => {
-    Alert.alert('', '', [
-      { text: t('reportComment'), style: 'destructive', onPress: onReport },
-      { text: t('cancel'), style: 'cancel' },
-    ]);
-  }, [t, onReport]);
   const isHighlighted = !!highlightId && comment.id === highlightId;
   const highlightedReplyId =
     highlightId && comment.replies?.find((r) => r.id === highlightId)?.id;
@@ -241,7 +227,7 @@ function CommentItem({
       ]}
     >
       {/* Comment main */}
-      <TouchableOpacity activeOpacity={1} onLongPress={handleLongPress}>
+      <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
           <Avatar text={comment.avatar} size="sm" />
           <View style={styles.commentUserInfo}>
@@ -314,6 +300,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
   const [popoverVisible, setPopoverVisible] = useState(false);
+  const [commentActionVisible, setCommentActionVisible] = useState(false);
 
   /* ── Refs ── */
   const inputRef = useRef<TextInput>(null);
@@ -379,12 +366,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const handleComment = useCallback(() => {
     setReplyTo(null);
     setCommentText('');
+    setIsAnonymous(false);
     inputRef.current?.focus();
   }, []);
 
   const handleReply = useCallback((name: string) => {
-    setReplyTo(name);
+    setReplyTo(null);
     setCommentText(`@${name} `);
+    setIsAnonymous(false);
+    setReplyTo(name);
     inputRef.current?.focus();
   }, []);
 
@@ -393,6 +383,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     showSnackbar({ message: t('commentSent'), type: 'success' });
     setCommentText('');
     setReplyTo(null);
+    setIsAnonymous(false);
   }, [commentText, showSnackbar, t]);
 
   const handleForward = useCallback(() => {
@@ -410,9 +401,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const handleReportComment = useCallback(() => {
-    setReportTitle(t('reportComment'));
-    setReportVisible(true);
-  }, [t]);
+    setCommentActionVisible(true);
+  }, []);
 
   const handleReportSubmit = useCallback(
     (_reason: string) => {
@@ -476,7 +466,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             >
               <HeartIcon
                 size={20}
-                color={isLiked ? colors.error : colors.onSurfaceVariant}
+                color={isLiked ? colors.error : colors.onSurface}
                 fill={isLiked ? colors.error : undefined}
               />
               <Text style={[styles.postActionText, isLiked && { color: colors.error }]}>
@@ -488,7 +478,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleComment}
             >
-              <CommentIcon size={20} color={colors.onSurfaceVariant} />
+              <CommentIcon size={20} color={colors.onSurface} />
               <Text style={styles.postActionText}>{post.comments}</Text>
             </TouchableOpacity>
 
@@ -496,7 +486,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleForward}
             >
-              <ShareIcon size={20} color={colors.onSurfaceVariant} />
+              <ShareIcon size={20} color={colors.onSurface} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -505,7 +495,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             >
               <BookmarkIcon
                 size={20}
-                color={isBookmarked ? colors.primary : colors.onSurfaceVariant}
+                color={isBookmarked ? colors.primary : colors.onSurface}
                 fill={isBookmarked ? colors.primary : undefined}
               />
             </TouchableOpacity>
@@ -514,7 +504,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleQuote}
             >
-              <QuoteIcon size={20} color={colors.onSurfaceVariant} />
+              <QuoteIcon size={20} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
         </View>
@@ -629,12 +619,13 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <IOSSwitch
               value={isAnonymous}
               onValueChange={setIsAnonymous}
+              activeColor={colors.onSurface}
+              thumbIcon={<IncognitoIcon size={16} color={colors.onSurface} />}
             />
-            <Text style={styles.anonToggleText}>{t('anonymous')}</Text>
           </View>
           <TextInput
             ref={inputRef}
-            style={styles.commentInput}
+            style={[styles.commentInput, isAnonymous && styles.commentInputAnon]}
             placeholder={
               replyTo
                 ? `${t('replyTo')} ${replyTo}`
@@ -664,7 +655,43 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         visible={!!forwardPost}
         post={forwardPost}
         onClose={() => setForwardPost(null)}
+        navigation={navigation}
       />
+
+      {/* Comment Action Sheet */}
+      <Modal
+        visible={commentActionVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCommentActionVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.actionSheetOverlay}
+          activeOpacity={1}
+          onPress={() => setCommentActionVisible(false)}
+        >
+          <View style={styles.actionSheet}>
+            <View style={styles.actionSheetHandle} />
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              onPress={() => {
+                setCommentActionVisible(false);
+                setReportTitle(t('reportComment'));
+                setReportVisible(true);
+              }}
+            >
+              <Text style={styles.actionSheetItemTextDestructive}>{t('reportComment')}</Text>
+            </TouchableOpacity>
+            <View style={styles.actionSheetDivider} />
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              onPress={() => setCommentActionVisible(false)}
+            >
+              <Text style={styles.actionSheetItemText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Report Modal */}
       <ReportModal
@@ -803,7 +830,7 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 14,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
 
   divider: {
@@ -867,7 +894,7 @@ const styles = StyleSheet.create({
   },
   itemActionText: {
     fontSize: 12,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
 
   /* ── Replies (二级评论) ── */
@@ -978,16 +1005,52 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 
+  /* ── Comment Action Sheet ── */
+  actionSheetOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 32,
+  },
+  actionSheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  actionSheetItem: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  actionSheetItemText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  actionSheetItemTextDestructive: {
+    ...typography.bodyLarge,
+    color: colors.error,
+    fontWeight: '500',
+  },
+  actionSheetDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.xl,
+  },
+
   /* ── Comment Input Bar ── */
   anonToggle: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
     marginRight: spacing.xs,
-  },
-  anonToggleText: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    fontSize: 10,
   },
   commentInputBar: {
     flexDirection: 'row',
@@ -1006,6 +1069,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     ...typography.bodyMedium,
     color: colors.onSurface,
+  },
+  commentInputAnon: {
+    backgroundColor: '#E0E0E0',
   },
   sendBtn: {
     width: 40,

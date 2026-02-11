@@ -42,9 +42,12 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('grade');
 
+  const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
+  const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
+
   const pickerData: Record<PickerType, string[]> = {
-    grade: [t('gradeUndergradY1'), t('gradeUndergradY2'), t('gradeUndergradY3'), t('gradeUndergradY4'), t('gradePostgrad'), t('gradePhD')],
-    major: [t('majorBCDA'), t('majorAI'), t('majorSE'), t('majorIDS')],
+    grade: GRADE_KEYS,
+    major: MAJOR_KEYS,
     gender: [t('genderMale'), t('genderFemale'), t('genderOther'), t('genderSecret')],
   };
 
@@ -100,8 +103,8 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       nickname: nickname || '浸大小明',
       avatar: avatarUri,
       defaultAvatar: avatarUri ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
-      grade: grade || 'Year 2',
-      major: major || 'Computer Science',
+      grade: grade || 'gradeUndergradY2',
+      major: major || 'majorCS',
       bio: '',
       gender: resolvedGender,
       isLoggedIn: true,
@@ -114,8 +117,8 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       nickname: '浸大小明',
       avatar: null,
       defaultAvatar: getAutoAvatar('male'),
-      grade: 'Year 2',
-      major: 'Computer Science',
+      grade: 'gradeUndergradY2',
+      major: 'majorCS',
       bio: '',
       gender: 'male',
       isLoggedIn: true,
@@ -176,10 +179,9 @@ export default function ProfileSetupScreen({ navigation }: Props) {
             <Text style={styles.fieldLabel}>{t('nickname')}</Text>
             <TextInput
               style={styles.fieldInput}
-              placeholder={t('nickname')}
-              placeholderTextColor={colors.onSurfaceVariant}
               value={nickname}
               onChangeText={setNickname}
+              placeholderTextColor={colors.onSurfaceVariant}
             />
           </View>
 
@@ -189,9 +191,9 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.field} onPress={() => showPicker('grade')}>
             <Text style={styles.fieldLabel}>{t('grade')}</Text>
             <View style={styles.fieldSelect}>
-              <Text style={[styles.fieldValue, !grade && styles.fieldPlaceholder]}>
-                {grade || t('grade')}
-              </Text>
+              {grade ? (
+                <Text style={styles.fieldValue}>{t(grade)}</Text>
+              ) : null}
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
@@ -202,9 +204,9 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.field} onPress={() => showPicker('major')}>
             <Text style={styles.fieldLabel}>{t('major')}</Text>
             <View style={styles.fieldSelect}>
-              <Text style={[styles.fieldValue, !major && styles.fieldPlaceholder]}>
-                {major || t('major')}
-              </Text>
+              {major ? (
+                <Text style={styles.fieldValue}>{t(major)}</Text>
+              ) : null}
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
@@ -215,9 +217,9 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.field} onPress={() => showPicker('gender')}>
             <Text style={styles.fieldLabel}>{t('gender')}</Text>
             <View style={styles.fieldSelect}>
-              <Text style={[styles.fieldValue, !gender && styles.fieldPlaceholder]}>
-                {gender || t('gender')}
-              </Text>
+              {gender ? (
+                <Text style={styles.fieldValue}>{gender}</Text>
+              ) : null}
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
@@ -272,7 +274,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
                       currentValues[pickerType] === item && styles.pickerItemTextSelected,
                     ]}
                   >
-                    {item}
+                    {pickerType === 'gender' ? item : t(item)}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -363,7 +365,7 @@ const styles = StyleSheet.create({
   },
   avatarHint: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     marginTop: spacing.sm,
   },
   defaultAvatarSection: {
@@ -383,7 +385,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
     width: 72,
   },
   fieldInput: {

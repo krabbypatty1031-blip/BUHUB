@@ -112,59 +112,63 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         {/* ── Header: Title & Tags ── */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{t(partner.category)}</Text>
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{t(partner.category)}</Text>
             </View>
             {partner.expired && (
-              <View style={styles.expiredTag}>
-                <Text style={styles.expiredTagText}>{t('partnerExpired')}</Text>
-              </View>
+              <>
+                <View style={styles.tagDot} />
+                <View style={styles.statusTag}>
+                  <Text style={styles.statusTagText}>{t('partnerExpired')}</Text>
+                </View>
+              </>
             )}
           </View>
           <Text style={styles.title}>{partner.title}</Text>
         </View>
 
-        {/* ── Description Card ── */}
-        <View style={styles.card}>
+        <View style={styles.divider} />
+
+        {/* ── Description ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{partner.desc}</Text>
         </View>
 
-        {/* ── Details Card ── */}
-        <View style={styles.card}>
-          {/* Time */}
+        <View style={styles.divider} />
+
+        {/* ── Time ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('activityTime')}</Text>
           <View style={styles.detailRow}>
-            <View style={styles.detailIconCircle}>
-              <ClockIcon size={16} color={colors.primary} />
+            <View style={styles.detailIcon}>
+              <ClockIcon size={16} color={colors.onSurface} />
             </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('activityTime')}</Text>
-              <Text style={styles.detailValue}>{partner.time}</Text>
-            </View>
+            <Text style={styles.detailValue}>{partner.time}</Text>
           </View>
-
-          <View style={styles.cardDivider} />
-
-          {/* Location */}
-          {partner.location ? (
-            <>
-              <View style={styles.detailRow}>
-                <View style={styles.detailIconCircle}>
-                  <MapPinIcon size={16} color={colors.primary} />
-                </View>
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>{t('locationLabel')}</Text>
-                  <Text style={styles.detailValue}>{partner.location}</Text>
-                </View>
-              </View>
-              <View style={styles.cardDivider} />
-            </>
-          ) : null}
-
         </View>
 
-        {/* ── Organizer Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t('organizer')}</Text>
+        <View style={styles.divider} />
+
+        {/* ── Location ── */}
+        {partner.location ? (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t('locationLabel')}</Text>
+              <View style={styles.detailRow}>
+                <View style={styles.detailIcon}>
+                  <MapPinIcon size={16} color={colors.onSurface} />
+                </View>
+                <Text style={styles.detailValue}>{partner.location}</Text>
+              </View>
+            </View>
+            <View style={styles.divider} />
+          </>
+        ) : null}
+
+        {/* ── Organizer ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t('organizer')}</Text>
           <View style={styles.organizerRow}>
             <Avatar text={partner.avatar} size="lg" gender={partner.gender} />
             <View style={styles.organizerInfo}>
@@ -177,7 +181,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         </View>
 
         {/* ── Action Bar ── */}
-        <View style={[styles.bottomBar, partner.expired && styles.bottomBarDisabled]}>
+        <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={styles.dmButton}
             activeOpacity={0.7}
@@ -221,12 +225,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* Top Bar */
+  /* ── Top Bar ── */
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
     ...typography.titleMedium,
@@ -241,7 +247,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* Empty */
+  /* ── Empty ── */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -254,37 +260,46 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
 
-  /* Header */
+  /* ── Header ── */
   headerSection: {
-    padding: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   tagRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  categoryTag: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  tag: {
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  categoryTagText: {
+  tagText: {
     ...typography.labelSmall,
-    color: colors.onPrimaryContainer,
+    color: colors.onSurface,
     fontWeight: '600',
   },
-  expiredTag: {
+  tagDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.outline,
+  },
+  statusTag: {
     backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
     borderRadius: borderRadius.full,
   },
-  expiredTagText: {
+  statusTagText: {
     ...typography.labelSmall,
     color: colors.onErrorContainer,
     fontWeight: '600',
@@ -292,63 +307,57 @@ const styles = StyleSheet.create({
   title: {
     ...typography.headlineSmall,
     color: colors.onSurface,
+    lineHeight: 32,
   },
 
-  /* Card */
-  card: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  cardLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.md,
-  },
-  cardDivider: {
+  /* ── Shared ── */
+  divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.md,
+    marginHorizontal: spacing.xl,
+  },
+  section: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+  },
+  sectionLabel: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.md,
   },
 
-  /* Description */
+  /* ── Description ── */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-    lineHeight: 24,
+    lineHeight: 26,
   },
 
-  /* Detail rows */
+  /* ── Detail rows ── */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  detailIconCircle: {
+  detailIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: 2,
   },
   detailValue: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     fontWeight: '500',
+    flex: 1,
+    lineHeight: 22,
   },
 
-  /* Organizer */
+  /* ── Organizer ── */
   organizerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,6 +365,7 @@ const styles = StyleSheet.create({
   organizerInfo: {
     flex: 1,
     marginLeft: spacing.md,
+    gap: spacing.xxs,
   },
   organizerName: {
     ...typography.titleSmall,
@@ -364,24 +374,25 @@ const styles = StyleSheet.create({
   organizerBio: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+    lineHeight: 18,
   },
-  /* Bottom Bar */
-  bottomBar: {
+
+  /* ── Action Bar ── */
+  actionBar: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     gap: spacing.md,
   },
-  bottomBarDisabled: {
+  actionBarDisabled: {
     opacity: 0.5,
   },
   dmButton: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
@@ -390,29 +401,33 @@ const styles = StyleSheet.create({
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
-  // Popover
+
+  /* ── Popover ── */
   popoverOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: 56,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 10,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   popoverBubble: {
-    position: 'absolute',
-    top: 52,
+    position: 'absolute' as const,
+    top: spacing.sm,
     right: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
-    minWidth: 140,
+    minWidth: 160,
     ...elevation[3],
-    zIndex: 11,
   },
   popoverItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   popoverItemText: {
     ...typography.bodyMedium,

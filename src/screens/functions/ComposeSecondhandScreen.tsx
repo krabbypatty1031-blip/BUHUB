@@ -123,7 +123,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
       user: user.name,
       avatar: user.defaultAvatar || user.name.charAt(0),
       gender: user.gender,
-      bio: `${user.grade} · ${user.major}`,
+      bio: `${t(user.grade)} · ${t(user.major)}`,
       sold: false,
       expiresAt: deadline!.toISOString(),
       expired: false,
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   required: {
     color: colors.error,

@@ -10,11 +10,12 @@ import {
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
+import { useAuthStore } from '../../store/authStore';
 import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
 import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { colors } from '../../theme/colors';
@@ -84,13 +85,18 @@ export default function ForumScreen({ navigation }: Props) {
     []
   );
 
+  const currentUser = useAuthStore((s) => s.user);
   const handleAvatarPress = useCallback(
     (post: ForumPost) => {
       if (!post.isAnonymous) {
-        navigation.navigate('UserProfile', { userName: post.name });
+        if (post.name === currentUser?.nickname) {
+          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
+        } else {
+          navigation.navigate('UserProfile', { userName: post.name });
+        }
       }
     },
-    [navigation]
+    [navigation, currentUser]
   );
 
   const handleTagPress = useCallback(
@@ -288,6 +294,7 @@ export default function ForumScreen({ navigation }: Props) {
         visible={!!forwardPost}
         post={forwardPost}
         onClose={() => setForwardPost(null)}
+        navigation={navigation}
       />
     </SafeAreaView>
   );
@@ -315,8 +322,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   iconBtn: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -326,7 +333,7 @@ const styles = StyleSheet.create({
   fabWrapper: {
     position: 'absolute',
     right: 20,
-    bottom: 24,
+    bottom: 104,
   },
   fab: {
     width: 56,
