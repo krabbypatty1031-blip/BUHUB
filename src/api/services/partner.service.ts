@@ -8,8 +8,8 @@ export const partnerService = {
   async getList(category?: PartnerCategory): Promise<PartnerPost[]> {
     if (USE_MOCK) {
       const { mockPartnerPosts } = await import('../../data/mock/partner');
-      if (category) return mockPartnerPosts.filter((p) => p.category === category);
-      return mockPartnerPosts;
+      const list = category ? mockPartnerPosts.filter((p) => p.category === category) : [...mockPartnerPosts];
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.PARTNER.LIST, { params: { category } });
     return data;

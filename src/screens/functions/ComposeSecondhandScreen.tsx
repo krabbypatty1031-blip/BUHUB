@@ -158,154 +158,166 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── Category Selector ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => (
-              <Chip
-                key={cat.key}
-                label={t(cat.labelKey)}
-                selected={category === cat.key}
-                onPress={() => setCategory(cat.key)}
-              />
-            ))}
+        <View style={styles.formSection}>
+          {/* ── Category Selector ── */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('categoryLabel')}</Text>
+            <View style={styles.chipRow}>
+              {CATEGORIES.map((cat) => (
+                <Chip
+                  key={cat.key}
+                  label={t(cat.labelKey)}
+                  selected={category === cat.key}
+                  onPress={() => setCategory(cat.key)}
+                />
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* ── Image Picker Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('itemPhotos')}</Text>
-          <View style={styles.imageGrid}>
-            {images.map((uri, i) => (
-              <View key={i} style={styles.imageThumb}>
-                <Image source={{ uri }} style={styles.imageThumbImg} />
-                <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
-                  <CloseIcon size={12} color={colors.white} />
+          {/* ── Image Picker ── */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('itemPhotos')}</Text>
+            <View style={styles.imageGrid}>
+              {images.map((uri, i) => (
+                <View key={i} style={styles.imageThumb}>
+                  <Image source={{ uri }} style={styles.imageThumbImg} />
+                  <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
+                    <CloseIcon size={12} color={colors.white} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {images.length < 9 && (
+                <TouchableOpacity style={styles.imagePicker} activeOpacity={0.7} onPress={pickImages}>
+                  <CameraIcon size={28} color={colors.primary} />
+                  <Text style={styles.imagePickerCount}>
+                    {images.length}/9
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            ))}
-            {images.length < 9 && (
-              <TouchableOpacity style={styles.imagePicker} activeOpacity={0.7} onPress={pickImages}>
-                <CameraIcon size={28} color={colors.primary} />
-                <Text style={styles.imagePickerCount}>
-                  {images.length}/9
-                </Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </View>
-        </View>
 
-        {/* ── Title & Description Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>
-            {t('titleLabel')} <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={styles.titleInput}
-            placeholder={placeholders.title}
-            placeholderTextColor={colors.outline}
-            value={title}
-            onChangeText={handleTitleChange}
-          />
-          <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
-          <View style={styles.cardDivider} />
-          <TextInput
-            style={styles.descInput}
-            placeholder={placeholders.content}
-            placeholderTextColor={colors.outline}
-            value={description}
-            onChangeText={handleDescriptionChange}
-            multiline
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{getContentCountLabel(description)}</Text>
-        </View>
+          {/* ── Title ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>
+                {t('titleLabel')} <Text style={styles.required}>*</Text>
+              </Text>
+              <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
+            </View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder={placeholders.title}
+                placeholderTextColor={colors.outline}
+                value={title}
+                onChangeText={handleTitleChange}
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
 
-        {/* ── Price & Location Card ── */}
-        <View style={styles.card}>
-          {/* Price */}
+          {/* ── Description ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>{t('contentLabel')}</Text>
+              <Text style={styles.charCount}>{getContentCountLabel(description)}</Text>
+            </View>
+            <View style={[styles.inputWrapper, styles.contentInputWrapper]}>
+              <TextInput
+                style={styles.contentInput}
+                placeholder={placeholders.content}
+                placeholderTextColor={colors.outline}
+                value={description}
+                onChangeText={handleDescriptionChange}
+                multiline
+                textAlignVertical="top"
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
+
+          {/* ── Price ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <DollarIcon size={14} color={colors.primary} />{' '}
               {t('sellingPrice')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="HK$ 0"
-              placeholderTextColor={colors.outline}
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="numeric"
-              maxLength={10}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="HK$ 0"
+                placeholderTextColor={colors.outline}
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+                maxLength={10}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
 
-          <View style={styles.cardDivider} />
-
-          {/* Trade Location */}
+          {/* ── Trade Location ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.primary} />{' '}
               {t('tradeLocation')}
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('placeholderTradeLocation')}
-              placeholderTextColor={colors.outline}
-              value={tradeLocation}
-              onChangeText={setTradeLocation}
-              maxLength={50}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderTradeLocation')}
+                placeholderTextColor={colors.outline}
+                value={tradeLocation}
+                onChangeText={setTradeLocation}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* ── Condition Selector ── */}
-        <View style={styles.card}>
+          {/* ── Condition Selector ── */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>
-              {t('conditionLabel')}
-            </Text>
+            <Text style={styles.fieldLabel}>{t('conditionLabel')}</Text>
             <TouchableOpacity
-              style={styles.deadlineInput}
+              style={styles.selectWrapper}
               activeOpacity={0.7}
               onPress={() => setConditionPickerVisible(true)}
             >
               <Text
                 style={[
-                  styles.deadlineText,
-                  !selectedConditionLabel && styles.deadlinePlaceholder,
+                  styles.selectText,
+                  !selectedConditionLabel && styles.selectPlaceholder,
                 ]}
               >
                 {selectedConditionLabel || t('conditionPlaceholder')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.outline} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* ── Deadline ── */}
-        <View style={styles.card}>
+          {/* ── Deadline ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('deadlineLabel')} <Text style={styles.required}>*</Text>
             </Text>
             <TouchableOpacity
-              style={styles.deadlineInput}
+              style={styles.selectWrapper}
               activeOpacity={0.7}
               onPress={() => setPickerVisible(true)}
             >
               <Text
                 style={[
-                  styles.deadlineText,
-                  !deadline && styles.deadlinePlaceholder,
+                  styles.selectText,
+                  !deadline && styles.selectPlaceholder,
                 ]}
               >
                 {deadline ? formatDeadline(deadline) : t('deadlinePlaceholder')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.outline} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
         </View>
@@ -339,13 +351,13 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
@@ -366,6 +378,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
   },
   postBtnDisabled: {
     backgroundColor: colors.surfaceVariant,
@@ -381,26 +394,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
     paddingBottom: 100,
-    gap: spacing.lg,
   },
 
-  /* Card */
-  card: {
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  /* Form */
+  formSection: {
+    paddingHorizontal: spacing.xl,
   },
-  cardTitle: {
-    ...typography.titleSmall,
+  fieldGroup: {
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
     color: colors.onSurface,
-    marginBottom: spacing.md,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.md,
+  required: {
+    color: colors.error,
+    fontWeight: '500',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  charCount: {
+    ...typography.bodySmall,
+    color: colors.outline,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 
   /* Image grid */
@@ -448,74 +475,53 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  /* Title & Description */
+  /* Inputs */
+  inputWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    width: '100%',
+  },
   titleInput: {
-    ...typography.titleMedium,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    paddingHorizontal: 0,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
   },
-  descInput: {
-    ...typography.bodyLarge,
+  contentInputWrapper: {
+    minHeight: 96,
+  },
+  contentInput: {
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    minHeight: 120,
-    padding: 0,
-  },
-  charCount: {
-    ...typography.labelSmall,
-    color: colors.outline,
-    textAlign: 'right',
-    marginTop: spacing.xs,
-  },
-
-  /* Fields */
-  fieldGroup: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-  },
-  required: {
-    color: colors.error,
-    fontWeight: '500',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 88,
   },
   fieldInput: {
-    ...typography.bodyLarge,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    minHeight: 48,
   },
 
-  /* Section */
-  section: {},
-  sectionLabel: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.sm,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-
-  /* Deadline */
-  deadlineInput: {
+  /* Select */
+  selectWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
   },
-  deadlineText: {
-    ...typography.bodyLarge,
+  selectText: {
+    ...typography.bodyMedium,
     color: colors.onSurface,
   },
-  deadlinePlaceholder: {
+  selectPlaceholder: {
     color: colors.outline,
   },
 });

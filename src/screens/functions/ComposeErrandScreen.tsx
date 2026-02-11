@@ -140,108 +140,126 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── Disclaimer ── */}
-        <View style={styles.disclaimerCard}>
-          <AlertTriangleIcon size={16} color={colors.onErrorContainer} />
-          <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
-        </View>
-
-        {/* ── Category Selector ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('categoryLabel')}</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => (
-              <Chip
-                key={cat.key}
-                label={t(cat.labelKey)}
-                selected={category === cat.key}
-                onPress={() => setCategory(cat.key)}
-              />
-            ))}
+        <View style={styles.formSection}>
+          {/* ── Disclaimer ── */}
+          <View style={styles.disclaimerCard}>
+            <AlertTriangleIcon size={16} color={colors.onErrorContainer} />
+            <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
           </View>
-        </View>
 
-        {/* ── Title & Content Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>
-            {t('titleLabel')} <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={styles.titleInput}
-            placeholder={placeholders.title}
-            placeholderTextColor={colors.outline}
-            value={title}
-            onChangeText={handleTitleChange}
-          />
-          <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
-          <View style={styles.cardDivider} />
-          <TextInput
-            style={styles.contentInput}
-            placeholder={placeholders.content}
-            placeholderTextColor={colors.outline}
-            value={content}
-            onChangeText={handleContentChange}
-            multiline
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
-        </View>
+          {/* ── Category Selector ── */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('categoryLabel')}</Text>
+            <View style={styles.chipRow}>
+              {CATEGORIES.map((cat) => (
+                <Chip
+                  key={cat.key}
+                  label={t(cat.labelKey)}
+                  selected={category === cat.key}
+                  onPress={() => setCategory(cat.key)}
+                />
+              ))}
+            </View>
+          </View>
 
-        {/* ── Task Details Card ── */}
-        <View style={styles.card}>
-          {/* Price */}
+          {/* ── Title ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>
+                {t('titleLabel')} <Text style={styles.required}>*</Text>
+              </Text>
+              <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
+            </View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder={placeholders.title}
+                placeholderTextColor={colors.outline}
+                value={title}
+                onChangeText={handleTitleChange}
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
+
+          {/* ── Content ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>{t('contentLabel')}</Text>
+              <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
+            </View>
+            <View style={[styles.inputWrapper, styles.contentInputWrapper]}>
+              <TextInput
+                style={styles.contentInput}
+                placeholder={placeholders.content}
+                placeholderTextColor={colors.outline}
+                value={content}
+                onChangeText={handleContentChange}
+                multiline
+                textAlignVertical="top"
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
+
+          {/* ── Price ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <DollarIcon size={14} color={colors.primary} />{' '}
               {t('reward')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="HK$ 0"
-              placeholderTextColor={colors.outline}
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="numeric"
-              maxLength={10}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="HK$ 0"
+                placeholderTextColor={colors.outline}
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="numeric"
+                maxLength={10}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
 
-          <View style={styles.cardDivider} />
-
-          {/* Item */}
+          {/* ── Item ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <PackageIcon size={14} color={colors.primary} />{' '}
               {t('itemField')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('itemPlaceholder')}
-              placeholderTextColor={colors.outline}
-              value={item}
-              onChangeText={setItem}
-              maxLength={50}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('itemPlaceholder')}
+                placeholderTextColor={colors.outline}
+                value={item}
+                onChangeText={setItem}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* ── Route Card ── */}
-        <View style={styles.card}>
-          {/* From */}
+          {/* ── From ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.success} />{' '}
               {t('from')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('placeholderFrom')}
-              placeholderTextColor={colors.outline}
-              value={from}
-              onChangeText={setFrom}
-              maxLength={50}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderFrom')}
+                placeholderTextColor={colors.outline}
+                value={from}
+                onChangeText={setFrom}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
 
           {/* Route connector */}
@@ -251,44 +269,45 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             <View style={styles.routeLine} />
           </View>
 
-          {/* To */}
+          {/* ── To ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.error} />{' '}
               {t('to')} <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('placeholderTo')}
-              placeholderTextColor={colors.outline}
-              value={to}
-              onChangeText={setTo}
-              maxLength={50}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderTo')}
+                placeholderTextColor={colors.outline}
+                value={to}
+                onChangeText={setTo}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* ── Deadline ── */}
-        <View style={styles.card}>
+          {/* ── Deadline ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('deadlineLabel')} <Text style={styles.required}>*</Text>
             </Text>
             <TouchableOpacity
-              style={styles.deadlineInput}
+              style={styles.selectWrapper}
               activeOpacity={0.7}
               onPress={() => setPickerVisible(true)}
             >
               <Text
                 style={[
-                  styles.deadlineText,
-                  !deadline && styles.deadlinePlaceholder,
+                  styles.selectText,
+                  !deadline && styles.selectPlaceholder,
                 ]}
               >
                 {deadline ? formatDeadline(deadline) : t('deadlinePlaceholder')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.outline} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
         </View>
@@ -310,13 +329,13 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
@@ -337,6 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
   },
   postBtnDisabled: {
     backgroundColor: colors.surfaceVariant,
@@ -352,9 +372,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
     paddingBottom: 100,
-    gap: spacing.lg,
   },
 
   /* Disclaimer */
@@ -366,6 +384,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.errorContainer,
     borderRadius: borderRadius.lg,
+    marginTop: spacing.lg,
   },
   disclaimerText: {
     ...typography.bodySmall,
@@ -374,69 +393,68 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  /* Section */
-  section: {},
-  sectionLabel: {
-    ...typography.titleSmall,
+  /* Form */
+  formSection: {
+    paddingHorizontal: spacing.xl,
+  },
+  fieldGroup: {
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
     color: colors.onSurface,
-    marginBottom: spacing.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   required: {
     color: colors.error,
     fontWeight: '500',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  charCount: {
+    ...typography.bodySmall,
+    color: colors.outline,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
 
-  /* Card */
-  card: {
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  /* Inputs */
+  inputWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    width: '100%',
   },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.md,
-  },
-
-  /* Title & Content */
   titleInput: {
-    ...typography.titleMedium,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    paddingHorizontal: 0,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+  },
+  contentInputWrapper: {
+    minHeight: 96,
   },
   contentInput: {
-    ...typography.bodyLarge,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    minHeight: 100,
-    padding: 0,
-  },
-  charCount: {
-    ...typography.labelSmall,
-    color: colors.outline,
-    textAlign: 'right',
-    marginTop: spacing.xs,
-  },
-
-  /* Fields */
-  fieldGroup: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 88,
   },
   fieldInput: {
-    ...typography.bodyLarge,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    minHeight: 48,
   },
 
   /* Route connector */
@@ -457,21 +475,22 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xxs,
   },
 
-  /* Deadline */
-  deadlineInput: {
+  /* Select */
+  selectWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
   },
-  deadlineText: {
-    ...typography.bodyLarge,
+  selectText: {
+    ...typography.bodyMedium,
     color: colors.onSurface,
   },
-  deadlinePlaceholder: {
+  selectPlaceholder: {
     color: colors.outline,
   },
 });

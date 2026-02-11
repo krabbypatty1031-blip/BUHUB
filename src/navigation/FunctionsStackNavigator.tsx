@@ -17,7 +17,6 @@ import ComposeSecondhandScreen from '../screens/functions/ComposeSecondhandScree
 import RatingListScreen from '../screens/functions/RatingListScreen';
 import RatingDetailScreen from '../screens/functions/RatingDetailScreen';
 import RatingFormScreen from '../screens/functions/RatingFormScreen';
-import RatingShareScreen from '../screens/functions/RatingShareScreen';
 import SecondhandShareScreen from '../screens/functions/SecondhandShareScreen';
 import MyPostsScreen from '../screens/functions/MyPostsScreen';
 import FacilityBookingScreen from '../screens/functions/FacilityBookingScreen';
@@ -44,7 +43,6 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="RatingList" component={RatingListScreen} />
       <Stack.Screen name="RatingDetail" component={RatingDetailScreen} />
       <Stack.Screen name="RatingForm" component={RatingFormScreen} />
-      <Stack.Screen name="RatingShare" component={RatingShareScreen} />
       <Stack.Screen name="MyPosts" component={MyPostsScreen} />
       <Stack.Screen name="FacilityBooking" component={FacilityBookingScreen} />
       <Stack.Screen name="LibraryDetail" component={LibraryDetailScreen} />

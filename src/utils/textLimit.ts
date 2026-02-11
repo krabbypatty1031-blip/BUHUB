@@ -2,7 +2,7 @@
  * Text input limit utility.
  * For Function posts (Partner/Errand/Secondhand):
  * - Title: 10 CJK chars / 20 English words
- * - Content: 20 CJK chars / 80 English words
+ * - Content: 50 CJK chars / 80 English words
  */
 
 import i18n from '../i18n';
@@ -89,14 +89,14 @@ export function getTitleCountLabel(text: string): string {
   return `${countWords(text)}/20`;
 }
 
-/* ── Content Limits (20 CJK / 80 words) ── */
+/* ── Content Limits (50 CJK / 80 words) ── */
 
 /**
- * Check if content exceeds limit (20 CJK / 80 words)
+ * Check if content exceeds limit (50 CJK / 80 words)
  */
 export function isContentOverLimit(text: string): boolean {
   if (isCJKPrimary(text)) {
-    return countCJK(text) > 20;
+    return countCJK(text) > 50;
   }
   return countWords(text) > 80;
 }
@@ -109,12 +109,12 @@ export function enforceContentLimit(text: string): string {
   if (!isContentOverLimit(text)) return text;
 
   if (isCJKPrimary(text)) {
-    // Limit to 20 CJK characters
+    // Limit to 50 CJK characters
     let count = 0;
     let result = '';
     for (const char of text) {
       if (CJK_REGEX.test(char)) {
-        if (count >= 20) break;
+        if (count >= 50) break;
         count++;
       }
       result += char;
@@ -132,7 +132,7 @@ export function enforceContentLimit(text: string): string {
  */
 export function getContentCountLabel(text: string): string {
   if (isCJKPrimary(text)) {
-    return `${countCJK(text)}/20`;
+    return `${countCJK(text)}/50`;
   }
   return `${countWords(text)}/80`;
 }

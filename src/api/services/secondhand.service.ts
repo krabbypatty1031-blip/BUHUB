@@ -8,8 +8,8 @@ export const secondhandService = {
   async getList(category?: SecondhandCategory): Promise<SecondhandItem[]> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
-      if (category) return mockSecondhandItems.filter((i) => i.category === category);
-      return mockSecondhandItems;
+      const list = category ? mockSecondhandItems.filter((i) => i.category === category) : [...mockSecondhandItems];
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, { params: { category } });
     return data;

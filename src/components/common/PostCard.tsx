@@ -42,7 +42,7 @@ interface PostCardProps {
   votedOptionIndex?: number;
 }
 
-function AnimatedPollBar({ percent }: { percent: number }) {
+function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: boolean }) {
   const width = useSharedValue(0);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ function AnimatedPollBar({ percent }: { percent: number }) {
     width: `${width.value}%`,
   }));
 
-  return <Animated.View style={[styles.pollBar, barStyle]} />;
+  return <Animated.View style={[styles.pollBar, isVoted && styles.pollBarVoted, barStyle]} />;
 }
 
 function PostCard({
@@ -164,7 +164,7 @@ function PostCard({
             {post.pollOptions.map((opt, i) =>
               hasVoted ? (
                 <View key={i} style={styles.pollOption}>
-                  <AnimatedPollBar percent={opt.percent} />
+                  <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
                   <Text style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}>{opt.text}</Text>
                   <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>{opt.percent}%</Text>
                 </View>
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   pollOption: {
     height: 36,
     borderRadius: borderRadius.sm,
-    backgroundColor: colors.surface2,
+    backgroundColor: colors.primary + '12',
     justifyContent: 'center',
     overflow: 'hidden',
     flexDirection: 'row',
@@ -336,8 +336,11 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.primary + '30',
     borderRadius: borderRadius.sm,
+  },
+  pollBarVoted: {
+    backgroundColor: colors.primary + '50',
   },
   pollText: {
     ...typography.bodyMedium,

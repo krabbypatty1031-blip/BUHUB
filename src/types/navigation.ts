@@ -40,7 +40,6 @@ export type FunctionsStackParamList = {
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; index: number };
   RatingForm: { category: RatingCategory; index: number };
-  RatingShare: { category: RatingCategory; itemName: string };
   MyPosts: undefined;
   FacilityBooking: undefined;
   LibraryDetail: undefined;

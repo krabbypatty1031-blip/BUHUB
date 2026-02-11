@@ -7,7 +7,8 @@
       "Bash(npx jest --no-coverage)",
       "Bash(npx expo install @expo-google-fonts/inter)",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(ls:*)"
     ]
   }
 }

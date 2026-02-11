@@ -8,8 +8,8 @@ export const errandService = {
   async getList(category?: ErrandCategory): Promise<Errand[]> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
-      if (category) return mockErrands.filter((e) => e.category === category);
-      return mockErrands;
+      const list = category ? mockErrands.filter((e) => e.category === category) : [...mockErrands];
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, { params: { category } });
     return data;

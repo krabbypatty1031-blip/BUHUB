@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,6 @@ import {
 } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import DateTimePickerSheet from '../../components/common/DateTimePickerSheet';
-import AdvanceTimePickerSheet from '../../components/common/AdvanceTimePickerSheet';
 import {
   enforceTitleLimit,
   getTitleCountLabel,
@@ -44,15 +43,6 @@ const CATEGORIES: Array<{ key: PartnerCategory; labelKey: string }> = [
   { key: 'other', labelKey: 'other' },
 ];
 
-const ADVANCE_OPTIONS = [
-  { minutes: 0, labelKey: 'advanceSame' },
-  { minutes: 30, labelKey: 'advance30m' },
-  { minutes: 60, labelKey: 'advance1h' },
-  { minutes: 120, labelKey: 'advance2h' },
-  { minutes: 720, labelKey: 'advance12h' },
-  { minutes: 1440, labelKey: 'advance24h' },
-];
-
 export default function ComposePartnerScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
@@ -61,10 +51,10 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   const defaultCategory = (route.params?.category as PartnerCategory) || 'travel';
   const [category, setCategory] = useState<PartnerCategory | null>(defaultCategory);
   const [activityTime, setActivityTime] = useState<Date | null>(null);
+  const [deadlineTime, setDeadlineTime] = useState<Date | null>(null);
   const [location, setLocation] = useState('');
-  const [advanceMinutes, setAdvanceMinutes] = useState<number | null>(null);
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [advancePickerVisible, setAdvancePickerVisible] = useState(false);
+  const [activityPickerVisible, setActivityPickerVisible] = useState(false);
+  const [deadlinePickerVisible, setDeadlinePickerVisible] = useState(false);
 
   const getPlaceholders = useCallback(() => {
     switch (category) {
@@ -85,35 +75,17 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const placeholders = getPlaceholders();
 
-  const isActivityTooSoon =
-    activityTime !== null &&
-    activityTime.getTime() - Date.now() < 3600 * 1000;
-
-  const availableAdvanceOptions = useMemo(() => {
-    if (!activityTime) return [];
-    const diffMinutes = (activityTime.getTime() - Date.now()) / (60 * 1000);
-    if (diffMinutes < 60) return [];
-    return ADVANCE_OPTIONS.filter((opt) => diffMinutes >= opt.minutes);
-  }, [activityTime]);
-
-  // Reset advanceMinutes if no longer valid after activityTime change
+  // When activityTime changes, auto-set deadline = activityTime if no deadline,
+  // or reset deadline if it now exceeds activityTime
   useEffect(() => {
-    if (
-      advanceMinutes !== null &&
-      !availableAdvanceOptions.some((opt) => opt.minutes === advanceMinutes)
-    ) {
-      setAdvanceMinutes(null);
+    if (!activityTime) {
+      setDeadlineTime(null);
+    } else if (!deadlineTime) {
+      setDeadlineTime(activityTime);
+    } else if (deadlineTime.getTime() > activityTime.getTime()) {
+      setDeadlineTime(activityTime);
     }
-  }, [availableAdvanceOptions, advanceMinutes]);
-
-  const selectedAdvanceLabel = advanceMinutes !== null
-    ? t(ADVANCE_OPTIONS.find((o) => o.minutes === advanceMinutes)?.labelKey ?? '')
-    : null;
-
-  const advancePickerOptions = useMemo(
-    () => availableAdvanceOptions.map((opt) => ({ minutes: opt.minutes, label: t(opt.labelKey) })),
-    [availableAdvanceOptions, t],
-  );
+  }, [activityTime]);
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
@@ -127,8 +99,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
     title.trim().length > 0 &&
     category !== null &&
     activityTime !== null &&
-    !isActivityTooSoon &&
-    advanceMinutes !== null;
+    deadlineTime !== null;
 
   const user = useAuthStore((s) => s.user);
 
@@ -146,12 +117,12 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
       gender: user.gender,
       bio: `${t(user.grade)} · ${t(user.major)}`,
       expired: false,
-      expiresAt: new Date(activityTime!.getTime() - (advanceMinutes ?? 0) * 60 * 1000).toISOString(),
+      expiresAt: deadlineTime!.toISOString(),
       createdAt: new Date().toISOString(),
     };
     mockPartnerPosts.unshift(newPost);
     navigation.replace('PartnerShare', { activityName: title, posterName: user.name, index: 0 });
-  }, [canPost, navigation, title, user, category, content, activityTime, location, advanceMinutes, t]);
+  }, [canPost, navigation, title, user, category, content, activityTime, deadlineTime, location, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -178,98 +149,111 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── Category Selector ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            {t('categoryLabel')} <Text style={styles.required}>*</Text>
-          </Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => (
-              <Chip
-                key={cat.key}
-                label={t(cat.labelKey)}
-                selected={category === cat.key}
-                onPress={() => setCategory(cat.key)}
-              />
-            ))}
+        <View style={styles.formSection}>
+          {/* ── Category Selector ── */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              {t('categoryLabel')} <Text style={styles.required}>*</Text>
+            </Text>
+            <View style={styles.chipRow}>
+              {CATEGORIES.map((cat) => (
+                <Chip
+                  key={cat.key}
+                  label={t(cat.labelKey)}
+                  selected={category === cat.key}
+                  onPress={() => setCategory(cat.key)}
+                />
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* ── Title & Content Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>
-            {t('titleLabel')} <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={styles.titleInput}
-            placeholder={placeholders.title}
-            placeholderTextColor={colors.outline}
-            value={title}
-            onChangeText={handleTitleChange}
-          />
-          <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
-          <View style={styles.cardDivider} />
-          <TextInput
-            style={styles.contentInput}
-            placeholder={placeholders.content}
-            placeholderTextColor={colors.outline}
-            value={content}
-            onChangeText={handleContentChange}
-            multiline
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
-        </View>
+          {/* ── Title ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>
+                {t('titleLabel')} <Text style={styles.required}>*</Text>
+              </Text>
+              <Text style={styles.charCount}>{getTitleCountLabel(title)}</Text>
+            </View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.titleInput}
+                placeholder={placeholders.title}
+                placeholderTextColor={colors.outline}
+                value={title}
+                onChangeText={handleTitleChange}
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
 
-        {/* ── Details Card ── */}
-        <View style={styles.card}>
-          {/* Activity Time */}
+          {/* ── Content ── */}
+          <View style={styles.fieldGroup}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>{t('contentLabel')}</Text>
+              <Text style={styles.charCount}>{getContentCountLabel(content)}</Text>
+            </View>
+            <View style={[styles.inputWrapper, styles.contentInputWrapper]}>
+              <TextInput
+                style={styles.contentInput}
+                placeholder={placeholders.content}
+                placeholderTextColor={colors.outline}
+                value={content}
+                onChangeText={handleContentChange}
+                multiline
+                textAlignVertical="top"
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
+
+          {/* ── Activity Time ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('activityTime')} <Text style={styles.required}>*</Text>
             </Text>
             <TouchableOpacity
-              style={styles.deadlineInput}
+              style={styles.selectWrapper}
               activeOpacity={0.7}
-              onPress={() => setPickerVisible(true)}
+              onPress={() => setActivityPickerVisible(true)}
             >
               <Text
                 style={[
-                  styles.deadlineText,
-                  !activityTime && styles.deadlinePlaceholder,
+                  styles.selectText,
+                  !activityTime && styles.selectPlaceholder,
                 ]}
               >
                 {activityTime
                   ? formatDeadline(activityTime)
                   : t('activityTimePlaceholder')}
               </Text>
-              <ChevronRightIcon size={18} color={colors.outline} />
+              <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.cardDivider} />
-
-          {/* Location */}
+          {/* ── Location ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.primary} />{' '}
               {t('locationLabel')}
             </Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder={t('placeholderLocation')}
-              placeholderTextColor={colors.outline}
-              value={location}
-              onChangeText={setLocation}
-              maxLength={50}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderLocation')}
+                placeholderTextColor={colors.outline}
+                value={location}
+                onChangeText={setLocation}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
 
-          <View style={styles.cardDivider} />
-
-          {/* Deadline (Advance Time) */}
+          {/* ── Deadline ── */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
@@ -277,49 +261,55 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             </Text>
             {!activityTime ? (
               <Text style={styles.hintText}>{t('selectActivityFirst')}</Text>
-            ) : isActivityTooSoon ? (
-              <Text style={styles.warningText}>{t('activityTooSoon')}</Text>
             ) : (
               <TouchableOpacity
-                style={styles.deadlineInput}
+                style={styles.selectWrapper}
                 activeOpacity={0.7}
-                onPress={() => setAdvancePickerVisible(true)}
+                onPress={() => setDeadlinePickerVisible(true)}
               >
                 <Text
                   style={[
-                    styles.deadlineText,
-                    !selectedAdvanceLabel && styles.deadlinePlaceholder,
+                    styles.selectText,
+                    !deadlineTime && styles.selectPlaceholder,
                   ]}
                 >
-                  {selectedAdvanceLabel || t('deadlinePlaceholder')}
+                  {deadlineTime
+                    ? formatDeadline(deadlineTime)
+                    : t('deadlinePlaceholder')}
                 </Text>
-                <ChevronRightIcon size={18} color={colors.outline} />
+                <ChevronRightIcon size={18} color={colors.onSurface} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
         <DateTimePickerSheet
-          visible={pickerVisible}
-          onClose={() => setPickerVisible(false)}
+          visible={activityPickerVisible}
+          onClose={() => setActivityPickerVisible(false)}
           onConfirm={(date) => {
             setActivityTime(date);
-            setPickerVisible(false);
+            setActivityPickerVisible(false);
           }}
           initialDate={activityTime || undefined}
           title={t('activityTime')}
         />
 
-        <AdvanceTimePickerSheet
-          visible={advancePickerVisible}
-          onClose={() => setAdvancePickerVisible(false)}
-          onConfirm={(minutes) => {
-            setAdvanceMinutes(minutes);
-            setAdvancePickerVisible(false);
-          }}
-          options={advancePickerOptions}
-          initialValue={advanceMinutes ?? undefined}
-        />
+        {activityTime && (
+          <DateTimePickerSheet
+            visible={deadlinePickerVisible}
+            onClose={() => setDeadlinePickerVisible(false)}
+            onConfirm={(date) => {
+              if (date.getTime() > activityTime.getTime()) {
+                setDeadlineTime(activityTime);
+              } else {
+                setDeadlineTime(date);
+              }
+              setDeadlinePickerVisible(false);
+            }}
+            initialDate={deadlineTime || activityTime}
+            title={t('deadlineLabel')}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -328,13 +318,13 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
@@ -355,6 +345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
   },
   postBtnDisabled: {
     backgroundColor: colors.surfaceVariant,
@@ -370,98 +361,93 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
     paddingBottom: 100,
-    gap: spacing.lg,
   },
 
-  /* Section */
-  section: {},
-  sectionLabel: {
-    ...typography.titleSmall,
+  /* Form */
+  formSection: {
+    paddingHorizontal: spacing.xl,
+  },
+  fieldGroup: {
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.labelMedium,
     color: colors.onSurface,
-    marginBottom: spacing.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   required: {
     color: colors.error,
     fontWeight: '500',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  charCount: {
+    ...typography.bodySmall,
+    color: colors.outline,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
 
-  /* Card */
-  card: {
-    backgroundColor: colors.surface1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  /* Inputs */
+  inputWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    width: '100%',
   },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.md,
-  },
-
-  /* Title & Content */
   titleInput: {
-    ...typography.titleMedium,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    paddingHorizontal: 0,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+  },
+  contentInputWrapper: {
+    minHeight: 96,
   },
   contentInput: {
-    ...typography.bodyLarge,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    minHeight: 120,
-    padding: 0,
-  },
-  charCount: {
-    ...typography.labelSmall,
-    color: colors.outline,
-    textAlign: 'right',
-    marginTop: spacing.xs,
-  },
-
-  /* Fields */
-  fieldGroup: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 88,
   },
   fieldInput: {
-    ...typography.bodyLarge,
+    ...typography.bodyMedium,
     color: colors.onSurface,
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    minHeight: 48,
   },
-  /* Deadline */
-  deadlineInput: {
+
+  /* Select */
+  selectWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
   },
-  deadlineText: {
-    ...typography.bodyLarge,
+  selectText: {
+    ...typography.bodyMedium,
     color: colors.onSurface,
   },
-  deadlinePlaceholder: {
+  selectPlaceholder: {
     color: colors.outline,
   },
   hintText: {
     ...typography.bodyMedium,
     color: colors.outline,
-  },
-  warningText: {
-    ...typography.bodyMedium,
-    color: colors.error,
   },
 });

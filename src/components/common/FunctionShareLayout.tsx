@@ -19,8 +19,6 @@ import FunctionForwardSheet from './FunctionForwardSheet';
 
 interface FunctionShareLayoutProps {
   navigation: any;
-  /** Icon rendered inside the circle */
-  icon: React.ReactNode;
   /** i18n key for success title */
   titleKey: string;
   /** i18n key for success description */
@@ -39,7 +37,6 @@ interface FunctionShareLayoutProps {
 
 export default function FunctionShareLayout({
   navigation,
-  icon,
   titleKey,
   descKey,
   descParams,
@@ -69,9 +66,6 @@ export default function FunctionShareLayout({
       <View style={styles.content}>
         {/* Success Section */}
         <View style={styles.successSection}>
-          <View style={styles.iconCircle}>
-            {icon}
-          </View>
           <Text style={styles.successTitle}>{t(titleKey)}</Text>
           <Text style={styles.successDesc}>
             {t(descKey, descParams)}
@@ -112,10 +106,6 @@ export default function FunctionShareLayout({
           </TouchableOpacity>
         </View>
 
-        {/* Skip */}
-        <TouchableOpacity onPress={dismiss} style={styles.skipBtn}>
-          <Text style={styles.skipText}>{t('skipShare')}</Text>
-        </TouchableOpacity>
       </View>
       <FunctionForwardSheet
         visible={forwardVisible}
@@ -151,37 +141,31 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   successSection: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     marginBottom: spacing.xxxl,
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
   successTitle: {
-    ...typography.headlineSmall,
+    ...typography.headlineLarge,
     color: colors.onSurface,
     fontWeight: '700',
-    marginBottom: spacing.sm,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   successDesc: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    ...typography.bodyLarge,
+    color: colors.onSurface,
     textAlign: 'center',
   },
   actionsSection: {
+    alignSelf: 'stretch',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     ...elevation[1],
     overflow: 'hidden',
-    marginBottom: spacing.xxl,
   },
   actionRow: {
     flexDirection: 'row',
@@ -207,13 +191,5 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.bodyMedium,
     color: colors.onSurface,
-  },
-  skipBtn: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  skipText: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
   },
 });

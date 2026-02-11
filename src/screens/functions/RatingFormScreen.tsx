@@ -24,6 +24,9 @@ import { typography } from '../../theme/typography';
 import { BackIcon } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import { hapticSelection, hapticMedium } from '../../utils/haptics';
+import { useFocusEffect } from '@react-navigation/native';
+import { withTiming } from 'react-native-reanimated';
+import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingForm'>;
 
@@ -92,6 +95,16 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   const submitRating = useSubmitRating(category, String(index));
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const { tabBarTranslateY } = useTabBarAnimation();
+
+  useFocusEffect(
+    useCallback(() => {
+      tabBarTranslateY.value = withTiming(80, { duration: 250 });
+      return () => {
+        tabBarTranslateY.value = withTiming(0, { duration: 250 });
+      };
+    }, [tabBarTranslateY])
+  );
 
   const item: RatingItem | undefined = ratings?.[index];
 
@@ -138,17 +151,15 @@ export default function RatingFormScreen({ navigation, route }: Props) {
       },
       {
         onSuccess: () => {
-          navigation.replace('RatingShare', {
-            category,
-            itemName: item?.name || '',
-          });
+          showSnackbar({ message: t('ratingShareTitle'), type: 'success' });
+          navigation.pop();
         },
         onError: () => {
           showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
         },
       }
     );
-  }, [scores, selectedTags, comment, submitRating, showSnackbar, navigation, t, isLoggedIn, category, item]);
+  }, [scores, selectedTags, comment, submitRating, showSnackbar, navigation, t, isLoggedIn]);
 
   if (isLoading) {
     return (
@@ -201,9 +212,13 @@ export default function RatingFormScreen({ navigation, route }: Props) {
 
         {/* Tag Selection */}
         {tagOptions && tagOptions.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('selectTagsMax3')}</Text>
-            <View style={styles.tagsGrid}>
+          <View style={styles.tagSection}>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.lg }]}>{t('selectTagsMax3')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tagsRow}
+            >
               {tagOptions.map((tag) => {
                 const selected = selectedTags.includes(tag);
                 return (
@@ -215,7 +230,7 @@ export default function RatingFormScreen({ navigation, route }: Props) {
                   />
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -315,7 +330,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sliderContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   sliderLabelsRow: {
     flexDirection: 'row',
@@ -361,9 +376,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
   },
-  tagsGrid: {
+  tagSection: {
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
+  },
+  tagsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
   },
   commentInput: {
     ...typography.bodyMedium,
