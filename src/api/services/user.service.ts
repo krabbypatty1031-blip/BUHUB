@@ -10,6 +10,7 @@ export const userService = {
       return {
         name: '張小明',
         nickname: '浸大小明',
+        email: 's12345678@hkbu.edu.hk',
         avatar: null,
         grade: 'gradeUndergradY2',
         major: 'majorCS',

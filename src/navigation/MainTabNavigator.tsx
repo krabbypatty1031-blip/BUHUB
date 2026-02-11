@@ -54,7 +54,7 @@ export default function MainTabNavigator() {
           borderTopColor: colors.outlineVariant,
           height: 80,
           paddingBottom: 20,
-          paddingTop: 8,
+          paddingTop: 16,
         },
       }}
     >

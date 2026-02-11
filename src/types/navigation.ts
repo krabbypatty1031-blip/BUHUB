@@ -9,7 +9,7 @@ export type AuthStackParamList = {
   Language: undefined;
   EmailInput: undefined;
   VerifyCode: { email: string };
-  ProfileSetup: undefined;
+  ProfileSetup: { email: string };
 };
 
 // Forum Stack

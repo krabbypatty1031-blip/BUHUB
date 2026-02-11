@@ -41,7 +41,8 @@ import {
   MoreHorizontalIcon,
   IncognitoIcon,
 } from '../../components/common/icons';
-import type { ForumPost, Comment, Reply } from '../../types';
+import type { ForumPost, Comment, Reply, Language } from '../../types';
+import { buildPostMeta } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
 
@@ -283,7 +284,8 @@ function CommentItem({
 
 /* ── Main screen ── */
 export default function PostDetailScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as Language;
   const { postId, commentId } = route.params;
   const { data: posts } = usePosts();
   const { data: comments } = useComments(postId);
@@ -360,6 +362,19 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [posts, postId]
   );
 
+  const displayMeta = useMemo(
+    () =>
+      post
+        ? buildPostMeta(t, lang, {
+            gradeKey: post.gradeKey,
+            majorKey: post.majorKey,
+            createdAt: post.createdAt,
+            isAnonymous: post.isAnonymous,
+          })
+        : '',
+    [post, t, lang],
+  );
+
   const isLiked = likedPosts.has(postId);
   const isBookmarked = bookmarkedPosts.has(postId);
 
@@ -425,8 +440,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               gender={post.isAnonymous ? 'other' : post.gender}
             />
             <View style={styles.postUserInfo}>
-              <Text style={styles.postName}>{post.name}</Text>
-              <Text style={styles.postMeta}>{post.meta}</Text>
+              <View style={styles.postNameRow}>
+                <Text style={styles.postName}>{post.name}</Text>
+                <Text style={styles.postDot}> · </Text>
+                <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
+              </View>
             </View>
           </View>
 
@@ -749,14 +767,24 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
     flex: 1,
   },
+  postNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   postName: {
     ...typography.titleSmall,
+    fontWeight: '700',
     color: colors.onSurface,
+  },
+  postDot: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   postMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+    flexShrink: 1,
   },
   postContent: {
     ...typography.bodyLarge,

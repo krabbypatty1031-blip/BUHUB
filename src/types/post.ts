@@ -6,6 +6,9 @@ export interface ForumPost {
   name: string;
   gender: Gender;
   meta: string;
+  gradeKey?: string;
+  majorKey?: string;
+  createdAt: string;
   lang: string;
   content: string;
   translated?: Translated;
@@ -25,6 +28,7 @@ export interface ForumPost {
     name: string;
     content: string;
     meta: string;
+    createdAt?: string;
   };
 }
 

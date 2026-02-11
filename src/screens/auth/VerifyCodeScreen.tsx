@@ -81,9 +81,9 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
     setIsVerifying(false);
     showSnackbar({ message: t('captchaSuccess'), type: 'success' });
     setTimeout(() => {
-      navigation.navigate('ProfileSetup');
+      navigation.navigate('ProfileSetup', { email });
     }, 500);
-  }, [codeComplete, agreed, navigation, showSnackbar, t]);
+  }, [codeComplete, agreed, navigation, email, showSnackbar, t]);
 
   const handleCodeChange = useCallback(
     (text: string, index: number) => {

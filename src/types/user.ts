@@ -3,6 +3,7 @@ import { Gender } from './common';
 export interface User {
   name: string;
   nickname: string;
+  email: string;
   avatar: string | null;
   defaultAvatar?: string | null;
   grade: string;

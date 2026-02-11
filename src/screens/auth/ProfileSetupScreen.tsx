@@ -27,7 +27,8 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ProfileSetup'>;
 
 type PickerType = 'grade' | 'major' | 'gender';
 
-export default function ProfileSetupScreen({ navigation }: Props) {
+export default function ProfileSetupScreen({ navigation, route }: Props) {
+  const email = route.params.email;
   const { t } = useTranslation();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -101,6 +102,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
     setUser({
       name: nickname || '張小明',
       nickname: nickname || '浸大小明',
+      email,
       avatar: avatarUri,
       defaultAvatar: avatarUri ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
       grade: grade || 'gradeUndergradY2',
@@ -109,12 +111,13 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       gender: resolvedGender,
       isLoggedIn: true,
     });
-  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, setUser]);
+  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, email, setUser]);
 
   const handleSkip = useCallback(() => {
     setUser({
       name: '張小明',
       nickname: '浸大小明',
+      email,
       avatar: null,
       defaultAvatar: getAutoAvatar('male'),
       grade: 'gradeUndergradY2',
@@ -123,7 +126,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       gender: 'male',
       isLoggedIn: true,
     });
-  }, [setUser]);
+  }, [email, setUser]);
 
   return (
     <SafeAreaView style={styles.container}>

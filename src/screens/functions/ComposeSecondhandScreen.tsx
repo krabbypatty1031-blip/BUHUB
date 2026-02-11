@@ -57,7 +57,7 @@ const CONDITIONS: Array<{ key: string; labelKey: string }> = [
 export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
-  const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 6 });
+  const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -186,11 +186,11 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             ))}
-            {images.length < 6 && (
+            {images.length < 9 && (
               <TouchableOpacity style={styles.imagePicker} activeOpacity={0.7} onPress={pickImages}>
                 <CameraIcon size={28} color={colors.primary} />
                 <Text style={styles.imagePickerCount}>
-                  {images.length}/6
+                  {images.length}/9
                 </Text>
               </TouchableOpacity>
             )}

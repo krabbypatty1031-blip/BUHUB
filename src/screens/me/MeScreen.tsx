@@ -11,7 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { UserPost, UserComment, LikedPost, LikedComment, WantedItem, ForumPost } from '../../types';
+import type { UserPost, UserComment, LikedPost, LikedComment, WantedItem, ForumPost, Language } from '../../types';
 import { useProfile, useMyContent } from '../../hooks/useUser';
 import { usePosts } from '../../hooks/usePosts';
 import { useSecondhand } from '../../hooks/useSecondhand';
@@ -38,6 +38,7 @@ import {
   QrCodeIcon,
   ShoppingBagIcon,
 } from '../../components/common/icons';
+import { getRelativeTime } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -186,7 +187,8 @@ const WantedItemCard = React.memo(function WantedItemCard({ item, onPress }: { i
 });
 
 export default function MeScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as Language;
   const { data: profile, isLoading } = useProfile();
   const { data: myContent } = useMyContent();
   const { data: allPosts } = usePosts();
@@ -212,7 +214,7 @@ export default function MeScreen({ navigation }: Props) {
         avatar: p.avatar,
         gender: p.gender,
         content: p.content,
-        time: p.meta.split('·').pop()?.trim() || '',
+        time: getRelativeTime(p.createdAt, lang),
         likes: p.likes,
         comments: p.comments,
       }));
@@ -228,7 +230,7 @@ export default function MeScreen({ navigation }: Props) {
         avatar: p.avatar,
         gender: p.gender,
         content: p.content,
-        time: p.meta.split('·').pop()?.trim() || '',
+        time: getRelativeTime(p.createdAt, lang),
         likes: p.likes,
         comments: p.comments,
       }));

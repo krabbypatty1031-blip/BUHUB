@@ -68,3 +68,24 @@ export function translateMeta(meta: string, language: Language): string {
   const parts = meta.split(' · ');
   return parts.map((part) => translateTime(part.trim(), language)).join(' · ');
 }
+
+export function buildPostMeta(
+  t: (key: string) => string,
+  language: Language,
+  options: {
+    gradeKey?: string;
+    majorKey?: string;
+    createdAt: string;
+    isAnonymous?: boolean;
+  },
+): string {
+  const time = getRelativeTime(options.createdAt, language);
+  if (options.isAnonymous) {
+    return `${t('anonymous')} · ${time}`;
+  }
+  const parts: string[] = [];
+  if (options.gradeKey) parts.push(t(options.gradeKey));
+  if (options.majorKey) parts.push(t(options.majorKey));
+  parts.push(time);
+  return parts.join(' · ');
+}

@@ -1,5 +1,7 @@
 import type { ForumPost, Comment } from '../../types';
 
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
+
 export const mockPosts: ForumPost[] = [
   {
     id: 'cat',
@@ -7,6 +9,9 @@ export const mockPosts: ForumPost[] = [
     name: '陳同學',
     gender: 'female',
     meta: '本科三年級 · 傳理學 · 2小時前',
+    gradeKey: 'gradeUndergradY3',
+    majorKey: 'majorComm',
+    createdAt: hoursAgo(2),
     lang: 'tc',
     content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
     translated: {
@@ -25,6 +30,9 @@ export const mockPosts: ForumPost[] = [
     name: '浸大小明',
     gender: 'male',
     meta: '本科二年級 · 計算機科學 · 5小時前',
+    gradeKey: 'gradeUndergradY2',
+    majorKey: 'majorCS',
+    createdAt: hoursAgo(5),
     lang: 'tc',
     content: '圖書館自習室今日好多人，有冇人知其他安靜嘅讀書地方？考試週真係壓力好大...',
     translated: {
@@ -41,6 +49,9 @@ export const mockPosts: ForumPost[] = [
     name: '王同學',
     gender: 'male',
     meta: '本科二年級 · 計算機科學 · 5小時前',
+    gradeKey: 'gradeUndergradY2',
+    majorKey: 'majorCS',
+    createdAt: hoursAgo(5),
     lang: 'tc',
     content: '下學期有冇人想一齊選 COMP3015？聽講呢門課嘅 Group Project 好有趣，想搵隊友一齊做！有興趣嘅留言啦～',
     translated: {
@@ -57,6 +68,7 @@ export const mockPosts: ForumPost[] = [
     name: '匿名用戶',
     gender: 'other',
     meta: '匿名 · 8小時前',
+    createdAt: hoursAgo(8),
     lang: 'tc',
     content: '有冇人上個禮拜去咗呢個演唱會？今年最令人期待嘅演出！',
     translated: {
@@ -74,6 +86,9 @@ export const mockPosts: ForumPost[] = [
     name: '林同學',
     gender: 'female',
     meta: '本科二年級 · 傳理學 · 3小時前',
+    gradeKey: 'gradeUndergradY2',
+    majorKey: 'majorComm',
+    createdAt: hoursAgo(3),
     lang: 'tc',
     content: '呢個週末有冇人想一齊去行山？我搵到一條好靚嘅路線！已經喺找搭子發咗帖，有興趣嘅快啲加入～',
     translated: {
@@ -94,6 +109,9 @@ export const mockPosts: ForumPost[] = [
     name: '張同學',
     gender: 'male',
     meta: '本科三年級 · 新聞學 · 1小時前',
+    gradeKey: 'gradeUndergradY3',
+    majorKey: 'majorJournalism',
+    createdAt: hoursAgo(1),
     lang: 'tc',
     content: '哈哈我都見過呢隻貓！佢好鍾意曬太陽，之前仲瞓咗喺長凳上面～',
     translated: {
@@ -107,6 +125,7 @@ export const mockPosts: ForumPost[] = [
       name: '陳同學',
       content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
       meta: '2小時前',
+      createdAt: hoursAgo(2),
     },
   },
   {
@@ -115,6 +134,9 @@ export const mockPosts: ForumPost[] = [
     name: '李同學',
     gender: 'female',
     meta: '本科四年級 · 音樂學 · 12小時前',
+    gradeKey: 'gradeUndergradY4',
+    majorKey: 'majorMusic',
+    createdAt: hoursAgo(12),
     lang: 'tc',
     content: '大家覺得浸大應唔應該搞更多課外活動？',
     translated: {

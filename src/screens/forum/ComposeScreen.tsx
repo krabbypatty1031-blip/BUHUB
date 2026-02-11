@@ -18,8 +18,10 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import GradientCard from '../../components/common/GradientCard';
-import { CloseIcon, PlusIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
+import { CloseIcon, PlusIcon, CameraIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
 import { mockPosts } from '../../data/mock/forum';
+import { buildPostMeta } from '../../utils/formatTime';
+import type { Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Compose'>;
@@ -34,11 +36,20 @@ const TAGS = [
 ] as const;
 
 export default function ComposeScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as Language;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const type = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
   const quotedPost = quotePostId ? mockPosts.find((p) => p.id === quotePostId) : undefined;
+  const quotedMeta = quotedPost
+    ? buildPostMeta(t, lang, {
+        gradeKey: quotedPost.gradeKey,
+        majorKey: quotedPost.majorKey,
+        createdAt: quotedPost.createdAt,
+        isAnonymous: quotedPost.isAnonymous,
+      })
+    : '';
   const functionType = route.params?.functionType;
   const functionTitle = route.params?.functionTitle;
 
@@ -119,7 +130,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
               <Text style={styles.quoteLabel}>{t('quotePost')}</Text>
             </View>
             <Text style={styles.quoteContent} numberOfLines={3}>{quotedPost.content}</Text>
-            <Text style={styles.quoteMeta}>{quotedPost.name} · {quotedPost.meta}</Text>
+            <Text style={styles.quoteMeta}>{quotedPost.name} · {quotedMeta}</Text>
           </GradientCard>
         )}
 
@@ -159,7 +170,8 @@ export default function ComposeScreen({ navigation, route }: Props) {
             ))}
             {images.length < 9 && (
               <TouchableOpacity style={styles.mediaAdd} onPress={pickImages}>
-                <PlusIcon size={28} color={colors.onSurfaceVariant} />
+                <CameraIcon size={28} color={colors.primary} />
+                <Text style={styles.mediaAddCount}>{images.length}/9</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -320,11 +332,17 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderWidth: 2,
+    borderColor: colors.primaryContainer,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryContainer + '20',
+    gap: spacing.xs,
+  },
+  mediaAddCount: {
+    ...typography.labelSmall,
+    color: colors.primary,
   },
   // Poll
   pollForm: {

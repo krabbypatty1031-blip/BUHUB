@@ -162,7 +162,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.rowLabel}>{t('linkedEmail')}</Text>
             <View style={styles.rowRight}>
               <Text style={styles.rowValue} numberOfLines={1}>
-                {user?.name ? `s${user.name.slice(-8)}@hkbu.edu.hk` : '---'}
+                {user?.email || '---'}
               </Text>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>

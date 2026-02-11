@@ -169,23 +169,25 @@ export default function MessagesScreen({ navigation }: Props) {
   };
 
   /* ── Filter & sort contacts: pinned first (skip pin sort when searching) ── */
-  const isSearching = showSearch && searchQuery.trim().length > 0;
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
-    if (isSearching) {
+    if (showSearch) {
       const q = searchQuery.trim().toLowerCase();
-      return contacts.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.message.toLowerCase().includes(q)
-      );
+      if (q.length > 0) {
+        return contacts.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.message.toLowerCase().includes(q)
+        );
+      }
+      return contacts;
     }
     return [...contacts].sort((a, b) => {
       const aPinned = isPinned(a.name, a.pinned) ? 1 : 0;
       const bPinned = isPinned(b.name, b.pinned) ? 1 : 0;
       return bPinned - aPinned;
     });
-  }, [contacts, isSearching, searchQuery, pinnedContacts, isPinned]);
+  }, [contacts, showSearch, searchQuery, pinnedContacts, isPinned]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch((prev) => {
@@ -287,7 +289,7 @@ export default function MessagesScreen({ navigation }: Props) {
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => {
-      const pinned = isSearching ? false : isPinned(item.name, item.pinned);
+      const pinned = showSearch ? false : isPinned(item.name, item.pinned);
       const muted = isMuted(item.name);
       const effectiveUnread = getEffectiveUnread(item.name, item.unread);
       return (
@@ -308,7 +310,7 @@ export default function MessagesScreen({ navigation }: Props) {
         />
       );
     },
-    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, isSearching]
+    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, showSearch]
   );
 
   /* ── Action sheet computed labels ── */

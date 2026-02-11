@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import GradientCard from './GradientCard';
 import { hapticLight } from '../../utils/haptics';
+import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
 import type { ForumPost } from '../../types';
+import type { Language } from '../../types';
 import Avatar from './Avatar';
 import Tag from './Tag';
 import {
@@ -69,7 +72,29 @@ function PostCard({
   isBookmarked,
   votedOptionIndex,
 }: PostCardProps) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as Language;
   const hasVoted = votedOptionIndex != null;
+
+  const displayMeta = useMemo(
+    () =>
+      buildPostMeta(t, lang, {
+        gradeKey: post.gradeKey,
+        majorKey: post.majorKey,
+        createdAt: post.createdAt,
+        isAnonymous: post.isAnonymous,
+      }),
+    [t, lang, post.gradeKey, post.majorKey, post.createdAt, post.isAnonymous],
+  );
+
+  const quotedTime = useMemo(
+    () =>
+      post.quotedPost?.createdAt
+        ? getRelativeTime(post.quotedPost.createdAt, lang)
+        : post.quotedPost?.meta || '',
+    [post.quotedPost, lang],
+  );
+
   const handleLike = useCallback(() => {
     hapticLight();
     onLike?.();
@@ -109,7 +134,7 @@ function PostCard({
               <FemaleIcon size={14} color={colors.genderFemale} />
             )}
             <Text style={styles.timeDot}> · </Text>
-            <Text style={styles.meta}>{post.meta}</Text>
+            <Text style={styles.meta}>{displayMeta}</Text>
           </View>
         </View>
       </View>
@@ -190,7 +215,7 @@ function PostCard({
               <Text style={styles.quotedLabel}>引用帖子</Text>
             </View>
             <Text style={styles.quotedContent} numberOfLines={3}>{post.quotedPost.content}</Text>
-            <Text style={styles.quotedMeta}>{post.quotedPost.name} · {post.quotedPost.meta}</Text>
+            <Text style={styles.quotedMeta}>{post.quotedPost.name} · {quotedTime}</Text>
           </GradientCard>
         )}
 
