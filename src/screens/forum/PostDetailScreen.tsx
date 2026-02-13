@@ -17,13 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useComments, useCreateComment, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
+import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
-import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation } from '../../theme/spacing';
+import { spacing, borderRadius, elevation, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import Tag from '../../components/common/Tag';
@@ -43,7 +42,7 @@ import {
   IncognitoIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
 
@@ -99,19 +98,35 @@ function ItemActions({
 /* ── Reply item (二级评论 + 三级评论) ── */
 function ReplyItem({
   reply,
+  lang,
+  t,
   onReply,
+  onLike,
+  onBookmark,
   onForward,
   onReport,
   highlighted,
 }: {
   reply: Reply;
+  lang: Language;
+  t: (key: string) => string;
   onReply: (name: string) => void;
+  onLike: (commentId: string) => void;
+  onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: () => void;
   highlighted?: boolean;
 }) {
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
+
+  const replyMeta = useMemo(
+    () =>
+      buildPostMeta(t, lang, {
+        gradeKey: reply.gradeKey,
+        majorKey: reply.majorKey,
+        createdAt: reply.time,
+      }),
+    [t, lang, reply.gradeKey, reply.majorKey, reply.time],
+  );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
 
@@ -146,7 +161,7 @@ function ReplyItem({
     >
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
-          <Avatar text={reply.avatar} size="xs" />
+          <Avatar text={reply.name} uri={reply.avatar} defaultAvatar={reply.defaultAvatar} size="xs" />
           <View style={styles.commentUserInfo}>
             <View style={styles.replyNameRow}>
               <Text style={styles.replyName}>{reply.name}</Text>
@@ -154,20 +169,20 @@ function ReplyItem({
                 <Text style={styles.replyToLabel}> ▸ {reply.replyTo}</Text>
               ) : null}
             </View>
-            <Text style={styles.replyTime}>{reply.time}</Text>
+            <Text style={styles.replyTime}>{replyMeta}</Text>
           </View>
         </View>
         <Text style={styles.replyBody}>{reply.content}</Text>
       </TouchableOpacity>
       <View style={styles.replyActions}>
         <ItemActions
-          likes={reply.likes + (liked ? 1 : 0)}
-          liked={liked}
-          onLike={() => setLiked(!liked)}
+          likes={reply.likes}
+          liked={reply.liked ?? false}
+          onLike={() => onLike(reply.id)}
           onComment={() => onReply(reply.name)}
           onForward={onForward}
-          onBookmark={() => setBookmarked(!bookmarked)}
-          bookmarked={bookmarked}
+          onBookmark={() => onBookmark(reply.id)}
+          bookmarked={reply.bookmarked ?? false}
           size={14}
         />
       </View>
@@ -178,13 +193,19 @@ function ReplyItem({
 /* ── Comment item (一级评论) ── */
 function CommentItem({
   comment,
+  lang,
   onReply,
+  onLike,
+  onBookmark,
   onForward,
   onReport,
   highlightId,
 }: {
   comment: Comment;
+  lang: Language;
   onReply: (name: string) => void;
+  onLike: (commentId: string) => void;
+  onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: () => void;
   highlightId?: string;
@@ -194,8 +215,17 @@ function CommentItem({
   const highlightedReplyId =
     highlightId && comment.replies?.find((r) => r.id === highlightId)?.id;
   const [showReplies, setShowReplies] = useState(!!highlightedReplyId);
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
+
+  const commentMeta = useMemo(
+    () =>
+      buildPostMeta(t, lang, {
+        gradeKey: comment.isAnonymous ? undefined : comment.gradeKey,
+        majorKey: comment.isAnonymous ? undefined : comment.majorKey,
+        createdAt: comment.time,
+        isAnonymous: comment.isAnonymous,
+      }),
+    [t, lang, comment.gradeKey, comment.majorKey, comment.time, comment.isAnonymous],
+  );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
 
@@ -232,7 +262,9 @@ function CommentItem({
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
           <Avatar
-            text={comment.avatar}
+            text={comment.isAnonymous ? '' : comment.name}
+            uri={comment.isAnonymous ? undefined : comment.avatar}
+            defaultAvatar={comment.isAnonymous ? undefined : comment.defaultAvatar}
             size="sm"
             gender={comment.isAnonymous ? 'other' : undefined}
           />
@@ -242,8 +274,9 @@ function CommentItem({
                 <IncognitoIcon size={12} color={colors.onSurfaceVariant} />
               )}
               <Text style={styles.commentName}>{comment.name}</Text>
+              <Text style={styles.commentDot}> · </Text>
+              <Text style={styles.commentMeta} numberOfLines={1}>{commentMeta}</Text>
             </View>
-            <Text style={styles.commentTime}>{comment.time}</Text>
           </View>
         </View>
         <Text style={styles.commentBody}>{comment.content}</Text>
@@ -252,13 +285,13 @@ function CommentItem({
       {/* Actions: like, comment, forward, bookmark */}
       <View style={styles.commentActionsRow}>
         <ItemActions
-          likes={comment.likes + (liked ? 1 : 0)}
-          liked={liked}
-          onLike={() => setLiked(!liked)}
+          likes={comment.likes}
+          liked={comment.liked ?? false}
+          onLike={() => onLike(comment.id)}
           onComment={() => onReply(comment.name)}
           onForward={onForward}
-          onBookmark={() => setBookmarked(!bookmarked)}
-          bookmarked={bookmarked}
+          onBookmark={() => onBookmark(comment.id)}
+          bookmarked={comment.bookmarked ?? false}
         />
       </View>
 
@@ -280,7 +313,11 @@ function CommentItem({
               <ReplyItem
                 key={reply.id || i}
                 reply={reply}
+                lang={lang}
+                t={t}
                 onReply={onReply}
+                onLike={onLike}
+                onBookmark={onBookmark}
                 onForward={onForward}
                 onReport={onReport}
                 highlighted={reply.id === highlightId}
@@ -297,16 +334,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Language;
   const { postId, commentId } = route.params;
-  const { data: posts } = usePosts();
+  const { data: post, isLoading } = usePostDetail(postId);
   const { data: comments } = useComments(postId);
-  const likedPosts = useForumStore((s) => s.likedPosts);
-  const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
-  const toggleLike = useForumStore((s) => s.toggleLike);
-  const toggleBookmark = useForumStore((s) => s.toggleBookmark);
+  // like/bookmark state comes from server data (optimistic updates)
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const createCommentMutation = useCreateComment(postId);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
+  const likeCommentMutation = useLikeComment(postId);
+  const bookmarkCommentMutation = useBookmarkComment(postId);
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -370,11 +406,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [commentText]
   );
 
-  const post = useMemo(
-    () => posts?.find((p) => p.id === postId) || null,
-    [posts, postId]
-  );
-
   const displayMeta = useMemo(
     () =>
       post
@@ -388,8 +419,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [post, t, lang],
   );
 
-  const isLiked = likedPosts.has(postId);
-  const isBookmarked = bookmarkedPosts.has(postId);
+  const isLiked = post?.liked ?? false;
+  const isBookmarked = post?.bookmarked ?? false;
 
   const handleComment = useCallback(() => {
     setReplyTo(null);
@@ -434,6 +465,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     }
   }, [post, navigation]);
 
+  const handleLikeComment = useCallback((cId: string) => {
+    likeCommentMutation.mutate(cId);
+  }, [likeCommentMutation]);
+
+  const handleBookmarkComment = useCallback((cId: string) => {
+    bookmarkCommentMutation.mutate(cId);
+  }, [bookmarkCommentMutation]);
+
   const handleReportPost = useCallback(() => {
     setPopoverVisible(true);
   }, []);
@@ -467,7 +506,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         <View style={styles.postSection}>
           <View style={styles.postHeader}>
             <Avatar
-              text={post.avatar}
+              text={post.isAnonymous ? '' : post.name}
+              uri={post.isAnonymous ? undefined : post.avatar}
+              defaultAvatar={post.isAnonymous ? undefined : post.defaultAvatar}
               size="md"
               gender={post.isAnonymous ? 'other' : post.gender}
             />
@@ -489,7 +530,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <View style={styles.postTags}>
               {post.tags.map((tag) => (
                 <TouchableOpacity key={tag} onPress={() => navigation.navigate('CircleDetail', { tag })}>
-                  <Tag label={tag} />
+                  <Tag label={t(tag)} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -515,7 +556,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <View style={styles.postActions}>
             <TouchableOpacity
               style={styles.postActionBtn}
-              onPress={() => { toggleLike(postId); likePostMutation.mutate(postId); }}
+              onPress={() => likePostMutation.mutate(postId)}
             >
               <HeartIcon
                 size={20}
@@ -544,7 +585,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               style={styles.postActionBtn}
-              onPress={() => { toggleBookmark(postId); bookmarkPostMutation.mutate(postId); }}
+              onPress={() => bookmarkPostMutation.mutate(postId)}
             >
               <BookmarkIcon
                 size={20}
@@ -571,9 +612,21 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, postId, toggleLike, toggleBookmark, handleComment, handleForward, handleQuote, t]);
+  }, [post, isLiked, isBookmarked, postId, likePostMutation, bookmarkPostMutation, handleComment, handleForward, handleQuote, t, displayMeta, navigation]);
 
-  if (!post) return null;
+  if (isLoading || !post) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+            <BackIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
+          <View style={styles.iconBtn} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -624,7 +677,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           renderItem={({ item }) => (
             <CommentItem
               comment={item}
+              lang={lang}
               onReply={handleReply}
+              onLike={handleLikeComment}
+              onBookmark={handleBookmarkComment}
               onForward={handleForward}
               onReport={handleReportComment}
               highlightId={commentId}
@@ -658,7 +714,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                   activeOpacity={0.7}
                   onPress={() => handleMentionSelect(contact.name)}
                 >
-                  <Avatar text={contact.avatar} size="sm" gender={contact.gender} />
+                  <Avatar text={contact.name} uri={contact.avatar} size="sm" gender={contact.gender} />
                   <Text style={styles.mentionName}>{contact.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -933,10 +989,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.onSurface,
   },
-  commentTime: {
+  commentDot: {
     ...typography.bodySmall,
     fontSize: 11,
     color: colors.onSurfaceVariant,
+  },
+  commentMeta: {
+    ...typography.bodySmall,
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
   commentBody: {
     ...typography.bodyMedium,
@@ -1125,6 +1187,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    paddingBottom: layout.bottomNavHeight,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.outlineVariant,
     backgroundColor: colors.surface,

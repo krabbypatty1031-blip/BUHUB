@@ -30,10 +30,6 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const { data: allPosts } = usePosts();
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
-  const likedPosts = useForumStore((s) => s.likedPosts);
-  const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
-  const toggleLike = useForumStore((s) => s.toggleLike);
-  const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
@@ -42,18 +38,10 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const [followed, setFollowed] = useState(false);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
 
-  // Reverse-lookup: find the i18n key for this tag so we can display
-  // the circle name in the user's current locale
-  const CIRCLE_KEYS = [
-    'tagTreehole', 'tagJobReferral', 'tagCourseExchange',
-    'tagCampusLife', 'tagLostFound', 'tagStudyHelp',
-  ] as const;
-
+  // tag is an i18n key (e.g., "tagTreehole") — translate to current locale
   const displayName = useMemo(() => {
-    for (const key of CIRCLE_KEYS) {
-      if (t(key, { lng: 'tc' }) === tag) return t(key);
-    }
-    return tag; // custom / non-official tag, show raw value
+    const translated = t(tag);
+    return translated !== tag ? translated : tag;
   }, [tag, t]);
 
   // Filter posts by tag and exclude blocked users
@@ -174,20 +162,20 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
+        onLike={() => likePostMutation.mutate(item.id)}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
+        onBookmark={() => bookmarkPostMutation.mutate(item.id)}
         onQuote={() => handleQuote(item)}
         onTagPress={(pressedTag) => handleTagPress(pressedTag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
         onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
-        isLiked={likedPosts.has(item.id)}
-        isBookmarked={bookmarkedPosts.has(item.id)}
+        isLiked={item.liked ?? false}
+        isBookmarked={item.bookmarked ?? false}
         votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [posts, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (

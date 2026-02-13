@@ -187,10 +187,7 @@ export default function ErrandListScreen({ navigation }: Props) {
           !isLoading ? (
             <EmptyState
               icon={<TruckIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noErrands') || 'No errands yet'}
-              message={t('createErrandHint') || 'Post an errand to get help!'}
-              actionLabel={t('postErrand') || 'Post Errand'}
-              onAction={() => navigation.navigate('ComposeErrand', { category: selectedCategory || 'pickup' })}
+              title={t('noErrands')}
             />
           ) : null
         }

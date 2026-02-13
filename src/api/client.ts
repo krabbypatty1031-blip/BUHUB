@@ -129,5 +129,20 @@ export const clearToken = async () => {
   await AsyncStorage.removeItem(TOKEN_KEY);
 };
 
+// Server base URL (without /api) for resolving relative image paths
+const SERVER_BASE = API_BASE.replace(/\/api$/, '');
+
+/**
+ * Resolve a relative image path to a full URL.
+ * Relative paths (e.g. /uploads/images/xxx.jpg) are served via /api/uploads/...
+ * Absolute URLs (http/https) are returned as-is.
+ */
+export function resolveImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // /uploads/xxx → http://host:port/api/uploads/xxx
+  return `${SERVER_BASE}/api${url}`;
+}
+
 export { uploadClient };
 export default apiClient;

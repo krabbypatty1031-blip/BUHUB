@@ -45,7 +45,7 @@ export function getAutoAvatar(gender: Gender): string {
 }
 
 /** Generate DiceBear Micah avatar URL */
-function getDiceBearUrl(seed: string, size: number, bg?: string): string {
+export function getDiceBearUrl(seed: string, size: number, bg?: string): string {
   const bgParam = bg ? `&backgroundColor=${bg.replace('#', '')}` : '';
   return `https://api.dicebear.com/9.x/micah/png?seed=${encodeURIComponent(seed)}&size=${size}${bgParam}`;
 }

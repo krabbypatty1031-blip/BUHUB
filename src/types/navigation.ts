@@ -7,8 +7,11 @@ import { RatingCategory } from './rating';
 // Auth Stack
 export type AuthStackParamList = {
   Language: undefined;
+  Login: undefined;
   EmailInput: undefined;
   VerifyCode: { email: string };
+  SetPassword: { email: string };
+  InviteCode: { email: string };
   ProfileSetup: { email: string };
 };
 

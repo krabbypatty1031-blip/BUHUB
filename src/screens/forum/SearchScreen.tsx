@@ -42,10 +42,6 @@ export default function SearchScreen({ navigation }: Props) {
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const results = useMemo(() => rawResults?.filter((p) => !isBlocked(p.name)) ?? [], [rawResults, blockedUsers, isBlocked]);
-  const likedPosts = useForumStore((s) => s.likedPosts);
-  const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
-  const toggleLike = useForumStore((s) => s.toggleLike);
-  const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
@@ -127,20 +123,20 @@ export default function SearchScreen({ navigation }: Props) {
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
+        onLike={() => likePostMutation.mutate(item.id)}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
+        onBookmark={() => bookmarkPostMutation.mutate(item.id)}
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
         onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
-        isLiked={likedPosts.has(item.id)}
-        isBookmarked={bookmarkedPosts.has(item.id)}
+        isLiked={item.liked ?? false}
+        isBookmarked={item.bookmarked ?? false}
         votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [results, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (
@@ -175,7 +171,7 @@ export default function SearchScreen({ navigation }: Props) {
               <TouchableOpacity
                 key={key}
                 style={styles.officialTag}
-                onPress={() => handleTagPress(t(key, { lng: 'tc' }))}
+                onPress={() => handleTagPress(key)}
               >
                 <Text style={styles.officialTagText}>{t(key)}</Text>
               </TouchableOpacity>

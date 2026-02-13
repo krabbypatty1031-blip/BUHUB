@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { changeLanguage } from '../../i18n';
@@ -45,8 +46,10 @@ export default function SettingsScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const language = useAuthStore((s) => s.language);
   const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const setLanguage = useAuthStore((s) => s.setLanguage);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const queryClient = useQueryClient();
 
   // Local state
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -161,11 +164,12 @@ export default function SettingsScreen({ navigation }: Props) {
           } catch {
             // Still logout locally even if API fails
           }
+          queryClient.clear();
           logout();
         },
       },
     ]);
-  }, [t, logout]);
+  }, [t, logout, queryClient]);
 
   const handleDeleteAccount = useCallback(() => {
     Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
@@ -176,14 +180,15 @@ export default function SettingsScreen({ navigation }: Props) {
         onPress: async () => {
           try {
             await authService.deleteAccount();
-            logout();
+            queryClient.clear();
+            deleteAccount();
           } catch {
             showSnackbar({ message: t('deleteFailed') || 'Delete failed', type: 'error' });
           }
         },
       },
     ]);
-  }, [t, logout, showSnackbar]);
+  }, [t, deleteAccount, showSnackbar, queryClient]);
 
   const handleBlocklist = useCallback(() => {
     navigation.navigate('Blocklist');

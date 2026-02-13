@@ -44,10 +44,6 @@ export default function ForumScreen({ navigation }: Props) {
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const posts = useMemo(() => allPosts?.filter((p) => !isBlocked(p.name)) ?? [], [allPosts, blockedUsers, isBlocked]);
-  const likedPosts = useForumStore((s) => s.likedPosts);
-  const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
-  const toggleLike = useForumStore((s) => s.toggleLike);
-  const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
@@ -162,20 +158,20 @@ export default function ForumScreen({ navigation }: Props) {
         post={item}
         onPress={() => handlePostPress(item)}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
+        onLike={() => likePostMutation.mutate(item.id)}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
+        onBookmark={() => bookmarkPostMutation.mutate(item.id)}
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(item, tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
         onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
-        isLiked={likedPosts.has(item.id)}
-        isBookmarked={bookmarkedPosts.has(item.id)}
+        isLiked={item.liked ?? false}
+        isBookmarked={item.bookmarked ?? false}
         votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, votedPolls, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, toggleLike, toggleBookmark, votePoll, handleQuote, handleTagPress, handleFunctionPress]
+    [posts, votedPolls, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePoll, handleQuote, handleTagPress, handleFunctionPress]
   );
 
   return (
@@ -209,9 +205,6 @@ export default function ForumScreen({ navigation }: Props) {
             <EmptyState
               icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
               title={t('noPosts')}
-              message={t('beFirstPost')}
-              actionLabel={t('createPost')}
-              onAction={() => setComposeSheetVisible(true)}
             />
           )
         }

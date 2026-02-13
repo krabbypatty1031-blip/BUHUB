@@ -18,7 +18,8 @@ import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon } from '../../components/common/icons';
+import { BackIcon, StarIcon } from '../../components/common/icons';
+import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import SearchInput from '../../components/common/SearchInput';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
@@ -200,6 +201,12 @@ export default function RatingListScreen({ navigation, route }: Props) {
           refreshing={isLoading}
           onRefresh={refetch}
           drawDistance={250}
+          ListEmptyComponent={
+            <EmptyState
+              icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
+              title={t('noRatingData')}
+            />
+          }
         />
       )}
     </SafeAreaView>

@@ -47,6 +47,7 @@ export default function MainTabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: colors.black,
         tabBarInactiveTintColor: colors.black,
         tabBarIconStyle: {

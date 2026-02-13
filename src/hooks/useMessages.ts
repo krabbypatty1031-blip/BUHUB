@@ -8,20 +8,20 @@ export function useContacts() {
   });
 }
 
-export function useChatHistory(contactName: string) {
+export function useChatHistory(userId: string) {
   return useQuery({
-    queryKey: ['chat', contactName],
-    queryFn: () => messageService.getChatHistory(contactName),
-    enabled: contactName.length > 0,
+    queryKey: ['chat', userId],
+    queryFn: () => messageService.getChatHistory(userId),
+    enabled: userId.length > 0,
   });
 }
 
-export function useSendMessage(contactName: string) {
+export function useSendMessage(receiverId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (text: string) => messageService.sendMessage(contactName, text),
+    mutationFn: (content: string) => messageService.sendMessage(receiverId, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat', contactName] });
+      queryClient.invalidateQueries({ queryKey: ['chat', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
   });

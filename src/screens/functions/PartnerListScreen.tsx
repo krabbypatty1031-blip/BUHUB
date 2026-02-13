@@ -185,10 +185,7 @@ export default function PartnerListScreen({ navigation }: Props) {
           !isLoading ? (
             <EmptyState
               icon={<UsersIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noPartners') || 'No activities yet'}
-              message={t('createPartnerHint') || 'Create an activity to find partners!'}
-              actionLabel={t('createActivity') || 'Create Activity'}
-              onAction={() => navigation.navigate('ComposePartner', { category: selectedCategory || 'travel' })}
+              title={t('noPartners')}
             />
           ) : null
         }

@@ -16,7 +16,7 @@ import { useProfile, useMyContent } from '../../hooks/useUser';
 import { usePosts } from '../../hooks/usePosts';
 import { useSecondhand } from '../../hooks/useSecondhand';
 import { useAuthStore } from '../../store/authStore';
-import { useForumStore } from '../../store/forumStore';
+
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -68,7 +68,7 @@ const TAB_DEFS: TabDef[] = [
  */
 
 /* ── Post card (own posts / anonPosts) ── */
-const PostItem = React.memo(function PostItem({ post, author, onPress }: { post: UserPost; author: string; onPress: () => void }) {
+const PostItem = React.memo(function PostItem({ post, author, lang, onPress }: { post: UserPost; author: string; lang: Language; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
       <Text style={styles.cardBody} numberOfLines={3}>
@@ -83,7 +83,7 @@ const PostItem = React.memo(function PostItem({ post, author, onPress }: { post:
           <CommentIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{post.comments}</Text>
         </View>
-        <Text style={styles.footerTime}>{post.time}</Text>
+        <Text style={styles.footerTime}>{getRelativeTime(post.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -93,10 +93,12 @@ const PostItem = React.memo(function PostItem({ post, author, onPress }: { post:
 const CommentItem = React.memo(function CommentItem({
   comment,
   t,
+  lang,
   onPress,
 }: {
   comment: UserComment;
   t: (key: string) => string;
+  lang: Language;
   onPress: () => void;
 }) {
   return (
@@ -110,14 +112,14 @@ const CommentItem = React.memo(function CommentItem({
           <HeartIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{comment.likes}</Text>
         </View>
-        <Text style={styles.footerTime}>{comment.time}</Text>
+        <Text style={styles.footerTime}>{getRelativeTime(comment.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
 });
 
 /* ── Liked post card ── */
-const LikedPostItem = React.memo(function LikedPostItem({ post, onPress }: { post: LikedPost; onPress: () => void }) {
+const LikedPostItem = React.memo(function LikedPostItem({ post, lang, onPress }: { post: LikedPost; lang: Language; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
       <Text style={styles.cardBody} numberOfLines={3}>
@@ -132,7 +134,7 @@ const LikedPostItem = React.memo(function LikedPostItem({ post, onPress }: { pos
           <CommentIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{post.comments}</Text>
         </View>
-        <Text style={styles.footerTime}>{post.time}</Text>
+        <Text style={styles.footerTime}>{getRelativeTime(post.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -142,10 +144,12 @@ const LikedPostItem = React.memo(function LikedPostItem({ post, onPress }: { pos
 const LikedCommentItem = React.memo(function LikedCommentItem({
   comment,
   t,
+  lang,
   onPress,
 }: {
   comment: LikedComment;
   t: (key: string) => string;
+  lang: Language;
   onPress: () => void;
 }) {
   return (
@@ -159,14 +163,14 @@ const LikedCommentItem = React.memo(function LikedCommentItem({
           <HeartIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{comment.likes}</Text>
         </View>
-        <Text style={styles.footerTime}>{comment.time}</Text>
+        <Text style={styles.footerTime}>{getRelativeTime(comment.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
 });
 
 /* ── Wanted item card ── */
-const WantedItemCard = React.memo(function WantedItemCard({ item, onPress }: { item: WantedItem; onPress: () => void }) {
+const WantedItemCard = React.memo(function WantedItemCard({ item, lang, onPress }: { item: WantedItem; lang: Language; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.contentCard} activeOpacity={0.7} onPress={onPress}>
       <Text style={styles.cardBody} numberOfLines={3}>
@@ -180,7 +184,7 @@ const WantedItemCard = React.memo(function WantedItemCard({ item, onPress }: { i
           <Text style={styles.footerDot}>·</Text>
           <Text style={styles.footerMetricText}>{item.condition}</Text>
         </View>
-        <Text style={styles.footerTime}>{item.time}</Text>
+        <Text style={styles.footerTime}>{getRelativeTime(item.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -194,8 +198,7 @@ export default function MeScreen({ navigation }: Props) {
   const { data: allPosts } = usePosts();
   const { data: allSecondhand } = useSecondhand();
   const user = useAuthStore((s) => s.user);
-  const likedPostIds = useForumStore((s) => s.likedPosts);
-  const bookmarkedPostIds = useForumStore((s) => s.bookmarkedPosts);
+  // liked/bookmarked state now comes from server data on each post
   const wantedItemIds = useSecondhandStore((s) => s.wantedItems);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
@@ -203,38 +206,38 @@ export default function MeScreen({ navigation }: Props) {
   const displayUser = profile || user;
   const stats = myContent?.stats;
 
-  /* ── Derive liked & bookmarked posts from forumStore + real data ── */
+  /* ── Derive liked & bookmarked posts from server data ── */
   const storeLikedPosts = useMemo<LikedPost[]>(() => {
     if (!allPosts) return [];
     return allPosts
-      .filter((p) => likedPostIds.has(p.id))
+      .filter((p) => p.liked)
       .map((p) => ({
         postId: p.id,
         author: p.name,
         avatar: p.avatar,
         gender: p.gender,
         content: p.content,
-        time: getRelativeTime(p.createdAt, lang),
+        time: p.createdAt,
         likes: p.likes,
         comments: p.comments,
       }));
-  }, [allPosts, likedPostIds]);
+  }, [allPosts]);
 
   const storeBookmarkedPosts = useMemo<LikedPost[]>(() => {
     if (!allPosts) return [];
     return allPosts
-      .filter((p) => bookmarkedPostIds.has(p.id))
+      .filter((p) => p.bookmarked)
       .map((p) => ({
         postId: p.id,
         author: p.name,
         avatar: p.avatar,
         gender: p.gender,
         content: p.content,
-        time: getRelativeTime(p.createdAt, lang),
+        time: p.createdAt,
         likes: p.likes,
         comments: p.comments,
       }));
-  }, [allPosts, bookmarkedPostIds]);
+  }, [allPosts]);
 
   /* ── Derive wanted items from secondhandStore + real data ── */
   const storeWantedItems = useMemo<WantedItem[]>(() => {
@@ -304,15 +307,19 @@ export default function MeScreen({ navigation }: Props) {
       return <EmptyState icon={<EditIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels[activeTab]} />;
     }
 
-    /* ── myLikes tab: derived from forumStore ── */
+    /* ── myLikes tab: liked posts + liked comments ── */
     if (activeTab === 'myLikes') {
-      if (storeLikedPosts.length === 0) {
+      const likedComments = myContent.myLikes?.comments ?? [];
+      if (storeLikedPosts.length === 0 && likedComments.length === 0) {
         return <EmptyState icon={<HeartIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.myLikes} />;
       }
       return (
         <>
           {storeLikedPosts.map((p) => (
-            <LikedPostItem key={p.postId} post={p} onPress={() => goToPost(p.postId)} />
+            <LikedPostItem key={p.postId} post={p} lang={lang} onPress={() => goToPost(p.postId)} />
+          ))}
+          {likedComments.map((c) => (
+            <LikedCommentItem key={c.commentId} comment={c} t={t} lang={lang} onPress={() => goToComment(c.postId, c.commentId)} />
           ))}
         </>
       );
@@ -327,21 +334,25 @@ export default function MeScreen({ navigation }: Props) {
       return (
         <>
           {wants.map((item, i) => (
-            <WantedItemCard key={`w-${i}`} item={item} onPress={() => goToSecondhand(item.itemIndex)} />
+            <WantedItemCard key={`w-${i}`} item={item} lang={lang} onPress={() => goToSecondhand(item.itemIndex)} />
           ))}
         </>
       );
     }
 
-    /* ── bookmarks tab: derived from forumStore ── */
+    /* ── bookmarks tab: bookmarked posts + bookmarked comments ── */
     if (activeTab === 'bookmarks') {
-      if (storeBookmarkedPosts.length === 0) {
+      const bookmarkedComments = myContent.myBookmarks?.comments ?? [];
+      if (storeBookmarkedPosts.length === 0 && bookmarkedComments.length === 0) {
         return <EmptyState icon={<BookmarkIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.bookmarks} />;
       }
       return (
         <>
           {storeBookmarkedPosts.map((p) => (
-            <LikedPostItem key={p.postId} post={p} onPress={() => goToPost(p.postId)} />
+            <LikedPostItem key={p.postId} post={p} lang={lang} onPress={() => goToPost(p.postId)} />
+          ))}
+          {bookmarkedComments.map((c) => (
+            <LikedCommentItem key={c.commentId} comment={c} t={t} lang={lang} onPress={() => goToComment(c.postId, c.commentId)} />
           ))}
         </>
       );
@@ -365,14 +376,14 @@ export default function MeScreen({ navigation }: Props) {
 
     if (isComment) {
       return (myContent[activeTab] as UserComment[]).map((c, i) => (
-        <CommentItem key={i} comment={c} t={t} onPress={() => goToComment(c.postId, c.commentId)} />
+        <CommentItem key={i} comment={c} t={t} lang={lang} onPress={() => goToComment(c.postId, c.commentId)} />
       ));
     }
     const postAuthor = activeTab === 'anonPosts' ? t('anonymousUser') : (displayUser?.nickname || displayUser?.name || '');
     return (myContent[activeTab] as UserPost[]).map((p, i) => (
-      <PostItem key={i} post={p} author={postAuthor} onPress={() => goToPost(p.postId)} />
+      <PostItem key={i} post={p} author={postAuthor} lang={lang} onPress={() => goToPost(p.postId)} />
     ));
-  }, [activeTab, myContent, emptyLabels, t, goToPost, goToComment, goToSecondhand, storeLikedPosts, storeBookmarkedPosts, storeWantedItems, displayUser]);
+  }, [activeTab, myContent, emptyLabels, t, lang, goToPost, goToComment, goToSecondhand, storeLikedPosts, storeBookmarkedPosts, storeWantedItems, displayUser]);
 
   if (isLoading && !displayUser) {
     return (
@@ -462,6 +473,7 @@ export default function MeScreen({ navigation }: Props) {
             <Avatar
               text={displayUser?.nickname || displayUser?.name || '?'}
               uri={displayUser?.avatar}
+              defaultAvatar={displayUser?.defaultAvatar}
               size="xl"
               gender={displayUser?.gender}
             />

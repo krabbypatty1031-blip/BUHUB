@@ -1,7 +1,7 @@
 import { uploadClient } from '../client';
 import ENDPOINTS from '../endpoints';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const uploadService = {
   async uploadImage(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {

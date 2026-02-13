@@ -26,7 +26,7 @@ const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
 export default function FunctionsStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
       <Stack.Screen name="FunctionsHub" component={FunctionsHubScreen} />
       <Stack.Screen name="PartnerList" component={PartnerListScreen} />
       <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />

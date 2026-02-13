@@ -31,7 +31,9 @@ import {
   RepostIcon,
   ShareIcon,
   MoreHorizontalIcon,
+  EditIcon,
 } from '../../components/common/icons';
+import EmptyState from '../../components/common/EmptyState';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'MyPosts'>;
 
@@ -207,9 +209,10 @@ export default function MyPostsScreen({ navigation }: Props) {
         keyExtractor={(item) => `${item.kind}-${item.index}`}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>{t('noPosts')}</Text>
-          </View>
+          <EmptyState
+            icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
+            title={t('noRelatedPublish')}
+          />
         }
       />
 

@@ -10,7 +10,7 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { colors, spacing } from '../../theme';
 import { typography } from '../../theme/typography';
@@ -49,14 +49,8 @@ export default function TabBar<T extends string = string>({
   useEffect(() => {
     const measurement = measurements.get(value);
     if (measurement) {
-      indicatorX.value = withSpring(measurement.x, {
-        damping: 25,
-        stiffness: 400,
-      });
-      indicatorWidth.value = withSpring(measurement.width, {
-        damping: 25,
-        stiffness: 400,
-      });
+      indicatorX.value = withTiming(measurement.x, { duration: 200 });
+      indicatorWidth.value = withTiming(measurement.width, { duration: 200 });
 
       // Auto-scroll to active tab
       scrollViewRef.current?.scrollTo({

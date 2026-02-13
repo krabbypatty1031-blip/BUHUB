@@ -15,14 +15,20 @@ export interface User {
 }
 
 export interface UserPublicProfile {
+  userName: string;
+  nickname: string;
   avatar: string;
   gender: Gender;
   bio: string;
-  posts: number;
-  likes: number;
-  followers: number;
-  userPosts: UserPost[];
-  userComments: UserComment[];
+  grade: string;
+  major: string;
+  isHKBUVerified?: boolean;
+  stats: {
+    postCount: number;
+    followerCount: number;
+    followingCount: number;
+  };
+  isFollowedByMe: boolean;
 }
 
 export interface UserPost {
@@ -85,6 +91,9 @@ export interface MyContent {
   anonComments: UserComment[];
   myLikes: {
     posts: LikedPost[];
+    comments: LikedComment[];
+  };
+  myBookmarks: {
     comments: LikedComment[];
   };
   myWants: WantedItem[];

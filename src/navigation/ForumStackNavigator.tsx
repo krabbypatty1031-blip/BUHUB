@@ -13,7 +13,7 @@ const Stack = createNativeStackNavigator<ForumStackParamList>();
 
 export default function ForumStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
       <Stack.Screen name="ForumHome" component={ForumScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="Compose" component={ComposeScreen} />

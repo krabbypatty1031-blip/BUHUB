@@ -17,6 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
 import { useImagePicker } from '../../hooks/useImagePicker';
+import { uploadService } from '../../api/services/upload.service';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -45,30 +46,56 @@ export default function EditProfileScreen({ navigation }: Props) {
   const currentUser = profile || user;
 
   const { images: avatarImages, pickImages: pickAvatar } = useImagePicker();
-  const avatarUri = avatarImages[0] || currentUser?.avatar;
+  const pickedAvatar = avatarImages[0] || null;
+  const avatarUri = pickedAvatar || currentUser?.avatar;
   const [nickname, setNickname] = useState(currentUser?.nickname || currentUser?.name || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [grade, setGrade] = useState(currentUser?.grade || '');
   const [major, setMajor] = useState(currentUser?.major || '');
+  const [isSaving, setIsSaving] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
   const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
 
-  const handleSave = useCallback(() => {
-    const updates = { nickname, bio, grade, major };
-    updateUserStore(updates);
-    updateProfile.mutate(updates, {
-      onSuccess: () => {
-        showSnackbar({ message: t('saveSuccess') || 'Saved!', type: 'success' });
-        navigation.goBack();
-      },
-      onError: () => {
-        showSnackbar({ message: t('saveError') || 'Failed to save', type: 'error' });
-      },
-    });
-  }, [nickname, bio, grade, major, updateUserStore, updateProfile, showSnackbar, navigation, t]);
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // Upload new avatar if user picked one
+      let finalAvatarUrl: string | undefined;
+      if (pickedAvatar) {
+        try {
+          const result = await uploadService.uploadAvatar({
+            uri: pickedAvatar,
+            type: 'image/jpeg',
+            name: 'avatar.jpg',
+          });
+          finalAvatarUrl = result.url;
+        } catch {
+          finalAvatarUrl = pickedAvatar;
+        }
+      }
+
+      const updates: Record<string, any> = { nickname, bio, grade, major };
+      if (finalAvatarUrl) {
+        updates.avatar = finalAvatarUrl;
+      }
+
+      updateUserStore(updates);
+      updateProfile.mutate(updates, {
+        onSuccess: () => {
+          showSnackbar({ message: t('saveSuccess') || 'Saved!', type: 'success' });
+          navigation.goBack();
+        },
+        onError: () => {
+          showSnackbar({ message: t('saveError') || 'Failed to save', type: 'error' });
+        },
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [pickedAvatar, nickname, bio, grade, major, updateUserStore, updateProfile, showSnackbar, navigation, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,10 +113,10 @@ export default function EditProfileScreen({ navigation }: Props) {
         <TouchableOpacity
           onPress={handleSave}
           style={styles.saveBtn}
-          disabled={updateProfile.isPending}
+          disabled={isSaving || updateProfile.isPending}
           activeOpacity={0.7}
         >
-          {updateProfile.isPending ? (
+          {isSaving || updateProfile.isPending ? (
             <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
             <>

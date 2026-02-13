@@ -54,19 +54,35 @@ export const authService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.CHANGE_PASSWORD, { oldPassword, newPassword });
+    const { data } = await apiClient.put(ENDPOINTS.AUTH.CHANGE_PASSWORD, { oldPassword, newPassword });
     return data;
   },
 
-  async resetPassword(email: string): Promise<{ success: boolean }> {
+  async forgotPassword(email: string): Promise<{ success: boolean }> {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.RESET_PASSWORD, { email });
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
     return data;
   },
 
-  async setupProfile(profile: { nickname: string; grade: string; major: string; gender: string; bio?: string }) {
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.RESET_PASSWORD, { token, newPassword });
+    return data;
+  },
+
+  async verifyInviteCode(code: string): Promise<{ valid: boolean }> {
+    if (USE_MOCK) {
+      return { valid: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY_INVITE_CODE, { code });
+    return data;
+  },
+
+  async setupProfile(profile: { nickname: string; grade: string; major: string; gender: string; bio?: string; avatar?: string }) {
     if (USE_MOCK) {
       return { success: true };
     }

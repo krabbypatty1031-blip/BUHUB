@@ -30,21 +30,21 @@ export default function Snackbar() {
 
   useEffect(() => {
     if (snackbar) {
-      // Enter: spring up + fade in
-      translateY.value = withSpring(0, SPRING_CONFIG);
-      opacity.value = withTiming(1, { duration: 150 });
-
-      // Exit after duration
       const duration = snackbar.duration || 2000;
-      translateY.value = withDelay(
-        duration,
-        withTiming(60, { duration: 250, easing: Easing.inOut(Easing.ease) }, (finished) => {
-          if (finished) runOnJS(dismiss)();
-        })
+
+      // Enter (spring to 0) → hold → Exit (slide back to 60)
+      translateY.value = withSequence(
+        withSpring(0, SPRING_CONFIG),
+        withDelay(
+          duration,
+          withTiming(60, { duration: 250, easing: Easing.inOut(Easing.ease) }, (finished) => {
+            if (finished) runOnJS(dismiss)();
+          })
+        )
       );
-      opacity.value = withDelay(
-        duration,
-        withTiming(0, { duration: 250 })
+      opacity.value = withSequence(
+        withTiming(1, { duration: 150 }),
+        withDelay(duration, withTiming(0, { duration: 250 }))
       );
     } else {
       translateY.value = 60;

@@ -8,7 +8,9 @@ export interface Translated {
 }
 
 export interface PollOption {
+  id?: string;
   text: string;
+  voteCount?: number;
   percent: number;
 }
 

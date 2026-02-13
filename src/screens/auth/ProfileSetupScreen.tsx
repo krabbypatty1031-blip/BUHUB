@@ -23,7 +23,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon, CameraIcon } from '../../components/common/icons';
-import DefaultAvatarPicker, { DEFAULT_AVATARS, DefaultAvatarSvg, InitialAvatar } from '../../components/common/DefaultAvatarPicker';
+import DefaultAvatarPicker, { DEFAULT_AVATARS, DefaultAvatarSvg, InitialAvatar, getDiceBearUrl } from '../../components/common/DefaultAvatarPicker';
 import type { Gender } from '../../types/common';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ProfileSetup'>;
@@ -110,14 +110,19 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     setIsSaving(true);
     try {
       // Upload avatar if selected
-      let uploadedAvatarUrl: string | null = null;
+      let finalAvatarUrl: string | null = null;
       if (avatarUri) {
-        const result = await uploadService.uploadAvatar({
-          uri: avatarUri,
-          type: 'image/jpeg',
-          name: 'avatar.jpg',
-        });
-        uploadedAvatarUrl = result.url;
+        try {
+          const result = await uploadService.uploadAvatar({
+            uri: avatarUri,
+            type: 'image/jpeg',
+            name: 'avatar.jpg',
+          });
+          finalAvatarUrl = result.url;
+        } catch {
+          // Upload failed, use local URI as fallback
+          finalAvatarUrl = avatarUri;
+        }
       }
 
       // Call API to set up profile
@@ -126,6 +131,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         grade,
         major,
         gender: resolvedGender,
+        avatar: finalAvatarUrl || selectedDefaultAvatar || undefined,
       });
 
       // Update local auth state
@@ -133,8 +139,8 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         name: nickname,
         nickname,
         email,
-        avatar: uploadedAvatarUrl,
-        defaultAvatar: uploadedAvatarUrl ? null : selectedDefaultAvatar,
+        avatar: finalAvatarUrl,
+        defaultAvatar: finalAvatarUrl ? null : selectedDefaultAvatar,
         grade,
         major,
         bio: '',
@@ -153,21 +159,23 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     try {
       const randomNum = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
       const randomNickname = `浸大${randomNum}`;
-      const randomAvatar = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)].id;
+      const randomAvatarDef = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
+      const randomAvatarUrl = getDiceBearUrl(randomAvatarDef.id, 200, randomAvatarDef.bg);
 
       await authService.setupProfile({
         nickname: randomNickname,
         grade: '',
         major: '',
         gender: 'secret',
+        avatar: randomAvatarUrl,
       });
 
       setUser({
         name: randomNickname,
         nickname: randomNickname,
         email,
-        avatar: null,
-        defaultAvatar: randomAvatar,
+        avatar: randomAvatarUrl,
+        defaultAvatar: randomAvatarDef.id,
         grade: '',
         major: '',
         bio: '',

@@ -113,14 +113,18 @@ function PostCard({
         {!post.isAnonymous && onAvatarPress ? (
           <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
             <Avatar
-              text={post.avatar}
+              text={post.name}
+              uri={post.avatar}
+              defaultAvatar={post.defaultAvatar}
               size="sm"
               gender={post.gender}
             />
           </TouchableOpacity>
         ) : (
           <Avatar
-            text={post.avatar}
+            text={post.isAnonymous ? '' : post.name}
+            uri={post.isAnonymous ? undefined : post.avatar}
+            defaultAvatar={post.isAnonymous ? undefined : post.defaultAvatar}
             size="sm"
             gender={post.isAnonymous ? 'other' : post.gender}
           />
@@ -152,7 +156,7 @@ function PostCard({
         {post.tags && post.tags.length > 0 && (
           <View style={styles.tags}>
             {post.tags.map((tag) => (
-              <Tag key={tag} label={tag} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
+              <Tag key={tag} label={t(tag)} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
             ))}
           </View>
         )}

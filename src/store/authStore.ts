@@ -17,6 +17,7 @@ interface AuthState {
   setLanguage: (lang: Language) => void;
   setToken: (token: string) => void;
   logout: () => void;
+  deleteAccount: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,6 +38,14 @@ export const useAuthStore = create<AuthState>()(
       setLanguage: (language) => set({ language, hasSelectedLanguage: true }),
       setToken: (token) => set({ token }),
       logout: () => set({ user: null, token: null, isLoggedIn: false }),
+      deleteAccount: () =>
+        set({
+          user: null,
+          token: null,
+          isLoggedIn: false,
+          hasSelectedLanguage: false,
+          language: 'tc',
+        }),
     }),
     {
       name: 'buhub-auth',

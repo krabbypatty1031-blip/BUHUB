@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
-import type { Comment } from '../types';
+import type { Comment, ForumPost } from '../types';
 
 export function usePosts() {
   return useQuery({
@@ -39,7 +39,7 @@ export function useSearch(query: string) {
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[] }) =>
+    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[]; images?: string[] }) =>
       forumService.createPost(post),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -78,6 +78,8 @@ export function useCreateComment(postId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
 }
@@ -106,31 +108,146 @@ export function useDeleteComment(postId: string) {
 
 export function useLikePost() {
   const queryClient = useQueryClient();
-  const toggleLike = useForumStore((s) => s.toggleLike);
   return useMutation({
     mutationFn: (postId: string) => forumService.likePost(postId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+      const previousList = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
+      const toggle = (p: ForumPost) => ({
+        ...p,
+        liked: !p.liked,
+        likes: p.liked ? p.likes - 1 : p.likes + 1,
+      });
+      queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
+        old?.map((p) => (p.id === postId ? toggle(p) : p))
+      );
+      if (previousDetail) {
+        queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
+      }
+      return { previousList, previousDetail };
     },
-    onError: (_error, postId) => {
-      // Reverse the optimistic toggle on failure
-      toggleLike(postId);
+    onError: (_err, postId, context) => {
+      if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
+      if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
+    },
+    onSettled: (_data, _err, postId) => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+    },
+  });
+}
+
+export function useLikeComment(postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) => forumService.likeComment(commentId),
+    onMutate: async (commentId) => {
+      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+        old?.map((c) => {
+          if (c.id === commentId) {
+            return { ...c, liked: !c.liked, likes: c.liked ? c.likes - 1 : c.likes + 1 };
+          }
+          if (c.replies?.some((r) => r.id === commentId)) {
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId ? { ...r, liked: !r.liked, likes: r.liked ? r.likes - 1 : r.likes + 1 } : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+      return { previous };
+    },
+    onError: (_err, _commentId, context) => {
+      if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+    },
+  });
+}
+
+export function useVotePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, optionId }: { postId: string; optionId: string }) =>
+      forumService.votePost(postId, optionId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+    },
+  });
+}
+
+export function useBookmarkComment(postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) => forumService.bookmarkComment(commentId),
+    onMutate: async (commentId) => {
+      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+        old?.map((c) => {
+          if (c.id === commentId) {
+            return { ...c, bookmarked: !c.bookmarked };
+          }
+          if (c.replies?.some((r) => r.id === commentId)) {
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId ? { ...r, bookmarked: !r.bookmarked } : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+      return { previous };
+    },
+    onError: (_err, _commentId, context) => {
+      if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
 }
 
 export function useBookmarkPost() {
   const queryClient = useQueryClient();
-  const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   return useMutation({
     mutationFn: (postId: string) => forumService.bookmarkPost(postId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+    onMutate: async (postId) => {
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+      const previousList = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
+      const toggle = (p: ForumPost) => ({ ...p, bookmarked: !p.bookmarked });
+      queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
+        old?.map((p) => (p.id === postId ? toggle(p) : p))
+      );
+      if (previousDetail) {
+        queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
+      }
+      return { previousList, previousDetail };
     },
-    onError: (_error, postId) => {
-      // Reverse the optimistic toggle on failure
-      toggleBookmark(postId);
+    onError: (_err, postId, context) => {
+      if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
+      if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
+    },
+    onSettled: (_data, _err, postId) => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
 }

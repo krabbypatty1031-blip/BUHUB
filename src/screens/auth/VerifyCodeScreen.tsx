@@ -92,7 +92,7 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
       setIsVerifying(false);
       showSnackbar({ message: t('captchaSuccess'), type: 'success' });
       setTimeout(() => {
-        navigation.navigate('ProfileSetup', { email });
+        navigation.navigate('SetPassword', { email });
       }, 500);
     } catch {
       setIsVerifying(false);

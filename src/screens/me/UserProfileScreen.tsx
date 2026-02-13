@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,32 +13,30 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { UserPost } from '../../types/user';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon, HeartIcon, CommentIcon } from '../../components/common/icons';
+import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
 
-function getPostContent(post: UserPost, lang: string): string {
-  if (lang === 'tc' || lang === post.lang) return post.content;
-  if (lang === 'sc' && post.translated?.sc) return post.translated.sc;
-  if (lang === 'en' && post.translated?.en) return post.translated.en;
-  return post.content;
-}
-
 export default function UserProfileScreen({ navigation, route }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { userName } = route.params;
   const { data: profile, isLoading } = usePublicProfile(userName);
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    if (profile?.isFollowedByMe !== undefined) {
+      setIsFollowing(profile.isFollowedByMe);
+    }
+  }, [profile?.isFollowedByMe]);
 
   const handleBlock = useCallback(() => {
     Alert.alert(t('blockUser'), t('blockUserConfirm'), [
@@ -128,7 +126,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             gender={profile?.gender}
           />
 
-          <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.userName}>{profile?.nickname || userName}</Text>
           {profile?.bio ? (
             <Text style={styles.bio}>{profile.bio}</Text>
           ) : null}
@@ -136,17 +134,17 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           {/* Stats */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.posts ?? 0}</Text>
+              <Text style={styles.statValue}>{profile?.stats?.postCount ?? 0}</Text>
               <Text style={styles.statLabel}>{t('postsStat')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.likes ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('likesStat')}</Text>
+              <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
+              <Text style={styles.statLabel}>{t('followingStat')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.followers ?? 0}</Text>
+              <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
               <Text style={styles.statLabel}>{t('followersStat')}</Text>
             </View>
           </View>
@@ -199,37 +197,6 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* User Posts */}
-        {profile?.userPosts && profile.userPosts.length > 0 && (
-          <View style={styles.postsSection}>
-            <Text style={styles.sectionTitle}>{t('tabPosts')}</Text>
-            {profile.userPosts.map((post, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.postCard}
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate('PostDetail', { postId: post.postId })}
-              >
-                <Text style={styles.postContent} numberOfLines={3}>
-                  {getPostContent(post, i18n.language)}
-                </Text>
-                <View style={styles.postFooter}>
-                  <View style={styles.postMetrics}>
-                    <Text style={styles.postAuthor}>{userName}</Text>
-                    <Text style={styles.postDot}>·</Text>
-                    <HeartIcon size={13} color={colors.onSurfaceVariant} />
-                    <Text style={styles.postMetricText}>{post.likes}</Text>
-                    <CommentIcon size={13} color={colors.onSurfaceVariant} />
-                    <Text style={styles.postMetricText}>{post.comments}</Text>
-                  </View>
-                  <Text style={styles.postTime}>{post.time}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
 
       </ScrollView>
     </SafeAreaView>
@@ -358,54 +325,5 @@ const styles = StyleSheet.create({
   },
   followBtnTextFollowing: {
     color: colors.primary,
-  },
-  // Posts
-  postsSection: {
-    padding: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  sectionTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.md,
-  },
-  postCard: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface1,
-    marginBottom: spacing.sm,
-  },
-  postContent: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    marginBottom: spacing.sm,
-  },
-  postFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  postMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  postAuthor: {
-    ...typography.bodySmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  postDot: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  postMetricText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  postTime: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
   },
 });

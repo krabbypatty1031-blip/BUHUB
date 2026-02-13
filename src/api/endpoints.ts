@@ -8,8 +8,10 @@ const ENDPOINTS = {
     VERIFY_TOKEN: '/auth/verify-token',
     LOGIN: '/auth/login',
     SET_PASSWORD: '/auth/set-password',
-    CHANGE_PASSWORD: '/auth/change-password',
+    CHANGE_PASSWORD: '/auth/password',
+    FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
+    VERIFY_INVITE_CODE: '/auth/verify-invite-code',
     PROFILE_SETUP: '/auth/profile-setup',
     LOGOUT: '/auth/logout',
     DELETE_ACCOUNT: '/auth/account',
@@ -25,8 +27,11 @@ const ENDPOINTS = {
     CREATE_COMMENT: (postId: string) => `/forum/posts/${postId}/comments`,
     EDIT_COMMENT: (commentId: string) => `/comments/${commentId}`,
     DELETE_COMMENT: (commentId: string) => `/comments/${commentId}`,
+    COMMENT_LIKE: (commentId: string) => `/comments/${commentId}/like`,
+    COMMENT_BOOKMARK: (commentId: string) => `/comments/${commentId}/bookmark`,
     LIKE: (postId: string) => `/forum/posts/${postId}/like`,
     BOOKMARK: (postId: string) => `/forum/posts/${postId}/bookmark`,
+    VOTE: (postId: string) => `/forum/posts/${postId}/vote`,
     SEARCH: '/forum/search',
   },
 
@@ -71,16 +76,17 @@ const ENDPOINTS = {
 
   // Messages
   MESSAGE: {
-    CONTACTS: '/messages/contacts',
-    CHAT: (contactId: string) => `/messages/chat/${contactId}`,
-    SEND: (contactId: string) => `/messages/chat/${contactId}/send`,
+    CONVERSATIONS: '/messages/conversations',
+    CHAT: (userId: string) => `/messages/chat/${userId}`,
+    SEND: '/messages',
+    MESSAGE_DETAIL: (id: string) => `/messages/${id}`,
+    MARK_READ: (id: string) => `/messages/${id}/read`,
   },
 
   // User (backend: /user/*, /user/:userName/block, /users/blocked)
   USER: {
     PROFILE: '/user/profile',
     UPDATE_PROFILE: '/user/profile',
-    UPDATE_LANGUAGE: '/user/language',
     PUBLIC_PROFILE: (userName: string) => `/user/${userName}`,
     FOLLOW: (userName: string) => `/user/${userName}/follow`,
     BLOCK: (userName: string) => `/user/${userName}/block`,
