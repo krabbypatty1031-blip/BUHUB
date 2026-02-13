@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partnerService } from '../api/services/partner.service';
-import type { PartnerCategory } from '../types';
+import type { PartnerPost, PartnerCategory } from '../types';
 
 export function usePartners(category?: PartnerCategory) {
   return useQuery({
@@ -13,5 +13,47 @@ export function usePartnerDetail(id: string) {
   return useQuery({
     queryKey: ['partner', id],
     queryFn: () => partnerService.getDetail(id),
+  });
+}
+
+export function useCreatePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (post: Omit<PartnerPost, 'user' | 'avatar' | 'gender' | 'bio' | 'expired' | 'joined'>) =>
+      partnerService.create(post),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
+  });
+}
+
+export function useEditPartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, post }: { id: string; post: Partial<PartnerPost> }) =>
+      partnerService.edit(id, post),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
+  });
+}
+
+export function useDeletePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partnerService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
+  });
+}
+
+export function useJoinPartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partnerService.join(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
   });
 }

@@ -81,7 +81,7 @@ export function buildPostMeta(
 ): string {
   const time = getRelativeTime(options.createdAt, language);
   if (options.isAnonymous) {
-    return `${t('anonymous')} · ${time}`;
+    return time;
   }
   const parts: string[] = [];
   if (options.gradeKey) parts.push(t(options.gradeKey));

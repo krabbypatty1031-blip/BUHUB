@@ -65,6 +65,7 @@ export type MeStackParamList = {
   UserProfile: { userName: string };
   PostDetail: { postId: string; commentId?: string };
   Settings: undefined;
+  Blocklist: undefined;
 };
 
 // Bottom Tabs

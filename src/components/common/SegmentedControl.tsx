@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'rea
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { colors, spacing, borderRadius } from '../../theme';
 import { typography } from '../../theme/typography';
@@ -40,14 +41,9 @@ export default function SegmentedControl<T extends string = string>({
   useEffect(() => {
     const measurement = measurements.get(value);
     if (measurement) {
-      indicatorX.value = withSpring(measurement.x, {
-        damping: 20,
-        stiffness: 300,
-      });
-      indicatorWidth.value = withSpring(measurement.width, {
-        damping: 20,
-        stiffness: 300,
-      });
+      const config = { duration: 200, easing: Easing.out(Easing.ease) };
+      indicatorX.value = withTiming(measurement.x, config);
+      indicatorWidth.value = withTiming(measurement.width, config);
     }
   }, [value, measurements]);
 

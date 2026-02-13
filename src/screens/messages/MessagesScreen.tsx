@@ -9,14 +9,17 @@ import {
   SafeAreaView,
   Modal,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
 import { useContacts } from '../../hooks/useMessages';
+import { useBlockUser } from '../../hooks/useUser';
 import { useMessageStore } from '../../store/messageStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useForumStore } from '../../store/forumStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -158,6 +161,9 @@ export default function MessagesScreen({ navigation }: Props) {
   const markedUnreadContacts = useMessageStore((s) => s.markedUnreadContacts);
   const readContacts = useMessageStore((s) => s.readContacts);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
+  const isBlocked = useForumStore((s) => s.isBlocked);
+  const blockUserMutation = useBlockUser();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
@@ -171,23 +177,24 @@ export default function MessagesScreen({ navigation }: Props) {
   /* ── Filter & sort contacts: pinned first (skip pin sort when searching) ── */
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
+    const visible = contacts.filter((c) => !isBlocked(c.name));
     if (showSearch) {
       const q = searchQuery.trim().toLowerCase();
       if (q.length > 0) {
-        return contacts.filter(
+        return visible.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
             c.message.toLowerCase().includes(q)
         );
       }
-      return contacts;
+      return visible;
     }
-    return [...contacts].sort((a, b) => {
+    return [...visible].sort((a, b) => {
       const aPinned = isPinned(a.name, a.pinned) ? 1 : 0;
       const bPinned = isPinned(b.name, b.pinned) ? 1 : 0;
       return bPinned - aPinned;
     });
-  }, [contacts, showSearch, searchQuery, pinnedContacts, isPinned]);
+  }, [contacts, showSearch, searchQuery, pinnedContacts, isPinned, blockedUsers, isBlocked]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch((prev) => {
@@ -233,6 +240,26 @@ export default function MessagesScreen({ navigation }: Props) {
     }
     setActionSheetContact(null);
   }, [actionSheetContact, toggleMute]);
+
+  const handleActionBlock = useCallback(() => {
+    if (actionSheetContact) {
+      const contactName = actionSheetContact.name;
+      setActionSheetContact(null);
+      Alert.alert(t('blockContact'), t('blockContactConfirm'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('confirmBtn'),
+          style: 'destructive',
+          onPress: () => {
+            blockUserMutation.mutate(contactName);
+            showSnackbar({ message: t('blocked'), type: 'success' });
+          },
+        },
+      ]);
+    } else {
+      setActionSheetContact(null);
+    }
+  }, [actionSheetContact, blockUserMutation, showSnackbar, t]);
 
   /* ── List header: user avatar + notifications ── */
   const renderHeader = useCallback(() => {
@@ -449,6 +476,18 @@ export default function MessagesScreen({ navigation }: Props) {
             >
               <Text style={styles.actionSheetText}>
                 {actionSheetMuted ? t('unmuteChat') : t('muteChat')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionSheetDivider} />
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
+              onPress={handleActionBlock}
+            >
+              <Text style={[styles.actionSheetText, { color: colors.error }]}>
+                {t('blockContact')}
               </Text>
             </TouchableOpacity>
 

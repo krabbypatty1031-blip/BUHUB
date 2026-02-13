@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -28,12 +28,16 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { tag } = route.params;
   const { data: allPosts } = usePosts();
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
+  const isBlocked = useForumStore((s) => s.isBlocked);
   const likedPosts = useForumStore((s) => s.likedPosts);
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
   const currentUser = useAuthStore((s) => s.user);
   const [followed, setFollowed] = useState(false);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
@@ -52,8 +56,11 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     return tag; // custom / non-official tag, show raw value
   }, [tag, t]);
 
-  // Filter posts by tag
-  const posts = allPosts?.filter((p) => p.tags?.includes(tag)) || [];
+  // Filter posts by tag and exclude blocked users
+  const posts = useMemo(
+    () => allPosts?.filter((p) => p.tags?.includes(tag) && !isBlocked(p.name)) ?? [],
+    [allPosts, tag, blockedUsers, isBlocked]
+  );
 
   const renderHeader = useCallback(
     () => (
@@ -167,10 +174,10 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => toggleLike(item.id)}
+        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => toggleBookmark(item.id)}
+        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
         onQuote={() => handleQuote(item)}
         onTagPress={(pressedTag) => handleTagPress(pressedTag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
@@ -180,7 +187,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (

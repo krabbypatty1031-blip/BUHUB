@@ -11,8 +11,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { PartnerCategory, PartnerPost } from '../../types';
-import { mockPartnerPosts } from '../../data/mock/partner';
+import type { PartnerCategory } from '../../types';
+import { useCreatePartner } from '../../hooks/usePartners';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -102,27 +103,37 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
     deadlineTime !== null;
 
   const user = useAuthStore((s) => s.user);
+  const createPartner = useCreatePartner();
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const [isPosting, setIsPosting] = useState(false);
 
   const handlePost = useCallback(() => {
-    if (!canPost || !user) return;
-    const newPost: PartnerPost = {
-      category: category!,
-      type: t(category!),
-      title: title.trim(),
-      desc: content.trim(),
-      time: formatDeadline(activityTime!),
-      location: location.trim(),
-      user: user.name,
-      avatar: user.defaultAvatar || user.name.charAt(0),
-      gender: user.gender,
-      bio: `${t(user.grade)} · ${t(user.major)}`,
-      expired: false,
-      expiresAt: deadlineTime!.toISOString(),
-      createdAt: new Date().toISOString(),
-    };
-    mockPartnerPosts.unshift(newPost);
-    navigation.replace('PartnerShare', { activityName: title, posterName: user.name, index: 0 });
-  }, [canPost, navigation, title, user, category, content, activityTime, deadlineTime, location, t]);
+    if (!canPost || !user || isPosting) return;
+    setIsPosting(true);
+    createPartner.mutate(
+      {
+        category: category!,
+        type: t(category!),
+        title: title.trim(),
+        desc: content.trim(),
+        time: formatDeadline(activityTime!),
+        location: location.trim(),
+        expiresAt: deadlineTime!.toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+      {
+        onSuccess: () => {
+          navigation.replace('PartnerShare', { activityName: title, posterName: user.name, index: 0 });
+        },
+        onError: () => {
+          showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+        },
+        onSettled: () => {
+          setIsPosting(false);
+        },
+      },
+    );
+  }, [canPost, navigation, title, user, category, content, activityTime, deadlineTime, location, t, isPosting, createPartner, showSnackbar]);
 
   return (
     <SafeAreaView style={styles.container}>

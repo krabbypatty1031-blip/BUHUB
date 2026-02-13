@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { usePartners } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
+import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -199,9 +200,14 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-        onSubmit={() => {
-          setReportVisible(false);
-          showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+        onSubmit={async (reason) => {
+          try {
+            await reportService.submit({ targetType: 'post', targetId: String(index), reason });
+            setReportVisible(false);
+            showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+          } catch {
+            showSnackbar({ message: t('reportFailed') || 'Report failed', type: 'error' });
+          }
         }}
       />
 

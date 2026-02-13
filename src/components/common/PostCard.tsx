@@ -23,6 +23,7 @@ import {
   MaleIcon,
   FemaleIcon,
   ChevronRightIcon,
+  IncognitoIcon,
 } from './icons';
 
 interface PostCardProps {
@@ -126,6 +127,9 @@ function PostCard({
         )}
         <View style={styles.headerInfo}>
           <View style={styles.nameRow}>
+            {post.isAnonymous && (
+              <IncognitoIcon size={14} color={colors.onSurfaceVariant} />
+            )}
             <Text style={styles.name}>{post.name}</Text>
             {!post.isAnonymous && post.gender === 'male' && (
               <MaleIcon size={14} color={colors.genderMale} />

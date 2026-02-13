@@ -16,6 +16,9 @@ import type { MeStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { changeLanguage } from '../../i18n';
+import { authService } from '../../api/services/auth.service';
+import { userService } from '../../api/services/user.service';
+import { notificationService } from '../../api/services/notification.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -50,6 +53,28 @@ export default function SettingsScreen({ navigation }: Props) {
   const [taskReminder, setTaskReminder] = useState(true);
   const [dmNotification, setDmNotification] = useState(true);
   const [dndMode, setDndMode] = useState(false);
+
+  const handleTaskReminderChange = useCallback((value: boolean) => {
+    setTaskReminder(value);
+    notificationService.updateSettings({ system: value }).catch(() => {});
+  }, []);
+
+  const handleDmNotificationChange = useCallback((value: boolean) => {
+    setDmNotification(value);
+    notificationService.updateSettings({ messages: value }).catch(() => {});
+  }, []);
+
+  const handleDndModeChange = useCallback((value: boolean) => {
+    setDndMode(value);
+    // DND mode disables/enables all notifications
+    notificationService.updateSettings({
+      likes: !value,
+      comments: !value,
+      followers: !value,
+      messages: !value,
+      system: !value,
+    }).catch(() => {});
+  }, []);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');
   const [expandedLegal, setExpandedLegal] = useState(false);
@@ -112,32 +137,57 @@ export default function SettingsScreen({ navigation }: Props) {
           if (langOption) {
             setLanguage(langOption.value);
             changeLanguage(langOption.value);
+            userService.updateLanguage(langOption.value).catch(() => {
+              showSnackbar({ message: t('saveFailed') || 'Save failed', type: 'error' });
+            });
           }
           break;
         }
       }
       setPickerVisible(false);
     },
-    [pickerType, t, setLanguage]
+    [pickerType, t, setLanguage, showSnackbar]
   );
 
   const handleLogout = useCallback(() => {
     Alert.alert(t('logout'), t('logoutConfirm'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('confirmBtn'), style: 'destructive', onPress: () => logout() },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await authService.logout();
+          } catch {
+            // Still logout locally even if API fails
+          }
+          logout();
+        },
+      },
     ]);
   }, [t, logout]);
 
   const handleDeleteAccount = useCallback(() => {
     Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('confirmBtn'), style: 'destructive', onPress: () => logout() },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await authService.deleteAccount();
+            logout();
+          } catch {
+            showSnackbar({ message: t('deleteFailed') || 'Delete failed', type: 'error' });
+          }
+        },
+      },
     ]);
-  }, [t, logout]);
+  }, [t, logout, showSnackbar]);
 
   const handleBlocklist = useCallback(() => {
-    showSnackbar({ message: t('blocklistEmpty'), type: 'info' });
-  }, [showSnackbar, t]);
+    navigation.navigate('Blocklist');
+  }, [navigation]);
 
   const currentLangLabel =
     LANGUAGE_OPTIONS.find((l) => l.value === language)?.label || LANGUAGE_OPTIONS[0].label;
@@ -243,7 +293,7 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
             <IOSSwitch
               value={taskReminder}
-              onValueChange={setTaskReminder}
+              onValueChange={handleTaskReminderChange}
               activeColor={colors.onSurface}
             />
           </View>
@@ -258,7 +308,7 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
             <IOSSwitch
               value={dmNotification}
-              onValueChange={setDmNotification}
+              onValueChange={handleDmNotificationChange}
               activeColor={colors.onSurface}
             />
           </View>
@@ -273,7 +323,7 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
             <IOSSwitch
               value={dndMode}
-              onValueChange={setDndMode}
+              onValueChange={handleDndModeChange}
               activeColor={colors.onSurface}
             />
           </View>

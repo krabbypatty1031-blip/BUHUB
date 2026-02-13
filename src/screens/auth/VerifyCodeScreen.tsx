@@ -17,6 +17,8 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
+import { authService } from '../../api/services/auth.service';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyCode'>;
@@ -28,6 +30,7 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const setToken = useAuthStore((s) => s.setToken);
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN);
@@ -65,25 +68,37 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
     };
   }, [startCountdown]);
 
-  const handleResend = useCallback(() => {
+  const handleResend = useCallback(async () => {
     if (countdown > 0) return;
-    showSnackbar({ message: t('codeSent'), type: 'success' });
-    startCountdown();
-    setCode(Array(CODE_LENGTH).fill(''));
-    inputRefs.current[0]?.focus();
-  }, [countdown, showSnackbar, t, startCountdown]);
+    try {
+      await authService.sendCode(email);
+      showSnackbar({ message: t('codeSent'), type: 'success' });
+      startCountdown();
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+    } catch {
+      showSnackbar({ message: t('sendCodeFailed') || 'Failed to send code', type: 'error' });
+    }
+  }, [countdown, email, showSnackbar, t, startCountdown]);
 
   const handleContinue = useCallback(async () => {
     if (!codeComplete || !agreed) return;
     setIsVerifying(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsVerifying(false);
-    showSnackbar({ message: t('captchaSuccess'), type: 'success' });
-    setTimeout(() => {
-      navigation.navigate('ProfileSetup', { email });
-    }, 500);
-  }, [codeComplete, agreed, navigation, email, showSnackbar, t]);
+    try {
+      const result = await authService.verify(email, code.join(''));
+      if (result.token) {
+        setToken(result.token);
+      }
+      setIsVerifying(false);
+      showSnackbar({ message: t('captchaSuccess'), type: 'success' });
+      setTimeout(() => {
+        navigation.navigate('ProfileSetup', { email });
+      }, 500);
+    } catch {
+      setIsVerifying(false);
+      showSnackbar({ message: t('verifyFailed') || 'Verification failed', type: 'error' });
+    }
+  }, [codeComplete, agreed, navigation, email, code, showSnackbar, t, setToken]);
 
   const handleCodeChange = useCallback(
     (text: string, index: number) => {

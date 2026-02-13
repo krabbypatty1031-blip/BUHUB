@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { useSearch } from '../../hooks/usePosts';
+import { useSearch, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -38,13 +38,18 @@ export default function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
-  const { data: results } = useSearch(query);
+  const { data: rawResults } = useSearch(query);
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
+  const isBlocked = useForumStore((s) => s.isBlocked);
+  const results = useMemo(() => rawResults?.filter((p) => !isBlocked(p.name)) ?? [], [rawResults, blockedUsers, isBlocked]);
   const likedPosts = useForumStore((s) => s.likedPosts);
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
   const currentUser = useAuthStore((s) => s.user);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
 
@@ -122,10 +127,10 @@ export default function SearchScreen({ navigation }: Props) {
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => toggleLike(item.id)}
+        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => toggleBookmark(item.id)}
+        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
@@ -135,7 +140,7 @@ export default function SearchScreen({ navigation }: Props) {
         votedOptionIndex={votedPolls.get(item.id)}
       />
     ),
-    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [likedPosts, bookmarkedPosts, votedPolls, navigation, toggleLike, toggleBookmark, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (
@@ -184,7 +189,7 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={results || []}
+          data={results}
           renderItem={renderResult}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}

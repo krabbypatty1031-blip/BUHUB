@@ -11,8 +11,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { useSecondhand } from '../../hooks/useSecondhand';
+import { useSecondhand, useWantSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
+import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -41,6 +42,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const wantedItems = useSecondhandStore((s) => s.wantedItems);
   const toggleWant = useSecondhandStore((s) => s.toggleWant);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const wantMutation = useWantSecondhand();
 
   const item = items?.[index];
   const isWanted = wantedItems.has(index);
@@ -62,12 +64,13 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
   const handleWant = useCallback(() => {
     toggleWant(index);
+    wantMutation.mutate(String(index));
     if (!isWanted) {
       showSnackbar({ message: t('notifiedSeller'), type: 'info' });
     } else {
       showSnackbar({ message: t('wantCancelled'), type: 'info' });
     }
-  }, [toggleWant, index, isWanted, showSnackbar, t]);
+  }, [toggleWant, index, isWanted, showSnackbar, t, wantMutation]);
 
   if (!item) {
     return (
@@ -265,9 +268,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-        onSubmit={() => {
-          setReportVisible(false);
-          showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+        onSubmit={async (reason) => {
+          try {
+            await reportService.submit({ targetType: 'post', targetId: String(index), reason });
+            setReportVisible(false);
+            showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+          } catch {
+            showSnackbar({ message: t('reportFailed') || 'Report failed', type: 'error' });
+          }
         }}
       />
 

@@ -33,7 +33,7 @@ export interface ForumPost {
 }
 
 export interface Comment {
-  id?: string;
+  id: string;
   name: string;
   avatar: string;
   content: string;
@@ -44,7 +44,7 @@ export interface Comment {
 }
 
 export interface Reply {
-  id?: string;
+  id: string;
   name: string;
   avatar: string;
   replyTo: string;

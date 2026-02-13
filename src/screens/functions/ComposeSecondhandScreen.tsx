@@ -12,9 +12,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { SecondhandCategory, SecondhandItem } from '../../types';
-import { mockSecondhandItems } from '../../data/mock/secondhand';
+import type { SecondhandCategory } from '../../types';
+import { useCreateSecondhand } from '../../hooks/useSecondhand';
 import { useImagePicker } from '../../hooks/useImagePicker';
+import { useUIStore } from '../../store/uiStore';
+import { uploadService } from '../../api/services/upload.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -109,29 +111,53 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     deadline !== null;
 
   const user = useAuthStore((s) => s.user);
+  const createSecondhand = useCreateSecondhand();
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const [isPosting, setIsPosting] = useState(false);
 
-  const handlePost = useCallback(() => {
-    if (!canPost || !user) return;
-    const newItem: SecondhandItem = {
-      category,
-      type: t(category),
-      title: title.trim(),
-      desc: description.trim(),
-      price: `HK$${price.trim()}`,
-      condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
-      location: tradeLocation.trim(),
-      user: user.name,
-      avatar: user.defaultAvatar || user.name.charAt(0),
-      gender: user.gender,
-      bio: `${t(user.grade)} · ${t(user.major)}`,
-      sold: false,
-      expiresAt: deadline!.toISOString(),
-      expired: false,
-      createdAt: new Date().toISOString(),
-    };
-    mockSecondhandItems.unshift(newItem);
-    navigation.replace('SecondhandShare', { itemName: title, posterName: user.name, index: 0 });
-  }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t]);
+  const handlePost = useCallback(async () => {
+    if (!canPost || !user || isPosting) return;
+    setIsPosting(true);
+    try {
+      // Upload images if any
+      let imageUrls: string[] | undefined;
+      if (images.length > 0) {
+        const result = await uploadService.uploadImages(
+          images.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
+        );
+        imageUrls = result.urls;
+      }
+
+      createSecondhand.mutate(
+        {
+          category,
+          type: t(category),
+          title: title.trim(),
+          desc: description.trim(),
+          price: `HK$${price.trim()}`,
+          condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
+          location: tradeLocation.trim(),
+          expiresAt: deadline!.toISOString(),
+          expired: false,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          onSuccess: () => {
+            navigation.replace('SecondhandShare', { itemName: title, posterName: user.name, index: 0 });
+          },
+          onError: () => {
+            showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+          },
+          onSettled: () => {
+            setIsPosting(false);
+          },
+        },
+      );
+    } catch {
+      showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+      setIsPosting(false);
+    }
+  }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t, images, isPosting, createSecondhand, showSnackbar]);
 
   return (
     <SafeAreaView style={styles.container}>

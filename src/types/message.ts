@@ -16,5 +16,3 @@ export interface ChatHistory {
   date: string;
   messages: ChatMessage[];
 }
-
-export type ChatHistoryMap = Record<string, ChatHistory>;

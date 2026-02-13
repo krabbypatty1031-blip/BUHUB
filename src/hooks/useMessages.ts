@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../api/services/message.service';
 
 export function useContacts() {
@@ -17,7 +17,12 @@ export function useChatHistory(contactName: string) {
 }
 
 export function useSendMessage(contactName: string) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (text: string) => messageService.sendMessage(contactName, text),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat', contactName] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
   });
 }

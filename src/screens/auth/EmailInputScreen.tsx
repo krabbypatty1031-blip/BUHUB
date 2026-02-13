@@ -19,6 +19,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
+import { authService } from '../../api/services/auth.service';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
@@ -42,13 +43,20 @@ export default function EmailInputScreen({ navigation }: Props) {
   const pan = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const onCaptchaSuccess = useCallback(() => {
+  const onCaptchaSuccess = useCallback(async () => {
     const currentEmail = emailRef.current;
-    showSnackbar({ message: t('codeSent'), type: 'success' });
-    setTimeout(() => {
-      navigation.navigate('VerifyCode', { email: currentEmail });
-    }, 400);
-  }, [navigation, showSnackbar, t]);
+    try {
+      await authService.sendCode(currentEmail);
+      showSnackbar({ message: t('codeSent'), type: 'success' });
+      setTimeout(() => {
+        navigation.navigate('VerifyCode', { email: currentEmail });
+      }, 400);
+    } catch {
+      showSnackbar({ message: t('sendCodeFailed') || 'Failed to send code', type: 'error' });
+      pan.setValue(0);
+      setCaptchaVerified(false);
+    }
+  }, [navigation, showSnackbar, t, pan]);
 
   const onCaptchaSuccessRef = useRef(onCaptchaSuccess);
   onCaptchaSuccessRef.current = onCaptchaSuccess;

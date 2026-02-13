@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem } from '../../types';
+import { useForumStore } from '../../store/forumStore';
+import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
 
 const USE_MOCK = true;
 
@@ -16,6 +17,7 @@ export const userService = {
         major: 'majorCS',
         bio: '',
         gender: 'male',
+        language: 'tc',
         isLoggedIn: true,
       };
     }
@@ -28,6 +30,14 @@ export const userService = {
       return { success: true };
     }
     const { data } = await apiClient.put(ENDPOINTS.USER.UPDATE_PROFILE, profile);
+    return data;
+  },
+
+  async updateLanguage(language: Language): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.put(ENDPOINTS.USER.UPDATE_LANGUAGE, { language });
     return data;
   },
 
@@ -161,7 +171,7 @@ export const userService = {
         },
       };
     }
-    const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/content');
+    const { data } = await apiClient.get(ENDPOINTS.USER.MY_CONTENT);
     return data;
   },
 
@@ -176,7 +186,7 @@ export const userService = {
         isFollowed: true,
       }));
     }
-    const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/following');
+    const { data } = await apiClient.get(ENDPOINTS.USER.FOLLOWING);
     return data;
   },
 
@@ -191,7 +201,7 @@ export const userService = {
         isFollowed: false,
       }));
     }
-    const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE + '/followers');
+    const { data } = await apiClient.get(ENDPOINTS.USER.FOLLOWERS);
     return data;
   },
 
@@ -200,6 +210,40 @@ export const userService = {
       return { followed: true };
     }
     const { data } = await apiClient.post(ENDPOINTS.USER.FOLLOW(userName));
+    return data;
+  },
+
+  async blockUser(userName: string): Promise<{ blocked: boolean }> {
+    if (USE_MOCK) {
+      return { blocked: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.USER.BLOCK(userName));
+    return data;
+  },
+
+  async unblockUser(userName: string): Promise<{ blocked: boolean }> {
+    if (USE_MOCK) {
+      return { blocked: false };
+    }
+    const { data } = await apiClient.delete(ENDPOINTS.USER.BLOCK(userName));
+    return data;
+  },
+
+  async getBlockedList(): Promise<FollowListItem[]> {
+    if (USE_MOCK) {
+      const { mockUsers } = await import('../../data/mock/users');
+      const blockedUsers = useForumStore.getState().blockedUsers;
+      return Array.from(blockedUsers)
+        .filter((name) => mockUsers[name])
+        .map((name) => ({
+          userName: name,
+          avatar: mockUsers[name].avatar,
+          gender: mockUsers[name].gender,
+          bio: mockUsers[name].bio,
+          isFollowed: false,
+        }));
+    }
+    const { data } = await apiClient.get(ENDPOINTS.USER.BLOCKED_LIST);
     return data;
   },
 };

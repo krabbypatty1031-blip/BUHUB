@@ -17,9 +17,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useComments } from '../../hooks/usePosts';
+import { usePosts, useComments, useCreateComment, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
 import { useForumStore } from '../../store/forumStore';
+import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -230,9 +231,18 @@ function CommentItem({
       {/* Comment main */}
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
-          <Avatar text={comment.avatar} size="sm" />
+          <Avatar
+            text={comment.avatar}
+            size="sm"
+            gender={comment.isAnonymous ? 'other' : undefined}
+          />
           <View style={styles.commentUserInfo}>
-            <Text style={styles.commentName}>{comment.name}</Text>
+            <View style={styles.commentNameRow}>
+              {comment.isAnonymous && (
+                <IncognitoIcon size={12} color={colors.onSurfaceVariant} />
+              )}
+              <Text style={styles.commentName}>{comment.name}</Text>
+            </View>
             <Text style={styles.commentTime}>{comment.time}</Text>
           </View>
         </View>
@@ -294,6 +304,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const createCommentMutation = useCreateComment(postId);
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -395,11 +408,21 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const handleSendComment = useCallback(() => {
     if (!commentText.trim()) return;
-    showSnackbar({ message: t('commentSent'), type: 'success' });
-    setCommentText('');
-    setReplyTo(null);
-    setIsAnonymous(false);
-  }, [commentText, showSnackbar, t]);
+    createCommentMutation.mutate(
+      { content: commentText.trim(), isAnonymous },
+      {
+        onSuccess: () => {
+          showSnackbar({ message: t('commentSent'), type: 'success' });
+          setCommentText('');
+          setReplyTo(null);
+          setIsAnonymous(false);
+        },
+        onError: () => {
+          showSnackbar({ message: t('commentFailed') || 'Failed to send comment', type: 'error' });
+        },
+      }
+    );
+  }, [commentText, isAnonymous, createCommentMutation, showSnackbar, t]);
 
   const handleForward = useCallback(() => {
     if (post) setForwardPost(post);
@@ -420,11 +443,20 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const handleReportSubmit = useCallback(
-    (_reason: string) => {
-      setReportVisible(false);
-      showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+    async (reason: string) => {
+      try {
+        await reportService.submit({
+          targetType: 'post',
+          targetId: postId,
+          reason,
+        });
+        setReportVisible(false);
+        showSnackbar({ message: t('reportSubmitted'), type: 'success' });
+      } catch {
+        showSnackbar({ message: t('reportFailed') || 'Failed to submit report', type: 'error' });
+      }
     },
-    [showSnackbar, t]
+    [postId, showSnackbar, t]
   );
 
   const renderHeader = useCallback(() => {
@@ -441,6 +473,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             />
             <View style={styles.postUserInfo}>
               <View style={styles.postNameRow}>
+                {post.isAnonymous && (
+                  <IncognitoIcon size={14} color={colors.onSurfaceVariant} />
+                )}
                 <Text style={styles.postName}>{post.name}</Text>
                 <Text style={styles.postDot}> · </Text>
                 <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
@@ -480,7 +515,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <View style={styles.postActions}>
             <TouchableOpacity
               style={styles.postActionBtn}
-              onPress={() => toggleLike(postId)}
+              onPress={() => { toggleLike(postId); likePostMutation.mutate(postId); }}
             >
               <HeartIcon
                 size={20}
@@ -509,7 +544,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               style={styles.postActionBtn}
-              onPress={() => toggleBookmark(postId)}
+              onPress={() => { toggleBookmark(postId); bookmarkPostMutation.mutate(postId); }}
             >
               <BookmarkIcon
                 size={20}
@@ -887,6 +922,11 @@ const styles = StyleSheet.create({
   commentUserInfo: {
     marginLeft: spacing.sm,
     flex: 1,
+  },
+  commentNameRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
   },
   commentName: {
     ...typography.titleSmall,

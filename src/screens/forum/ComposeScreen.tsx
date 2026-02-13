@@ -14,12 +14,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
+import { useCreatePost, usePostDetail } from '../../hooks/usePosts';
+import { uploadService } from '../../api/services/upload.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import GradientCard from '../../components/common/GradientCard';
 import { CloseIcon, PlusIcon, CameraIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
-import { mockPosts } from '../../data/mock/forum';
 import { buildPostMeta } from '../../utils/formatTime';
 import type { Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
@@ -39,9 +40,11 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Language;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const createPost = useCreatePost();
   const type = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
-  const quotedPost = quotePostId ? mockPosts.find((p) => p.id === quotePostId) : undefined;
+  const { data: quotedPostData } = usePostDetail(quotePostId || '');
+  const quotedPost = quotePostId ? quotedPostData : undefined;
   const quotedMeta = quotedPost
     ? buildPostMeta(t, lang, {
         gradeKey: quotedPost.gradeKey,
@@ -94,11 +97,46 @@ export default function ComposeScreen({ navigation, route }: Props) {
     [pollOptions]
   );
 
-  const handlePost = useCallback(() => {
-    if (!content.trim()) return;
-    showSnackbar({ message: t('post') + ' ✓', type: 'success' });
-    navigation.goBack();
-  }, [content, navigation, showSnackbar, t]);
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePost = useCallback(async () => {
+    if (!content.trim() || isPosting) return;
+    setIsPosting(true);
+    try {
+      // Upload images if any
+      let imageUrls: string[] | undefined;
+      if (images.length > 0) {
+        const result = await uploadService.uploadImages(
+          images.map((uri, i) => ({ uri, type: 'image/jpeg', name: `post-image-${i}.jpg` }))
+        );
+        imageUrls = result.urls;
+      }
+
+      createPost.mutate(
+        {
+          content: content.trim(),
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          isAnonymous,
+          pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()) : undefined,
+        },
+        {
+          onSuccess: () => {
+            showSnackbar({ message: t('post') + ' ✓', type: 'success' });
+            navigation.goBack();
+          },
+          onError: () => {
+            showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+          },
+          onSettled: () => {
+            setIsPosting(false);
+          },
+        }
+      );
+    } catch {
+      showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+      setIsPosting(false);
+    }
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t]);
 
   return (
     <SafeAreaView style={styles.container}>

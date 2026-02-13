@@ -15,7 +15,10 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
+import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
+import { authService } from '../../api/services/auth.service';
+import { uploadService } from '../../api/services/upload.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -31,8 +34,10 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const email = route.params.email;
   const { t } = useTranslation();
   const setUser = useAuthStore((s) => s.setUser);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const { images, pickImages } = useImagePicker();
+  const [isSaving, setIsSaving] = useState(false);
   const avatarUri = images[0] || null;
 
   const [nickname, setNickname] = useState('');
@@ -97,36 +102,77 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     return genderMap[genderLabel] || 'other';
   };
 
-  const handleDone = useCallback(() => {
+  const handleDone = useCallback(async () => {
     const resolvedGender = mapGender(gender) || 'male';
-    setUser({
-      name: nickname || '張小明',
-      nickname: nickname || '浸大小明',
-      email,
-      avatar: avatarUri,
-      defaultAvatar: avatarUri ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
-      grade: grade || 'gradeUndergradY2',
-      major: major || 'majorCS',
-      bio: '',
-      gender: resolvedGender,
-      isLoggedIn: true,
-    });
-  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, email, setUser]);
+    setIsSaving(true);
+    try {
+      // Upload avatar if selected
+      let uploadedAvatarUrl: string | null = null;
+      if (avatarUri) {
+        const result = await uploadService.uploadAvatar({
+          uri: avatarUri,
+          type: 'image/jpeg',
+          name: 'avatar.jpg',
+        });
+        uploadedAvatarUrl = result.url;
+      }
 
-  const handleSkip = useCallback(() => {
-    setUser({
-      name: '張小明',
-      nickname: '浸大小明',
-      email,
-      avatar: null,
-      defaultAvatar: getAutoAvatar('male'),
-      grade: 'gradeUndergradY2',
-      major: 'majorCS',
-      bio: '',
-      gender: 'male',
-      isLoggedIn: true,
-    });
-  }, [email, setUser]);
+      // Call API to set up profile
+      await authService.setupProfile({
+        nickname: nickname || email.split('@')[0],
+        grade: grade || 'gradeUndergradY2',
+        major: major || 'majorCS',
+        gender: resolvedGender,
+      });
+
+      // Update local auth state
+      setUser({
+        name: nickname || email.split('@')[0],
+        nickname: nickname || email.split('@')[0],
+        email,
+        avatar: uploadedAvatarUrl,
+        defaultAvatar: uploadedAvatarUrl ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
+        grade: grade || 'gradeUndergradY2',
+        major: major || 'majorCS',
+        bio: '',
+        gender: resolvedGender,
+        isLoggedIn: true,
+      });
+    } catch {
+      showSnackbar({ message: t('setupFailed') || 'Profile setup failed', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, email, setUser, showSnackbar, t]);
+
+  const handleSkip = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await authService.setupProfile({
+        nickname: email.split('@')[0],
+        grade: 'gradeUndergradY2',
+        major: 'majorCS',
+        gender: 'male',
+      });
+
+      setUser({
+        name: email.split('@')[0],
+        nickname: email.split('@')[0],
+        email,
+        avatar: null,
+        defaultAvatar: getAutoAvatar('male'),
+        grade: 'gradeUndergradY2',
+        major: 'majorCS',
+        bio: '',
+        gender: 'male',
+        isLoggedIn: true,
+      });
+    } catch {
+      showSnackbar({ message: t('setupFailed') || 'Profile setup failed', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [email, setUser, showSnackbar, t]);
 
   return (
     <SafeAreaView style={styles.container}>

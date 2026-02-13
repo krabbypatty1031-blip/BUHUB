@@ -1,4 +1,4 @@
-import { Gender } from './common';
+import { Gender, Language } from './common';
 
 export interface User {
   name: string;
@@ -10,6 +10,7 @@ export interface User {
   major: string;
   bio: string;
   gender: Gender;
+  language?: Language;
   isLoggedIn: boolean;
 }
 

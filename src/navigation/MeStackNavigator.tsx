@@ -9,6 +9,7 @@ import FollowListScreen from '../screens/me/FollowListScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
 import PostDetailScreen from '../screens/forum/PostDetailScreen';
 import SettingsScreen from '../screens/me/SettingsScreen';
+import BlocklistScreen from '../screens/me/BlocklistScreen';
 
 const Stack = createNativeStackNavigator<MeStackParamList>();
 
@@ -22,6 +23,7 @@ export default function MeStackNavigator() {
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Blocklist" component={BlocklistScreen} />
     </Stack.Navigator>
   );
 }

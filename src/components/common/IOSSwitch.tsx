@@ -3,8 +3,9 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
   interpolateColor,
+  Easing,
 } from 'react-native-reanimated';
 import { colors } from '../../theme';
 import { hapticLight } from '../../utils/haptics';
@@ -35,9 +36,9 @@ export default function IOSSwitch({
   const progress = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withSpring(value ? 1 : 0, {
-      damping: 20,
-      stiffness: 300,
+    progress.value = withTiming(value ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
     });
   }, [value]);
 

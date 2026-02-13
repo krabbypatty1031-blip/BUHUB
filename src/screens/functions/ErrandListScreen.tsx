@@ -31,7 +31,6 @@ import {
   MoreHorizontalIcon,
   MessageIcon,
 } from '../../components/common/icons';
-import { mockErrands } from '../../data/mock/errands';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
 
@@ -92,7 +91,7 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
-      const index = mockErrands.indexOf(item);
+      const index = errands?.indexOf(item) ?? 0;
       const isAccepted = acceptedErrands.has(index);
       return (
         <TouchableOpacity
@@ -148,7 +147,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         </TouchableOpacity>
       );
     },
-    [acceptedErrands, navigation, t, lang]
+    [acceptedErrands, errands, navigation, t, lang]
   );
 
   return (

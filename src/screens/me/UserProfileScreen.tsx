@@ -14,8 +14,7 @@ import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { UserPost } from '../../types/user';
-import { usePublicProfile, useFollowUser } from '../../hooks/useUser';
-import { useForumStore } from '../../store/forumStore';
+import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -37,7 +36,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const { userName } = route.params;
   const { data: profile, isLoading } = usePublicProfile(userName);
   const followUser = useFollowUser();
-  const blockUser = useForumStore((s) => s.blockUser);
+  const blockUserMutation = useBlockUser();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -48,13 +47,13 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         text: t('confirmBtn'),
         style: 'destructive',
         onPress: () => {
-          blockUser(userName);
+          blockUserMutation.mutate(userName);
           showSnackbar({ message: t('blocked'), type: 'success' });
           navigation.goBack();
         },
       },
     ]);
-  }, [t, blockUser, userName, showSnackbar, navigation]);
+  }, [t, blockUserMutation, userName, showSnackbar, navigation]);
 
   const handleFollow = useCallback(() => {
     followUser.mutate(userName, {

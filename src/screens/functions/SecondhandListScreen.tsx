@@ -35,7 +35,6 @@ import {
   MoreHorizontalIcon,
   MessageIcon,
 } from '../../components/common/icons';
-import { mockSecondhandItems } from '../../data/mock/secondhand';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
 
@@ -205,12 +204,12 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: SecondhandItem }) => {
-      const index = mockSecondhandItems.indexOf(item);
+      const index = items?.indexOf(item) ?? 0;
       return (
         <ItemCard item={item} index={index} onPress={handleItemPress} onMore={handleMore} t={t} lang={lang} />
       );
     },
-    [handleItemPress, handleMore, t, lang]
+    [items, handleItemPress, handleMore, t, lang]
   );
 
   return (

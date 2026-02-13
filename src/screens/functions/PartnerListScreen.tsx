@@ -31,7 +31,6 @@ import {
   MessageIcon,
   RepostIcon,
 } from '../../components/common/icons';
-import { mockPartnerPosts } from '../../data/mock/partner';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -94,7 +93,7 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
-      const index = mockPartnerPosts.indexOf(item);
+      const index = partners?.indexOf(item) ?? 0;
       const isJoined = joinedActivities.has(index);
       return (
         <TouchableOpacity
@@ -151,7 +150,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         </TouchableOpacity>
       );
     },
-    [joinedActivities, navigation, t, lang]
+    [joinedActivities, partners, navigation, t, lang]
   );
 
   return (

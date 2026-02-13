@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from '../utils/storage';
+import { setOnUnauthorized } from '../api/client';
 import type { User, Language } from '../types';
 
 interface AuthState {
@@ -39,3 +40,8 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Sync: when API client detects 401, also clear Zustand auth state
+setOnUnauthorized(() => {
+  useAuthStore.getState().logout();
+});

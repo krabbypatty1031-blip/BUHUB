@@ -11,6 +11,7 @@ interface ForumState {
   votePoll: (postId: string, optionIndex: number) => void;
   isLiked: (postId: string) => boolean;
   isBookmarked: (postId: string) => boolean;
+  setBlockedUsers: (users: string[]) => void;
   blockUser: (userName: string) => void;
   unblockUser: (userName: string) => void;
   isBlocked: (userName: string) => boolean;
@@ -54,6 +55,9 @@ export const useForumStore = create<ForumState>()((set, get) => ({
 
   isLiked: (postId) => get().likedPosts.has(postId),
   isBookmarked: (postId) => get().bookmarkedPosts.has(postId),
+
+  setBlockedUsers: (users) =>
+    set(() => ({ blockedUsers: new Set(users) })),
 
   blockUser: (userName) =>
     set((state) => {

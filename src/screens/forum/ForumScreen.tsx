@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
@@ -40,13 +40,18 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
 export default function ForumScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { data: posts, isLoading, refetch } = usePosts();
+  const { data: allPosts, isLoading, refetch } = usePosts();
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
+  const isBlocked = useForumStore((s) => s.isBlocked);
+  const posts = useMemo(() => allPosts?.filter((p) => !isBlocked(p.name)) ?? [], [allPosts, blockedUsers, isBlocked]);
   const likedPosts = useForumStore((s) => s.likedPosts);
   const bookmarkedPosts = useForumStore((s) => s.bookmarkedPosts);
   const toggleLike = useForumStore((s) => s.toggleLike);
   const toggleBookmark = useForumStore((s) => s.toggleBookmark);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const votePoll = useForumStore((s) => s.votePoll);
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
   const { onScroll, show } = useScrollTabBarAnimation();
   const { tabBarTranslateY } = useTabBarAnimation();
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
@@ -157,10 +162,10 @@ export default function ForumScreen({ navigation }: Props) {
         post={item}
         onPress={() => handlePostPress(item)}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => toggleLike(item.id)}
+        onLike={() => { toggleLike(item.id); likePostMutation.mutate(item.id); }}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => toggleBookmark(item.id)}
+        onBookmark={() => { toggleBookmark(item.id); bookmarkPostMutation.mutate(item.id); }}
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(item, tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}

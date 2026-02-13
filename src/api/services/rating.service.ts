@@ -46,7 +46,7 @@ export const ratingService = {
       const { mockScoreDimensions } = await import('../../data/mock/ratings');
       return mockScoreDimensions[category] || [];
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category) + '/dimensions');
+    const { data } = await apiClient.get(ENDPOINTS.RATING.DIMENSIONS(category));
     return data;
   },
 
@@ -55,7 +55,7 @@ export const ratingService = {
       const { mockTagOptions } = await import('../../data/mock/ratings');
       return mockTagOptions[category] || [];
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category) + '/tags');
+    const { data } = await apiClient.get(ENDPOINTS.RATING.TAGS(category));
     return data;
   },
 };
