@@ -21,10 +21,12 @@ export default function AppNavigator() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Verify token on app startup
+  // Verify token on app startup (wait for hydration first)
   useEffect(() => {
+    if (!hasHydrated) return;
     const checkAuth = async () => {
       if (!isLoggedIn || !token) {
         setIsCheckingAuth(false);
@@ -42,9 +44,9 @@ export default function AppNavigator() {
       }
     };
     checkAuth();
-  }, []); // Only run once on mount
+  }, [hasHydrated]); // Re-run when hydration completes
 
-  if (isCheckingAuth) {
+  if (!hasHydrated || isCheckingAuth) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.primary} />

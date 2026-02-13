@@ -9,6 +9,8 @@ interface AuthState {
   language: Language;
   token: string | null;
   isLoggedIn: boolean;
+  hasSelectedLanguage: boolean;
+  _hasHydrated: boolean;
 
   setUser: (user: User) => void;
   updateUser: (updates: Partial<User>) => void;
@@ -24,19 +26,28 @@ export const useAuthStore = create<AuthState>()(
       language: 'tc',
       token: null,
       isLoggedIn: false,
+      hasSelectedLanguage: false,
+      _hasHydrated: false,
 
       setUser: (user) => set({ user, isLoggedIn: true }),
       updateUser: (updates) =>
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
-      setLanguage: (language) => set({ language }),
+      setLanguage: (language) => set({ language, hasSelectedLanguage: true }),
       setToken: (token) => set({ token }),
       logout: () => set({ user: null, token: null, isLoggedIn: false }),
     }),
     {
       name: 'buhub-auth',
       storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => {
+        const { _hasHydrated, ...rest } = state;
+        return rest;
+      },
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ _hasHydrated: true });
+      },
     }
   )
 );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from './types';
+import { useAuthStore } from '../store/authStore';
 
 import LanguageScreen from '../screens/auth/LanguageScreen';
 import EmailInputScreen from '../screens/auth/EmailInputScreen';
@@ -10,8 +11,12 @@ import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthNavigator() {
+  const hasSelectedLanguage = useAuthStore((s) => s.hasSelectedLanguage);
+  // If user has previously selected a language (persisted), skip Language screen
+  const initialRoute = hasSelectedLanguage ? 'EmailInput' : 'Language';
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="EmailInput" component={EmailInputScreen} />
       <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />

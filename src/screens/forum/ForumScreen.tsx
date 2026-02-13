@@ -208,9 +208,9 @@ export default function ForumScreen({ navigation }: Props) {
           ) : (
             <EmptyState
               icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noPosts') || 'No posts yet'}
-              message={t('beFirstPost') || 'Be the first to share something with the community!'}
-              actionLabel={t('createPost') || 'Create Post'}
+              title={t('noPosts')}
+              message={t('beFirstPost')}
+              actionLabel={t('createPost')}
               onAction={() => setComposeSheetVisible(true)}
             />
           )

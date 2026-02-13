@@ -23,7 +23,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon, CameraIcon } from '../../components/common/icons';
-import DefaultAvatarPicker, { DefaultAvatarSvg, InitialAvatar, getAutoAvatar } from '../../components/common/DefaultAvatarPicker';
+import DefaultAvatarPicker, { DEFAULT_AVATARS, DefaultAvatarSvg, InitialAvatar } from '../../components/common/DefaultAvatarPicker';
 import type { Gender } from '../../types/common';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ProfileSetup'>;
@@ -92,6 +92,9 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     [pickerType]
   );
 
+  const hasAvatar = !!(avatarUri || selectedDefaultAvatar);
+  const isFormComplete = !!(nickname.trim() && grade && major && gender && hasAvatar);
+
   const mapGender = (genderLabel: string): Gender => {
     const genderMap: Record<string, Gender> = {
       [t('genderMale')]: 'male',
@@ -119,21 +122,21 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
       // Call API to set up profile
       await authService.setupProfile({
-        nickname: nickname || email.split('@')[0],
-        grade: grade || 'gradeUndergradY2',
-        major: major || 'majorCS',
+        nickname,
+        grade,
+        major,
         gender: resolvedGender,
       });
 
       // Update local auth state
       setUser({
-        name: nickname || email.split('@')[0],
-        nickname: nickname || email.split('@')[0],
+        name: nickname,
+        nickname,
         email,
         avatar: uploadedAvatarUrl,
-        defaultAvatar: uploadedAvatarUrl ? null : (selectedDefaultAvatar || getAutoAvatar(resolvedGender)),
-        grade: grade || 'gradeUndergradY2',
-        major: major || 'majorCS',
+        defaultAvatar: uploadedAvatarUrl ? null : selectedDefaultAvatar,
+        grade,
+        major,
         bio: '',
         gender: resolvedGender,
         isLoggedIn: true,
@@ -148,23 +151,27 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const handleSkip = useCallback(async () => {
     setIsSaving(true);
     try {
+      const randomNum = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+      const randomNickname = `浸大${randomNum}`;
+      const randomAvatar = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)].id;
+
       await authService.setupProfile({
-        nickname: email.split('@')[0],
-        grade: 'gradeUndergradY2',
-        major: 'majorCS',
-        gender: 'male',
+        nickname: randomNickname,
+        grade: '',
+        major: '',
+        gender: 'secret',
       });
 
       setUser({
-        name: email.split('@')[0],
-        nickname: email.split('@')[0],
+        name: randomNickname,
+        nickname: randomNickname,
         email,
         avatar: null,
-        defaultAvatar: getAutoAvatar('male'),
-        grade: 'gradeUndergradY2',
-        major: 'majorCS',
+        defaultAvatar: randomAvatar,
+        grade: '',
+        major: '',
         bio: '',
-        gender: 'male',
+        gender: 'secret',
         isLoggedIn: true,
       });
     } catch {
@@ -230,7 +237,9 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
               style={styles.fieldInput}
               value={nickname}
               onChangeText={setNickname}
+              placeholder={t('placeholderNickname')}
               placeholderTextColor={colors.onSurfaceVariant}
+              maxLength={20}
             />
           </View>
 
@@ -277,11 +286,12 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         {/* Done Button */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.doneBtn}
+            style={[styles.doneBtn, !isFormComplete && styles.doneBtnDisabled]}
             activeOpacity={0.8}
             onPress={handleDone}
+            disabled={!isFormComplete || isSaving}
           >
-            <Text style={styles.doneBtnText}>{t('done')}</Text>
+            <Text style={[styles.doneBtnText, !isFormComplete && styles.doneBtnTextDisabled]}>{t('done')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -442,7 +452,8 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.onSurface,
     textAlign: 'right',
-    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: spacing.sm,
   },
   fieldSelect: {
     flex: 1,
@@ -472,9 +483,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
   },
+  doneBtnDisabled: {
+    backgroundColor: colors.outlineVariant,
+  },
   doneBtnText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
+  },
+  doneBtnTextDisabled: {
+    color: colors.onSurfaceVariant,
   },
   // Picker Modal
   pickerOverlay: {

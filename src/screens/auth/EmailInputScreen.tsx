@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
@@ -45,11 +46,34 @@ export default function EmailInputScreen({ navigation }: Props) {
 
   const pan = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const lastSentAt = useRef(0);
+
+  const COOLDOWN = 60_000; // 60 seconds
+
+  // Reset captcha state when navigating back to this screen
+  useFocusEffect(
+    useCallback(() => {
+      setShowCaptcha(false);
+      setCaptchaVerified(false);
+      pan.setValue(0);
+      fadeAnim.setValue(0);
+    }, [pan, fadeAnim])
+  );
 
   const onCaptchaSuccess = useCallback(async () => {
     const currentEmail = emailRef.current;
+    const now = Date.now();
+    const elapsed = now - lastSentAt.current;
+
+    // Still in cooldown — skip sending, navigate directly
+    if (elapsed < COOLDOWN) {
+      navigation.navigate('VerifyCode', { email: currentEmail });
+      return;
+    }
+
     try {
       await authService.sendCode(currentEmail);
+      lastSentAt.current = Date.now();
       showSnackbar({ message: t('codeSent'), type: 'success' });
       setTimeout(() => {
         navigation.navigate('VerifyCode', { email: currentEmail });
