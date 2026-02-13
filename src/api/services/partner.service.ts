@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { PartnerPost, PartnerCategory, PaginationParams } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const partnerService = {
   async getList(category?: PartnerCategory, params?: PaginationParams): Promise<PartnerPost[]> {

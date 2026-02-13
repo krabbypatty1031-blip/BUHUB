@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { Errand, ErrandCategory, PaginationParams } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const errandService = {
   async getList(category?: ErrandCategory, params?: PaginationParams): Promise<Errand[]> {

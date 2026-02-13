@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const ratingService = {
   async getList(category: RatingCategory, sortMode: RatingSortMode = 'recent'): Promise<RatingItem[]> {

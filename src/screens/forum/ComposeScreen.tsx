@@ -118,6 +118,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
           tags: selectedTags.length > 0 ? selectedTags : undefined,
           isAnonymous,
           pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()) : undefined,
+          images: imageUrls,
         },
         {
           onSuccess: () => {

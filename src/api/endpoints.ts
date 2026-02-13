@@ -15,7 +15,7 @@ const ENDPOINTS = {
     DELETE_ACCOUNT: '/auth/account',
   },
 
-  // Forum
+  // Forum (backend: /forum/posts, /comments/:id for edit/delete)
   FORUM: {
     POSTS: '/forum/posts',
     POST_DETAIL: (id: string) => `/forum/posts/${id}`,
@@ -23,10 +23,10 @@ const ENDPOINTS = {
     DELETE_POST: (id: string) => `/forum/posts/${id}`,
     COMMENTS: (postId: string) => `/forum/posts/${postId}/comments`,
     CREATE_COMMENT: (postId: string) => `/forum/posts/${postId}/comments`,
-    EDIT_COMMENT: (postId: string, commentId: string) => `/forum/posts/${postId}/comments/${commentId}`,
-    DELETE_COMMENT: (postId: string, commentId: string) => `/forum/posts/${postId}/comments/${commentId}`,
-    LIKE: (postId: string) => `/forum/posts/${postId}/like`,       // POST = toggle (like/unlike)
-    BOOKMARK: (postId: string) => `/forum/posts/${postId}/bookmark`, // POST = toggle (bookmark/unbookmark)
+    EDIT_COMMENT: (commentId: string) => `/comments/${commentId}`,
+    DELETE_COMMENT: (commentId: string) => `/comments/${commentId}`,
+    LIKE: (postId: string) => `/forum/posts/${postId}/like`,
+    BOOKMARK: (postId: string) => `/forum/posts/${postId}/bookmark`,
     SEARCH: '/forum/search',
   },
 
@@ -76,28 +76,29 @@ const ENDPOINTS = {
     SEND: (contactId: string) => `/messages/chat/${contactId}/send`,
   },
 
-  // User
+  // User (backend: /user/*, /user/:userName/block, /users/blocked)
   USER: {
     PROFILE: '/user/profile',
     UPDATE_PROFILE: '/user/profile',
     UPDATE_LANGUAGE: '/user/language',
     PUBLIC_PROFILE: (userName: string) => `/user/${userName}`,
-    FOLLOW: (userName: string) => `/user/${userName}/follow`, // POST = toggle (follow/unfollow)
-    BLOCK: (userName: string) => `/user/${userName}/block`,  // POST = toggle (block/unblock)
-    BLOCKED_LIST: '/user/blocked',
+    FOLLOW: (userName: string) => `/user/${userName}/follow`,
+    BLOCK: (userName: string) => `/user/${userName}/block`,
+    BLOCKED_LIST: '/users/blocked',
     MY_CONTENT: '/user/profile/content',
     FOLLOWING: '/user/profile/following',
     FOLLOWERS: '/user/profile/followers',
   },
 
-  // Notifications
+  // Notifications (backend: register-token, [id]/read, read-all)
   NOTIFICATION: {
     LIKES: '/notifications/likes',
     FOLLOWERS: '/notifications/followers',
     COMMENTS: '/notifications/comments',
     UNREAD_COUNT: '/notifications/unread-count',
-    MARK_READ: '/notifications/read',
-    REGISTER_DEVICE: '/notifications/register-device',
+    MARK_READ: '/notifications/read-all',
+    MARK_READ_ONE: (id: string) => `/notifications/${id}/read`,
+    REGISTER_DEVICE: '/notifications/register-token',
     SETTINGS: '/notifications/settings',
   },
 
@@ -107,9 +108,9 @@ const ENDPOINTS = {
     AVATAR: '/upload/avatar',
   },
 
-  // Report
+  // Report (backend: /reports)
   REPORT: {
-    SUBMIT: '/report',
+    SUBMIT: '/reports',
   },
 } as const;
 

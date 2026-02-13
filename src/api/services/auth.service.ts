@@ -1,7 +1,7 @@
 import apiClient, { setToken, clearToken } from '../client';
 import ENDPOINTS from '../endpoints';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const authService = {
   async sendCode(email: string) {

@@ -1,8 +1,8 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { ForumPost, CommentsData, Comment, PaginationParams } from '../../types';
+import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const forumService = {
   async getPosts(params?: PaginationParams): Promise<ForumPost[]> {
@@ -29,10 +29,42 @@ export const forumService = {
       return { [postId]: mockCommentsData[postId] || [] };
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.COMMENTS(postId));
-    return data;
+    // Backend returns nested array; map to frontend Comment shape
+    const mapComment = (c: any): Comment => {
+      const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
+      const replies: Reply[] | undefined = c.replies?.length
+        ? c.replies.map((r: any) => ({
+            id: r.id,
+            name: r.author?.nickname ?? '?',
+            avatar: r.author?.avatar ?? '',
+            replyTo: c.author?.nickname ?? '?',
+            content: r.content,
+            time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+            likes: r.likeCount ?? 0,
+          }))
+        : undefined;
+      return {
+        id: c.id,
+        name: c.author?.nickname ?? '?',
+        avatar: c.author?.avatar ?? '',
+        content: c.content,
+        time,
+        likes: c.likeCount ?? 0,
+        isAnonymous: c.isAnonymous,
+        replies,
+      };
+    };
+    const comments: Comment[] = Array.isArray(data) ? data.map(mapComment) : [];
+    return { [postId]: comments };
   },
 
-  async createPost(post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[] }): Promise<ForumPost> {
+  async createPost(post: {
+    content: string;
+    tags?: string[];
+    isAnonymous?: boolean;
+    pollOptions?: string[];
+    images?: string[];
+  }): Promise<ForumPost> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
       const newPost: ForumPost = {
@@ -52,7 +84,15 @@ export const forumService = {
       mockPosts.unshift(newPost);
       return newPost;
     }
-    const { data } = await apiClient.post(ENDPOINTS.FORUM.POSTS, post);
+    const postType = post.pollOptions?.length ? 'poll' : post.images?.length ? 'image-text' : 'text';
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.POSTS, {
+      postType,
+      content: post.content,
+      images: post.images ?? [],
+      tags: post.tags ?? [],
+      isAnonymous: post.isAnonymous ?? false,
+      pollOptions: post.pollOptions,
+    });
     return data;
   },
 
@@ -101,7 +141,7 @@ export const forumService = {
         likes: 0,
       };
     }
-    const { data } = await apiClient.put(ENDPOINTS.FORUM.EDIT_COMMENT(postId, commentId), { content });
+    const { data } = await apiClient.put(ENDPOINTS.FORUM.EDIT_COMMENT(commentId), { content });
     return data;
   },
 
@@ -109,7 +149,7 @@ export const forumService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.delete(ENDPOINTS.FORUM.DELETE_COMMENT(postId, commentId));
+    const { data } = await apiClient.delete(ENDPOINTS.FORUM.DELETE_COMMENT(commentId));
     return data;
   },
 

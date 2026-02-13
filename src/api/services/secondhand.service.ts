@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { SecondhandItem, SecondhandCategory, PaginationParams } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const secondhandService = {
   async getList(category?: SecondhandCategory, params?: PaginationParams): Promise<SecondhandItem[]> {

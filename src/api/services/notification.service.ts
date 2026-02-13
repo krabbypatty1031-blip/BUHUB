@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { LikeNotification, FollowerNotification, CommentNotification, NotificationSettings, UnreadCount } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const notificationService = {
   async getLikes(): Promise<LikeNotification[]> {
@@ -44,16 +44,21 @@ export const notificationService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.NOTIFICATION.MARK_READ, { type });
-    return data;
+    // Backend read-all marks all as read (PUT, no body)
+    await apiClient.put(ENDPOINTS.NOTIFICATION.MARK_READ);
+    return { success: true };
   },
 
   async registerDevice(pushToken: string, platform: 'ios' | 'android'): Promise<{ success: boolean }> {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.NOTIFICATION.REGISTER_DEVICE, { pushToken, platform });
-    return data;
+    await apiClient.post(ENDPOINTS.NOTIFICATION.REGISTER_DEVICE, {
+      token: pushToken,
+      platform,
+      provider: 'fcm',
+    });
+    return { success: true };
   },
 
   async getSettings(): Promise<NotificationSettings> {

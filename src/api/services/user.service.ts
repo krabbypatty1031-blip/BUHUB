@@ -3,7 +3,7 @@ import ENDPOINTS from '../endpoints';
 import { useForumStore } from '../../store/forumStore';
 import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const userService = {
   async getProfile(): Promise<User> {
@@ -37,8 +37,8 @@ export const userService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.put(ENDPOINTS.USER.UPDATE_LANGUAGE, { language });
-    return data;
+    await apiClient.put(ENDPOINTS.USER.UPDATE_PROFILE, { language });
+    return { success: true };
   },
 
   async getPublicProfile(userName: string): Promise<UserPublicProfile> {
@@ -244,6 +244,13 @@ export const userService = {
         }));
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.BLOCKED_LIST);
-    return data;
+    // Backend returns { id, nickname, avatar, blockedAt }[]
+    return (Array.isArray(data) ? data : []).map((b: { id: string; nickname: string; avatar: string }) => ({
+      userName: b.nickname,
+      avatar: b.avatar,
+      gender: 'other' as const,
+      bio: '',
+      isFollowed: false,
+    }));
   },
 };

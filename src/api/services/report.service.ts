@@ -1,7 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export type ReportTargetType = 'post' | 'comment' | 'user' | 'message';
 
