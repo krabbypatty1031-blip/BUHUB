@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
@@ -33,10 +33,9 @@ import {
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandDetail'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
   const { index } = route.params;
   const { data: items } = useSecondhand();
   const wantedItems = useSecondhandStore((s) => s.wantedItems);
@@ -134,7 +133,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ── Hero Image ── */}
-        <View style={[styles.heroImage, isDisabled && styles.heroImageDimmed]}>
+        <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isDisabled && styles.heroImageDimmed]}>
           <ShoppingBagIcon size={56} color={colors.outlineVariant} />
 
           {/* Condition badge */}
@@ -339,8 +338,6 @@ const styles = StyleSheet.create({
 
   /* ── Hero Image ── */
   heroImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.65,
     backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',

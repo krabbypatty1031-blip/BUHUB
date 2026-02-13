@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
@@ -50,12 +50,12 @@ const ENTRIES: FunctionEntry[] = [
     iconBg: '#CFFAFE', iconColor: '#0891B2' },
 ];
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = spacing.md;
-const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - CARD_GAP) / 2;
 
 export default function FunctionsHubScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
 
   const handlePress = useCallback(
     (route: keyof FunctionsStackParamList) => {
@@ -75,7 +75,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           {ENTRIES.map((entry) => (
             <TouchableOpacity
               key={entry.key}
-              style={styles.gridCard}
+              style={[styles.gridCard, { width: cardWidth }]}
               activeOpacity={0.7}
               onPress={() => handlePress(entry.route)}
             >
@@ -119,7 +119,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   gridCard: {
-    width: CARD_WIDTH,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.xl,

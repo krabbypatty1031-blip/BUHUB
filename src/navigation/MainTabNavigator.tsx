@@ -1,8 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MainTabParamList } from './types';
 import { colors } from '../theme';
+import { layout } from '../theme/spacing';
 import { TabHomeIcon, TabCompassIcon, TabChatIcon, TabProfileIcon } from '../components/common/icons';
 import { TabBarAnimationProvider } from '../hooks/TabBarAnimationContext';
 import AnimatedTabBar from '../components/common/AnimatedTabBar';
@@ -15,6 +17,8 @@ import MeStackNavigator from './MeStackNavigator';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <TabBarAnimationProvider>
     <Tab.Navigator
@@ -52,8 +56,8 @@ export default function MainTabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.outlineVariant,
-          height: 80,
-          paddingBottom: 20,
+          height: layout.bottomNavHeight + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 16,
         },
       }}

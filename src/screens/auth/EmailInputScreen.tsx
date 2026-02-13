@@ -1,17 +1,17 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Animated,
   PanResponder,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
@@ -24,14 +24,17 @@ import { BackIcon, CheckIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TRACK_WIDTH = Math.min(SCREEN_WIDTH - 32 - 32, 340); // paddingHorizontal 16*2
 const SLIDER_WIDTH = 46;
-const SUCCESS_THRESHOLD = TRACK_WIDTH - SLIDER_WIDTH - 4;
 
 export default function EmailInputScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const { width: screenWidth } = useWindowDimensions();
+
+  const { trackWidth, successThreshold } = useMemo(() => {
+    const tw = Math.min(screenWidth - 32 - 32, 340);
+    return { trackWidth: tw, successThreshold: tw - SLIDER_WIDTH - 4 };
+  }, [screenWidth]);
 
   const [email, setEmail] = useState('');
   const [showCaptcha, setShowCaptcha] = useState(false);
@@ -66,13 +69,13 @@ export default function EmailInputScreen({ navigation }: Props) {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        const dx = Math.max(0, Math.min(gestureState.dx, SUCCESS_THRESHOLD));
+        const dx = Math.max(0, Math.min(gestureState.dx, successThreshold));
         pan.setValue(dx);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx >= SUCCESS_THRESHOLD) {
+        if (gestureState.dx >= successThreshold) {
           Animated.spring(pan, {
-            toValue: SUCCESS_THRESHOLD,
+            toValue: successThreshold,
             useNativeDriver: false,
           }).start(() => {
             setCaptchaVerified(true);
@@ -118,7 +121,7 @@ export default function EmailInputScreen({ navigation }: Props) {
 
       <KeyboardAvoidingView
         style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
           <Text style={styles.title}>{t('emailInputTitle')}</Text>
@@ -148,15 +151,15 @@ export default function EmailInputScreen({ navigation }: Props) {
                 {captchaVerified ? t('captchaSuccess') : t('captchaDesc')}
               </Text>
 
-              <View style={styles.sliderTrackWrapper}>
-                <View style={styles.track}>
+              <View style={[styles.sliderTrackWrapper, { width: trackWidth }]}>
+                <View style={[styles.track, { width: trackWidth }]}>
                   <Animated.View
                     style={[
                       styles.trackFill,
                       {
                         width: pan.interpolate({
-                          inputRange: [0, SUCCESS_THRESHOLD],
-                          outputRange: [0, SUCCESS_THRESHOLD + SLIDER_WIDTH],
+                          inputRange: [0, successThreshold],
+                          outputRange: [0, trackWidth],
                           extrapolate: 'clamp',
                         }),
                       },
@@ -288,12 +291,10 @@ const styles = StyleSheet.create({
 
   /* Slider */
   sliderTrackWrapper: {
-    width: TRACK_WIDTH,
     height: SLIDER_WIDTH,
     alignSelf: 'center',
   },
   track: {
-    width: TRACK_WIDTH,
     height: SLIDER_WIDTH,
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.full,

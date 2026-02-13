@@ -6,10 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  Dimensions,
+  useWindowDimensions,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
@@ -46,9 +46,7 @@ const CATEGORIES: Array<{ key: SecondhandCategory | 'all'; labelKey: string }> =
   { key: 'other', labelKey: 'other' },
 ];
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = spacing.sm;
-const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - CARD_GAP) / 2;
 
 /* ── Memoized Item Card ── */
 const ItemCard = React.memo(function ItemCard({
@@ -58,6 +56,7 @@ const ItemCard = React.memo(function ItemCard({
   onMore,
   t,
   lang,
+  cardWidth,
 }: {
   item: SecondhandItem;
   index: number;
@@ -65,17 +64,18 @@ const ItemCard = React.memo(function ItemCard({
   onMore: (item: SecondhandItem, index: number) => void;
   t: (key: string) => string;
   lang: 'tc' | 'sc' | 'en';
+  cardWidth: number;
 }) {
   const isSoldOrExpired = item.sold || item.expired;
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { width: cardWidth }]}
       activeOpacity={0.7}
       onPress={() => onPress(index)}
     >
       {/* Image area */}
-      <View style={[styles.imageArea, isSoldOrExpired && styles.imageAreaDimmed]}>
+      <View style={[styles.imageArea, { height: cardWidth * 0.8 }, isSoldOrExpired && styles.imageAreaDimmed]}>
         <ShoppingBagIcon size={32} color={colors.outlineVariant} />
 
         {/* Condition tag - top left */}
@@ -130,6 +130,8 @@ const ItemCard = React.memo(function ItemCard({
 export default function SecondhandListScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
   const setCategory = useSecondhandStore((s) => s.setCategory);
   const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
@@ -206,10 +208,10 @@ export default function SecondhandListScreen({ navigation }: Props) {
     ({ item }: { item: SecondhandItem }) => {
       const index = items?.indexOf(item) ?? 0;
       return (
-        <ItemCard item={item} index={index} onPress={handleItemPress} onMore={handleMore} t={t} lang={lang} />
+        <ItemCard item={item} index={index} onPress={handleItemPress} onMore={handleMore} t={t} lang={lang} cardWidth={cardWidth} />
       );
     },
-    [items, handleItemPress, handleMore, t, lang]
+    [items, handleItemPress, handleMore, t, lang, cardWidth]
   );
 
   return (
@@ -423,7 +425,6 @@ const styles = StyleSheet.create({
 
   /* Card */
   card: {
-    width: CARD_WIDTH,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
   /* Image area */
   imageArea: {
     width: '100%',
-    height: CARD_WIDTH * 0.8,
+    height: 120,
     backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',

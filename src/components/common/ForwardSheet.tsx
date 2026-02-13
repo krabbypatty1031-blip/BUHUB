@@ -7,7 +7,7 @@ import {
   FlatList,
   Modal,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -19,9 +19,6 @@ import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import { CloseIcon, SendIcon, CheckIcon } from './icons';
 import type { ForumPost, Contact } from '../../types';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_HEIGHT = Math.max(SCREEN_HEIGHT * 0.55, 420);
 
 interface ForwardSheetProps {
   visible: boolean;
@@ -64,6 +61,8 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
   const { t } = useTranslation();
   const { data: contacts } = useContacts();
   const inputRef = useRef<TextInput>(null);
+  const { height: screenHeight } = useWindowDimensions();
+  const sheetHeight = Math.max(screenHeight * 0.55, 420);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -138,11 +137,11 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
         onPress={onClose}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.kavContainer}
         >
           <View
-            style={styles.sheet}
+            style={[styles.sheet, { height: sheetHeight }]}
             onStartShouldSetResponder={() => true}
           >
             {/* ── Drag handle ── */}
@@ -230,7 +229,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    height: SHEET_HEIGHT,
     backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,

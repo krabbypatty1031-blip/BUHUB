@@ -41,5 +41,5 @@ export const elevation = {
 // Layout constants
 export const layout = {
   navHeight: 56,
-  bottomNavHeight: 80,
+  bottomNavHeight: 60,
 } as const;

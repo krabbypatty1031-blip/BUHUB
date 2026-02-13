@@ -6,7 +6,7 @@ import {
   FlatList,
   Modal,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
@@ -20,9 +20,6 @@ import {
   ChevronRightIcon,
 } from './icons';
 import type { Contact } from '../../types';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_HEIGHT = Math.max(SCREEN_HEIGHT * 0.55, 420);
 
 interface FunctionForwardSheetProps {
   visible: boolean;
@@ -67,6 +64,8 @@ export default function FunctionForwardSheet({
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
   const { data: contacts } = useContacts();
+  const { height: screenHeight } = useWindowDimensions();
+  const sheetHeight = Math.max(screenHeight * 0.55, 420);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -120,7 +119,7 @@ export default function FunctionForwardSheet({
         onPress={onClose}
       >
         <View
-          style={[styles.sheet, styles.sheetTall]}
+          style={[styles.sheet, { height: sheetHeight }]}
           onStartShouldSetResponder={() => true}
         >
           {/* ── Drag handle ── */}
@@ -169,9 +168,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,
     paddingBottom: 32,
-  },
-  sheetTall: {
-    height: SHEET_HEIGHT,
   },
   handle: {
     width: 36,
