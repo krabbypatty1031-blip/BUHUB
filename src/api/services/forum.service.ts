@@ -82,6 +82,7 @@ export const forumService = {
               time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
               likes: r.likeCount ?? 0,
               liked: r.liked ?? false,
+              bookmarked: r.bookmarked ?? false,
             };
           })
         : undefined;
@@ -96,6 +97,7 @@ export const forumService = {
         time,
         likes: c.likeCount ?? 0,
         liked: c.liked ?? false,
+        bookmarked: c.bookmarked ?? false,
         isAnonymous: isAnon,
         replies,
       };
@@ -210,7 +212,7 @@ export const forumService = {
     return data;
   },
 
-  async likePost(postId: string): Promise<{ liked: boolean }> {
+  async likePost(postId: string): Promise<{ liked: boolean; likeCount?: number }> {
     if (USE_MOCK) {
       return { liked: true };
     }
@@ -226,7 +228,7 @@ export const forumService = {
     return data;
   },
 
-  async likeComment(commentId: string): Promise<{ liked: boolean }> {
+  async likeComment(commentId: string): Promise<{ liked: boolean; likeCount?: number }> {
     if (USE_MOCK) {
       return { liked: true };
     }

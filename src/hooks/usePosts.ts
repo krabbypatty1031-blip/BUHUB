@@ -118,7 +118,7 @@ export function useLikePost() {
       const toggle = (p: ForumPost) => ({
         ...p,
         liked: !p.liked,
-        likes: p.liked ? p.likes - 1 : p.likes + 1,
+        likes: p.liked ? Math.max(0, p.likes - 1) : p.likes + 1,
       });
       queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
         old?.map((p) => (p.id === postId ? toggle(p) : p))
@@ -128,14 +128,27 @@ export function useLikePost() {
       }
       return { previousList, previousDetail };
     },
+    onSuccess: (res, postId) => {
+      if (typeof res.likeCount === 'number') {
+        const update = (p: ForumPost) => (p.id === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p);
+        queryClient.setQueryData<ForumPost[]>(['posts'], (old) => old?.map(update));
+        const detail = queryClient.getQueryData<ForumPost>(['post', postId]);
+        if (detail) {
+          queryClient.setQueryData<ForumPost>(['post', postId], { ...detail, liked: res.liked, likes: res.likeCount });
+        }
+      }
+    },
     onError: (_err, postId, context) => {
       if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
       if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
     },
-    onSettled: (_data, _err, postId) => {
+    onSettled: (res, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post', postId] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      // Skip invalidating post detail when we have likeCount - avoid refetch overwriting our onSuccess update
+      if (typeof res?.likeCount !== 'number') {
+        queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      }
     },
   });
 }
@@ -150,13 +163,13 @@ export function useLikeComment(postId: string) {
       queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
         old?.map((c) => {
           if (c.id === commentId) {
-            return { ...c, liked: !c.liked, likes: c.liked ? c.likes - 1 : c.likes + 1 };
+            return { ...c, liked: !c.liked, likes: c.liked ? Math.max(0, c.likes - 1) : c.likes + 1 };
           }
           if (c.replies?.some((r) => r.id === commentId)) {
             return {
               ...c,
               replies: c.replies.map((r) =>
-                r.id === commentId ? { ...r, liked: !r.liked, likes: r.liked ? r.likes - 1 : r.likes + 1 } : r
+                r.id === commentId ? { ...r, liked: !r.liked, likes: r.liked ? Math.max(0, r.likes - 1) : r.likes + 1 } : r
               ),
             };
           }
@@ -164,6 +177,24 @@ export function useLikeComment(postId: string) {
         })
       );
       return { previous };
+    },
+    onSuccess: (res, commentId) => {
+      if (typeof res.likeCount === 'number') {
+        queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+          old?.map((c) => {
+            if (c.id === commentId) return { ...c, liked: res.liked, likes: res.likeCount! };
+            if (c.replies?.some((r) => r.id === commentId)) {
+              return {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === commentId ? { ...r, liked: res.liked, likes: res.likeCount! } : r
+                ),
+              };
+            }
+            return c;
+          })
+        );
+      }
     },
     onError: (_err, _commentId, context) => {
       if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
