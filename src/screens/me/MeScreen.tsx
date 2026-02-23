@@ -38,7 +38,7 @@ import {
   QrCodeIcon,
   ShoppingBagIcon,
 } from '../../components/common/icons';
-import { getRelativeTime } from '../../utils/formatTime';
+import { translateTime } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -83,7 +83,7 @@ const PostItem = React.memo(function PostItem({ post, author, lang, onPress }: {
           <CommentIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{post.comments}</Text>
         </View>
-        <Text style={styles.footerTime}>{getRelativeTime(post.time, lang)}</Text>
+        <Text style={styles.footerTime}>{translateTime(post.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -112,7 +112,7 @@ const CommentItem = React.memo(function CommentItem({
           <HeartIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{comment.likes}</Text>
         </View>
-        <Text style={styles.footerTime}>{getRelativeTime(comment.time, lang)}</Text>
+        <Text style={styles.footerTime}>{translateTime(comment.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -134,7 +134,7 @@ const LikedPostItem = React.memo(function LikedPostItem({ post, lang, onPress }:
           <CommentIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{post.comments}</Text>
         </View>
-        <Text style={styles.footerTime}>{getRelativeTime(post.time, lang)}</Text>
+        <Text style={styles.footerTime}>{translateTime(post.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -163,7 +163,7 @@ const LikedCommentItem = React.memo(function LikedCommentItem({
           <HeartIcon size={13} color={colors.onSurfaceVariant} />
           <Text style={styles.footerMetricText}>{comment.likes}</Text>
         </View>
-        <Text style={styles.footerTime}>{getRelativeTime(comment.time, lang)}</Text>
+        <Text style={styles.footerTime}>{translateTime(comment.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -184,7 +184,7 @@ const WantedItemCard = React.memo(function WantedItemCard({ item, lang, onPress 
           <Text style={styles.footerDot}>·</Text>
           <Text style={styles.footerMetricText}>{item.condition}</Text>
         </View>
-        <Text style={styles.footerTime}>{getRelativeTime(item.time, lang)}</Text>
+        <Text style={styles.footerTime}>{translateTime(item.time, lang)}</Text>
       </View>
     </TouchableOpacity>
   );

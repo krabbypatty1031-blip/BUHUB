@@ -2,7 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { Contact, ChatHistory } from '../../types';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export const messageService = {
   async getContacts(): Promise<Contact[]> {

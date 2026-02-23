@@ -45,6 +45,7 @@ export interface Comment {
   majorKey?: string;
   content: string;
   time: string;
+  createdAt?: string;
   likes: number;
   liked?: boolean;
   bookmarked?: boolean;
@@ -62,6 +63,7 @@ export interface Reply {
   replyTo: string;
   content: string;
   time: string;
+  createdAt?: string;
   likes: number;
   liked?: boolean;
   bookmarked?: boolean;

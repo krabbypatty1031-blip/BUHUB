@@ -123,9 +123,9 @@ function ReplyItem({
       buildPostMeta(t, lang, {
         gradeKey: reply.gradeKey,
         majorKey: reply.majorKey,
-        createdAt: reply.time,
+        createdAt: reply.createdAt || reply.time,
       }),
-    [t, lang, reply.gradeKey, reply.majorKey, reply.time],
+    [t, lang, reply.gradeKey, reply.majorKey, reply.createdAt, reply.time],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -221,10 +221,10 @@ function CommentItem({
       buildPostMeta(t, lang, {
         gradeKey: comment.isAnonymous ? undefined : comment.gradeKey,
         majorKey: comment.isAnonymous ? undefined : comment.majorKey,
-        createdAt: comment.time,
+        createdAt: comment.createdAt || comment.time,
         isAnonymous: comment.isAnonymous,
       }),
-    [t, lang, comment.gradeKey, comment.majorKey, comment.time, comment.isAnonymous],
+    [t, lang, comment.gradeKey, comment.majorKey, comment.createdAt, comment.time, comment.isAnonymous],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
