@@ -78,8 +78,9 @@ export default function EmailInputScreen({ navigation }: Props) {
       setTimeout(() => {
         navigation.navigate('VerifyCode', { email: currentEmail });
       }, 400);
-    } catch {
-      showSnackbar({ message: t('sendCodeFailed') || 'Failed to send code', type: 'error' });
+    } catch (err: any) {
+      const msg = err?.message || t('sendCodeFailed') || 'Failed to send code';
+      showSnackbar({ message: msg, type: 'error' });
       pan.setValue(0);
       setCaptchaVerified(false);
     }

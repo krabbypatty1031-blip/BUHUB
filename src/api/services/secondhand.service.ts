@@ -12,7 +12,13 @@ export const secondhandService = {
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, { params: { category, ...params } });
-    return data;
+    return (Array.isArray(data) ? data : []).map((i: any) => ({
+      ...i,
+      user: i.author?.nickname ?? i.user ?? '?',
+      avatar: i.author?.avatar ?? i.avatar ?? '',
+      authorId: i.author?.id ?? i.authorId,
+      desc: i.description ?? i.desc,
+    }));
   },
 
   async getDetail(id: string): Promise<SecondhandItem> {
@@ -21,7 +27,13 @@ export const secondhandService = {
       return mockSecondhandItems[Number(id)] || mockSecondhandItems[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.DETAIL(id));
-    return data;
+    return {
+      ...data,
+      user: data.author?.nickname ?? data.user ?? '?',
+      avatar: data.author?.avatar ?? data.avatar ?? '',
+      authorId: data.author?.id ?? data.authorId,
+      desc: data.description ?? data.desc,
+    };
   },
 
   async create(item: Omit<SecondhandItem, 'user' | 'avatar' | 'gender' | 'bio' | 'sold'>): Promise<SecondhandItem> {
@@ -32,7 +44,13 @@ export const secondhandService = {
       return newItem;
     }
     const { data } = await apiClient.post(ENDPOINTS.SECONDHAND.CREATE, item);
-    return data;
+    return {
+      ...data,
+      user: data.author?.nickname ?? data.user ?? '?',
+      avatar: data.author?.avatar ?? data.avatar ?? '',
+      authorId: data.author?.id ?? data.authorId,
+      desc: data.description ?? data.desc,
+    };
   },
 
   async edit(id: string, item: Partial<SecondhandItem>): Promise<SecondhandItem> {

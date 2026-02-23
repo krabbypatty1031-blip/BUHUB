@@ -241,9 +241,9 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage } = route.params;
-  const { data: chatHistory, isLoading } = useChatHistory(contactName);
-  const sendMessage = useSendMessage(contactName);
+  const { contactId, contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage } = route.params;
+  const { data: chatHistory, isLoading } = useChatHistory(contactId);
+  const sendMessage = useSendMessage(contactId);
   const user = useAuthStore((s) => s.user);
   const { tabBarTranslateY } = useTabBarAnimation();
 

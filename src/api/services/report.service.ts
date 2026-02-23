@@ -3,7 +3,7 @@ import ENDPOINTS from '../endpoints';
 
 const USE_MOCK = false;
 
-export type ReportTargetType = 'post' | 'comment';
+export type ReportTargetType = 'post' | 'comment' | 'user' | 'message';
 
 export interface ReportPayload {
   targetType: ReportTargetType;

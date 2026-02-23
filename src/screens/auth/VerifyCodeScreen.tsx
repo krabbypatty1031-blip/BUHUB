@@ -76,8 +76,8 @@ export default function VerifyCodeScreen({ navigation, route }: Props) {
       startCountdown();
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
-    } catch {
-      showSnackbar({ message: t('sendCodeFailed') || 'Failed to send code', type: 'error' });
+    } catch (err: any) {
+      showSnackbar({ message: err?.message || t('sendCodeFailed') || 'Failed to send code', type: 'error' });
     }
   }, [countdown, email, showSnackbar, t, startCountdown]);
 

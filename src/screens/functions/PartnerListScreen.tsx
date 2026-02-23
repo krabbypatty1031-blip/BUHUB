@@ -83,9 +83,11 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const handleDmOrganizer = useCallback(
     (item: PartnerPost, itemIndex: number) => {
+      const contactId = item.authorId;
+      if (!contactId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: { contactId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]

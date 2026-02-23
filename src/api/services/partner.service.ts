@@ -12,7 +12,13 @@ export const partnerService = {
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.PARTNER.LIST, { params: { category, ...params } });
-    return data;
+    return (Array.isArray(data) ? data : []).map((p: any) => ({
+      ...p,
+      user: p.author?.nickname ?? p.user ?? '?',
+      avatar: p.author?.avatar ?? p.avatar ?? '',
+      authorId: p.author?.id ?? p.authorId,
+      desc: p.description ?? p.desc,
+    }));
   },
 
   async getDetail(id: string): Promise<PartnerPost> {
@@ -21,7 +27,13 @@ export const partnerService = {
       return mockPartnerPosts[Number(id)] || mockPartnerPosts[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.PARTNER.DETAIL(id));
-    return data;
+    return {
+      ...data,
+      user: data.author?.nickname ?? data.user ?? '?',
+      avatar: data.author?.avatar ?? data.avatar ?? '',
+      authorId: data.author?.id ?? data.authorId,
+      desc: data.description ?? data.desc,
+    };
   },
 
   async create(post: Omit<PartnerPost, 'user' | 'avatar' | 'gender' | 'bio' | 'expired' | 'joined'>): Promise<PartnerPost> {

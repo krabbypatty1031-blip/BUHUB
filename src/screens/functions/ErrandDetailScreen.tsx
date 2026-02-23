@@ -45,10 +45,10 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
 
   const handleDmPoster = useCallback(() => {
-    if (!errand) return;
+    if (!errand?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title, forwardedPosterName: errand.user, forwardedIndex: index },
+      params: { contactId: errand.authorId, contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title, forwardedPosterName: errand.user, forwardedIndex: index },
     });
   }, [navigation, errand, index]);
 

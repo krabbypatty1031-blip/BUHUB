@@ -41,10 +41,10 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
 
   const handleDmOrganizer = useCallback(() => {
-    if (!partner) return;
+    if (!partner?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title, forwardedPosterName: partner.user, forwardedIndex: index },
+      params: { contactId: partner.authorId, contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title, forwardedPosterName: partner.user, forwardedIndex: index },
     });
   }, [navigation, partner, index]);
 

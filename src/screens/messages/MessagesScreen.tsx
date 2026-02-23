@@ -328,6 +328,7 @@ export default function MessagesScreen({ navigation }: Props) {
           onPress={() => {
             clearUnread(item.name);
             navigation.navigate('Chat', {
+              contactId: item.id,
               contactName: item.name,
               contactAvatar: item.avatar,
             });

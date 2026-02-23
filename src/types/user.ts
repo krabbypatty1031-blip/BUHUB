@@ -15,6 +15,7 @@ export interface User {
 }
 
 export interface UserPublicProfile {
+  id?: string;
   userName: string;
   nickname: string;
   avatar: string;
@@ -113,6 +114,7 @@ export interface FollowListItem {
 }
 
 export interface Contact {
+  id: string; // userId for API calls
   name: string;
   avatar: string;
   message: string;

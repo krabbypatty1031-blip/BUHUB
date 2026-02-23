@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { useSearch, useLikePost, useBookmarkPost } from '../../hooks/usePosts';
+import { useSearch, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -22,6 +22,7 @@ import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
+import { getVotedOptionIndex } from '../../utils/forum';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Search'>;
 
@@ -46,6 +47,7 @@ export default function SearchScreen({ navigation }: Props) {
   const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
+  const votePostMutation = useVotePost();
   const currentUser = useAuthStore((s) => s.user);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
 
@@ -130,13 +132,23 @@ export default function SearchScreen({ navigation }: Props) {
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
-        onVote={item.isPoll ? (optIdx) => votePoll(item.id, optIdx) : undefined}
+        onVote={
+          item.isPoll
+            ? (optIdx) => {
+                const optionId = item.pollOptions?.[optIdx]?.id;
+                if (optionId) {
+                  votePoll(item.id, optIdx);
+                  votePostMutation.mutate({ postId: item.id, optionId });
+                }
+              }
+            : undefined
+        }
         isLiked={item.liked ?? false}
         isBookmarked={item.bookmarked ?? false}
-        votedOptionIndex={votedPolls.get(item.id)}
+        votedOptionIndex={getVotedOptionIndex(item, votedPolls)}
       />
     ),
-    [results, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [results, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (

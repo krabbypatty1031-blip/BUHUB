@@ -12,7 +12,13 @@ export const errandService = {
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, { params: { category, ...params } });
-    return data;
+    return (Array.isArray(data) ? data : []).map((e: any) => ({
+      ...e,
+      user: e.author?.nickname ?? e.user ?? '?',
+      avatar: e.author?.avatar ?? e.avatar ?? '',
+      authorId: e.author?.id ?? e.authorId,
+      desc: e.description ?? e.desc,
+    }));
   },
 
   async getDetail(id: string): Promise<Errand> {
@@ -21,7 +27,13 @@ export const errandService = {
       return mockErrands[Number(id)] || mockErrands[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.DETAIL(id));
-    return data;
+    return {
+      ...data,
+      user: data.author?.nickname ?? data.user ?? '?',
+      avatar: data.author?.avatar ?? data.avatar ?? '',
+      authorId: data.author?.id ?? data.authorId,
+      desc: data.description ?? data.desc,
+    };
   },
 
   async create(errand: Omit<Errand, 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>): Promise<Errand> {
@@ -32,7 +44,13 @@ export const errandService = {
       return newErrand;
     }
     const { data } = await apiClient.post(ENDPOINTS.ERRAND.CREATE, errand);
-    return data;
+    return {
+      ...data,
+      user: data.author?.nickname ?? data.user ?? '?',
+      avatar: data.author?.avatar ?? data.avatar ?? '',
+      authorId: data.author?.id ?? data.authorId,
+      desc: data.description ?? data.desc,
+    };
   },
 
   async edit(id: string, errand: Partial<Errand>): Promise<Errand> {

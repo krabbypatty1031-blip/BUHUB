@@ -17,8 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
+import { CommonActions } from '@react-navigation/native';
 import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
+import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -40,6 +42,8 @@ import {
   ChevronDownIcon,
   MoreHorizontalIcon,
   IncognitoIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
@@ -161,10 +165,18 @@ function ReplyItem({
     >
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
-          <Avatar text={reply.name} uri={reply.avatar} defaultAvatar={reply.defaultAvatar} size="xs" />
+          <Avatar
+            text={reply.name}
+            uri={reply.avatar}
+            defaultAvatar={reply.defaultAvatar}
+            size="xs"
+            gender={reply.gender}
+          />
           <View style={styles.commentUserInfo}>
             <View style={styles.replyNameRow}>
               <Text style={styles.replyName}>{reply.name}</Text>
+              {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
+              {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
               {reply.replyTo ? (
                 <Text style={styles.replyToLabel}> ▸ {reply.replyTo}</Text>
               ) : null}
@@ -266,7 +278,7 @@ function CommentItem({
             uri={comment.isAnonymous ? undefined : comment.avatar}
             defaultAvatar={comment.isAnonymous ? undefined : comment.defaultAvatar}
             size="sm"
-            gender={comment.isAnonymous ? 'other' : undefined}
+            gender={comment.isAnonymous ? 'other' : comment.gender}
           />
           <View style={styles.commentUserInfo}>
             <View style={styles.commentNameRow}>
@@ -274,6 +286,12 @@ function CommentItem({
                 <IncognitoIcon size={12} color={colors.onSurfaceVariant} />
               )}
               <Text style={styles.commentName}>{comment.name}</Text>
+              {!comment.isAnonymous && comment.gender === 'male' && (
+                <MaleIcon size={12} color={colors.genderMale} />
+              )}
+              {!comment.isAnonymous && comment.gender === 'female' && (
+                <FemaleIcon size={12} color={colors.genderFemale} />
+              )}
               <Text style={styles.commentDot}> · </Text>
               <Text style={styles.commentMeta} numberOfLines={1}>{commentMeta}</Text>
             </View>
@@ -421,6 +439,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const isLiked = post?.liked ?? false;
   const isBookmarked = post?.bookmarked ?? false;
+  const currentUser = useAuthStore((s) => s.user);
+
+  const handleAvatarPress = useCallback(() => {
+    if (!post?.isAnonymous) {
+      if (post?.name === currentUser?.nickname) {
+        navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
+      } else {
+        navigation.navigate('UserProfile', { userName: post?.userName ?? post?.name ?? '' });
+      }
+    }
+  }, [post, currentUser, navigation]);
 
   const handleComment = useCallback(() => {
     setReplyTo(null);
@@ -505,19 +534,40 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         {/* Post Content */}
         <View style={styles.postSection}>
           <View style={styles.postHeader}>
-            <Avatar
-              text={post.isAnonymous ? '' : post.name}
-              uri={post.isAnonymous ? undefined : post.avatar}
-              defaultAvatar={post.isAnonymous ? undefined : post.defaultAvatar}
-              size="md"
-              gender={post.isAnonymous ? 'other' : post.gender}
-            />
+            {post.isAnonymous ? (
+              <Avatar
+                text=""
+                uri={undefined}
+                size="md"
+                gender="other"
+              />
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleAvatarPress}
+                style={styles.postAvatarTouch}
+              >
+                <Avatar
+                  text={post.name}
+                  uri={post.avatar}
+                  defaultAvatar={post.defaultAvatar}
+                  size="md"
+                  gender={post.gender}
+                />
+              </TouchableOpacity>
+            )}
             <View style={styles.postUserInfo}>
               <View style={styles.postNameRow}>
                 {post.isAnonymous && (
                   <IncognitoIcon size={14} color={colors.onSurfaceVariant} />
                 )}
-                <Text style={styles.postName}>{post.name}</Text>
+                {!post.isAnonymous ? (
+                  <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.7} style={styles.postNameTouch}>
+                    <Text style={styles.postName}>{post.name}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.postName}>{post.name}</Text>
+                )}
                 <Text style={styles.postDot}> · </Text>
                 <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
               </View>
@@ -612,7 +662,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, postId, likePostMutation, bookmarkPostMutation, handleComment, handleForward, handleQuote, t, displayMeta, navigation]);
+  }, [post, isLiked, isBookmarked, postId, likePostMutation, bookmarkPostMutation, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
 
   if (isLoading || !post) {
     return (
@@ -854,6 +904,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  postAvatarTouch: {},
+  postNameTouch: { alignSelf: 'flex-start' },
   postUserInfo: {
     marginLeft: spacing.md,
     flex: 1,
