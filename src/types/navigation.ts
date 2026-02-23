@@ -9,9 +9,8 @@ export type AuthStackParamList = {
   Language: undefined;
   Login: undefined;
   EmailInput: undefined;
-  VerifyCode: { email: string };
   SetPassword: { email: string };
-  InviteCode: { email: string };
+  InviteCode: undefined;
   ProfileSetup: { email: string };
 };
 

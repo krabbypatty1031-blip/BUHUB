@@ -417,11 +417,7 @@ export default function MessagesScreen({ navigation }: Props) {
                 icon={
                   <MessageIcon size={36} color={colors.onSurfaceVariant} />
                 }
-                title={t('noMessages') || 'No messages yet'}
-                message={
-                  t('startChatHint') ||
-                  'Start a conversation with someone!'
-                }
+                title={t('noMessages')}
               />
             )
           }

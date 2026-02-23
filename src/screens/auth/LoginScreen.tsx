@@ -19,6 +19,7 @@ import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
+import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { EyeIcon, EyeOffIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -30,20 +31,27 @@ export default function LoginScreen({ navigation }: Props) {
   const setToken = useAuthStore((s) => s.setToken);
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    value: password,
+    isVisible: isPasswordVisible,
+    onChangeText: onPasswordChange,
+    toggleVisibility: togglePasswordVisibility,
+  } = usePasswordInput();
 
   const canLogin = email.trim().length > 0 && password.length > 0;
 
   const handleLogin = useCallback(async () => {
     if (!canLogin || isLoading) return;
+
     setIsLoading(true);
     try {
       const loginResult = await authService.login(email.trim(), password);
       if (loginResult.token) {
         setToken(loginResult.token);
       }
+
       const { user } = await authService.verifyToken();
       if (user) {
         setUser(user);
@@ -69,12 +77,11 @@ export default function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>BUHUB</Text>
+          <Text style={styles.logoText}>UHUB</Text>
           <Text style={styles.subtitle}>{t('loginDesc')}</Text>
         </View>
 
         <View style={styles.form}>
-          {/* Email Input */}
           <View style={styles.inputField}>
             <TextInput
               style={styles.input}
@@ -89,25 +96,26 @@ export default function LoginScreen({ navigation }: Props) {
             />
           </View>
 
-          {/* Password Input */}
           <View style={styles.inputField}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
               placeholder={t('passwordPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant}
               value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
+              onChangeText={onPasswordChange}
+              secureTextEntry={!isPasswordVisible}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!isLoading}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
             />
             <TouchableOpacity
               style={styles.eyeBtn}
-              onPress={() => setShowPassword((v) => !v)}
+              onPress={togglePasswordVisibility}
               activeOpacity={0.7}
             >
-              {showPassword ? (
+              {isPasswordVisible ? (
                 <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
               ) : (
                 <EyeIcon size={20} color={colors.onSurfaceVariant} />
@@ -115,7 +123,6 @@ export default function LoginScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Login Button */}
           <TouchableOpacity
             style={[styles.loginBtn, !canLogin && styles.loginBtnDisabled]}
             activeOpacity={0.8}
@@ -132,7 +139,6 @@ export default function LoginScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Register Link */}
         <View style={styles.registerRow}>
           <Text style={styles.registerText}>{t('noAccount')}</Text>
           <TouchableOpacity

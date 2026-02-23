@@ -18,13 +18,11 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { authService } from '../../api/services/auth.service';
-import { BackIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'InviteCode'>;
 
-export default function InviteCodeScreen({ navigation, route }: Props) {
+export default function InviteCodeScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const [code, setCode] = useState('');
@@ -39,7 +37,7 @@ export default function InviteCodeScreen({ navigation, route }: Props) {
     try {
       const result = await authService.verifyInviteCode(code.trim());
       if (result.valid) {
-        navigation.navigate('ProfileSetup', { email });
+        navigation.navigate('Language');
       } else {
         showSnackbar({ message: t('inviteCodeInvalid'), type: 'error' });
       }
@@ -48,73 +46,69 @@ export default function InviteCodeScreen({ navigation, route }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, isSubmitting, code, navigation, email, showSnackbar, t]);
+  }, [canSubmit, isSubmitting, code, navigation, showSnackbar, t]);
 
   const handleSkip = useCallback(() => {
-    navigation.navigate('ProfileSetup', { email });
-  }, [navigation, email]);
+    navigation.navigate('Language');
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-      </View>
-
       <KeyboardAvoidingView
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('inviteCodeTitle')}</Text>
-          <Text style={styles.desc}>{t('inviteCodeDesc')}</Text>
-        </View>
-
-        <View style={styles.form}>
-          {/* Invite Code Input */}
-          <View style={styles.inputField}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('inviteCodePlaceholder')}
-              placeholderTextColor={colors.onSurfaceVariant}
-              value={code}
-              onChangeText={setCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              editable={!isSubmitting}
-              returnKeyType="done"
-              onSubmitEditing={handleNext}
-            />
+        <View style={styles.centerContent}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{t('inviteCodeTitle')}</Text>
+            <Text style={styles.desc}>{t('inviteCodeDesc')}</Text>
           </View>
 
-          {/* Hint */}
-          <Text style={styles.hint}>{t('inviteCodeHint')}</Text>
+          <View style={styles.form}>
+            {/* Invite Code Input */}
+            <View style={styles.inputField}>
+              <TextInput
+                style={styles.input}
+                placeholder={t('inviteCodePlaceholder')}
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={code}
+                onChangeText={setCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!isSubmitting}
+                returnKeyType="done"
+                onSubmitEditing={handleNext}
+              />
+            </View>
 
-          {/* Next Button */}
-          <TouchableOpacity
-            style={[styles.nextBtn, !canSubmit && styles.nextBtnDisabled]}
-            activeOpacity={0.8}
-            onPress={handleNext}
-            disabled={!canSubmit || isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={colors.onPrimary} />
-            ) : (
-              <Text style={[styles.nextBtnText, !canSubmit && styles.nextBtnTextDisabled]}>
-                {t('continueBtn')}
-              </Text>
-            )}
-          </TouchableOpacity>
+            {/* Hint */}
+            <Text style={styles.hint}>{t('inviteCodeHint')}</Text>
 
-          {/* Skip */}
-          <TouchableOpacity
-            style={styles.skipBtn}
+            {/* Next Button */}
+            <TouchableOpacity
+              style={[styles.nextBtn, !canSubmit && styles.nextBtnDisabled]}
+              activeOpacity={0.8}
+              onPress={handleNext}
+              disabled={!canSubmit || isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.nextBtnText, !canSubmit && styles.nextBtnTextDisabled]}>
+                  {t('continueBtn')}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Skip */}
+            <TouchableOpacity
+              style={styles.skipBtn}
             activeOpacity={0.7}
             onPress={handleSkip}
           >
             <Text style={styles.skipText}>{t('inviteCodeSkip')}</Text>
           </TouchableOpacity>
+        </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -126,21 +120,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-  },
-  backBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
   },
   header: {
     marginBottom: spacing.xxxl,

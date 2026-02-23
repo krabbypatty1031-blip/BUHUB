@@ -1,4 +1,3 @@
-import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
@@ -9,8 +8,9 @@ const USE_MOCK = false;
 async function uploadViaPresigned(
   file: { uri: string; type: string; name: string }
 ): Promise<{ url: string }> {
-  const info = await FileSystem.getInfoAsync(file.uri, { size: true });
-  const fileSize = (info as { size?: number }).size ?? 0;
+  const localResponse = await fetch(file.uri);
+  const fileBlob = await localResponse.blob();
+  const fileSize = fileBlob.size ?? 0;
   if (fileSize <= 0) {
     throw new Error('Could not determine file size');
   }
@@ -27,11 +27,14 @@ async function uploadViaPresigned(
   const headers: Record<string, string> = { 'Content-Type': file.type };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  await FileSystem.uploadAsync(uploadUrl, file.uri, {
-    httpMethod: 'PUT',
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
     headers,
+    body: fileBlob,
   });
+  if (!uploadResponse.ok) {
+    throw new Error(`Upload failed with status ${uploadResponse.status}`);
+  }
 
   return { url: fileUrl };
 }

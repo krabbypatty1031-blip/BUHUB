@@ -1,4 +1,4 @@
-import { isValidEmail, isValidVerificationCode, isValidPrice, isNotEmpty } from '../utils/validators';
+import { isValidEmail, isValidVerificationCode, isValidPrice, isNotEmpty, getPasswordValidationReason, isValidPassword } from '../utils/validators';
 
 describe('validators', () => {
   describe('isValidEmail', () => {
@@ -51,6 +51,30 @@ describe('validators', () => {
     it('returns false for empty or whitespace strings', () => {
       expect(isNotEmpty('')).toBe(false);
       expect(isNotEmpty('   ')).toBe(false);
+    });
+  });
+
+  describe('password validation', () => {
+    it('returns reason when password is too short', () => {
+      expect(getPasswordValidationReason('a1b2c3')).toBe('too_short');
+    });
+
+    it('returns reason when password misses letters', () => {
+      expect(getPasswordValidationReason('12345678')).toBe('missing_letter');
+    });
+
+    it('returns reason when password misses numbers', () => {
+      expect(getPasswordValidationReason('abcdefgh')).toBe('missing_number');
+    });
+
+    it('accepts password with letters and numbers', () => {
+      expect(getPasswordValidationReason('abc12345')).toBeNull();
+      expect(isValidPassword('abc12345')).toBe(true);
+    });
+
+    it('rejects invalid passwords', () => {
+      expect(isValidPassword('12345678')).toBe(false);
+      expect(isValidPassword('abcdefgh')).toBe(false);
     });
   });
 });

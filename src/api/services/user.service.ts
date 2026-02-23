@@ -142,6 +142,9 @@ export const userService = {
             },
           ] as LikedComment[],
         },
+        myBookmarks: {
+          comments: [] as LikedComment[],
+        },
         myWants: [
           {
             itemIndex: 0,

@@ -240,6 +240,10 @@ const styles = StyleSheet.create({
     ...typography.titleMedium,
     color: colors.onSurface,
     fontWeight: '600',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   confirmBtn: {
     backgroundColor: colors.primary,

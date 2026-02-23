@@ -18,19 +18,26 @@ import { CheckIcon } from '../../components/common/icons';
 
 type Language = 'tc' | 'sc' | 'en';
 
-const LANGUAGES: { key: Language; flag: string; primary: string; secondary: string }[] = [
-  { key: 'tc', flag: '🇭🇰', primary: '粵語', secondary: 'Cantonese' },
-  { key: 'sc', flag: '🇨🇳', primary: '普通话', secondary: 'Mandarin' },
-  { key: 'en', flag: '🇬🇧', primary: 'English', secondary: '英語' },
-];
+// 各语言下的显示名称
+const LANGUAGE_LABELS: Record<Language, Record<Language, string>> = {
+  tc: { tc: '粵語', sc: '普通話', en: '英文' },
+  sc: { tc: '粤语', sc: '普通话', en: '英文' },
+  en: { tc: 'Cantonese', sc: 'Mandarin', en: 'English' },
+};
+
+// "请选择语言" 各语言版本
+const SELECT_LANGUAGE_LABELS: Record<Language, string> = {
+  tc: '請選擇語言',
+  sc: '请选择语言',
+  en: 'Select Language',
+};
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Language'>;
 
 export default function LanguageScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const currentLanguage = useAuthStore((s) => s.language);
   const setLanguage = useAuthStore((s) => s.setLanguage);
-  const [selected, setSelected] = useState<Language>(currentLanguage);
+  const [selected, setSelected] = useState<Language>('tc');
 
   const handleSelect = async (lang: Language) => {
     setSelected(lang);
@@ -42,25 +49,22 @@ export default function LanguageScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>BUHUB</Text>
-          <Text style={styles.subtitle}>{t('selectLanguage')}</Text>
+          <Text style={styles.logoText}>UHUB</Text>
+          <Text style={styles.subtitle}>{SELECT_LANGUAGE_LABELS[selected]}</Text>
         </View>
 
         <View style={styles.options}>
-          {LANGUAGES.map((lang) => {
-            const isSelected = selected === lang.key;
+          {(['tc', 'sc', 'en'] as Language[]).map((lang) => {
+            const isSelected = selected === lang;
+            const label = LANGUAGE_LABELS[selected][lang];
             return (
               <TouchableOpacity
-                key={lang.key}
+                key={lang}
                 style={[styles.option, isSelected && styles.optionSelected]}
                 activeOpacity={0.7}
-                onPress={() => handleSelect(lang.key)}
+                onPress={() => handleSelect(lang)}
               >
-                <Text style={styles.flag}>{lang.flag}</Text>
-                <View style={styles.nameWrap}>
-                  <Text style={styles.namePrimary}>{lang.primary}</Text>
-                  <Text style={styles.nameSecondary}>{lang.secondary}</Text>
-                </View>
+                <Text style={styles.namePrimary}>{label}</Text>
                 {isSelected && (
                   <CheckIcon size={24} color={colors.primary} />
                 )}
@@ -115,6 +119,7 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
@@ -125,21 +130,9 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: colors.primaryContainer + '30',
   },
-  flag: {
-    fontSize: 32,
-    marginRight: spacing.lg,
-  },
-  nameWrap: {
-    flex: 1,
-  },
   namePrimary: {
     ...typography.titleMedium,
     color: colors.onSurface,
-  },
-  nameSecondary: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
   },
   footer: {
     padding: spacing.lg,

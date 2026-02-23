@@ -18,6 +18,8 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { authService } from '../../api/services/auth.service';
+import { usePasswordInput } from '../../hooks/usePasswordInput';
+import { getPasswordValidationReason } from '../../utils/validators';
 import { BackIcon, EyeIcon, EyeOffIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SetPassword'>;
@@ -27,21 +29,43 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
   const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    value: password,
+    isVisible: isPasswordVisible,
+    onChangeText: onPasswordChange,
+    toggleVisibility: togglePasswordVisibility,
+  } = usePasswordInput();
 
-  const canSubmit = password.length >= 8 && confirmPassword.length > 0;
+  const {
+    value: confirmPassword,
+    isVisible: isConfirmVisible,
+    onChangeText: onConfirmChange,
+    toggleVisibility: toggleConfirmVisibility,
+  } = usePasswordInput();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const canSubmit = password.length > 0 && confirmPassword.length > 0;
+
+  const getPasswordErrorMessage = useCallback(
+    (value: string): string | null => {
+      const reason = getPasswordValidationReason(value);
+      if (reason === 'too_short') return t('passwordTooShort');
+      if (reason === 'missing_letter') return t('passwordNeedLetter');
+      if (reason === 'missing_number') return t('passwordNeedNumber');
+      return null;
+    },
+    [t]
+  );
 
   const handleNext = useCallback(async () => {
     if (!canSubmit || isSubmitting) return;
 
-    if (password.length < 8) {
-      showSnackbar({ message: t('passwordTooShort'), type: 'error' });
+    const validationError = getPasswordErrorMessage(password);
+    if (validationError) {
+      showSnackbar({ message: validationError, type: 'error' });
       return;
     }
+
     if (password !== confirmPassword) {
       showSnackbar({ message: t('passwordMismatch'), type: 'error' });
       return;
@@ -50,13 +74,23 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     setIsSubmitting(true);
     try {
       await authService.setPassword(password);
-      navigation.navigate('InviteCode', { email });
+      navigation.navigate('ProfileSetup', { email });
     } catch {
       showSnackbar({ message: t('setPasswordFailed'), type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, isSubmitting, password, confirmPassword, navigation, email, showSnackbar, t]);
+  }, [
+    canSubmit,
+    confirmPassword,
+    email,
+    getPasswordErrorMessage,
+    isSubmitting,
+    navigation,
+    password,
+    showSnackbar,
+    t,
+  ]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -76,62 +110,71 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.form}>
-          {/* Password Input */}
-          <View style={styles.inputField}>
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('passwordPlaceholder')}
-              placeholderTextColor={colors.onSurfaceVariant}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSubmitting}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword((v) => !v)}
-              activeOpacity={0.7}
-            >
-              {showPassword ? (
-                <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
-              ) : (
-                <EyeIcon size={20} color={colors.onSurfaceVariant} />
-              )}
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('setPasswordEmailLabel')}</Text>
+            <View style={styles.emailField}>
+              <Text style={styles.emailValue}>{email}</Text>
+            </View>
           </View>
 
-          {/* Confirm Password Input */}
-          <View style={styles.inputField}>
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('confirmPassword')}
-              placeholderTextColor={colors.onSurfaceVariant}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirm}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSubmitting}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowConfirm((v) => !v)}
-              activeOpacity={0.7}
-            >
-              {showConfirm ? (
-                <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
-              ) : (
-                <EyeIcon size={20} color={colors.onSurfaceVariant} />
-              )}
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('setPasswordInputLabel')}</Text>
+            <View style={styles.inputField}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder={t('passwordPlaceholder')}
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={password}
+                onChangeText={onPasswordChange}
+                secureTextEntry={!isPasswordVisible}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSubmitting}
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={togglePasswordVisibility}
+                activeOpacity={0.7}
+              >
+                {isPasswordVisible ? (
+                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
+                ) : (
+                  <EyeIcon size={20} color={colors.onSurfaceVariant} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Hint */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{t('setPasswordConfirmInputLabel')}</Text>
+            <View style={styles.inputField}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder={t('confirmPassword')}
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={confirmPassword}
+                onChangeText={onConfirmChange}
+                secureTextEntry={!isConfirmVisible}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSubmitting}
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={toggleConfirmVisibility}
+                activeOpacity={0.7}
+              >
+                {isConfirmVisible ? (
+                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
+                ) : (
+                  <EyeIcon size={20} color={colors.onSurfaceVariant} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <Text style={styles.hint}>{t('passwordHint')}</Text>
 
-          {/* Next Button */}
           <TouchableOpacity
             style={[styles.nextBtn, !canSubmit && styles.nextBtnDisabled]}
             activeOpacity={0.8}
@@ -188,6 +231,26 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: spacing.lg,
+  },
+  fieldGroup: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  emailField: {
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.lg,
+    height: 56,
+    justifyContent: 'center',
+    backgroundColor: colors.surface1,
+  },
+  emailValue: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
   },
   inputField: {
     flexDirection: 'row',

@@ -318,11 +318,10 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         >
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>{pickerTitles[pickerType]}</Text>
               <TouchableOpacity onPress={() => setPickerVisible(false)}>
                 <Text style={styles.pickerCancel}>{t('cancel')}</Text>
               </TouchableOpacity>
-              <Text style={styles.pickerTitle}>{pickerTitles[pickerType]}</Text>
-              <View style={{ width: 60 }} />
             </View>
             <FlatList
               data={pickerData[pickerType]}
@@ -529,6 +528,10 @@ const styles = StyleSheet.create({
   pickerTitle: {
     ...typography.titleMedium,
     color: colors.onSurface,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   pickerItem: {
     paddingVertical: 16,

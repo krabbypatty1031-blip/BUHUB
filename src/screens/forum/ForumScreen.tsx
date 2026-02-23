@@ -190,7 +190,7 @@ export default function ForumScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>BUHUB</Text>
+        <Text style={styles.topBarTitle}>UHUB</Text>
         <TouchableOpacity
           style={styles.iconBtn}
           onPress={() => navigation.navigate('Search')}

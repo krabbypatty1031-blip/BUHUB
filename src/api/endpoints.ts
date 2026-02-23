@@ -4,6 +4,7 @@ const ENDPOINTS = {
   // Auth
   AUTH: {
     SEND_CODE: '/auth/send-code',
+    VERIFY_INVITE_CODE: '/auth/verify-invite-code',
     VERIFY: '/auth/verify',
     VERIFY_TOKEN: '/auth/verify-token',
     LOGIN: '/auth/login',
