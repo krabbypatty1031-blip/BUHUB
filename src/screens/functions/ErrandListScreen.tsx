@@ -76,9 +76,10 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   const handleDmPoster = useCallback(
     (item: Errand, itemIndex: number) => {
+      if (!item.authorId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]

@@ -97,6 +97,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
         params: {
           screen: 'Chat',
           params: {
+            contactId: selectedContact.id,
             contactName: selectedContact.name,
             contactAvatar: selectedContact.avatar || selectedContact.name,
             forwardedType: 'post',

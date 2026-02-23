@@ -62,14 +62,17 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   }, [userName, followUser]);
 
   const handleMessage = useCallback(() => {
+    const userId = profile?.id;
+    if (!userId) return; // Need userId for chat
     navigation.dispatch(
       CommonActions.navigate({
         name: 'MessagesTab',
         params: {
           screen: 'Chat',
           params: {
-            contactName: userName,
-            contactAvatar: profile?.avatar || userName,
+            contactId: userId,
+            contactName: profile?.nickname ?? userName,
+            contactAvatar: profile?.avatar ?? '',
           },
         },
       })
@@ -153,9 +156,10 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           <View style={styles.actionRow}>
             {/* Message Button */}
             <TouchableOpacity
-              style={styles.messageBtn}
+              style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
               activeOpacity={0.85}
               onPress={handleMessage}
+              disabled={!profile?.id}
             >
               <MessageIcon size={18} color={colors.onPrimary} />
               <Text style={styles.messageBtnText}>{t('message')}</Text>
@@ -299,6 +303,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.xl,
     backgroundColor: colors.onSurface,
+  },
+  messageBtnDisabled: {
+    opacity: 0.5,
   },
   messageBtnText: {
     ...typography.labelLarge,

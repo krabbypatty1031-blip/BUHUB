@@ -74,15 +74,7 @@ export const authService = {
     return data;
   },
 
-  async verifyInviteCode(code: string): Promise<{ valid: boolean }> {
-    if (USE_MOCK) {
-      return { valid: true };
-    }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY_INVITE_CODE, { code });
-    return data;
-  },
-
-  async setupProfile(profile: { nickname: string; grade: string; major: string; gender: string; bio?: string; avatar?: string }) {
+  async setupProfile(profile: { nickname: string; grade: string; major: string; gender: string; bio?: string }) {
     if (USE_MOCK) {
       return { success: true };
     }

@@ -189,9 +189,10 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   const handleDmSeller = useCallback(
     (item: SecondhandItem, itemIndex: number) => {
+      if (!item.authorId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
       });
     },
     [navigation]

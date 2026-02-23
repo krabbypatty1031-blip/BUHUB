@@ -20,6 +20,10 @@ const getApiBaseUrl = () => {
 
 const API_BASE = getApiBaseUrl();
 
+if (__DEV__) {
+  console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
+}
+
 // Callback for handling unauthorized (401) responses
 // Set by authStore to avoid circular dependency
 let onUnauthorized: (() => void) | null = null;
@@ -43,12 +47,16 @@ const uploadClient = axios.create({
   timeout: 60000,
 });
 
-// Request interceptor: attach Bearer token
+// Request interceptor: attach Bearer token + debug log
 apiClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (__DEV__) {
+      const url = (config.baseURL || '') + (config.url || '');
+      console.log('[API] Request:', config.method?.toUpperCase(), url);
     }
     return config;
   },
@@ -88,6 +96,10 @@ const formatError = (error: any): ApiError => {
 // Response interceptor: handle common errors
 const responseErrorHandler = async (error: any) => {
   const status = error.response?.status;
+  if (__DEV__) {
+    const url = error.config?.baseURL + error.config?.url;
+    console.log('[API] Error:', status ?? 'no response', url, error.response?.data ?? error.message);
+  }
 
   if (status === 401) {
     // Token expired - clear token and notify authStore
@@ -128,21 +140,6 @@ export const setToken = async (token: string) => {
 export const clearToken = async () => {
   await AsyncStorage.removeItem(TOKEN_KEY);
 };
-
-// Server base URL (without /api) for resolving relative image paths
-const SERVER_BASE = API_BASE.replace(/\/api$/, '');
-
-/**
- * Resolve a relative image path to a full URL.
- * Relative paths (e.g. /uploads/images/xxx.jpg) are served via /api/uploads/...
- * Absolute URLs (http/https) are returned as-is.
- */
-export function resolveImageUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // /uploads/xxx → http://host:port/api/uploads/xxx
-  return `${SERVER_BASE}/api${url}`;
-}
 
 export { uploadClient };
 export default apiClient;

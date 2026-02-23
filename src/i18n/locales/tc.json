@@ -336,6 +336,7 @@
   "pollTitle": "投票標題",
   "pollTitlePlaceholder": "例如：你最鍾意邊個食堂？",
   "pollOptions": "投票選項",
+  "pollOptionsMin": "請至少新增 2 個投票選項",
   "addOption": "新增選項",
   "shareThoughts": "分享你嘅想法...",
   "describePoll": "描述你嘅投票...",

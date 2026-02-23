@@ -1,34 +1,6 @@
-import apiClient, { resolveImageUrl } from '../client';
+import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '../../types';
-import { getAvatarDef } from '../../components/common/DefaultAvatarPicker';
-
-/**
- * Split a raw avatar value from the backend into a resolved URL or defaultAvatar ID.
- * The DB `avatar` field may contain:
- *  - A relative path like "/uploads/avatars/xxx.jpg" → resolve to full URL
- *  - A full URL (http/https) like DiceBear → keep as-is
- *  - A default avatar ID like "Luna" → move to defaultAvatar
- */
-function splitAvatar(raw: string | null | undefined): { avatar: string; defaultAvatar?: string } {
-  if (!raw) return { avatar: '' };
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return { avatar: raw };
-  if (raw.startsWith('/')) return { avatar: resolveImageUrl(raw) ?? raw };
-  if (getAvatarDef(raw)) return { avatar: '', defaultAvatar: raw };
-  return { avatar: raw };
-}
-
-/** Resolve relative image URLs in a post to full URLs */
-function resolvePostUrls(post: ForumPost): ForumPost {
-  const { avatar, defaultAvatar } = splitAvatar(post.avatar);
-  return {
-    ...post,
-    avatar,
-    defaultAvatar,
-    image: resolveImageUrl(post.image),
-    images: post.images?.map((u) => resolveImageUrl(u)!),
-  };
-}
 
 const USE_MOCK = false;
 
@@ -39,7 +11,16 @@ export const forumService = {
       return mockPosts;
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POSTS, { params });
-    return (data as ForumPost[]).map(resolvePostUrls);
+    return (Array.isArray(data) ? data : []).map((p: any) => {
+      const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
+      const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
+      const pollOptions = pollOpts?.map((o: any) => ({
+        ...o,
+        percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
+      }));
+      const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+      return pollOptions ? { ...p, pollOptions, isPoll } : { ...p, isPoll };
+    });
   },
 
   async getPostDetail(postId: string): Promise<ForumPost> {
@@ -48,7 +29,31 @@ export const forumService = {
       return mockPosts.find((p) => p.id === postId) || mockPosts[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POST_DETAIL(postId));
-    return resolvePostUrls(data as ForumPost);
+    const p = data as any;
+    const author = p.author ?? {};
+    const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
+    const totalVotes = pollOpts?.reduce((s, o) => s + (o.voteCount ?? 0), 0) ?? 0;
+    const pollOptions = pollOpts?.map((o) => ({
+      id: o.id,
+      text: o.text,
+      voteCount: o.voteCount ?? 0,
+      percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
+    })) ?? undefined;
+    const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+    return {
+      ...p,
+      name: p.isAnonymous ? '匿名用户' : (author.nickname ?? '?'),
+      avatar: p.isAnonymous ? '' : (author.avatar ?? ''),
+      gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
+      meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' · '),
+      likes: p.likeCount ?? p.likes ?? 0,
+      comments: p.commentCount ?? p.comments ?? 0,
+      userName: author.userName ?? author.nickname,
+      pollOptions,
+      isPoll,
+      hasImage: (p.images?.length ?? 0) > 0,
+      image: p.images?.[0],
+    };
   },
 
   async getComments(postId: string): Promise<CommentsData> {
@@ -60,39 +65,38 @@ export const forumService = {
     // Backend returns nested array; map to frontend Comment shape
     const mapComment = (c: any): Comment => {
       const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
+      const isAnon = !!c.isAnonymous;
+      const parentName = isAnon ? '匿名用户' : (c.author?.nickname ?? '?');
       const replies: Reply[] | undefined = c.replies?.length
         ? c.replies.map((r: any) => {
-            const ra = splitAvatar(r.author?.avatar);
+            const rAnon = !!r.isAnonymous;
             return {
               id: r.id,
-              name: r.author?.nickname ?? '?',
-              avatar: ra.avatar,
-              defaultAvatar: ra.defaultAvatar,
-              gradeKey: r.author?.grade ?? undefined,
-              majorKey: r.author?.major ?? undefined,
-              replyTo: c.author?.nickname ?? '?',
+              name: rAnon ? '匿名用户' : (r.author?.nickname ?? '?'),
+              avatar: rAnon ? '' : (r.author?.avatar ?? ''),
+              gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
+              gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
+              majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
+              replyTo: parentName,
               content: r.content,
               time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
               likes: r.likeCount ?? 0,
               liked: r.liked ?? false,
-              bookmarked: r.bookmarked ?? false,
             };
           })
         : undefined;
-      const ca = splitAvatar(c.author?.avatar);
       return {
         id: c.id,
-        name: c.author?.nickname ?? '?',
-        avatar: ca.avatar,
-        defaultAvatar: ca.defaultAvatar,
-        gradeKey: c.author?.grade ?? undefined,
-        majorKey: c.author?.major ?? undefined,
+        name: isAnon ? '匿名用户' : (c.author?.nickname ?? '?'),
+        avatar: isAnon ? '' : (c.author?.avatar ?? ''),
+        gender: isAnon ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
+        gradeKey: isAnon ? undefined : (c.author?.grade ?? undefined),
+        majorKey: isAnon ? undefined : (c.author?.major ?? undefined),
         content: c.content,
         time,
         likes: c.likeCount ?? 0,
         liked: c.liked ?? false,
-        bookmarked: c.bookmarked ?? false,
-        isAnonymous: c.isAnonymous,
+        isAnonymous: isAnon,
         replies,
       };
     };
@@ -168,8 +172,19 @@ export const forumService = {
         isAnonymous,
       };
     }
-    const { data } = await apiClient.post(ENDPOINTS.FORUM.CREATE_COMMENT(postId), { content, isAnonymous });
-    return data;
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.CREATE_COMMENT(postId), { content, isAnonymous: isAnonymous ?? false });
+    const c = data as any;
+    const isAnon = !!c.isAnonymous;
+    return {
+      id: c.id,
+      name: isAnon ? '匿名用户' : (c.author?.nickname ?? '?'),
+      avatar: isAnon ? '' : (c.author?.avatar ?? ''),
+      content: c.content,
+      time: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
+      likes: c.likeCount ?? 0,
+      liked: false,
+      isAnonymous: isAnon,
+    };
   },
 
   async editComment(postId: string, commentId: string, content: string): Promise<Comment> {
@@ -203,22 +218,6 @@ export const forumService = {
     return data;
   },
 
-  async likeComment(commentId: string): Promise<{ liked: boolean; likeCount: number }> {
-    if (USE_MOCK) {
-      return { liked: true, likeCount: 1 };
-    }
-    const { data } = await apiClient.post(ENDPOINTS.FORUM.COMMENT_LIKE(commentId));
-    return data;
-  },
-
-  async bookmarkComment(commentId: string): Promise<{ bookmarked: boolean }> {
-    if (USE_MOCK) {
-      return { bookmarked: true };
-    }
-    const { data } = await apiClient.post(ENDPOINTS.FORUM.COMMENT_BOOKMARK(commentId));
-    return data;
-  },
-
   async bookmarkPost(postId: string): Promise<{ bookmarked: boolean }> {
     if (USE_MOCK) {
       return { bookmarked: true };
@@ -227,9 +226,25 @@ export const forumService = {
     return data;
   },
 
-  async votePost(postId: string, optionId: string): Promise<{ optionId: string; voteCount: number }> {
+  async likeComment(commentId: string): Promise<{ liked: boolean }> {
     if (USE_MOCK) {
-      return { optionId, voteCount: 1 };
+      return { liked: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.LIKE_COMMENT(commentId));
+    return data;
+  },
+
+  async bookmarkComment(commentId: string): Promise<{ bookmarked: boolean }> {
+    if (USE_MOCK) {
+      return { bookmarked: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.BOOKMARK_COMMENT(commentId));
+    return data;
+  },
+
+  async votePost(postId: string, optionId: string): Promise<{ voted: boolean }> {
+    if (USE_MOCK) {
+      return { voted: true };
     }
     const { data } = await apiClient.post(ENDPOINTS.FORUM.VOTE(postId), { optionId });
     return data;
@@ -241,6 +256,15 @@ export const forumService = {
       return mockPosts.filter((p) => p.content.includes(query));
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.SEARCH, { params: { q: query } });
-    return (data as ForumPost[]).map(resolvePostUrls);
+    return (Array.isArray(data) ? data : []).map((p: any) => {
+      const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
+      const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
+      const pollOptions = pollOpts?.map((o: any) => ({
+        ...o,
+        percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
+      }));
+      const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+      return pollOptions ? { ...p, pollOptions, isPoll } : { ...p, isPoll };
+    });
   },
 };

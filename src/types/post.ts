@@ -1,10 +1,11 @@
-import { Gender, Translated, PollOption } from './common';
+import type { Gender, Translated, PollOption } from './common';
 
 export interface ForumPost {
   id: string;
   avatar: string;
   defaultAvatar?: string;
   name: string;
+  userName?: string;
   gender: Gender;
   meta: string;
   gradeKey?: string;
@@ -24,6 +25,8 @@ export interface ForumPost {
   bookmarked?: boolean;
   isPoll?: boolean;
   pollOptions?: PollOption[];
+  /** Current user's vote (from Vote table) */
+  myVote?: { id: string; optionId: string; createdAt: string };
   isFunction?: boolean;
   functionType?: 'partner' | 'errand' | 'secondhand' | 'rating';
   functionIndex?: number;
@@ -41,6 +44,7 @@ export interface Comment {
   name: string;
   avatar: string;
   defaultAvatar?: string;
+  gender?: Gender;
   gradeKey?: string;
   majorKey?: string;
   content: string;
@@ -57,6 +61,7 @@ export interface Reply {
   name: string;
   avatar: string;
   defaultAvatar?: string;
+  gender?: Gender;
   gradeKey?: string;
   majorKey?: string;
   replyTo: string;

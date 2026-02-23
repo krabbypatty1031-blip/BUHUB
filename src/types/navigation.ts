@@ -51,7 +51,7 @@ export type FunctionsStackParamList = {
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
+  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;

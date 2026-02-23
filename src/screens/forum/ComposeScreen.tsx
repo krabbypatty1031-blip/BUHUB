@@ -101,6 +101,13 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const handlePost = useCallback(async () => {
     if (!content.trim() || isPosting) return;
+    if (type === 'poll') {
+      const validOpts = pollOptions.filter((o) => o.trim());
+      if (validOpts.length < 2) {
+        showSnackbar({ message: t('pollOptionsMin') || 'Please add at least 2 poll options', type: 'error' });
+        return;
+      }
+    }
     setIsPosting(true);
     try {
       // Upload images if any
@@ -117,8 +124,8 @@ export default function ComposeScreen({ navigation, route }: Props) {
           content: content.trim(),
           tags: selectedTags.length > 0 ? selectedTags : undefined,
           isAnonymous,
-          pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()) : undefined,
-          images: imageUrls,
+          pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
+          images: type === 'poll' ? [] : imageUrls,
         },
         {
           onSuccess: () => {

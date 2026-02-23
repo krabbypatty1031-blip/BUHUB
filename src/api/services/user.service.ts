@@ -1,4 +1,4 @@
-import apiClient, { resolveImageUrl } from '../client';
+import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import { useForumStore } from '../../store/forumStore';
 import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
@@ -22,7 +22,6 @@ export const userService = {
       };
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE);
-    if (data?.avatar) data.avatar = resolveImageUrl(data.avatar) ?? data.avatar;
     return data;
   },
 
@@ -48,7 +47,6 @@ export const userService = {
       return mockUsers[userName] || mockUsers[Object.keys(mockUsers)[0]];
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PUBLIC_PROFILE(userName));
-    if (data?.avatar) data.avatar = resolveImageUrl(data.avatar) ?? data.avatar;
     return data;
   },
 

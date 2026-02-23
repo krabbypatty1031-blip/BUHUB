@@ -336,6 +336,7 @@
   "pollTitle": "Poll Title",
   "pollTitlePlaceholder": "e.g., Which canteen do you prefer?",
   "pollOptions": "Poll Options",
+  "pollOptionsMin": "Please add at least 2 poll options",
   "addOption": "Add Option",
   "shareThoughts": "Share your thoughts...",
   "describePoll": "Describe your poll...",

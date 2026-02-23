@@ -183,6 +183,7 @@ export function useVotePost() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['search'] });
     },
   });
 }

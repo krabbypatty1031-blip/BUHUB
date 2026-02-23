@@ -11,13 +11,12 @@ const ENDPOINTS = {
     CHANGE_PASSWORD: '/auth/password',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
-    VERIFY_INVITE_CODE: '/auth/verify-invite-code',
     PROFILE_SETUP: '/auth/profile-setup',
     LOGOUT: '/auth/logout',
     DELETE_ACCOUNT: '/auth/account',
   },
 
-  // Forum (backend: /forum/posts, /comments/:id for edit/delete)
+  // Forum (backend: /forum/posts, /comments/:id, /forum/posts/:id/vote)
   FORUM: {
     POSTS: '/forum/posts',
     POST_DETAIL: (id: string) => `/forum/posts/${id}`,
@@ -27,10 +26,10 @@ const ENDPOINTS = {
     CREATE_COMMENT: (postId: string) => `/forum/posts/${postId}/comments`,
     EDIT_COMMENT: (commentId: string) => `/comments/${commentId}`,
     DELETE_COMMENT: (commentId: string) => `/comments/${commentId}`,
-    COMMENT_LIKE: (commentId: string) => `/comments/${commentId}/like`,
-    COMMENT_BOOKMARK: (commentId: string) => `/comments/${commentId}/bookmark`,
     LIKE: (postId: string) => `/forum/posts/${postId}/like`,
+    LIKE_COMMENT: (commentId: string) => `/comments/${commentId}/like`,
     BOOKMARK: (postId: string) => `/forum/posts/${postId}/bookmark`,
+    BOOKMARK_COMMENT: (commentId: string) => `/comments/${commentId}/bookmark`,
     VOTE: (postId: string) => `/forum/posts/${postId}/vote`,
     SEARCH: '/forum/search',
   },
@@ -74,19 +73,20 @@ const ENDPOINTS = {
     TAGS: (category: string) => `/ratings/${category}/tags`,
   },
 
-  // Messages
+  // Messages (backend: conversations, chat/:userId, POST /messages)
   MESSAGE: {
     CONVERSATIONS: '/messages/conversations',
     CHAT: (userId: string) => `/messages/chat/${userId}`,
     SEND: '/messages',
-    MESSAGE_DETAIL: (id: string) => `/messages/${id}`,
-    MARK_READ: (id: string) => `/messages/${id}/read`,
+    MARK_READ: (messageId: string) => `/messages/${messageId}/read`,
+    MESSAGE_DETAIL: (messageId: string) => `/messages/${messageId}`,
   },
 
   // User (backend: /user/*, /user/:userName/block, /users/blocked)
   USER: {
     PROFILE: '/user/profile',
     UPDATE_PROFILE: '/user/profile',
+    UPDATE_LANGUAGE: '/user/language',
     PUBLIC_PROFILE: (userName: string) => `/user/${userName}`,
     FOLLOW: (userName: string) => `/user/${userName}/follow`,
     BLOCK: (userName: string) => `/user/${userName}/block`,
@@ -108,10 +108,9 @@ const ENDPOINTS = {
     SETTINGS: '/notifications/settings',
   },
 
-  // Upload
+  // Upload (backend: presigned-url flow)
   UPLOAD: {
-    IMAGE: '/upload/image',
-    AVATAR: '/upload/avatar',
+    PRESIGNED_URL: '/upload/presigned-url',
   },
 
   // Report (backend: /reports)

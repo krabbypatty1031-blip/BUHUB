@@ -54,10 +54,10 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
 
   const handleContact = useCallback(() => {
-    if (!item) return;
+    if (!item?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: index },
+      params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: index },
     });
   }, [navigation, item, index]);
 

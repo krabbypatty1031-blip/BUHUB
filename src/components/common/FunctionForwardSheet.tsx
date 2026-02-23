@@ -87,6 +87,7 @@ export default function FunctionForwardSheet({
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
         params: {
+          contactId: contact.id,
           contactName: contact.name,
           contactAvatar: contact.avatar || '',
           forwardedType: functionType,
