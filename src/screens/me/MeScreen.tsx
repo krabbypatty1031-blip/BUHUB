@@ -13,9 +13,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { UserPost, UserComment, LikedPost, LikedComment, WantedItem, ForumPost, Language } from '../../types';
 import { useProfile, useMyContent } from '../../hooks/useUser';
-import { usePosts } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
 import { useSecondhand } from '../../hooks/useSecondhand';
 import { useAuthStore } from '../../store/authStore';
+import { useForumStore } from '../../store/forumStore';
 
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { colors } from '../../theme/colors';
@@ -25,6 +26,7 @@ import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { ProfileSkeleton } from '../../components/common/Skeleton';
 import TabBar, { type TabOption } from '../../components/common/TabBar';
+import PostCard from '../../components/common/PostCard';
 import {
   EditIcon,
   ShareIcon,
@@ -39,6 +41,7 @@ import {
   ShoppingBagIcon,
 } from '../../components/common/icons';
 import { getRelativeTime } from '../../utils/formatTime';
+import { getVotedOptionIndex } from '../../utils/forum';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -205,6 +208,12 @@ export default function MeScreen({ navigation }: Props) {
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
+  const votedPolls = useForumStore((s) => s.votedPolls);
+
+  // Like and bookmark mutations
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
+  const votePostMutation = useVotePost();
 
   /* ── Derive liked & bookmarked posts from server data ── */
   const storeLikedPosts = useMemo<LikedPost[]>(() => {
@@ -379,11 +388,55 @@ export default function MeScreen({ navigation }: Props) {
         <CommentItem key={i} comment={c} t={t} lang={lang} onPress={() => goToComment(c.postId, c.commentId)} />
       ));
     }
-    const postAuthor = activeTab === 'anonPosts' ? t('anonymousUser') : (displayUser?.nickname || displayUser?.name || '');
-    return (myContent[activeTab] as UserPost[]).map((p, i) => (
-      <PostItem key={i} post={p} author={postAuthor} lang={lang} onPress={() => goToPost(p.postId)} />
+    // Convert UserPost to ForumPost format for PostCard
+    const posts = (myContent[activeTab] as UserPost[]).map((p): ForumPost => ({
+      id: p.postId,
+      name: p.name,
+      avatar: p.avatar,
+      defaultAvatar: p.defaultAvatar,
+      gender: p.gender,
+      gradeKey: p.gradeKey,
+      majorKey: p.majorKey,
+      meta: p.meta,
+      content: p.content,
+      createdAt: p.time,
+      lang: p.lang,
+      likes: p.likes,
+      comments: p.comments,
+      tags: p.tags,
+      images: p.images,
+      hasImage: p.hasImage,
+      image: p.image,
+      isAnonymous: p.isAnonymous,
+      postType: p.postType,
+      isPoll: p.isPoll,
+      pollOptions: p.pollOptions,
+      myVote: p.myVote,
+      quotedPost: p.quotedPost,
+      liked: p.liked,
+      bookmarked: p.bookmarked,
+    }));
+    return posts.map((post) => (
+      <PostCard
+        key={post.id}
+        post={post}
+        onPress={() => goToPost(post.id)}
+        onLike={() => likePostMutation.mutate(post.id)}
+        onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+        onComment={() => goToPost(post.id)}
+        onQuotedPostPress={(quotedId) => goToPost(quotedId)}
+        onVote={(optIdx) => {
+          const optionId = post.pollOptions?.[optIdx]?.id;
+          if (optionId) {
+            votePostMutation.mutate({ postId: post.id, optionId, optionIndex: optIdx });
+          }
+        }}
+        isLiked={post.liked ?? false}
+        isBookmarked={post.bookmarked ?? false}
+        votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
+      />
     ));
-  }, [activeTab, myContent, emptyLabels, t, lang, goToPost, goToComment, goToSecondhand, storeLikedPosts, storeBookmarkedPosts, storeWantedItems, displayUser]);
+  }, [activeTab, myContent, emptyLabels, t, lang, goToPost, goToComment, goToSecondhand, storeLikedPosts, storeBookmarkedPosts, storeWantedItems, displayUser, likePostMutation, bookmarkPostMutation, votePostMutation, votedPolls]);
 
   if (isLoading && !displayUser) {
     return (

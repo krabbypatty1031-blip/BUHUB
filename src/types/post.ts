@@ -25,6 +25,7 @@ export interface ForumPost {
   bookmarked?: boolean;
   isPoll?: boolean;
   pollOptions?: PollOption[];
+  postType?: string;
   /** Current user's vote (from Vote table) */
   myVote?: { id: string; optionId: string; createdAt: string };
   isFunction?: boolean;
@@ -32,10 +33,13 @@ export interface ForumPost {
   functionIndex?: number;
   functionTitle?: string;
   quotedPost?: {
+    id: string;
     name: string;
+    avatar?: string;
+    gender?: Gender;
     content: string;
-    meta: string;
     createdAt?: string;
+    isAnonymous?: boolean;
   };
 }
 

@@ -27,7 +27,6 @@ import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
   CameraIcon,
-  CheckIcon,
   ChevronRightIcon,
 } from '../../components/common/icons';
 
@@ -119,10 +118,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           {isSaving || updateProfile.isPending ? (
             <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
-            <>
-              <CheckIcon size={18} color={colors.onPrimary} />
-              <Text style={styles.saveBtnText}>{t('save')}</Text>
-            </>
+            <Text style={styles.saveBtnText}>{t('save')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -182,15 +178,13 @@ export default function EditProfileScreen({ navigation }: Props) {
           {/* Bio */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('labelBio')}</Text>
-            <View style={[styles.inputWrapper, styles.bioInputWrapper]}>
+            <View style={styles.inputWrapper}>
               <TextInput
-                style={[styles.fieldInput, styles.bioInput]}
+                style={styles.fieldInput}
                 value={bio}
                 onChangeText={setBio}
                 placeholder={t('placeholderBio')}
                 placeholderTextColor={colors.outline}
-                multiline
-                textAlignVertical="top"
                 selectionColor={colors.primary}
                 maxLength={bioMaxLength}
               />
@@ -401,13 +395,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: 48,
-  },
-  bioInputWrapper: {
-    minHeight: 96,
-  },
-  bioInput: {
-    minHeight: 88,
-    textAlignVertical: 'top',
   },
   charCount: {
     ...typography.bodySmall,

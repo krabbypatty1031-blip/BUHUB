@@ -32,7 +32,6 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const votedPolls = useForumStore((s) => s.votedPolls);
-  const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
   const votePostMutation = useVotePost();
@@ -171,13 +170,13 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         onQuote={() => handleQuote(item)}
         onTagPress={(pressedTag) => handleTagPress(pressedTag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
         onVote={
           item.isPoll
             ? (optIdx) => {
                 const optionId = item.pollOptions?.[optIdx]?.id;
                 if (optionId) {
-                  votePoll(item.id, optIdx);
-                  votePostMutation.mutate({ postId: item.id, optionId });
+                  votePostMutation.mutate({ postId: item.id, optionId, optionIndex: optIdx });
                 }
               }
             : undefined
@@ -187,7 +186,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         votedOptionIndex={getVotedOptionIndex(item, votedPolls)}
       />
     ),
-    [posts, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePostMutation, votePoll, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
+    [posts, votedPolls, navigation, likePostMutation, bookmarkPostMutation, votePostMutation, handleTagPress, handleAvatarPress, handleCommentPress, handleForward, handleQuote, handleFunctionPress]
   );
 
   return (

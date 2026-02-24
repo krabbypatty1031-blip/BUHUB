@@ -122,9 +122,9 @@ export const mockPosts: ForumPost[] = [
     comments: 5,
     tags: ['#校園生活'],
     quotedPost: {
+      id: 'quoted-1',
       name: '陳同學',
       content: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
-      meta: '2小時前',
       createdAt: hoursAgo(2),
     },
   },

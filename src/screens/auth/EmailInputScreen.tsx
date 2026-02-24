@@ -159,6 +159,13 @@ export default function EmailInputScreen({ navigation }: Props) {
       return;
     }
 
+    // Validate: @ symbol前必须是8位数字
+    const localPart = trimmed.split('@')[0];
+    if (!/^\d{8}$/.test(localPart)) {
+      showSnackbar({ message: t('emailMustBe8Digits') || 'Email must have 8 digits before @', type: 'error' });
+      return;
+    }
+
     setShowCaptcha(true);
     pan.setValue(0);
     setCaptchaVerified(false);

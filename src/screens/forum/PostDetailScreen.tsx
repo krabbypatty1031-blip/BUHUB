@@ -18,9 +18,10 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { CommonActions } from '@react-navigation/native';
-import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
+import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
 import { useAuthStore } from '../../store/authStore';
+import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -41,14 +42,35 @@ import {
   QuoteIcon,
   ChevronDownIcon,
   MoreHorizontalIcon,
-  IncognitoIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
+import { getVotedOptionIndex } from '../../utils/forum';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
+
+function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: boolean }) {
+  const width = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(width, {
+      toValue: percent,
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+  }, [percent, width]);
+
+  const barStyle = {
+    width: width.interpolate({
+      inputRange: [0, 100],
+      outputRange: ['0%', '100%'],
+    }),
+  };
+
+  return <Animated.View style={[styles.pollBar, isVoted && styles.pollBarVoted, barStyle]} />;
+}
 
 /* ── Inline action bar for comments / replies ── */
 function ItemActions({
@@ -274,7 +296,7 @@ function CommentItem({
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
           <Avatar
-            text={comment.isAnonymous ? '' : comment.name}
+            text={comment.isAnonymous ? '匿' : comment.name}
             uri={comment.isAnonymous ? undefined : comment.avatar}
             defaultAvatar={comment.isAnonymous ? undefined : comment.defaultAvatar}
             size="sm"
@@ -282,9 +304,6 @@ function CommentItem({
           />
           <View style={styles.commentUserInfo}>
             <View style={styles.commentNameRow}>
-              {comment.isAnonymous && (
-                <IncognitoIcon size={12} color={colors.onSurfaceVariant} />
-              )}
               <Text style={styles.commentName}>{comment.name}</Text>
               {!comment.isAnonymous && comment.gender === 'male' && (
                 <MaleIcon size={12} color={colors.genderMale} />
@@ -359,8 +378,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const createCommentMutation = useCreateComment(postId);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
+  const votePostMutation = useVotePost();
   const likeCommentMutation = useLikeComment(postId);
   const bookmarkCommentMutation = useBookmarkComment(postId);
+  const votedPolls = useForumStore((s) => s.votedPolls);
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -381,6 +402,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       (c) => c.id === commentId || c.replies?.some((r) => r.id === commentId)
     );
   }, [commentId, comments]);
+  const commentsData = useMemo(() => comments ?? [], [comments]);
 
   useEffect(() => {
     if (targetCommentIndex >= 0 && flatListRef.current) {
@@ -439,6 +461,12 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const isLiked = post?.liked ?? false;
   const isBookmarked = post?.bookmarked ?? false;
+  const votedOptionIndex = post ? getVotedOptionIndex(post, votedPolls) : undefined;
+  const hasVoted = votedOptionIndex != null;
+  const totalPollVotes = useMemo(
+    () => post?.pollOptions?.reduce((sum, opt) => sum + (opt.voteCount ?? 0), 0) ?? 0,
+    [post?.pollOptions],
+  );
   const currentUser = useAuthStore((s) => s.user);
 
   const handleAvatarPress = useCallback(() => {
@@ -510,6 +538,24 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     setCommentActionVisible(true);
   }, []);
 
+  // Keep FlatList props stable so input-only state updates (e.g. isAnonymous)
+  // do not trigger full list/header re-render that can cause image flicker.
+  const renderCommentItem = useCallback(
+    ({ item }: { item: Comment }) => (
+      <CommentItem
+        comment={item}
+        lang={lang}
+        onReply={handleReply}
+        onLike={handleLikeComment}
+        onBookmark={handleBookmarkComment}
+        onForward={handleForward}
+        onReport={handleReportComment}
+        highlightId={commentId}
+      />
+    ),
+    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId]
+  );
+
   const handleReportSubmit = useCallback(
     async (reason: string) => {
       try {
@@ -536,7 +582,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <View style={styles.postHeader}>
             {post.isAnonymous ? (
               <Avatar
-                text=""
+                text="匿"
                 uri={undefined}
                 size="md"
                 gender="other"
@@ -558,9 +604,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             )}
             <View style={styles.postUserInfo}>
               <View style={styles.postNameRow}>
-                {post.isAnonymous && (
-                  <IncognitoIcon size={14} color={colors.onSurfaceVariant} />
-                )}
                 {!post.isAnonymous ? (
                   <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.7} style={styles.postNameTouch}>
                     <Text style={styles.postName}>{post.name}</Text>
@@ -575,6 +618,25 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           </View>
 
           <Text style={styles.postContent}>{post.content}</Text>
+
+          {post.quotedPost && post.quotedPost.id && (
+            <TouchableOpacity
+              style={styles.quotedPostCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('PostDetail', { postId: post.quotedPost!.id })}
+            >
+              <View style={styles.quotedHeader}>
+                <QuoteIcon size={12} color="#999999" />
+                <Text style={styles.quotedLabel}>引用帖子</Text>
+              </View>
+              <Text style={styles.quotedContent} numberOfLines={3}>
+                {post.quotedPost.content}
+              </Text>
+              <Text style={styles.quotedMeta}>
+                {post.quotedPost?.name} · {getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {post.tags && post.tags.length > 0 && (
             <View style={styles.postTags}>
@@ -592,13 +654,52 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
           {post.isPoll && post.pollOptions && (
             <View style={styles.pollContainer}>
-              {post.pollOptions.map((opt, i) => (
-                <View key={i} style={styles.pollOption}>
-                  <View style={[styles.pollBar, { width: `${opt.percent}%` }]} />
-                  <Text style={styles.pollText}>{opt.text}</Text>
-                  <Text style={styles.pollPercent}>{opt.percent}%</Text>
-                </View>
-              ))}
+              {post.pollOptions.map((opt, i) =>
+                hasVoted ? (
+                  <TouchableOpacity
+                    key={opt.id ?? `${i}-${opt.text}`}
+                    style={styles.pollOption}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (!opt.id) return;
+                      votePostMutation.mutate({
+                        postId: post.id,
+                        optionId: opt.id,
+                        optionIndex: i,
+                      });
+                    }}
+                  >
+                    <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
+                    <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
+                      {opt.text}
+                    </Text>
+                    <Text style={[styles.pollPercent, votedOptionIndex === i && styles.pollPercentVoted]}>
+                      {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    key={opt.id ?? `${i}-${opt.text}`}
+                    style={styles.pollOptionUnvoted}
+                    activeOpacity={0.65}
+                    onPress={() => {
+                      if (!opt.id) return;
+                      votePostMutation.mutate({
+                        postId: post.id,
+                        optionId: opt.id,
+                        optionIndex: i,
+                      });
+                    }}
+                  >
+                    <Text style={styles.pollTextUnvoted} numberOfLines={1} ellipsizeMode="tail">
+                      {opt.text}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              )}
+              <Text style={styles.pollTotal}>
+                {lang === 'en' ? `Total ${totalPollVotes} votes` : `共${totalPollVotes}人投票`}
+              </Text>
             </View>
           )}
 
@@ -662,7 +763,21 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, postId, likePostMutation, bookmarkPostMutation, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
+  }, [post, isLiked, isBookmarked, votedOptionIndex, postId, likePostMutation, bookmarkPostMutation, votePostMutation, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
+
+  const headerComponent = useMemo(() => renderHeader(), [renderHeader]);
+
+  const keyExtractor = useCallback((item: Comment, index: number) => item.id || String(index), []);
+
+  const handleScrollToIndexFailed = useCallback((info: { index: number }) => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: true,
+        viewPosition: 0.3,
+      });
+    }, 500);
+  }, []);
 
   if (isLoading || !post) {
     return (
@@ -722,31 +837,12 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       >
         <FlatList
           ref={flatListRef}
-          data={comments || []}
-          ListHeaderComponent={renderHeader}
-          renderItem={({ item }) => (
-            <CommentItem
-              comment={item}
-              lang={lang}
-              onReply={handleReply}
-              onLike={handleLikeComment}
-              onBookmark={handleBookmarkComment}
-              onForward={handleForward}
-              onReport={handleReportComment}
-              highlightId={commentId}
-            />
-          )}
-          keyExtractor={(_, i) => String(i)}
+          data={commentsData}
+          ListHeaderComponent={headerComponent}
+          renderItem={renderCommentItem}
+          keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
-          onScrollToIndexFailed={(info) => {
-            setTimeout(() => {
-              flatListRef.current?.scrollToIndex({
-                index: info.index,
-                animated: true,
-                viewPosition: 0.3,
-              });
-            }, 500);
-          }}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
         />
 
         {/* @ Mention Suggestions */}
@@ -779,7 +875,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               value={isAnonymous}
               onValueChange={setIsAnonymous}
               activeColor={colors.onSurface}
-              thumbIcon={<IncognitoIcon size={16} color={colors.onSurface} />}
+              thumbIcon={
+                <Text
+                  style={{
+                    fontSize: i18n.language === 'en' ? 9 : 11,
+                    fontWeight: '700',
+                    color: colors.onSurface,
+                  }}
+                >
+                  {t('anonLabel')}
+                </Text>
+              }
             />
           </View>
           <TextInput
@@ -940,6 +1046,32 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: spacing.md,
   },
+  quotedPostCard: {
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  quotedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  quotedLabel: {
+    fontSize: 12,
+    color: '#999999',
+    marginLeft: spacing.xs,
+  },
+  quotedContent: {
+    fontSize: 14,
+    color: colors.onSurface,
+    lineHeight: 20,
+  },
+  quotedMeta: {
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xs,
+  },
   postImage: {
     width: '100%',
     height: 220,
@@ -952,9 +1084,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   pollOption: {
-    height: 40,
+    height: 36,
     borderRadius: borderRadius.sm,
-    backgroundColor: colors.surface2,
+    backgroundColor: colors.primary + '12',
     justifyContent: 'center',
     overflow: 'hidden',
     flexDirection: 'row',
@@ -966,20 +1098,54 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.primary + '30',
     borderRadius: borderRadius.sm,
   },
+  pollBarVoted: {
+    backgroundColor: colors.primary + '50',
+  },
   pollText: {
+    ...typography.bodyMedium,
     flex: 1,
-    fontSize: 14,
+    flexShrink: 1,
+    marginRight: spacing.sm,
+    fontSize: 13,
     color: colors.onSurface,
     zIndex: 1,
   },
   pollPercent: {
-    fontSize: 14,
+    ...typography.bodyMedium,
+    minWidth: 56,
+    textAlign: 'right',
+    fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
     zIndex: 1,
+  },
+  pollTextVoted: {
+    fontWeight: '600',
+  },
+  pollPercentVoted: {
+    color: colors.onPrimaryContainer,
+  },
+  pollOptionUnvoted: {
+    height: 40,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.outlineVariant,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  pollTextUnvoted: {
+    ...typography.bodyMedium,
+    fontSize: 13,
+    color: colors.onSurface,
+  },
+  pollTotal: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xxs,
+    textAlign: 'right',
   },
 
   /* Post actions — 5 buttons evenly spaced */

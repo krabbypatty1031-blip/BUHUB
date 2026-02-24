@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -23,7 +23,6 @@ import {
   MaleIcon,
   FemaleIcon,
   ChevronRightIcon,
-  IncognitoIcon,
 } from './icons';
 
 interface PostCardProps {
@@ -38,6 +37,7 @@ interface PostCardProps {
   onTagPress?: (tag: string) => void;
   onFunctionPress?: () => void;
   onVote?: (optionIndex: number) => void;
+  onQuotedPostPress?: (postId: string) => void;
   isLiked?: boolean;
   isBookmarked?: boolean;
   votedOptionIndex?: number;
@@ -51,7 +51,7 @@ function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: bool
   }, [percent]);
 
   const barStyle = useAnimatedStyle(() => ({
-    width: `${width.value}%`,
+    width: `${Math.round(width.value)}%`,
   }));
 
   return <Animated.View style={[styles.pollBar, isVoted && styles.pollBarVoted, barStyle]} />;
@@ -69,6 +69,7 @@ function PostCard({
   onTagPress,
   onFunctionPress,
   onVote,
+  onQuotedPostPress,
   isLiked,
   isBookmarked,
   votedOptionIndex,
@@ -76,6 +77,26 @@ function PostCard({
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Language;
   const hasVoted = votedOptionIndex != null;
+  const totalPollVotes = useMemo(
+    () => post.pollOptions?.reduce((sum, opt) => sum + (opt.voteCount ?? 0), 0) ?? 0,
+    [post.pollOptions],
+  );
+  const [minuteTick, setMinuteTick] = useState(() => Math.floor(Date.now() / 60000));
+
+  useEffect(() => {
+    const updateTick = () => setMinuteTick(Math.floor(Date.now() / 60000));
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const delay = 60000 - (Date.now() % 60000);
+    const timeoutId = setTimeout(() => {
+      updateTick();
+      intervalId = setInterval(updateTick, 60000);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   const displayMeta = useMemo(
     () =>
@@ -85,15 +106,15 @@ function PostCard({
         createdAt: post.createdAt,
         isAnonymous: post.isAnonymous,
       }),
-    [t, lang, post.gradeKey, post.majorKey, post.createdAt, post.isAnonymous],
+    [t, lang, post.gradeKey, post.majorKey, post.createdAt, post.isAnonymous, minuteTick],
   );
 
   const quotedTime = useMemo(
     () =>
       post.quotedPost?.createdAt
         ? getRelativeTime(post.quotedPost.createdAt, lang)
-        : post.quotedPost?.meta || '',
-    [post.quotedPost, lang],
+        : '',
+    [post.quotedPost, lang, minuteTick],
   );
 
   const handleLike = useCallback(() => {
@@ -122,7 +143,7 @@ function PostCard({
           </TouchableOpacity>
         ) : (
           <Avatar
-            text={post.isAnonymous ? '' : post.name}
+            text={post.isAnonymous ? '匿' : post.name}
             uri={post.isAnonymous ? undefined : post.avatar}
             defaultAvatar={post.isAnonymous ? undefined : post.defaultAvatar}
             size="sm"
@@ -131,9 +152,6 @@ function PostCard({
         )}
         <View style={styles.headerInfo}>
           <View style={styles.nameRow}>
-            {post.isAnonymous && (
-              <IncognitoIcon size={14} color={colors.onSurfaceVariant} />
-            )}
             <Text style={styles.name}>{post.name}</Text>
             {!post.isAnonymous && post.gender === 'male' && (
               <MaleIcon size={14} color={colors.genderMale} />
@@ -171,22 +189,41 @@ function PostCard({
           <View style={styles.pollContainer}>
             {post.pollOptions.map((opt, i) =>
               hasVoted ? (
-                <View key={i} style={styles.pollOption}>
+                <TouchableOpacity
+                  key={opt.id ?? `${i}-${opt.text}`}
+                  style={styles.pollOption}
+                  activeOpacity={0.7}
+                  onPress={() => onVote?.(i)}
+                  disabled={!onVote}
+                >
                   <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
-                  <Text style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}>{opt.text}</Text>
-                  <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>{opt.percent}%</Text>
-                </View>
+                  <Text
+                    style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {opt.text}
+                  </Text>
+                  <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>
+                    {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
+                  </Text>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  key={i}
+                  key={opt.id ?? `${i}-${opt.text}`}
                   style={styles.pollOptionUnvoted}
                   activeOpacity={0.65}
                   onPress={() => onVote?.(i)}
                 >
-                  <Text style={styles.pollTextUnvoted}>{opt.text}</Text>
+                  <Text style={styles.pollTextUnvoted} numberOfLines={1} ellipsizeMode="tail">
+                    {opt.text}
+                  </Text>
                 </TouchableOpacity>
               )
             )}
+            <Text style={styles.pollTotal}>
+              {lang === 'en' ? `Total ${totalPollVotes} votes` : `共${totalPollVotes}人投票`}
+            </Text>
           </View>
         )}
 
@@ -217,14 +254,19 @@ function PostCard({
 
         {/* Quoted Post */}
         {post.quotedPost && (
-          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quotedCard}>
-            <View style={styles.quotedHeader}>
-              <QuoteIcon size={12} color="#999999" />
-              <Text style={styles.quotedLabel}>引用帖子</Text>
-            </View>
-            <Text style={styles.quotedContent} numberOfLines={3}>{post.quotedPost.content}</Text>
-            <Text style={styles.quotedMeta}>{post.quotedPost.name} · {quotedTime}</Text>
-          </GradientCard>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => onQuotedPostPress?.(post.quotedPost!.id)}
+          >
+            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quotedCard}>
+              <View style={styles.quotedHeader}>
+                <QuoteIcon size={12} color="#999999" />
+                <Text style={styles.quotedLabel}>引用帖子</Text>
+              </View>
+              <Text style={styles.quotedContent} numberOfLines={3}>{post.quotedPost.content}</Text>
+              <Text style={styles.quotedMeta}>{post.quotedPost.name} · {quotedTime}</Text>
+            </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* Actions */}
@@ -353,12 +395,16 @@ const styles = StyleSheet.create({
   pollText: {
     ...typography.bodyMedium,
     flex: 1,
+    flexShrink: 1,
+    marginRight: spacing.sm,
     fontSize: 13,
     color: colors.onSurface,
     zIndex: 1,
   },
   pollPercent: {
     ...typography.bodyMedium,
+    minWidth: 56,
+    textAlign: 'right',
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
@@ -382,6 +428,12 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     fontSize: 13,
     color: colors.onSurface,
+  },
+  pollTotal: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.xxs,
+    textAlign: 'right',
   },
   functionCard: {
     flexDirection: 'row',

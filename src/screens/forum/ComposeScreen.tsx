@@ -75,7 +75,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   }, []);
 
   const addPollOption = useCallback(() => {
-    if (pollOptions.length < 6) {
+    if (pollOptions.length < 10) {
       setPollOptions([...pollOptions, '']);
     }
   }, [pollOptions]);
@@ -126,6 +126,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
           isAnonymous,
           pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
           images: type === 'poll' ? [] : imageUrls,
+          quotedPostId: quotePostId,
         },
         {
           onSuccess: () => {
@@ -242,7 +243,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
                 )}
               </View>
             ))}
-            {pollOptions.length < 6 && (
+            {pollOptions.length < 10 && (
               <TouchableOpacity style={styles.addOptionBtn} onPress={addPollOption}>
                 <PlusIcon size={18} color={colors.primary} />
                 <Text style={styles.addOptionText}>{t('addOption')}</Text>
@@ -443,18 +444,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
   },
   tagSelected: {
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   tagText: {
     ...typography.bodySmall,
-    color: colors.primary,
+    color: colors.onSurfaceVariant,
     fontWeight: '500',
   },
   tagTextSelected: {
-    color: colors.onPrimaryContainer,
-    fontWeight: '500',
+    color: colors.onPrimary,
+    fontWeight: '700',
   },
   // Options
   optionsSection: {

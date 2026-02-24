@@ -46,7 +46,6 @@ export default function ForumScreen({ navigation }: Props) {
   const isBlocked = useForumStore((s) => s.isBlocked);
   const posts = useMemo(() => allPosts?.filter((p) => !isBlocked(p.name)) ?? [], [allPosts, blockedUsers, isBlocked]);
   const votedPolls = useForumStore((s) => s.votedPolls);
-  const votePoll = useForumStore((s) => s.votePoll);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
   const votePostMutation = useVotePost();
@@ -167,13 +166,13 @@ export default function ForumScreen({ navigation }: Props) {
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(item, tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
         onVote={
           item.isPoll
             ? (optIdx) => {
                 const optionId = item.pollOptions?.[optIdx]?.id;
                 if (optionId) {
-                  votePoll(item.id, optIdx);
-                  votePostMutation.mutate({ postId: item.id, optionId });
+                  votePostMutation.mutate({ postId: item.id, optionId, optionIndex: optIdx });
                 }
               }
             : undefined
@@ -183,7 +182,7 @@ export default function ForumScreen({ navigation }: Props) {
         votedOptionIndex={getVotedOptionIndex(item, votedPolls)}
       />
     ),
-    [posts, votedPolls, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, votePoll, handleQuote, handleTagPress, handleFunctionPress]
+    [posts, votedPolls, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation]
   );
 
   return (

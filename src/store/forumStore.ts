@@ -5,6 +5,9 @@ interface ForumState {
   blockedUsers: Set<string>;
 
   votePoll: (postId: string, optionIndex: number) => void;
+  setVotedPoll: (postId: string, optionIndex: number) => void;
+  clearVotedPoll: (postId: string) => void;
+  clearVotedPolls: () => void;
   setBlockedUsers: (users: string[]) => void;
   blockUser: (userName: string) => void;
   unblockUser: (userName: string) => void;
@@ -17,11 +20,28 @@ export const useForumStore = create<ForumState>()((set, get) => ({
 
   votePoll: (postId, optionIndex) =>
     set((state) => {
-      if (state.votedPolls.has(postId)) return state;
       const next = new Map(state.votedPolls);
       next.set(postId, optionIndex);
       return { votedPolls: next };
     }),
+
+  setVotedPoll: (postId, optionIndex) =>
+    set((state) => {
+      const next = new Map(state.votedPolls);
+      next.set(postId, optionIndex);
+      return { votedPolls: next };
+    }),
+
+  clearVotedPoll: (postId) =>
+    set((state) => {
+      if (!state.votedPolls.has(postId)) return state;
+      const next = new Map(state.votedPolls);
+      next.delete(postId);
+      return { votedPolls: next };
+    }),
+
+  clearVotedPolls: () =>
+    set(() => ({ votedPolls: new Map<string, number>() })),
 
   setBlockedUsers: (users) =>
     set(() => ({ blockedUsers: new Set(users) })),

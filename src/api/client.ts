@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../store/authStore';
 import type { ApiError } from '../types';
 
 const TOKEN_KEY = 'buhub-token';
@@ -47,13 +48,16 @@ const uploadClient = axios.create({
   timeout: 60000,
 });
 
-// Request interceptor: attach Bearer token + debug log
+// Request interceptor: attach Bearer token + language header + debug log
 apiClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add language header for localized error messages
+    const language = useAuthStore.getState().language || 'tc';
+    config.headers['Accept-Language'] = language;
     if (__DEV__) {
       const url = (config.baseURL || '') + (config.url || '');
       console.log('[API] Request:', config.method?.toUpperCase(), url);
@@ -70,6 +74,9 @@ uploadClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add language header for localized error messages
+    const language = useAuthStore.getState().language || 'tc';
+    config.headers['Accept-Language'] = language;
     return config;
   },
   (error) => Promise.reject(error)

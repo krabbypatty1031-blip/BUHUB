@@ -1,4 +1,4 @@
-import { Gender, Language } from './common';
+import { Gender, Language, PollOption } from './common';
 
 export interface User {
   name: string;
@@ -34,12 +34,36 @@ export interface UserPublicProfile {
 
 export interface UserPost {
   postId: string;
+  name: string;
+  avatar: string;
+  defaultAvatar?: string;
+  gender: Gender;
+  gradeKey?: string;
+  majorKey?: string;
+  meta: string;
   lang: string;
   content: string;
-  translated: { sc: string; en: string };
+  translated?: { sc: string; en: string };
   time: string;
   likes: number;
   comments: number;
+  tags?: string[];
+  images?: string[];
+  hasImage?: boolean;
+  image?: string;
+  isAnonymous?: boolean;
+  postType?: string;
+  isPoll?: boolean;
+  pollOptions?: PollOption[];
+  myVote?: { id: string; optionId: string; createdAt: string };
+  quotedPost?: {
+    id: string;
+    name: string;
+    content: string;
+    createdAt: string;
+  };
+  liked?: boolean;
+  bookmarked?: boolean;
 }
 
 export interface UserComment {

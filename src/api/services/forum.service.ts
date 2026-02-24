@@ -12,6 +12,7 @@ export const forumService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POSTS, { params });
     return (Array.isArray(data) ? data : []).map((p: any) => {
+      const author = p.author ?? {};
       const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
       const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
       const pollOptions = pollOpts?.map((o: any) => ({
@@ -19,7 +20,13 @@ export const forumService = {
         percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
       }));
       const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
-      return pollOptions ? { ...p, pollOptions, isPoll } : { ...p, isPoll };
+      return {
+        ...p,
+        gradeKey: p.gradeKey ?? author.grade,
+        majorKey: p.majorKey ?? author.major,
+        pollOptions,
+        isPoll,
+      };
     });
   },
 
@@ -45,6 +52,8 @@ export const forumService = {
       name: p.isAnonymous ? '匿名用户' : (author.nickname ?? '?'),
       avatar: p.isAnonymous ? '' : (author.avatar ?? ''),
       gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
+      gradeKey: author.grade,
+      majorKey: author.major,
       meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' · '),
       likes: p.likeCount ?? p.likes ?? 0,
       comments: p.commentCount ?? p.comments ?? 0,
@@ -112,6 +121,7 @@ export const forumService = {
     isAnonymous?: boolean;
     pollOptions?: string[];
     images?: string[];
+    quotedPostId?: string;
   }): Promise<ForumPost> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
@@ -140,6 +150,7 @@ export const forumService = {
       tags: post.tags ?? [],
       isAnonymous: post.isAnonymous ?? false,
       pollOptions: post.pollOptions,
+      quotedPostId: post.quotedPostId,
     });
     return data;
   },
@@ -244,9 +255,9 @@ export const forumService = {
     return data;
   },
 
-  async votePost(postId: string, optionId: string): Promise<{ voted: boolean }> {
+  async votePost(postId: string, optionId: string): Promise<{ voted?: boolean; optionId?: string; voteCount?: number }> {
     if (USE_MOCK) {
-      return { voted: true };
+      return { voted: true, optionId };
     }
     const { data } = await apiClient.post(ENDPOINTS.FORUM.VOTE(postId), { optionId });
     return data;

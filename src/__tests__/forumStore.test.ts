@@ -11,10 +11,17 @@ describe('forumStore', () => {
       expect(useForumStore.getState().votedPolls.get('post-1')).toBe(0);
     });
 
-    it('does not overwrite existing vote', () => {
+    it('overwrites existing vote when voting another option', () => {
       useForumStore.getState().votePoll('post-1', 0);
       useForumStore.getState().votePoll('post-1', 1);
-      expect(useForumStore.getState().votedPolls.get('post-1')).toBe(0);
+      expect(useForumStore.getState().votedPolls.get('post-1')).toBe(1);
+    });
+
+    it('clears all voted polls', () => {
+      useForumStore.getState().votePoll('post-1', 0);
+      useForumStore.getState().votePoll('post-2', 1);
+      useForumStore.getState().clearVotedPolls();
+      expect(useForumStore.getState().votedPolls.size).toBe(0);
     });
   });
 });

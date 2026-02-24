@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
-import { useUIStore } from '../../store/uiStore';
 import { colors, shareActionThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -20,8 +19,6 @@ import {
   BackIcon,
   DownloadIcon,
   ScanIcon,
-  ShareIcon,
-  LinkIcon,
   QrCodeIcon,
 } from '../../components/common/icons';
 
@@ -30,11 +27,6 @@ type Props = NativeStackScreenProps<MeStackParamList, 'ShareProfile'>;
 export default function ShareProfileScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
-
-  const handleCopyLink = useCallback(() => {
-    showSnackbar({ message: t('linkCopied'), type: 'success' });
-  }, [showSnackbar, t]);
 
   const displayName = user?.nickname || user?.name || '---';
 
@@ -93,27 +85,6 @@ export default function ShareProfileScreen({ navigation }: Props) {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
-            <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
-                <ShareIcon size={20} color={shareActionThemes.blue.icon} />
-              </View>
-              <Text style={styles.actionLabel}>{t('shareExternal')}</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionRow}
-            activeOpacity={0.7}
-            onPress={handleCopyLink}
-          >
-            <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.lemon.bg }]}>
-                <LinkIcon size={20} color={shareActionThemes.lemon.icon} />
-              </View>
-              <Text style={styles.actionLabel}>{t('copyLink')}</Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

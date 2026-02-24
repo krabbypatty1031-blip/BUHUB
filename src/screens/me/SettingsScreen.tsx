@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,9 +36,9 @@ type Visibility = 'public' | 'mutual' | 'hidden';
 type PickerType = 'visibility' | 'language';
 
 const LANGUAGE_OPTIONS = [
-  { value: 'tc' as const, label: '粵語 🇭🇰' },
-  { value: 'sc' as const, label: '普通話 🇨🇳' },
-  { value: 'en' as const, label: 'English 🇬🇧' },
+  { value: 'tc' as const, labelKey: 'cantonese' },
+  { value: 'sc' as const, labelKey: 'mandarin' },
+  { value: 'en' as const, labelKey: 'english' },
 ];
 
 export default function SettingsScreen({ navigation }: Props) {
@@ -55,7 +55,6 @@ export default function SettingsScreen({ navigation }: Props) {
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [taskReminder, setTaskReminder] = useState(true);
   const [dmNotification, setDmNotification] = useState(true);
-  const [dndMode, setDndMode] = useState(false);
 
   const handleTaskReminderChange = useCallback((value: boolean) => {
     setTaskReminder(value);
@@ -67,17 +66,6 @@ export default function SettingsScreen({ navigation }: Props) {
     notificationService.updateSettings({ messages: value }).catch(() => {});
   }, []);
 
-  const handleDndModeChange = useCallback((value: boolean) => {
-    setDndMode(value);
-    // DND mode disables/enables all notifications
-    notificationService.updateSettings({
-      likes: !value,
-      comments: !value,
-      followers: !value,
-      messages: !value,
-      system: !value,
-    }).catch(() => {});
-  }, []);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');
   const [expandedLegal, setExpandedLegal] = useState(false);
@@ -96,7 +84,7 @@ export default function SettingsScreen({ navigation }: Props) {
       case 'visibility':
         return [t('visibilityPublic'), t('visibilityMutualOnly'), t('visibilityHidden')];
       case 'language':
-        return LANGUAGE_OPTIONS.map((l) => l.label);
+        return LANGUAGE_OPTIONS.map((l) => t(l.labelKey));
     }
   }, [pickerType, t]);
 
@@ -114,9 +102,9 @@ export default function SettingsScreen({ navigation }: Props) {
       case 'visibility':
         return visibilityLabels[visibility];
       case 'language':
-        return LANGUAGE_OPTIONS.find((l) => l.value === language)?.label || LANGUAGE_OPTIONS[0].label;
+        return t(LANGUAGE_OPTIONS.find((l) => l.value === language)?.labelKey || LANGUAGE_OPTIONS[0].labelKey);
     }
-  }, [pickerType, visibility, language, visibilityLabels]);
+  }, [pickerType, visibility, language, visibilityLabels, t]);
 
   const showPicker = useCallback((type: PickerType) => {
     setPickerType(type);
@@ -136,7 +124,7 @@ export default function SettingsScreen({ navigation }: Props) {
           break;
         }
         case 'language': {
-          const langOption = LANGUAGE_OPTIONS.find((l) => l.label === value);
+          const langOption = LANGUAGE_OPTIONS.find((l) => t(l.labelKey) === value);
           if (langOption) {
             setLanguage(langOption.value);
             changeLanguage(langOption.value);
@@ -195,7 +183,7 @@ export default function SettingsScreen({ navigation }: Props) {
   }, [navigation]);
 
   const currentLangLabel =
-    LANGUAGE_OPTIONS.find((l) => l.value === language)?.label || LANGUAGE_OPTIONS[0].label;
+    t(LANGUAGE_OPTIONS.find((l) => l.value === language)?.labelKey || LANGUAGE_OPTIONS[0].labelKey);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -212,40 +200,26 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* ── Section 1: Account & Security ── */}
         <Text style={styles.sectionHeader}>{t('accountSecurity')}</Text>
         <View style={styles.sectionCard}>
-          {/* Linked Email */}
+          {/* Linked Email (read-only) */}
           <View style={styles.row}>
             <Text style={styles.rowLabel}>{t('linkedEmail')}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue} numberOfLines={1}>
-                {user?.email || '---'}
-              </Text>
-              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
-            </View>
+            <Text style={styles.rowValue} numberOfLines={1}>
+              {user?.email || '---'}
+            </Text>
           </View>
-
-          <View style={styles.divider} />
-
-          {/* Linked Phone */}
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>{t('linkedPhone')}</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValueMuted}>{t('bindPhone')}</Text>
-              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Logout */}
-          <TouchableOpacity style={styles.row} onPress={handleLogout}>
-            <Text style={styles.rowLabelWarning}>{t('logout')}</Text>
-          </TouchableOpacity>
 
           <View style={styles.divider} />
 
           {/* Delete Account */}
           <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
-            <Text style={styles.rowLabelError}>{t('deleteAccount')}</Text>
+            <Text style={styles.rowLabelWarning}>{t('delete')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* Logout */}
+          <TouchableOpacity style={styles.row} onPress={handleLogout}>
+            <Text style={styles.rowLabelError}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -319,19 +293,6 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.divider} />
-
-          {/* DND Mode */}
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleLeft}>
-              <Text style={styles.rowLabel}>{t('dndMode')}</Text>
-              <Text style={styles.toggleDesc}>{t('dndModeDesc')}</Text>
-            </View>
-            <IOSSwitch
-              value={dndMode}
-              onValueChange={handleDndModeChange}
-              activeColor={colors.onSurface}
-            />
-          </View>
         </View>
 
         {/* ── Section 5: About & Legal ── */}
@@ -604,3 +565,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
