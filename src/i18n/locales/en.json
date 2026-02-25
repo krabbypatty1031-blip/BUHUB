@@ -40,6 +40,7 @@
   "major": "Major",
   "gender": "Gender",
   "cancel": "Cancel",
+  "confirm": "Confirm",
   "confirmBtn": "Confirm",
   "genderMale": "Male",
   "genderFemale": "Female",
@@ -597,5 +598,13 @@
   "inviteCodeHint": "Invite codes are provided by existing users",
   "inviteCodeInvalid": "Invalid invite code",
   "inviteCodeFailed": "Failed to verify invite code",
-  "inviteCodeSkip": "Skip for now"
+  "inviteCodeSkip": "Skip for now",
+  "postDeleted": "Post deleted",
+  "deleteFailed": "Failed to delete post",
+  "deletePostTitle": "Delete Post",
+  "deletePostMessage": "Are you sure you want to delete this post?",
+  "commentDeleted": "Comment deleted",
+  "deleteCommentFailed": "Failed to delete comment",
+  "deleteCommentTitle": "Delete Comment",
+  "deleteCommentMessage": "Are you sure you want to delete this comment?"
 }

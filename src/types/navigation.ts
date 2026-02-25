@@ -17,7 +17,7 @@ export type AuthStackParamList = {
 // Forum Stack
 export type ForumStackParamList = {
   ForumHome: undefined;
-  PostDetail: { postId: string; commentId?: string };
+  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
   Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionIndex?: number };
   Search: undefined;
   CircleDetail: { tag: string };
@@ -55,7 +55,7 @@ export type MessagesStackParamList = {
   NotifyFollowers: undefined;
   NotifyComments: undefined;
   UserProfile: { userName: string };
-  PostDetail: { postId: string; commentId?: string };
+  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
 };
 
 // Me Stack
@@ -65,7 +65,7 @@ export type MeStackParamList = {
   ShareProfile: undefined;
   FollowList: { type: 'following' | 'followers' };
   UserProfile: { userName: string };
-  PostDetail: { postId: string; commentId?: string };
+  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
   Settings: undefined;
   Blocklist: undefined;
 };

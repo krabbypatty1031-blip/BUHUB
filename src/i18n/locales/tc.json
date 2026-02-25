@@ -40,6 +40,7 @@
   "major": "專業",
   "gender": "性別",
   "cancel": "取消",
+  "confirm": "確認",
   "confirmBtn": "確認",
   "genderMale": "男",
   "genderFemale": "女",
@@ -597,5 +598,13 @@
   "inviteCodeHint": "邀請碼由已有用戶提供",
   "inviteCodeInvalid": "邀請碼無效",
   "inviteCodeFailed": "驗證邀請碼失敗",
-  "inviteCodeSkip": "暫時跳過"
+  "inviteCodeSkip": "暫時跳過",
+  "postDeleted": "帖子已刪除",
+  "deleteFailed": "刪除帖子失敗",
+  "deletePostTitle": "刪除帖子",
+  "deletePostMessage": "確定要刪除這條帖子嗎？",
+  "commentDeleted": "評論已刪除",
+  "deleteCommentFailed": "刪除評論失敗",
+  "deleteCommentTitle": "刪除評論",
+  "deleteCommentMessage": "確定要刪除這條評論嗎？"
 }

@@ -254,6 +254,12 @@ export const ChevronDownIcon = ({ size = D.size, color = D.color }: IconProps) =
   </Svg>
 );
 
+export const ChevronUpIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+    <Polyline points="18 15 12 9 6 15" />
+  </Svg>
+);
+
 export const SettingsIcon = ({ size = D.size, color = D.color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx={12} cy={12} r={3} />
@@ -539,6 +545,7 @@ export const iconMap = {
   camera: CameraIcon,
   chevronRight: ChevronRightIcon,
   chevronDown: ChevronDownIcon,
+  chevronUp: ChevronUpIcon,
   settings: SettingsIcon,
   star: StarIcon,
   clock: ClockIcon,

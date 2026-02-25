@@ -76,6 +76,7 @@ export interface Reply {
   likes: number;
   liked?: boolean;
   bookmarked?: boolean;
+  replies?: Reply[];
 }
 
 export type CommentsData = Record<string, Comment[]>;

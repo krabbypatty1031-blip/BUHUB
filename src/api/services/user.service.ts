@@ -1,7 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import { useForumStore } from '../../store/forumStore';
-import type { User, UserPublicProfile, MyContent, LikedPost, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
+import type { User, UserPublicProfile, MyContent, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
 
 const USE_MOCK = false;
 
@@ -76,6 +76,8 @@ export const userService = {
           {
             postId: 'comp3015',
             commentId: 'comment-006',
+            name: '测试用户',
+            avatar: '',
             postAuthor: '王同學',
             postContent: '下學期有冇人想一齊選 COMP3015？聽講呢門課嘅 Group Project 好有趣，想搵隊友一齊做！有興趣嘅留言啦～',
             comment: '我都想選！可以加我一齊組隊',
@@ -85,6 +87,8 @@ export const userService = {
           {
             postId: 'cat',
             commentId: 'comment-007',
+            name: '测试用户',
+            avatar: '',
             postAuthor: '陳同學',
             postContent: '今日喺飯堂遇到一隻超可愛嘅貓咪！佢好親人，一直蹭我嘅腳，有冇人知佢係邊度嚟㗎？🐱',
             comment: '好可愛！我都想見到佢',
@@ -116,6 +120,8 @@ export const userService = {
           {
             postId: 'concert',
             commentId: 'comment-008',
+            name: '匿星星同学',
+            avatar: '#FF6B6B',
             postAuthor: '匿名用戶',
             postContent: '有冇人上個禮拜去咗呢個演唱會？今年最令人期待嘅演出！',
             comment: '去咗！真係好正，下次一定再去',
@@ -145,7 +151,7 @@ export const userService = {
               likes: 56,
               comments: 8,
             },
-          ] as LikedPost[],
+          ] as any,
           comments: [
             {
               postId: 'comp3015',
@@ -160,6 +166,7 @@ export const userService = {
           ] as LikedComment[],
         },
         myBookmarks: {
+          posts: [],
           comments: [] as LikedComment[],
         },
         myWants: [

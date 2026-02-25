@@ -14,12 +14,14 @@ import type { ForumPost } from '../../types';
 import type { Language } from '../../types';
 import Avatar from './Avatar';
 import Tag from './Tag';
+import PressScaleButton from './PressScaleButton';
 import {
   HeartIcon,
   CommentIcon,
   ShareIcon,
   BookmarkIcon,
   QuoteIcon,
+  TrashIcon,
   MaleIcon,
   FemaleIcon,
   ChevronRightIcon,
@@ -34,6 +36,7 @@ interface PostCardProps {
   onForward?: () => void;
   onBookmark?: () => void;
   onQuote?: () => void;
+  onDelete?: () => void;
   onTagPress?: (tag: string) => void;
   onFunctionPress?: () => void;
   onVote?: (optionIndex: number) => void;
@@ -66,6 +69,7 @@ function PostCard({
   onForward,
   onBookmark,
   onQuote,
+  onDelete,
   onTagPress,
   onFunctionPress,
   onVote,
@@ -127,6 +131,11 @@ function PostCard({
     onBookmark?.();
   }, [onBookmark]);
 
+  const handleComment = useCallback(() => {
+    hapticLight();
+    onComment?.();
+  }, [onComment]);
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       {/* Header */}
@@ -143,11 +152,11 @@ function PostCard({
           </TouchableOpacity>
         ) : (
           <Avatar
-            text={post.isAnonymous ? '匿' : post.name}
-            uri={post.isAnonymous ? undefined : post.avatar}
-            defaultAvatar={post.isAnonymous ? undefined : post.defaultAvatar}
+            text={post.name}
+            uri={post.avatar}
+            defaultAvatar={post.defaultAvatar}
             size="sm"
-            gender={post.isAnonymous ? 'other' : post.gender}
+            gender={post.gender}
           />
         )}
         <View style={styles.headerInfo}>
@@ -271,7 +280,7 @@ function PostCard({
 
         {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+          <PressScaleButton style={styles.actionBtn} onPress={handleLike}>
             <HeartIcon
               size={18}
               color={isLiked ? colors.error : colors.onSurface}
@@ -280,28 +289,34 @@ function PostCard({
             <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
               {post.likes}
             </Text>
-          </TouchableOpacity>
+          </PressScaleButton>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={onComment}>
+          <PressScaleButton style={styles.actionBtn} onPress={handleComment}>
             <CommentIcon size={18} color={colors.onSurface} />
             <Text style={styles.actionText}>{post.comments}</Text>
-          </TouchableOpacity>
+          </PressScaleButton>
 
           <TouchableOpacity style={styles.actionBtn} onPress={onForward}>
             <ShareIcon size={18} color={colors.onSurface} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={handleBookmark}>
+          <PressScaleButton style={styles.actionBtn} onPress={handleBookmark}>
             <BookmarkIcon
               size={18}
               color={isBookmarked ? colors.primary : colors.onSurface}
               fill={isBookmarked ? colors.primary : undefined}
             />
-          </TouchableOpacity>
+          </PressScaleButton>
 
           <TouchableOpacity style={styles.actionBtn} onPress={onQuote}>
             <QuoteIcon size={18} color={colors.onSurface} />
           </TouchableOpacity>
+
+          {onDelete && (
+            <TouchableOpacity style={styles.actionBtn} onPress={onDelete}>
+              <TrashIcon size={18} color="#000000" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </TouchableOpacity>

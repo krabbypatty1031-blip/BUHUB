@@ -35,6 +35,7 @@ export interface UserPublicProfile {
 export interface UserPost {
   postId: string;
   name: string;
+  userName?: string;
   avatar: string;
   defaultAvatar?: string;
   gender: Gender;
@@ -69,11 +70,22 @@ export interface UserPost {
 export interface UserComment {
   postId: string;
   commentId: string;
+  name: string;
+  avatar: string;
+  defaultAvatar?: string;
+  gender?: Gender;
+  gradeKey?: string;
+  majorKey?: string;
+  replyToName?: string;
   postAuthor: string;
   postContent: string;
   comment: string;
   time: string;
   likes: number;
+  liked?: boolean;
+  bookmarked?: boolean;
+  isAnonymous?: boolean;
+  replyCount?: number;
 }
 
 export interface LikedPost {
@@ -90,12 +102,23 @@ export interface LikedPost {
 export interface LikedComment {
   postId: string;
   commentId: string;
+  name?: string;
+  avatar?: string;
+  defaultAvatar?: string;
+  gender?: Gender;
+  gradeKey?: string;
+  majorKey?: string;
+  isAnonymous?: boolean;
+  liked?: boolean;
+  bookmarked?: boolean;
+  replyToName?: string;
   postAuthor: string;
   postContent: string;
   commentAuthor: string;
   comment: string;
   time: string;
   likes: number;
+  replyCount?: number;
 }
 
 export interface WantedItem {
@@ -115,10 +138,11 @@ export interface MyContent {
   anonPosts: UserPost[];
   anonComments: UserComment[];
   myLikes: {
-    posts: LikedPost[];
+    posts: UserPost[];
     comments: LikedComment[];
   };
   myBookmarks: {
+    posts: UserPost[];
     comments: LikedComment[];
   };
   myWants: WantedItem[];

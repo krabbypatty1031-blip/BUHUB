@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#000000',
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.md,
     ...typography.bodyMedium,

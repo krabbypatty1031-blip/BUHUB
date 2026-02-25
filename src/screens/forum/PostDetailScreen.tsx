@@ -12,6 +12,8 @@ import {
   ScrollView,
   Animated,
   Modal,
+  UIManager,
+  findNodeHandle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +34,7 @@ import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import IOSSwitch from '../../components/common/IOSSwitch';
+import PressScaleButton from '../../components/common/PressScaleButton';
 import {
   BackIcon,
   HeartIcon,
@@ -41,6 +44,7 @@ import {
   BookmarkIcon,
   QuoteIcon,
   ChevronDownIcon,
+  ChevronUpIcon,
   MoreHorizontalIcon,
   MaleIcon,
   FemaleIcon,
@@ -48,8 +52,89 @@ import {
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { hapticLight } from '../../utils/haptics';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
+
+/* ── Helper functions for infinite nested comments ── */
+
+// Recursively find all parent comment IDs that need to be expanded
+// Returns null if not found, otherwise returns array of parent IDs
+function findParentIdsToExpand(
+  comments: Comment[],
+  targetId: string,
+  parents: string[] = []
+): string[] | null {
+  for (const comment of comments) {
+    if (comment.id === targetId) {
+      return parents; // Found the target, return the parent chain
+    }
+    if (comment.replies && comment.replies.length > 0) {
+      const result = findParentIdsToExpand(
+        comment.replies as Comment[],
+        targetId,
+        [...parents, comment.id]
+      );
+      if (result !== null) {
+        // Found in nested replies, propagate the result up
+        return result;
+      }
+      // Otherwise continue searching in next comment
+    }
+  }
+  return null; // Not found in this branch
+}
+
+// Find a comment/reply node by ID in an arbitrarily deep tree
+function findCommentById(
+  comments: Array<Comment | Reply>,
+  targetId: string
+): Comment | Reply | null {
+  for (const comment of comments) {
+    if (comment.id === targetId) {
+      return comment;
+    }
+    if (comment.replies && comment.replies.length > 0) {
+      const found = findCommentById(comment.replies, targetId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// Find the top-level comment index that contains the target comment
+function findTopLevelCommentIndex(comments: Comment[], targetId: string): number {
+  for (let i = 0; i < comments.length; i++) {
+    const comment = comments[i];
+    if (comment.id === targetId) {
+      return i;
+    }
+    // Check if target is in any nested reply
+    if (comment.replies && containsComment(comment.replies as Comment[], targetId)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Helper: check if a comment with given ID exists in the array
+function containsComment(comments: Comment[], targetId: string): boolean {
+  for (const comment of comments) {
+    if (comment.id === targetId) return true;
+    if (comment.replies && containsComment(comment.replies as Comment[], targetId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Count all descendant replies recursively (children + grandchildren + ...)
+function countDescendantReplies(replies?: Reply[]): number {
+  if (!replies || replies.length === 0) return 0;
+  return replies.reduce((total, reply) => {
+    return total + 1 + countDescendantReplies(reply.replies);
+  }, 0);
+}
 
 function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: boolean }) {
   const width = useRef(new Animated.Value(0)).current;
@@ -82,6 +167,7 @@ function ItemActions({
   onBookmark,
   bookmarked,
   size = 16,
+  replyCount,
 }: {
   likes: number;
   liked: boolean;
@@ -91,10 +177,26 @@ function ItemActions({
   onBookmark: () => void;
   bookmarked: boolean;
   size?: number;
+  replyCount?: number;
 }) {
+  const handleLikePress = useCallback(() => {
+    hapticLight();
+    onLike();
+  }, [onLike]);
+
+  const handleCommentPress = useCallback(() => {
+    hapticLight();
+    onComment();
+  }, [onComment]);
+
+  const handleBookmarkPress = useCallback(() => {
+    hapticLight();
+    onBookmark();
+  }, [onBookmark]);
+
   return (
     <View style={styles.itemActions}>
-      <TouchableOpacity style={styles.itemActionBtn} onPress={onLike}>
+      <PressScaleButton style={styles.itemActionBtn} onPress={handleLikePress}>
         <HeartIcon
           size={size}
           color={liked ? colors.error : colors.onSurface}
@@ -103,20 +205,23 @@ function ItemActions({
         <Text style={[styles.itemActionText, liked && { color: colors.error }]}>
           {likes}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.itemActionBtn} onPress={onComment}>
+      </PressScaleButton>
+      <PressScaleButton style={styles.itemActionBtn} onPress={handleCommentPress}>
         <CommentIcon size={size} color={colors.onSurface} />
-      </TouchableOpacity>
+        {replyCount !== undefined && replyCount > 0 && (
+          <Text style={styles.replyCountBadge}>{replyCount}</Text>
+        )}
+      </PressScaleButton>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
         <ShareIcon size={size} color={colors.onSurface} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.itemActionBtn} onPress={onBookmark}>
+      <PressScaleButton style={styles.itemActionBtn} onPress={handleBookmarkPress}>
         <BookmarkIcon
           size={size}
           color={bookmarked ? colors.primary : colors.onSurface}
           fill={bookmarked ? colors.primary : undefined}
         />
-      </TouchableOpacity>
+      </PressScaleButton>
     </View>
   );
 }
@@ -131,17 +236,23 @@ function ReplyItem({
   onBookmark,
   onForward,
   onReport,
-  highlighted,
+  highlightId,
+  level = 2,
+  expandedReplies = [],
+  registerItemRef,
 }: {
   reply: Reply;
   lang: Language;
   t: (key: string) => string;
-  onReply: (name: string) => void;
+  onReply: (name: string, commentId?: string) => void;
   onLike: (commentId: string) => void;
   onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: () => void;
-  highlighted?: boolean;
+  highlightId?: string;
+  level?: number;
+  expandedReplies?: string[];
+  registerItemRef?: (id: string, node: View | null) => void;
 }) {
 
   const replyMeta = useMemo(
@@ -155,9 +266,10 @@ function ReplyItem({
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const isHighlighted = !!highlightId && reply.id === highlightId;
 
   useEffect(() => {
-    if (highlighted) {
+    if (isHighlighted) {
       const timer = setTimeout(() => {
         Animated.loop(
           Animated.sequence([
@@ -169,19 +281,39 @@ function ReplyItem({
       }, 600);
       return () => clearTimeout(timer);
     }
-  }, [highlighted, flashAnim]);
+  }, [isHighlighted, flashAnim]);
 
-  const highlightBg = highlighted
+  const highlightBg = isHighlighted
     ? flashAnim.interpolate({
         inputRange: [0, 1],
         outputRange: ['transparent', colors.scrimLight],
       })
     : undefined;
 
+  // Level 2 = direct reply to main comment (with indent and border)
+  // Level 3+ = reply to reply (no indent, no border)
+  const isNestedReply = level >= 3;
+
+  // Collapse logic for nested replies (level 3+) - show 0 by default
+  const nestedReplies = reply.replies ?? [];
+  const totalNestedReplies = countDescendantReplies(reply.replies);
+  const hasNestedReplies = nestedReplies.length > 0;
+  const shouldCollapseNested = nestedReplies.length > 0;
+  // Auto-expand if this reply's ID is in the expandedReplies list
+  const shouldAutoExpandNested = expandedReplies.includes(reply.id);
+  const [showAllNestedReplies, setShowAllNestedReplies] = useState(!shouldCollapseNested || shouldAutoExpandNested);
+
+  useEffect(() => {
+    if (shouldAutoExpandNested && !showAllNestedReplies) {
+      setShowAllNestedReplies(true);
+    }
+  }, [shouldAutoExpandNested, showAllNestedReplies]);
+
   return (
     <Animated.View
+      ref={(node) => registerItemRef?.(reply.id, node as unknown as View | null)}
       style={[
-        styles.replyItem,
+        isNestedReply ? styles.nestedReplyItem : styles.replyItem,
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
       ]}
     >
@@ -199,27 +331,83 @@ function ReplyItem({
               <Text style={styles.replyName}>{reply.name}</Text>
               {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
               {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
-              {reply.replyTo ? (
-                <Text style={styles.replyToLabel}> ▸ {reply.replyTo}</Text>
-              ) : null}
+              <Text style={styles.replyTime}> · {replyMeta}</Text>
             </View>
-            <Text style={styles.replyTime}>{replyMeta}</Text>
           </View>
         </View>
-        <Text style={styles.replyBody}>{reply.content}</Text>
+        <View style={styles.replyBodyContainer}>
+          {reply.replyTo ? (
+            <Text style={styles.replyBody}>
+              <Text style={styles.replyToAt}>@{reply.replyTo}</Text>{' '}
+              {reply.content}
+            </Text>
+          ) : (
+            <Text style={styles.replyBody}>{reply.content}</Text>
+          )}
+        </View>
       </TouchableOpacity>
       <View style={styles.replyActions}>
         <ItemActions
           likes={reply.likes}
           liked={reply.liked ?? false}
           onLike={() => onLike(reply.id)}
-          onComment={() => onReply(reply.name)}
+          onComment={() => onReply(reply.name, reply.id)}
           onForward={onForward}
           onBookmark={() => onBookmark(reply.id)}
           bookmarked={reply.bookmarked ?? false}
+          replyCount={totalNestedReplies}
           size={14}
         />
       </View>
+      {/* Recursively render nested replies (level 3+) with collapse logic */}
+      {hasNestedReplies && (
+        <>
+          {/* Toggle button for nested replies */}
+          {shouldCollapseNested && !showAllNestedReplies && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setShowAllNestedReplies(true)}
+            >
+              <ChevronDownIcon size={14} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {t('expandReplies')} {totalNestedReplies} {t('repliesUnit')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Render nested replies */}
+          <View style={styles.nestedRepliesContainer}>
+            {(showAllNestedReplies ? nestedReplies : nestedReplies.slice(0, 0)).map((nestedReply, i) => (
+              <ReplyItem
+                key={nestedReply.id || i}
+                reply={nestedReply}
+                lang={lang}
+                t={t}
+                onReply={onReply}
+                onLike={onLike}
+                onBookmark={onBookmark}
+                onForward={onForward}
+                onReport={onReport}
+                highlightId={highlightId}
+                level={level + 1}
+                expandedReplies={expandedReplies}
+                registerItemRef={registerItemRef}
+              />
+            ))}
+          </View>
+          {/* Collapse button when expanded */}
+          {shouldCollapseNested && showAllNestedReplies && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setShowAllNestedReplies(false)}
+            >
+              <ChevronUpIcon size={14} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {t('collapseReplies') || '收起'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </Animated.View>
   );
 }
@@ -234,21 +422,38 @@ function CommentItem({
   onForward,
   onReport,
   highlightId,
+  expandedReplies = [],
+  registerItemRef,
 }: {
   comment: Comment;
   lang: Language;
-  onReply: (name: string) => void;
+  onReply: (name: string, commentId?: string) => void;
   onLike: (commentId: string) => void;
   onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: () => void;
   highlightId?: string;
+  expandedReplies?: string[];
+  registerItemRef?: (id: string, node: View | null) => void;
 }) {
   const { t } = useTranslation();
   const isHighlighted = !!highlightId && comment.id === highlightId;
   const highlightedReplyId =
     highlightId && comment.replies?.find((r) => r.id === highlightId)?.id;
-  const [showReplies, setShowReplies] = useState(!!highlightedReplyId);
+  // Show 0 replies by default, collapse if there are any replies
+  const REPLY_PREVIEW_LIMIT = 0;
+  const hasReplies = comment.replies && comment.replies.length > 0;
+  const totalReplies = countDescendantReplies(comment.replies);
+  const shouldCollapse = totalReplies > REPLY_PREVIEW_LIMIT;
+  // Auto-expand if this comment's ID is in the expandedReplies list
+  const shouldAutoExpand = expandedReplies.includes(comment.id);
+  const [showAllReplies, setShowAllReplies] = useState(!shouldCollapse || !!highlightedReplyId || shouldAutoExpand);
+
+  useEffect(() => {
+    if ((shouldAutoExpand || !!highlightedReplyId) && !showAllReplies) {
+      setShowAllReplies(true);
+    }
+  }, [shouldAutoExpand, highlightedReplyId, showAllReplies]);
 
   const commentMeta = useMemo(
     () =>
@@ -287,6 +492,7 @@ function CommentItem({
 
   return (
     <Animated.View
+      ref={(node) => registerItemRef?.(comment.id, node as unknown as View | null)}
       style={[
         styles.commentItem,
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
@@ -296,11 +502,11 @@ function CommentItem({
       <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
         <View style={styles.commentHeader}>
           <Avatar
-            text={comment.isAnonymous ? '匿' : comment.name}
-            uri={comment.isAnonymous ? undefined : comment.avatar}
-            defaultAvatar={comment.isAnonymous ? undefined : comment.defaultAvatar}
+            text={comment.name}
+            uri={comment.avatar}
+            defaultAvatar={comment.defaultAvatar}
             size="sm"
-            gender={comment.isAnonymous ? 'other' : comment.gender}
+            gender={comment.gender}
           />
           <View style={styles.commentUserInfo}>
             <View style={styles.commentNameRow}>
@@ -325,41 +531,59 @@ function CommentItem({
           likes={comment.likes}
           liked={comment.liked ?? false}
           onLike={() => onLike(comment.id)}
-          onComment={() => onReply(comment.name)}
+          onComment={() => onReply(comment.name, comment.id)}
           onForward={onForward}
           onBookmark={() => onBookmark(comment.id)}
           bookmarked={comment.bookmarked ?? false}
+          replyCount={totalReplies}
         />
       </View>
 
       {/* Replies */}
-      {comment.replies && comment.replies.length > 0 && (
+      {hasReplies && (
         <>
-          <TouchableOpacity
-            style={styles.toggleReplies}
-            onPress={() => setShowReplies(!showReplies)}
-          >
-            <ChevronDownIcon size={16} color={colors.primary} />
-            <Text style={styles.toggleRepliesText}>
-              {showReplies ? t('collapseReplies') || '收起' : t('expandReplies')}{' '}
-              {comment.replies.length} {t('repliesUnit')}
-            </Text>
-          </TouchableOpacity>
-          {showReplies &&
-            comment.replies.map((reply, i) => (
-              <ReplyItem
-                key={reply.id || i}
-                reply={reply}
-                lang={lang}
-                t={t}
-                onReply={onReply}
-                onLike={onLike}
-                onBookmark={onBookmark}
-                onForward={onForward}
-                onReport={onReport}
-                highlighted={reply.id === highlightId}
-              />
-            ))}
+          {/* Show toggle button only when there are more than 2 replies */}
+          {shouldCollapse && !showAllReplies && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setShowAllReplies(true)}
+            >
+              <ChevronDownIcon size={16} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {t('expandReplies')} {totalReplies} {t('repliesUnit')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Show replies (first 2 or all based on state) */}
+          {(showAllReplies ? (comment.replies ?? []) : (comment.replies?.slice(0, REPLY_PREVIEW_LIMIT) ?? [])).map((reply, i) => (
+            <ReplyItem
+              key={reply.id || i}
+              reply={reply}
+              lang={lang}
+              t={t}
+              onReply={onReply}
+              onLike={onLike}
+              onBookmark={onBookmark}
+              onForward={onForward}
+              onReport={onReport}
+              highlightId={highlightId}
+              level={2}
+              expandedReplies={expandedReplies}
+              registerItemRef={registerItemRef}
+            />
+          ))}
+          {/* Collapse button when expanded */}
+          {shouldCollapse && showAllReplies && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setShowAllReplies(false)}
+            >
+              <ChevronUpIcon size={16} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {t('collapseReplies') || '收起'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </>
       )}
     </Animated.View>
@@ -370,7 +594,7 @@ function CommentItem({
 export default function PostDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Language;
-  const { postId, commentId } = route.params;
+  const { postId, commentId, shouldReply } = route.params;
   const { data: post, isLoading } = usePostDetail(postId);
   const { data: comments } = useComments(postId);
   // like/bookmark state comes from server data (optimistic updates)
@@ -384,7 +608,39 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const votedPolls = useForumStore((s) => s.votedPolls);
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
-  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ name: string; commentId: string } | null>(null);
+  const autoReplyHandledKeyRef = useRef<string | null>(null);
+  const preciseScrollHandledKeyRef = useRef<string | null>(null);
+  const itemRefs = useRef<Map<string, View | null>>(new Map());
+
+  // Auto-open reply input when commentId is passed (from homepage comment button)
+  // Only auto-open when shouldReply is true (from comment button click)
+  // Use useEffect to handle case when comments are not yet loaded on initial render
+  useEffect(() => {
+    if (!commentId || !comments || !shouldReply) return;
+    const key = `${postId}:${commentId}:reply`;
+    if (autoReplyHandledKeyRef.current === key) return;
+
+    const targetComment = findCommentById(comments, commentId);
+    if (targetComment) {
+      setReplyTo({ name: targetComment.name, commentId: targetComment.id });
+      autoReplyHandledKeyRef.current = key;
+    }
+  }, [postId, commentId, comments, shouldReply]);
+
+  // Track which comment's replies should be expanded (for navigating to nested comments)
+  const [expandedReplies, setExpandedReplies] = useState<string[]>([]);
+
+  // Calculate expanded replies when comments are loaded (supports infinite nesting)
+  useEffect(() => {
+    if (!commentId || !comments) {
+      setExpandedReplies([]);
+      return;
+    }
+    const expanded = findParentIdsToExpand(comments, commentId) ?? [];
+    setExpandedReplies(expanded);
+  }, [commentId, comments]);
+
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
   const [reportVisible, setReportVisible] = useState(false);
@@ -395,12 +651,18 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   /* ── Refs ── */
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
+  const registerItemRef = useCallback((id: string, node: View | null) => {
+    if (node) {
+      itemRefs.current.set(id, node);
+    } else {
+      itemRefs.current.delete(id);
+    }
+  }, []);
 
   const targetCommentIndex = useMemo(() => {
     if (!commentId || !comments) return -1;
-    return comments.findIndex(
-      (c) => c.id === commentId || c.replies?.some((r) => r.id === commentId)
-    );
+    // Find the top-level comment index (supports infinite nesting)
+    return findTopLevelCommentIndex(comments, commentId);
   }, [commentId, comments]);
   const commentsData = useMemo(() => comments ?? [], [comments]);
 
@@ -416,6 +678,74 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       return () => clearTimeout(timer);
     }
   }, [targetCommentIndex]);
+
+  // Second-stage precise scroll: after expanded render settles, center exact target node.
+  useEffect(() => {
+    if (!commentId || !commentsData.length || !flatListRef.current) return;
+
+    const key = `${postId}:${commentId}`;
+    if (preciseScrollHandledKeyRef.current === key) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryPreciseScroll = () => {
+      if (cancelled || !flatListRef.current) return;
+      attempts += 1;
+
+      const targetNode = itemRefs.current.get(commentId);
+      const scrollNode = flatListRef.current.getNativeScrollRef?.() ?? flatListRef.current.getScrollableNode?.();
+      const targetHandle = targetNode ? findNodeHandle(targetNode as any) : null;
+      const scrollHandle =
+        scrollNode == null
+            ? null
+          : typeof scrollNode === 'number'
+            ? scrollNode
+            : findNodeHandle(scrollNode as any);
+
+      if (targetHandle != null && scrollHandle != null) {
+        UIManager.measureLayout(
+          targetHandle,
+          scrollHandle,
+          () => {
+            if (!cancelled && attempts < 10) {
+              setTimeout(tryPreciseScroll, 120);
+            }
+          },
+          (_x, y, _width, height) => {
+            if (cancelled || !flatListRef.current) return;
+            const offset = Math.max(0, y - 220 + height / 2);
+            flatListRef.current.scrollToOffset({
+              offset,
+              animated: true,
+            });
+            preciseScrollHandledKeyRef.current = key;
+          }
+        );
+        return;
+      }
+
+      if (!cancelled && attempts < 10) {
+        setTimeout(tryPreciseScroll, 120);
+      }
+    };
+
+    const timer = setTimeout(tryPreciseScroll, 750);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [postId, commentId, commentsData.length, expandedReplies]);
+
+  // Auto-focus input when commentId is passed (from homepage comment button)
+  useEffect(() => {
+    if (replyTo?.commentId && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [replyTo]);
 
   /* ── @ Mention detection ── */
   const mentionQuery = useMemo(() => {
@@ -480,24 +810,29 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [post, currentUser, navigation]);
 
   const handleComment = useCallback(() => {
+    hapticLight();
     setReplyTo(null);
     setCommentText('');
     setIsAnonymous(false);
     inputRef.current?.focus();
   }, []);
 
-  const handleReply = useCallback((name: string) => {
+  const handleReply = useCallback((name: string, commentId?: string) => {
     setReplyTo(null);
-    setCommentText(`@${name} `);
+    setCommentText('');
     setIsAnonymous(false);
-    setReplyTo(name);
+    setReplyTo({ name, commentId: commentId || '' });
     inputRef.current?.focus();
   }, []);
 
   const handleSendComment = useCallback(() => {
     if (!commentText.trim()) return;
     createCommentMutation.mutate(
-      { content: commentText.trim(), isAnonymous },
+      {
+        content: commentText.trim(),
+        isAnonymous,
+        parentId: replyTo?.commentId || undefined,
+      },
       {
         onSuccess: () => {
           showSnackbar({ message: t('commentSent'), type: 'success' });
@@ -510,7 +845,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         },
       }
     );
-  }, [commentText, isAnonymous, createCommentMutation, showSnackbar, t]);
+  }, [commentText, isAnonymous, replyTo, createCommentMutation, showSnackbar, t]);
 
   const handleForward = useCallback(() => {
     if (post) setForwardPost(post);
@@ -523,12 +858,24 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [post, navigation]);
 
   const handleLikeComment = useCallback((cId: string) => {
+    hapticLight();
     likeCommentMutation.mutate(cId);
   }, [likeCommentMutation]);
 
   const handleBookmarkComment = useCallback((cId: string) => {
+    hapticLight();
     bookmarkCommentMutation.mutate(cId);
   }, [bookmarkCommentMutation]);
+
+  const handleLikePostPress = useCallback(() => {
+    hapticLight();
+    likePostMutation.mutate(postId);
+  }, [likePostMutation, postId]);
+
+  const handleBookmarkPostPress = useCallback(() => {
+    hapticLight();
+    bookmarkPostMutation.mutate(postId);
+  }, [bookmarkPostMutation, postId]);
 
   const handleReportPost = useCallback(() => {
     setPopoverVisible(true);
@@ -551,9 +898,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         onForward={handleForward}
         onReport={handleReportComment}
         highlightId={commentId}
+        expandedReplies={expandedReplies}
+        registerItemRef={registerItemRef}
       />
     ),
-    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId]
+    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId, expandedReplies, registerItemRef]
   );
 
   const handleReportSubmit = useCallback(
@@ -583,7 +932,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             {post.isAnonymous ? (
               <Avatar
                 text="匿"
-                uri={undefined}
+                uri={post.avatar}
                 size="md"
                 gender="other"
               />
@@ -705,9 +1054,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
           {/* 5 action buttons, evenly distributed */}
           <View style={styles.postActions}>
-            <TouchableOpacity
+            <PressScaleButton
               style={styles.postActionBtn}
-              onPress={() => likePostMutation.mutate(postId)}
+              onPress={handleLikePostPress}
             >
               <HeartIcon
                 size={20}
@@ -717,15 +1066,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               <Text style={[styles.postActionText, isLiked && { color: colors.error }]}>
                 {post.likes}
               </Text>
-            </TouchableOpacity>
+            </PressScaleButton>
 
-            <TouchableOpacity
+            <PressScaleButton
               style={styles.postActionBtn}
               onPress={handleComment}
             >
               <CommentIcon size={20} color={colors.onSurface} />
               <Text style={styles.postActionText}>{post.comments}</Text>
-            </TouchableOpacity>
+            </PressScaleButton>
 
             <TouchableOpacity
               style={styles.postActionBtn}
@@ -734,16 +1083,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               <ShareIcon size={20} color={colors.onSurface} />
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <PressScaleButton
               style={styles.postActionBtn}
-              onPress={() => bookmarkPostMutation.mutate(postId)}
+              onPress={handleBookmarkPostPress}
             >
               <BookmarkIcon
                 size={20}
                 color={isBookmarked ? colors.primary : colors.onSurface}
                 fill={isBookmarked ? colors.primary : undefined}
               />
-            </TouchableOpacity>
+            </PressScaleButton>
 
             <TouchableOpacity
               style={styles.postActionBtn}
@@ -763,7 +1112,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, votedOptionIndex, postId, likePostMutation, bookmarkPostMutation, votePostMutation, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
+  }, [post, isLiked, isBookmarked, votedOptionIndex, votePostMutation, handleLikePostPress, handleBookmarkPostPress, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
 
   const headerComponent = useMemo(() => renderHeader(), [renderHeader]);
 
@@ -893,7 +1242,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             style={[styles.commentInput, isAnonymous && styles.commentInputAnon]}
             placeholder={
               replyTo
-                ? `${t('replyTo')} ${replyTo}`
+                ? `${t('replyTo')} ${replyTo.name}`
                 : t('writeComment')
             }
             placeholderTextColor={colors.onSurfaceVariant}
@@ -1244,6 +1593,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.onSurface,
   },
+  replyCountBadge: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 2,
+  },
 
   /* ── Replies (二级评论) ── */
   toggleReplies: {
@@ -1264,6 +1619,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: colors.outlineVariant,
   },
+  // Level 3+ reply - no indent, no border, directly below parent
+  nestedReplyItem: {
+    marginTop: spacing.sm,
+  },
+  nestedRepliesContainer: {
+    marginTop: spacing.xs,
+  },
   replyNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1281,12 +1643,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.onSurfaceVariant,
   },
+  replyBodyContainer: {
+    marginLeft: 28,
+    marginTop: 2,
+    marginBottom: spacing.xxs,
+  },
   replyBody: {
     fontSize: 13,
     color: colors.onSurface,
-    marginLeft: 28,
     lineHeight: 18,
-    marginBottom: spacing.xxs,
+  },
+  replyToAt: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '500',
   },
   replyActions: {
     marginLeft: 28,

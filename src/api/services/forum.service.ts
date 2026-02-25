@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '../../types';
+import { generateAnonymousIdentity } from '../../lib/anonymous';
 
 const USE_MOCK = false;
 
@@ -47,10 +48,12 @@ export const forumService = {
       percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
     })) ?? undefined;
     const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+    // Generate consistent anonymous identity based on author ID
+    const anonIdentity = p.isAnonymous && author.id ? generateAnonymousIdentity(author.id) : null;
     return {
       ...p,
-      name: p.isAnonymous ? '匿名用户' : (author.nickname ?? '?'),
-      avatar: p.isAnonymous ? '' : (author.avatar ?? ''),
+      name: anonIdentity ? anonIdentity.name : (author.nickname ?? '?'),
+      avatar: anonIdentity ? anonIdentity.avatar : (author.avatar ?? ''),
       gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
       gradeKey: author.grade,
       majorKey: author.major,
@@ -72,33 +75,51 @@ export const forumService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.COMMENTS(postId));
     // Backend returns nested array; map to frontend Comment shape
+
+    // Recursively map replies (supports unlimited nesting levels)
+    const mapReply = (r: any, parentName: string): Reply => {
+      const rAnon = !!r.isAnonymous;
+      const rAnonIdentity = rAnon && r.authorId ? generateAnonymousIdentity(r.authorId) : null;
+      const replyToName = rAnonIdentity ? rAnonIdentity.name : (r.author?.nickname ?? '?');
+
+      // Recursively map nested replies (level 3+)
+      const nestedReplies: Reply[] | undefined = r.replies?.length
+        ? r.replies.map((nr: any) => mapReply(nr, replyToName))
+        : undefined;
+
+      return {
+        id: r.id,
+        name: rAnonIdentity ? rAnonIdentity.name : (r.author?.nickname ?? '?'),
+        avatar: rAnonIdentity ? rAnonIdentity.avatar : (r.author?.avatar ?? ''),
+        gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
+        gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
+        majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
+        replyTo: parentName,
+        content: r.content,
+        time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+        likes: r.likeCount ?? 0,
+        liked: r.liked ?? false,
+        bookmarked: r.bookmarked ?? false,
+        replies: nestedReplies,
+      };
+    };
+
     const mapComment = (c: any): Comment => {
       const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
       const isAnon = !!c.isAnonymous;
-      const parentName = isAnon ? '匿名用户' : (c.author?.nickname ?? '?');
+      // Generate consistent anonymous identity based on author ID
+      const anonIdentity = isAnon && c.authorId ? generateAnonymousIdentity(c.authorId) : null;
+      const parentName = anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?');
+
+      // Map direct replies (level 2)
       const replies: Reply[] | undefined = c.replies?.length
-        ? c.replies.map((r: any) => {
-            const rAnon = !!r.isAnonymous;
-            return {
-              id: r.id,
-              name: rAnon ? '匿名用户' : (r.author?.nickname ?? '?'),
-              avatar: rAnon ? '' : (r.author?.avatar ?? ''),
-              gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
-              gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
-              majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
-              replyTo: parentName,
-              content: r.content,
-              time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
-              likes: r.likeCount ?? 0,
-              liked: r.liked ?? false,
-              bookmarked: r.bookmarked ?? false,
-            };
-          })
+        ? c.replies.map((r: any) => mapReply(r, parentName))
         : undefined;
+
       return {
         id: c.id,
-        name: isAnon ? '匿名用户' : (c.author?.nickname ?? '?'),
-        avatar: isAnon ? '' : (c.author?.avatar ?? ''),
+        name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
+        avatar: anonIdentity ? anonIdentity.avatar : (c.author?.avatar ?? ''),
         gender: isAnon ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
         gradeKey: isAnon ? undefined : (c.author?.grade ?? undefined),
         majorKey: isAnon ? undefined : (c.author?.major ?? undefined),
@@ -173,7 +194,7 @@ export const forumService = {
     return data;
   },
 
-  async createComment(postId: string, content: string, isAnonymous?: boolean): Promise<Comment> {
+  async createComment(postId: string, content: string, isAnonymous?: boolean, parentId?: string): Promise<Comment> {
     if (USE_MOCK) {
       return {
         id: 'comment-new-' + Date.now(),
@@ -185,13 +206,21 @@ export const forumService = {
         isAnonymous,
       };
     }
-    const { data } = await apiClient.post(ENDPOINTS.FORUM.CREATE_COMMENT(postId), { content, isAnonymous: isAnonymous ?? false });
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.CREATE_COMMENT(postId), {
+      content,
+      isAnonymous: isAnonymous ?? false,
+      ...(parentId && { parentId }), // Only include parentId if it's defined
+    });
     const c = data as any;
     const isAnon = !!c.isAnonymous;
+    // Generate consistent anonymous identity based on author ID
+    // Backend returns author in nested object, so use c.author?.id
+    const authorId = c.author?.id ?? c.authorId;
+    const anonIdentity = isAnon && authorId ? generateAnonymousIdentity(authorId) : null;
     return {
       id: c.id,
-      name: isAnon ? '匿名用户' : (c.author?.nickname ?? '?'),
-      avatar: isAnon ? '' : (c.author?.avatar ?? ''),
+      name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
+      avatar: anonIdentity ? anonIdentity.avatar : (c.author?.avatar ?? ''),
       content: c.content,
       time: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
       likes: c.likeCount ?? 0,

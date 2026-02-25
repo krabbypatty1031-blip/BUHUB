@@ -1,7 +1,99 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
-import type { Comment, ForumPost, MyContent, UserPost } from '../types';
+import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
+
+function updateCommentTreeById(
+  comments: Comment[] | undefined,
+  targetId: string,
+  updater: (node: Comment | Reply) => Comment | Reply
+): Comment[] | undefined {
+  if (!comments) return comments;
+
+  let changed = false;
+
+  const updateReplies = (replies: Reply[] | undefined): Reply[] | undefined => {
+    if (!replies || replies.length === 0) return replies;
+    let localChanged = false;
+
+    const nextReplies = replies.map((reply) => {
+      let nextReply: Reply = reply;
+
+      if (reply.id === targetId) {
+        nextReply = updater(reply) as Reply;
+        localChanged = true;
+      }
+
+      if (reply.replies && reply.replies.length > 0) {
+        const updatedNested = updateReplies(reply.replies);
+        if (updatedNested !== reply.replies) {
+          nextReply = nextReply === reply
+            ? { ...nextReply, replies: updatedNested }
+            : { ...nextReply, replies: updatedNested };
+          localChanged = true;
+        }
+      }
+
+      return nextReply;
+    });
+
+    if (localChanged) {
+      changed = true;
+      return nextReplies;
+    }
+    return replies;
+  };
+
+  const nextComments = comments.map((comment) => {
+    let nextComment: Comment = comment;
+
+    if (comment.id === targetId) {
+      nextComment = updater(comment) as Comment;
+      changed = true;
+    }
+
+    if (comment.replies && comment.replies.length > 0) {
+      const updatedReplies = updateReplies(comment.replies);
+      if (updatedReplies !== comment.replies) {
+        nextComment = nextComment === comment
+          ? { ...nextComment, replies: updatedReplies }
+          : { ...nextComment, replies: updatedReplies };
+        changed = true;
+      }
+    }
+
+    return nextComment;
+  });
+
+  return changed ? nextComments : comments;
+}
+
+function updateMyContentCommentById(
+  myContent: MyContent | undefined,
+  targetId: string,
+  updater: (item: any) => any,
+  options?: { includeReactionLists?: boolean }
+): MyContent | undefined {
+  if (!myContent) return myContent;
+  const includeReactionLists = !!options?.includeReactionLists;
+
+  const updateArray = <T extends { commentId: string }>(arr: T[]) =>
+    arr.map((item) => (item.commentId === targetId ? updater(item) : item));
+
+  return {
+    ...myContent,
+    comments: updateArray(myContent.comments),
+    anonComments: updateArray(myContent.anonComments),
+    myLikes: {
+      ...myContent.myLikes,
+      comments: includeReactionLists ? updateArray(myContent.myLikes.comments) : myContent.myLikes.comments,
+    },
+    myBookmarks: {
+      ...myContent.myBookmarks,
+      comments: includeReactionLists ? updateArray(myContent.myBookmarks.comments) : myContent.myBookmarks.comments,
+    },
+  };
+}
 
 export function usePosts() {
   return useQuery({
@@ -74,8 +166,8 @@ export function useDeletePost() {
 export function useCreateComment(postId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ content, isAnonymous }: { content: string; isAnonymous?: boolean }) =>
-      forumService.createComment(postId, content, isAnonymous),
+    mutationFn: ({ content, isAnonymous, parentId }: { content: string; isAnonymous?: boolean; parentId?: string }) =>
+      forumService.createComment(postId, content, isAnonymous, parentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
@@ -103,6 +195,7 @@ export function useDeleteComment(postId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
 }
@@ -191,45 +284,47 @@ export function useLikeComment(postId: string) {
     mutationFn: (commentId: string) => forumService.likeComment(commentId),
     onMutate: async (commentId) => {
       await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+
       queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
-        old?.map((c) => {
-          if (c.id === commentId) {
-            return { ...c, liked: !c.liked, likes: c.liked ? Math.max(0, c.likes - 1) : c.likes + 1 };
-          }
-          if (c.replies?.some((r) => r.id === commentId)) {
-            return {
-              ...c,
-              replies: c.replies.map((r) =>
-                r.id === commentId ? { ...r, liked: !r.liked, likes: r.liked ? Math.max(0, r.likes - 1) : r.likes + 1 } : r
-              ),
-            };
-          }
-          return c;
-        })
+        updateCommentTreeById(old, commentId, (node) => ({
+          ...node,
+          liked: !node.liked,
+          likes: node.liked ? Math.max(0, node.likes - 1) : node.likes + 1,
+        }))
       );
-      return { previous };
+      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+        updateMyContentCommentById(old, commentId, (item) => ({
+          ...item,
+          liked: !item.liked,
+          likes: item.liked ? Math.max(0, item.likes - 1) : item.likes + 1,
+        }), { includeReactionLists: false })
+      );
+      return { previous, previousMyContent };
     },
     onSuccess: (res, commentId) => {
       if (typeof res.likeCount === 'number') {
         queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
-          old?.map((c) => {
-            if (c.id === commentId) return { ...c, liked: res.liked, likes: res.likeCount! };
-            if (c.replies?.some((r) => r.id === commentId)) {
-              return {
-                ...c,
-                replies: c.replies.map((r) =>
-                  r.id === commentId ? { ...r, liked: res.liked, likes: res.likeCount! } : r
-                ),
-              };
-            }
-            return c;
-          })
+          updateCommentTreeById(old, commentId, (node) => ({
+            ...node,
+            liked: res.liked,
+            likes: res.likeCount!,
+          }))
+        );
+        queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+          updateMyContentCommentById(old, commentId, (item) => ({
+            ...item,
+            liked: res.liked,
+            likes: res.likeCount!,
+          }), { includeReactionLists: true })
         );
       }
     },
     onError: (_err, _commentId, context) => {
       if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+      if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
@@ -272,27 +367,35 @@ export function useBookmarkComment(postId: string) {
     mutationFn: (commentId: string) => forumService.bookmarkComment(commentId),
     onMutate: async (commentId) => {
       await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+
       queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
-        old?.map((c) => {
-          if (c.id === commentId) {
-            return { ...c, bookmarked: !c.bookmarked };
-          }
-          if (c.replies?.some((r) => r.id === commentId)) {
-            return {
-              ...c,
-              replies: c.replies.map((r) =>
-                r.id === commentId ? { ...r, bookmarked: !r.bookmarked } : r
-              ),
-            };
-          }
-          return c;
-        })
+        updateCommentTreeById(old, commentId, (node) => ({
+          ...node,
+          bookmarked: !node.bookmarked,
+        }))
       );
-      return { previous };
+      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+        updateMyContentCommentById(old, commentId, (item) => ({
+          ...item,
+          bookmarked: !item.bookmarked,
+        }), { includeReactionLists: false })
+      );
+      return { previous, previousMyContent };
+    },
+    onSuccess: (res, commentId) => {
+      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+        updateMyContentCommentById(old, commentId, (item) => ({
+          ...item,
+          bookmarked: res.bookmarked,
+        }), { includeReactionLists: true })
+      );
     },
     onError: (_err, _commentId, context) => {
       if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+      if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
