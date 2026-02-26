@@ -3,6 +3,7 @@ import { Gender } from './common';
 export type ErrandCategory = 'pickup' | 'buy' | 'other';
 
 export interface Errand {
+  id: string;
   category: ErrandCategory;
   type: string;
   title: string;
@@ -17,6 +18,8 @@ export interface Errand {
   avatar: string;
   gender: Gender;
   bio: string;
+  gradeKey?: string;
+  majorKey?: string;
   expired: boolean;
   expiresAt: string;
   createdAt: string;

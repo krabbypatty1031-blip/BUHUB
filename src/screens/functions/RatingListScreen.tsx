@@ -107,14 +107,14 @@ export default function RatingListScreen({ navigation, route }: Props) {
   }, []);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: RatingItem; index: number }) => {
+    ({ item }: { item: RatingItem }) => {
       const topTags = getTopTags(item);
       return (
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
           onPress={() =>
-            navigation.navigate('RatingDetail', { category, index })
+            navigation.navigate('RatingDetail', { category, id: item.id })
           }
         >
           <View style={styles.cardHeader}>
@@ -196,7 +196,7 @@ export default function RatingListScreen({ navigation, route }: Props) {
         <FlashList
           data={filteredRatings}
           renderItem={renderItem}
-          keyExtractor={(_, index) => String(index)}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshing={isLoading}
           onRefresh={refetch}

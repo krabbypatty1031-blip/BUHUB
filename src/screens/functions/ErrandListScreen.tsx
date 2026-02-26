@@ -22,7 +22,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { getRelativeTime } from '../../utils/formatTime';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   PlusIcon,
@@ -30,6 +30,8 @@ import {
   TruckIcon,
   MoreHorizontalIcon,
   MessageIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandList'>;
@@ -75,46 +77,62 @@ export default function ErrandListScreen({ navigation }: Props) {
   );
 
   const handleDmPoster = useCallback(
-    (item: Errand, itemIndex: number) => {
+    (item: Errand, functionId: string) => {
       if (!item.authorId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'errand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: {
+          contactId: item.authorId,
+          contactName: item.user,
+          contactAvatar: item.avatar,
+          forwardedType: 'errand',
+          forwardedTitle: item.title,
+          forwardedPosterName: item.user,
+          forwardedId: functionId,
+        },
       });
     },
     [navigation]
   );
 
   // Action menu state (ellipsis popover)
-  const [actionItem, setActionItem] = useState<{ post: Errand; index: number } | null>(null);
+  const [actionItem, setActionItem] = useState<{ post: Errand; id: string } | null>(null);
   // Forward sheet state (contact picker)
-  const [shareSheetItem, setShareSheetItem] = useState<{ post: Errand; index: number } | null>(null);
+  const [shareSheetItem, setShareSheetItem] = useState<{ post: Errand; id: string } | null>(null);
 
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
-      const index = errands?.indexOf(item) ?? 0;
-      const isAccepted = acceptedErrands.has(index);
+      const isAccepted = acceptedErrands.has(item.id);
+      const displayMeta = buildPostMeta(t, lang, {
+        gradeKey: item.gradeKey,
+        majorKey: item.majorKey,
+        createdAt: item.createdAt,
+      });
       return (
         <TouchableOpacity
           style={[styles.card, item.expired && styles.cardExpired]}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('ErrandDetail', { index })}
+          onPress={() => navigation.navigate('ErrandDetail', { id: item.id })}
         >
           {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
-            <Avatar text={item.avatar} size="md" gender={item.gender} />
+            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
-              <View style={styles.nameTimeRow}>
+              <View style={styles.nameRow}>
                 <Text style={styles.userName}>{item.user}</Text>
+                {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.timeMeta}>{getRelativeTime(item.createdAt, lang)}</Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {displayMeta}
+                </Text>
               </View>
             </View>
             {!item.expired && (
               <TouchableOpacity
                 style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setActionItem({ post: item, index })}
+                onPress={() => setActionItem({ post: item, id: item.id })}
               >
                 <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
@@ -148,7 +166,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         </TouchableOpacity>
       );
     },
-    [acceptedErrands, errands, navigation, t, lang]
+    [acceptedErrands, navigation, t, lang]
   );
 
   return (
@@ -180,7 +198,7 @@ export default function ErrandListScreen({ navigation }: Props) {
       <FlatList
         data={errands}
         renderItem={renderItem}
-        keyExtractor={(_, index) => String(index)}
+        keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
@@ -237,7 +255,7 @@ export default function ErrandListScreen({ navigation }: Props) {
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
-                if (a) handleDmPoster(a.post, a.index);
+                if (a) handleDmPoster(a.post, a.id);
               }}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
@@ -256,14 +274,14 @@ export default function ErrandListScreen({ navigation }: Props) {
         functionType="errand"
         functionTitle={shareSheetItem?.post.title ?? ''}
         functionPosterName={shareSheetItem?.post.user ?? ''}
-        functionIndex={shareSheetItem?.index ?? 0}
+        functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
     </SafeAreaView>
   );
 }
 
-const AVATAR_SIZE = 40; // md
+const AVATAR_SIZE = 32; // sm
 const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
@@ -333,9 +351,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: AVATAR_GAP,
   },
-  nameTimeRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   userName: {
     ...typography.titleSmall,
@@ -346,9 +365,10 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },
-  timeMeta: {
+  meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
   moreBtn: {
     width: 32,

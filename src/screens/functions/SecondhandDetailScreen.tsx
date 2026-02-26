@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { useSecondhand, useWantSecondhand } from '../../hooks/useSecondhand';
+import { useSecondhandDetail, useWantSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
@@ -21,6 +21,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -29,22 +30,24 @@ import {
   HeartIcon,
   AlertTriangleIcon,
   MoreHorizontalIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandDetail'>;
 
 export default function SecondhandDetailScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { width: screenWidth } = useWindowDimensions();
-  const { index } = route.params;
-  const { data: items } = useSecondhand();
+  const { id } = route.params;
+  const { data: item } = useSecondhandDetail(id);
   const wantedItems = useSecondhandStore((s) => s.wantedItems);
   const toggleWant = useSecondhandStore((s) => s.toggleWant);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
 
-  const item = items?.[index];
-  const isWanted = wantedItems.has(index);
+  const isWanted = wantedItems.has(id);
   const isSold = item?.sold ?? false;
   const isExpired = item ? item.expired && !item.sold : false;
   const isDisabled = isSold || isExpired;
@@ -57,19 +60,27 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     if (!item?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: index },
+      params: {
+        contactId: item.authorId,
+        contactName: item.user,
+        contactAvatar: item.avatar,
+        forwardedType: 'secondhand',
+        forwardedTitle: item.title,
+        forwardedPosterName: item.user,
+        forwardedId: item.id,
+      },
     });
-  }, [navigation, item, index]);
+  }, [navigation, item]);
 
   const handleWant = useCallback(() => {
-    toggleWant(index);
-    wantMutation.mutate(String(index));
+    toggleWant(id);
+    wantMutation.mutate(id);
     if (!isWanted) {
       showSnackbar({ message: t('notifiedSeller'), type: 'info' });
     } else {
       showSnackbar({ message: t('wantCancelled'), type: 'info' });
     }
-  }, [toggleWant, index, isWanted, showSnackbar, t, wantMutation]);
+  }, [toggleWant, id, isWanted, showSnackbar, t, wantMutation]);
 
   if (!item) {
     return (
@@ -88,6 +99,10 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       </SafeAreaView>
     );
   }
+
+  const sellerMeta = buildPostMeta(t, lang, {
+    createdAt: item.createdAt,
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,7 +147,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Hero Image ── */}
+        {/* 鈹€鈹€ Hero Image 鈹€鈹€ */}
         <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isDisabled && styles.heroImageDimmed]}>
           <ShoppingBagIcon size={56} color={colors.outlineVariant} />
 
@@ -158,7 +173,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {/* ── Price & Title ── */}
+        {/* 鈹€鈹€ Price & Title 鈹€鈹€ */}
         <View style={styles.headerSection}>
           <Text style={styles.price}>{item.price}</Text>
           <Text style={styles.title}>{item.title}</Text>
@@ -187,7 +202,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Description ── */}
+        {/* 鈹€鈹€ Description 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{item.desc}</Text>
@@ -195,7 +210,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Trade Location ── */}
+        {/* 鈹€鈹€ Trade Location 鈹€鈹€ */}
         {item.location ? (
           <>
             <View style={styles.section}>
@@ -211,29 +226,32 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           </>
         ) : null}
 
-        {/* ── Seller ── */}
+        {/* 鈹€鈹€ Seller 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('sellerLabel')}</Text>
           <View style={styles.sellerRow}>
-            <Avatar text={item.avatar} size="lg" gender={item.gender} />
+            <Avatar text={item.user} uri={item.avatar} size="lg" gender={item.gender} />
             <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>{item.user}</Text>
-              <Text style={styles.sellerBio} numberOfLines={1}>
-                {item.bio}
-              </Text>
+              <View style={styles.sellerNameRow}>
+                <Text style={styles.sellerName}>{item.user}</Text>
+                {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.meta} numberOfLines={1}>{sellerMeta}</Text>
+              </View>
             </View>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        {/* ── Disclaimer ── */}
+        {/* 鈹€鈹€ Disclaimer 鈹€鈹€ */}
         <View style={styles.disclaimerSection}>
           <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
-        {/* ── Action Bar ── */}
+        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
         <View style={[styles.actionBar, isDisabled && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={[styles.wantButton, isWanted && styles.wantedButton]}
@@ -269,7 +287,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         onClose={() => setReportVisible(false)}
         onSubmit={async (reason) => {
           try {
-            await reportService.submit({ targetType: 'post', targetId: String(index), reason });
+            await reportService.submit({ targetType: 'function', targetId: item.id, reason });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -285,7 +303,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         functionType="secondhand"
         functionTitle={item.title}
         functionPosterName={item.user}
-        functionIndex={index}
+        functionId={item.id}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -298,7 +316,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* ── Top Bar ── */
+  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -320,7 +338,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ── Empty ── */
+  /* 鈹€鈹€ Empty 鈹€鈹€ */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -336,7 +354,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* ── Hero Image ── */
+  /* 鈹€鈹€ Hero Image 鈹€鈹€ */
   heroImage: {
     backgroundColor: colors.surface2,
     alignItems: 'center',
@@ -385,7 +403,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* ── Header: Price & Title ── */
+  /* 鈹€鈹€ Header: Price & Title 鈹€鈹€ */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -439,7 +457,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  /* ── Shared ── */
+  /* 鈹€鈹€ Shared 鈹€鈹€ */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -457,14 +475,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* ── Description ── */
+  /* 鈹€鈹€ Description 鈹€鈹€ */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* ── Location ── */
+  /* 鈹€鈹€ Location 鈹€鈹€ */
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -485,7 +503,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* ── Seller ── */
+  /* 鈹€鈹€ Seller 鈹€鈹€ */
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -493,19 +511,27 @@ const styles = StyleSheet.create({
   sellerInfo: {
     flex: 1,
     marginLeft: spacing.md,
-    gap: spacing.xxs,
+  },
+  sellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   sellerName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  sellerBio: {
+  timeDot: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    lineHeight: 18,
+  },
+  meta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
 
-  /* ── Disclaimer ── */
+  /* 鈹€鈹€ Disclaimer 鈹€鈹€ */
   disclaimerSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -521,7 +547,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ── Action Bar ── */
+  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -572,7 +598,7 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  /* ── Popover ── */
+  /* 鈹€鈹€ Popover 鈹€鈹€ */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,
@@ -608,3 +634,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+

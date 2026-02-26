@@ -102,6 +102,44 @@ export function usePosts() {
   });
 }
 
+export function useCircleFollow(tag: string) {
+  return useQuery({
+    queryKey: ['circleFollow', tag],
+    queryFn: () => forumService.getCircleFollow(tag),
+    enabled: tag.length > 0,
+  });
+}
+
+export function useToggleCircleFollow(tag: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => forumService.toggleCircleFollow(tag),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['circleFollow', tag] });
+      const previous = queryClient.getQueryData<{ tag: string; followerCount: number; followed: boolean }>(['circleFollow', tag]);
+      if (previous) {
+        queryClient.setQueryData(['circleFollow', tag], {
+          ...previous,
+          followed: !previous.followed,
+          followerCount: Math.max(0, previous.followerCount + (previous.followed ? -1 : 1)),
+        });
+      }
+      return { previous };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['circleFollow', tag], data);
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['circleFollow', tag], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['circleFollow', tag] });
+    },
+  });
+}
+
 export function usePostDetail(postId: string) {
   return useQuery({
     queryKey: ['post', postId],
@@ -131,7 +169,7 @@ export function useSearch(query: string) {
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[]; images?: string[]; quotedPostId?: string }) =>
+    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[]; images?: string[]; quotedPostId?: string; functionType?: string; functionId?: string; functionTitle?: string }) =>
       forumService.createPost(post),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });

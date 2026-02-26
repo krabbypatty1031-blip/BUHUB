@@ -57,6 +57,11 @@ export interface UserPost {
   isPoll?: boolean;
   pollOptions?: PollOption[];
   myVote?: { id: string; optionId: string; createdAt: string };
+  isFunction?: boolean;
+  functionType?: 'partner' | 'errand' | 'secondhand' | 'rating';
+  functionId?: string;
+  functionIndex?: number;
+  functionTitle?: string;
   quotedPost?: {
     id: string;
     name: string;
@@ -165,6 +170,8 @@ export interface Contact {
   id: string; // userId for API calls
   name: string;
   avatar: string;
+  grade?: string;
+  major?: string;
   message: string;
   time: string;
   unread: number;

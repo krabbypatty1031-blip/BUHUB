@@ -48,43 +48,55 @@ export default function NotifyLikesScreen({ navigation }: Props) {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: LikeNotification }) => (
-      <View style={styles.notificationItem}>
-        <TouchableOpacity onPress={() => handleAvatarPress(item.user)}>
-          <Avatar
-            text={item.user}
-            uri={item.avatar || null}
-            size="md"
-            gender={item.gender}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.notificationContent}
-          activeOpacity={0.7}
-          onPress={() => handleContentPress(item)}
-        >
-          <View style={styles.notificationHeader}>
-            <Text style={styles.notificationUser} numberOfLines={1}>
-              {item.user}
-            </Text>
-            <Text style={styles.notificationTime}>{item.time}</Text>
-          </View>
-          <View style={styles.actionRow}>
-            <HeartIcon size={14} color={colors.error} fill={colors.error} />
-            <Text style={styles.notificationAction}>
-              {t(item.action) || 'liked your post'}
-            </Text>
-          </View>
-          {item.content ? (
-            <View style={styles.previewContainer}>
-              <Text style={styles.previewText} numberOfLines={2}>
-                {item.content}
+    ({ item }: { item: LikeNotification }) => {
+      const profileMeta = [item.major, item.grade]
+        .filter((value): value is string => !!value && value.trim().length > 0)
+        .map((value) => t(value, { defaultValue: value }))
+        .join(' · ');
+
+      return (
+        <View style={styles.notificationItem}>
+          <TouchableOpacity onPress={() => handleAvatarPress(item.user)}>
+            <Avatar
+              text={item.user}
+              uri={item.avatar || null}
+              size="md"
+              gender={item.gender}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.notificationContent}
+            activeOpacity={0.7}
+            onPress={() => handleContentPress(item)}
+          >
+            <View style={styles.notificationHeader}>
+              <Text style={styles.notificationUser} numberOfLines={1}>
+                {item.user}
+              </Text>
+              <Text style={styles.notificationTime}>{item.time}</Text>
+            </View>
+            {!!profileMeta && (
+              <Text style={styles.notificationMeta} numberOfLines={1}>
+                {profileMeta}
+              </Text>
+            )}
+            <View style={styles.actionRow}>
+              <HeartIcon size={14} color={colors.error} fill={colors.error} />
+              <Text style={styles.notificationAction}>
+                {t(item.action) || 'liked your post'}
               </Text>
             </View>
-          ) : null}
-        </TouchableOpacity>
-      </View>
-    ),
+            {item.content ? (
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewText} numberOfLines={2}>
+                  {item.content}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        </View>
+      );
+    },
     [t, handleAvatarPress, handleContentPress]
   );
 
@@ -198,6 +210,11 @@ const styles = StyleSheet.create({
   notificationTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+  },
+  notificationMeta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.xxs,
   },
   actionRow: {
     flexDirection: 'row',

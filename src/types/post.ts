@@ -30,6 +30,7 @@ export interface ForumPost {
   myVote?: { id: string; optionId: string; createdAt: string };
   isFunction?: boolean;
   functionType?: 'partner' | 'errand' | 'secondhand' | 'rating';
+  functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
   quotedPost?: {

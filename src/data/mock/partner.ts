@@ -16,6 +16,7 @@ const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString
 
 export const mockPartnerPosts: PartnerPost[] = [
   {
+    id: 'partner-1',
     category: 'travel',
     type: '旅遊',
     title: '週末想去大澳一日遊',
@@ -32,6 +33,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     createdAt: twoHoursAgo,
   },
   {
+    id: 'partner-2',
     category: 'food',
     type: '食飯',
     title: '一齊去試新開嘅日式拉麵店',
@@ -48,6 +50,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     createdAt: thirtyMinAgo,
   },
   {
+    id: 'partner-3',
     category: 'course',
     type: '課程',
     title: '搵人一齊溫 COMP3015 Final',
@@ -63,6 +66,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     createdAt: threeDaysAgo,
   },
   {
+    id: 'partner-4',
     category: 'sports',
     type: '運動',
     title: '週末打羽毛球',
@@ -79,6 +83,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     createdAt: fiveHoursAgo,
   },
   {
+    id: 'partner-5',
     category: 'food',
     type: '食飯',
     title: '搵人一齊食火鍋',
@@ -94,6 +99,7 @@ export const mockPartnerPosts: PartnerPost[] = [
     createdAt: oneHourAgo,
   },
   {
+    id: 'partner-6',
     category: 'course',
     type: '課程',
     title: '搵人一齊做 COMP2012 Project',

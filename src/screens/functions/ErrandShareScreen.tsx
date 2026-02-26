@@ -6,7 +6,7 @@ import FunctionShareLayout from '../../components/common/FunctionShareLayout';
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandShare'>;
 
 export default function ErrandShareScreen({ navigation, route }: Props) {
-  const { taskName, posterName, index } = route.params;
+  const { taskName, posterName, functionId } = route.params;
 
   return (
     <FunctionShareLayout
@@ -17,7 +17,7 @@ export default function ErrandShareScreen({ navigation, route }: Props) {
       functionType="errand"
       functionTitle={taskName}
       posterName={posterName}
-      index={index}
+      functionId={functionId}
     />
   );
 }

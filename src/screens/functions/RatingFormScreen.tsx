@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingItem, ScoreDimension } from '../../types';
-import { useRatings, useSubmitRating, useRatingDimensions, useRatingTagOptions } from '../../hooks/useRatings';
+import { useRatingDetail, useSubmitRating, useRatingDimensions, useRatingTagOptions } from '../../hooks/useRatings';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { translateLabel } from '../../utils/translate';
@@ -88,11 +88,11 @@ function CustomSlider({
 export default function RatingFormScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { category, index } = route.params;
-  const { data: ratings, isLoading } = useRatings(category);
+  const { category, id } = route.params;
+  const { data: item, isLoading } = useRatingDetail(category, id);
   const { data: dimensions } = useRatingDimensions(category);
   const { data: tagOptions } = useRatingTagOptions(category);
-  const submitRating = useSubmitRating(category, String(index));
+  const submitRating = useSubmitRating(category, id);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { tabBarTranslateY } = useTabBarAnimation();
@@ -106,8 +106,6 @@ export default function RatingFormScreen({ navigation, route }: Props) {
     }, [tabBarTranslateY])
   );
 
-  const item: RatingItem | undefined = ratings?.[index];
-
   const dimensionMap = useMemo(() => {
     if (!dimensions) return {};
     const map: Record<string, ScoreDimension> = {};
@@ -115,16 +113,19 @@ export default function RatingFormScreen({ navigation, route }: Props) {
     return map;
   }, [dimensions]);
 
-  const [scores, setScores] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = {};
-    if (item) {
-      item.scores.forEach((s) => { initial[s.key] = 50; });
-    }
-    return initial;
-  });
+  const [scores, setScores] = useState<Record<string, number>>({});
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+
+  useEffect(() => {
+    if (!item) return;
+    const initial: Record<string, number> = {};
+    item.scores.forEach((s) => {
+      initial[s.key] = 50;
+    });
+    setScores(initial);
+  }, [item?.id]);
 
   const handleScoreChange = useCallback((key: string, value: number) => {
     setScores((prev) => ({ ...prev, [key]: value }));

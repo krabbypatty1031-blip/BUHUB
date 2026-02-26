@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -36,8 +36,10 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const bookmarkPostMutation = useBookmarkPost();
   const votePostMutation = useVotePost();
   const currentUser = useAuthStore((s) => s.user);
-  const [followed, setFollowed] = useState(false);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const { data: circleFollow } = useCircleFollow(tag);
+  const toggleCircleFollowMutation = useToggleCircleFollow(tag);
+  const followed = circleFollow?.followed ?? false;
 
   // tag is an i18n key (e.g., "tagTreehole") — translate to current locale
   const displayName = useMemo(() => {
@@ -50,6 +52,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     () => allPosts?.filter((p) => p.tags?.includes(tag) && !isBlocked(p.name)) ?? [],
     [allPosts, tag, blockedUsers, isBlocked]
   );
+  const followerCount = circleFollow?.followerCount ?? 0;
 
   const renderHeader = useCallback(
     () => (
@@ -70,17 +73,14 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         <View style={styles.circleFooter}>
           <View style={styles.circleStats}>
             <View style={styles.circleStat}>
-              <Text style={styles.circleStatNum}>{posts.length * 23}</Text>
+              <Text style={styles.circleStatNum}>{followerCount}</Text>
               <Text style={styles.circleStatLabel}>{t('fans')}</Text>
-            </View>
-            <View style={styles.circleStat}>
-              <Text style={styles.circleStatNum}>{posts.length * 156}</Text>
-              <Text style={styles.circleStatLabel}>{t('receivedLikes')}</Text>
             </View>
           </View>
           <TouchableOpacity
             style={[styles.followBtn, followed && styles.followBtnActive]}
-            onPress={() => setFollowed(!followed)}
+            onPress={() => toggleCircleFollowMutation.mutate()}
+            disabled={toggleCircleFollowMutation.isPending}
           >
             <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
               {followed ? t('alreadyFollowed') : `+ ${t('follow')}`}
@@ -89,7 +89,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     ),
-    [displayName, posts.length, followed, t]
+    [displayName, followerCount, followed, t, toggleCircleFollowMutation]
   );
 
   const handleTagPress = useCallback(
@@ -136,21 +136,23 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
 
   const handleFunctionPress = useCallback(
     (post: ForumPost) => {
-      if (!post.functionType || post.functionIndex == null) return;
+      const functionId =
+        post.functionId ?? (post.functionIndex != null ? String(post.functionIndex) : undefined);
+      if (!post.functionType || !functionId) return;
       const nav = navigation.getParent();
       if (!nav) return;
       switch (post.functionType) {
         case 'partner':
-          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
           break;
         case 'errand':
-          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
           break;
         case 'secondhand':
-          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
           break;
         case 'rating':
-          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
           break;
       }
     },

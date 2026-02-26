@@ -13,6 +13,7 @@ const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString
 
 export const mockSecondhandItems: SecondhandItem[] = [
   {
+    id: 'secondhand-1',
     category: 'electronics',
     type: '電子產品',
     title: 'MacBook Pro 2021 14寸',
@@ -31,6 +32,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     createdAt: tenMinAgo,
   },
   {
+    id: 'secondhand-2',
     category: 'books',
     type: '書籍教材',
     title: 'COMP1001 教科書',
@@ -48,6 +50,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     createdAt: fourHoursAgo,
   },
   {
+    id: 'secondhand-3',
     category: 'furniture',
     type: '家具生活',
     title: '枱燈 LED 護眼',
@@ -66,6 +69,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     createdAt: threeDaysAgo,
   },
   {
+    id: 'secondhand-4',
     category: 'electronics',
     type: '電子產品',
     title: 'iPad Air 5 WiFi 64GB',
@@ -83,6 +87,7 @@ export const mockSecondhandItems: SecondhandItem[] = [
     createdAt: oneHourAgo,
   },
   {
+    id: 'secondhand-5',
     category: 'books',
     type: '書籍教材',
     title: 'COMP2012 Data Structures 教科書',

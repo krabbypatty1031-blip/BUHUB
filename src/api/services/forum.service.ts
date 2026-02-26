@@ -4,8 +4,81 @@ import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '
 import { generateAnonymousIdentity } from '../../lib/anonymous';
 
 const USE_MOCK = false;
+const FUNCTION_REF_PREFIX = '[FUNC_REF]';
+
+type FunctionRefType = 'partner' | 'errand' | 'secondhand' | 'rating';
+
+type FunctionRefPayload = {
+  type: FunctionRefType;
+  id: string;
+  title: string;
+};
+
+function encodeFunctionRef(
+  content: string,
+  ref?: { functionType?: string; functionId?: string; functionTitle?: string }
+) {
+  if (!ref?.functionType || !ref.functionId || !ref.functionTitle) return content;
+  const payload: FunctionRefPayload = {
+    type: ref.functionType as FunctionRefType,
+    id: ref.functionId,
+    title: ref.functionTitle,
+  };
+  return `${FUNCTION_REF_PREFIX}${JSON.stringify(payload)}\n${content}`;
+}
+
+function parseFunctionRef(content: string): {
+  content: string;
+  isFunction?: true;
+  functionType?: FunctionRefType;
+  functionId?: string;
+  functionTitle?: string;
+} {
+  if (!content.startsWith(FUNCTION_REF_PREFIX)) {
+    return { content };
+  }
+
+  const newlineIndex = content.indexOf('\n');
+  if (newlineIndex < 0) return { content };
+
+  const raw = content.slice(FUNCTION_REF_PREFIX.length, newlineIndex);
+  const parsedContent = content.slice(newlineIndex + 1);
+  try {
+    const payload = JSON.parse(raw) as FunctionRefPayload;
+    if (!payload?.type || !payload?.id || !payload?.title) {
+      return { content: parsedContent };
+    }
+    return {
+      content: parsedContent,
+      isFunction: true,
+      functionType: payload.type,
+      functionId: payload.id,
+      functionTitle: payload.title,
+    };
+  } catch {
+    return { content: parsedContent };
+  }
+}
 
 export const forumService = {
+  async getCircleFollow(tag: string): Promise<{ tag: string; followerCount: number; followed: boolean }> {
+    const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLE_FOLLOW(tag));
+    return {
+      tag: data?.tag ?? tag,
+      followerCount: Number(data?.followerCount ?? 0),
+      followed: !!data?.followed,
+    };
+  },
+
+  async toggleCircleFollow(tag: string): Promise<{ tag: string; followerCount: number; followed: boolean }> {
+    const { data } = await apiClient.post(ENDPOINTS.FORUM.CIRCLE_FOLLOW(tag));
+    return {
+      tag: data?.tag ?? tag,
+      followerCount: Number(data?.followerCount ?? 0),
+      followed: !!data?.followed,
+    };
+  },
+
   async getPosts(params?: PaginationParams): Promise<ForumPost[]> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
@@ -21,8 +94,10 @@ export const forumService = {
         percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
       }));
       const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+      const functionRef = parseFunctionRef(p.content ?? '');
       return {
         ...p,
+        ...functionRef,
         gradeKey: p.gradeKey ?? author.grade,
         majorKey: p.majorKey ?? author.major,
         pollOptions,
@@ -48,10 +123,12 @@ export const forumService = {
       percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
     })) ?? undefined;
     const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+    const functionRef = parseFunctionRef(p.content ?? '');
     // Generate consistent anonymous identity based on author ID
     const anonIdentity = p.isAnonymous && author.id ? generateAnonymousIdentity(author.id) : null;
     return {
       ...p,
+      ...functionRef,
       name: anonIdentity ? anonIdentity.name : (author.nickname ?? '?'),
       avatar: anonIdentity ? anonIdentity.avatar : (author.avatar ?? ''),
       gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
@@ -143,6 +220,9 @@ export const forumService = {
     pollOptions?: string[];
     images?: string[];
     quotedPostId?: string;
+    functionType?: string;
+    functionId?: string;
+    functionTitle?: string;
   }): Promise<ForumPost> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
@@ -164,9 +244,14 @@ export const forumService = {
       return newPost;
     }
     const postType = post.pollOptions?.length ? 'poll' : post.images?.length ? 'image-text' : 'text';
+    const content = encodeFunctionRef(post.content, {
+      functionType: post.functionType,
+      functionId: post.functionId,
+      functionTitle: post.functionTitle,
+    });
     const { data } = await apiClient.post(ENDPOINTS.FORUM.POSTS, {
       postType,
-      content: post.content,
+      content,
       images: post.images ?? [],
       tags: post.tags ?? [],
       isAnonymous: post.isAnonymous ?? false,
@@ -306,7 +391,8 @@ export const forumService = {
         percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
       }));
       const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
-      return pollOptions ? { ...p, pollOptions, isPoll } : { ...p, isPoll };
+      const functionRef = parseFunctionRef(p.content ?? '');
+      return pollOptions ? { ...p, ...functionRef, pollOptions, isPoll } : { ...p, ...functionRef, isPoll };
     });
   },
 };

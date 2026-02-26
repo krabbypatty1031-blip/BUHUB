@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { usePartners } from '../../hooks/usePartners';
+import { usePartnerDetail } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
@@ -19,6 +19,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   UsersIcon,
@@ -26,15 +27,17 @@ import {
   MapPinIcon,
   MessageIcon,
   MoreHorizontalIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;
 
 export default function PartnerDetailScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
-  const { index } = route.params;
-  const { data: partners } = usePartners();
-  const partner = partners?.[index];
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
+  const { id } = route.params;
+  const { data: partner } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
@@ -44,9 +47,17 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     if (!partner?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactId: partner.authorId, contactName: partner.user, contactAvatar: partner.avatar, forwardedType: 'partner', forwardedTitle: partner.title, forwardedPosterName: partner.user, forwardedIndex: index },
+      params: {
+        contactId: partner.authorId,
+        contactName: partner.user,
+        contactAvatar: partner.avatar,
+        forwardedType: 'partner',
+        forwardedTitle: partner.title,
+        forwardedPosterName: partner.user,
+        forwardedId: partner.id,
+      },
     });
-  }, [navigation, partner, index]);
+  }, [navigation, partner]);
 
   if (!partner) {
     return (
@@ -65,6 +76,12 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       </SafeAreaView>
     );
   }
+
+  const organizerMeta = buildPostMeta(t, lang, {
+    gradeKey: partner.gradeKey,
+    majorKey: partner.majorKey,
+    createdAt: partner.createdAt,
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -110,7 +127,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Header: Title & Tags ── */}
+        {/* 鈹€鈹€ Header: Title & Tags 鈹€鈹€ */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
             <View style={styles.tag}>
@@ -130,7 +147,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Description ── */}
+        {/* 鈹€鈹€ Description 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{partner.desc}</Text>
@@ -138,7 +155,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Time ── */}
+        {/* 鈹€鈹€ Time 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('activityTime')}</Text>
           <View style={styles.detailRow}>
@@ -151,7 +168,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Location ── */}
+        {/* 鈹€鈹€ Location 鈹€鈹€ */}
         {partner.location ? (
           <>
             <View style={styles.section}>
@@ -167,21 +184,24 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           </>
         ) : null}
 
-        {/* ── Organizer ── */}
+        {/* 鈹€鈹€ Organizer 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('organizer')}</Text>
           <View style={styles.organizerRow}>
-            <Avatar text={partner.avatar} size="lg" gender={partner.gender} />
+            <Avatar text={partner.user} uri={partner.avatar} size="lg" gender={partner.gender} />
             <View style={styles.organizerInfo}>
-              <Text style={styles.organizerName}>{partner.user}</Text>
-              <Text style={styles.organizerBio} numberOfLines={1}>
-                {partner.bio}
-              </Text>
+              <View style={styles.organizerNameRow}>
+                <Text style={styles.organizerName}>{partner.user}</Text>
+                {partner.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {partner.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.meta} numberOfLines={1}>{organizerMeta}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* ── Action Bar ── */}
+        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
         <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={styles.dmButton}
@@ -202,7 +222,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         onClose={() => setReportVisible(false)}
         onSubmit={async (reason) => {
           try {
-            await reportService.submit({ targetType: 'post', targetId: String(index), reason });
+            await reportService.submit({ targetType: 'function', targetId: partner.id, reason });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -218,7 +238,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         functionType="partner"
         functionTitle={partner.title}
         functionPosterName={partner.user}
-        functionIndex={index}
+        functionId={partner.id}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -231,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* ── Top Bar ── */
+  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -253,7 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ── Empty ── */
+  /* 鈹€鈹€ Empty 鈹€鈹€ */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -269,7 +289,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* ── Header ── */
+  /* 鈹€鈹€ Header 鈹€鈹€ */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -316,7 +336,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
 
-  /* ── Shared ── */
+  /* 鈹€鈹€ Shared 鈹€鈹€ */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -334,14 +354,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* ── Description ── */
+  /* 鈹€鈹€ Description 鈹€鈹€ */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* ── Detail rows ── */
+  /* 鈹€鈹€ Detail rows 鈹€鈹€ */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,7 +383,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* ── Organizer ── */
+  /* 鈹€鈹€ Organizer 鈹€鈹€ */
   organizerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,19 +391,27 @@ const styles = StyleSheet.create({
   organizerInfo: {
     flex: 1,
     marginLeft: spacing.md,
-    gap: spacing.xxs,
+  },
+  organizerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   organizerName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  organizerBio: {
+  timeDot: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    lineHeight: 18,
+  },
+  meta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
 
-  /* ── Action Bar ── */
+  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -408,7 +436,7 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  /* ── Popover ── */
+  /* 鈹€鈹€ Popover 鈹€鈹€ */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,
@@ -444,3 +472,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+

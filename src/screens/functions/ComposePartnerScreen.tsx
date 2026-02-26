@@ -122,8 +122,12 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
         createdAt: new Date().toISOString(),
       },
       {
-        onSuccess: () => {
-          navigation.replace('PartnerShare', { activityName: title, posterName: user.name, index: 0 });
+        onSuccess: (created) => {
+          navigation.replace('PartnerShare', {
+            activityName: title,
+            posterName: user.name,
+            functionId: created.id,
+          });
         },
         onError: () => {
           showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });

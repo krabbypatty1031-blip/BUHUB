@@ -4,6 +4,8 @@ export interface LikeNotification {
   user: string;
   avatar: string;
   gender: Gender;
+  grade?: string;
+  major?: string;
   action: 'likedYourPost' | 'likedYourComment' | 'likedYourReply';
   content: string;
   time: string;

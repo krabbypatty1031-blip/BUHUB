@@ -6,7 +6,7 @@ import FunctionShareLayout from '../../components/common/FunctionShareLayout';
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandShare'>;
 
 export default function SecondhandShareScreen({ navigation, route }: Props) {
-  const { itemName, posterName, index } = route.params;
+  const { itemName, posterName, functionId } = route.params;
 
   return (
     <FunctionShareLayout
@@ -17,7 +17,7 @@ export default function SecondhandShareScreen({ navigation, route }: Props) {
       functionType="secondhand"
       functionTitle={itemName}
       posterName={posterName}
-      index={index}
+      functionId={functionId}
     />
   );
 }

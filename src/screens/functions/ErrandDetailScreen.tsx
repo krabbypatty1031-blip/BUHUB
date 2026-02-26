@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { useErrands } from '../../hooks/useErrands';
+import { useErrandDetail } from '../../hooks/useErrands';
 import { useUIStore } from '../../store/uiStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
@@ -19,6 +19,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   DollarIcon,
@@ -29,15 +30,17 @@ import {
   AlertTriangleIcon,
   TruckIcon,
   MoreHorizontalIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandDetail'>;
 
 export default function ErrandDetailScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
-  const { index } = route.params;
-  const { data: errands } = useErrands();
-  const errand = errands?.[index];
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as 'tc' | 'sc' | 'en';
+  const { id } = route.params;
+  const { data: errand } = useErrandDetail(id);
 
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [popoverVisible, setPopoverVisible] = useState(false);
@@ -48,9 +51,17 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
     if (!errand?.authorId) return;
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
-      params: { contactId: errand.authorId, contactName: errand.user, contactAvatar: errand.avatar, forwardedType: 'errand', forwardedTitle: errand.title, forwardedPosterName: errand.user, forwardedIndex: index },
+      params: {
+        contactId: errand.authorId,
+        contactName: errand.user,
+        contactAvatar: errand.avatar,
+        forwardedType: 'errand',
+        forwardedTitle: errand.title,
+        forwardedPosterName: errand.user,
+        forwardedId: errand.id,
+      },
     });
-  }, [navigation, errand, index]);
+  }, [navigation, errand]);
 
   if (!errand) {
     return (
@@ -69,6 +80,12 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       </SafeAreaView>
     );
   }
+
+  const posterMeta = buildPostMeta(t, lang, {
+    gradeKey: errand.gradeKey,
+    majorKey: errand.majorKey,
+    createdAt: errand.createdAt,
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,7 +130,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Header: Title & Tags ── */}
+        {/* 鈹€鈹€ Header: Title & Tags 鈹€鈹€ */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
             <View style={styles.tag}>
@@ -133,7 +150,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Reward ── */}
+        {/* 鈹€鈹€ Reward 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('reward')}</Text>
           <View style={styles.rewardRow}>
@@ -149,7 +166,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Description ── */}
+        {/* 鈹€鈹€ Description 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{errand.desc}</Text>
@@ -157,7 +174,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Route ── */}
+        {/* 鈹€鈹€ Route 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('pickupLocation')}</Text>
           <View style={styles.routeWrap}>
@@ -188,7 +205,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Details: Item & Deadline ── */}
+        {/* 鈹€鈹€ Details: Item & Deadline 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemLabel')}</Text>
           <View style={styles.detailRow}>
@@ -213,29 +230,32 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ── Poster ── */}
+        {/* 鈹€鈹€ Poster 鈹€鈹€ */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('poster')}</Text>
           <View style={styles.posterRow}>
-            <Avatar text={errand.avatar} size="lg" gender={errand.gender} />
+            <Avatar text={errand.user} uri={errand.avatar} size="lg" gender={errand.gender} />
             <View style={styles.posterInfo}>
-              <Text style={styles.posterName}>{errand.user}</Text>
-              <Text style={styles.posterBio} numberOfLines={1}>
-                {errand.bio}
-              </Text>
+              <View style={styles.posterNameRow}>
+                <Text style={styles.posterName}>{errand.user}</Text>
+                {errand.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {errand.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                <Text style={styles.timeDot}> · </Text>
+                <Text style={styles.meta} numberOfLines={1}>{posterMeta}</Text>
+              </View>
             </View>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        {/* ── Disclaimer ── */}
+        {/* 鈹€鈹€ Disclaimer 鈹€鈹€ */}
         <View style={styles.disclaimerSection}>
           <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
-        {/* ── Action Bar ── */}
+        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
         <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={styles.dmButton}
@@ -256,7 +276,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         onClose={() => setReportVisible(false)}
         onSubmit={async (reason) => {
           try {
-            await reportService.submit({ targetType: 'post', targetId: String(index), reason });
+            await reportService.submit({ targetType: 'function', targetId: errand.id, reason });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -272,7 +292,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         functionType="errand"
         functionTitle={errand.title}
         functionPosterName={errand.user}
-        functionIndex={index}
+        functionId={errand.id}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -285,7 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* ── Top Bar ── */
+  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -307,7 +327,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ── Empty ── */
+  /* 鈹€鈹€ Empty 鈹€鈹€ */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -323,7 +343,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* ── Header ── */
+  /* 鈹€鈹€ Header 鈹€鈹€ */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -370,7 +390,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
 
-  /* ── Shared ── */
+  /* 鈹€鈹€ Shared 鈹€鈹€ */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -388,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* ── Reward ── */
+  /* 鈹€鈹€ Reward 鈹€鈹€ */
   rewardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -409,14 +429,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
   },
 
-  /* ── Description ── */
+  /* 鈹€鈹€ Description 鈹€鈹€ */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* ── Route ── */
+  /* 鈹€鈹€ Route 鈹€鈹€ */
   routeWrap: {
     gap: 0,
   },
@@ -464,7 +484,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* ── Detail rows ── */
+  /* 鈹€鈹€ Detail rows 鈹€鈹€ */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -486,7 +506,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* ── Poster ── */
+  /* 鈹€鈹€ Poster 鈹€鈹€ */
   posterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,19 +514,27 @@ const styles = StyleSheet.create({
   posterInfo: {
     flex: 1,
     marginLeft: spacing.md,
-    gap: spacing.xxs,
+  },
+  posterNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   posterName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  posterBio: {
+  timeDot: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    lineHeight: 18,
+  },
+  meta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
 
-  /* ── Disclaimer ── */
+  /* 鈹€鈹€ Disclaimer 鈹€鈹€ */
   disclaimerSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -522,7 +550,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ── Action Bar ── */
+  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -547,7 +575,7 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 
-  /* ── Popover ── */
+  /* 鈹€鈹€ Popover 鈹€鈹€ */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,
@@ -583,3 +611,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+

@@ -20,6 +20,7 @@ const ENDPOINTS = {
   // Forum (backend: /forum/posts, /comments/:id, /forum/posts/:id/vote)
   FORUM: {
     POSTS: '/forum/posts',
+    CIRCLE_FOLLOW: (tag: string) => `/forum/circles/${encodeURIComponent(tag)}/follow`,
     POST_DETAIL: (id: string) => `/forum/posts/${id}`,
     EDIT_POST: (id: string) => `/forum/posts/${id}`,
     DELETE_POST: (id: string) => `/forum/posts/${id}`,

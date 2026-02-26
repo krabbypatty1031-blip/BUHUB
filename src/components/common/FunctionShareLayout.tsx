@@ -31,8 +31,8 @@ interface FunctionShareLayoutProps {
   functionTitle: string;
   /** Poster name forwarded to DM */
   posterName: string;
-  /** Item index forwarded to forum / DM */
-  index: number;
+  /** Item id forwarded to forum / DM */
+  functionId: string;
 }
 
 export default function FunctionShareLayout({
@@ -43,7 +43,7 @@ export default function FunctionShareLayout({
   functionType,
   functionTitle,
   posterName,
-  index,
+  functionId,
 }: FunctionShareLayoutProps) {
   const { t } = useTranslation();
   const [forwardVisible, setForwardVisible] = useState(false);
@@ -80,7 +80,7 @@ export default function FunctionShareLayout({
             onPress={() => {
               navigation.getParent()?.navigate('ForumTab', {
                 screen: 'Compose',
-                params: { functionType, functionTitle, functionIndex: index },
+                params: { functionType, functionTitle, functionId },
               });
             }}
           >
@@ -113,7 +113,7 @@ export default function FunctionShareLayout({
         functionType={functionType}
         functionTitle={functionTitle}
         functionPosterName={posterName}
-        functionIndex={index}
+        functionId={functionId}
         navigation={navigation}
       />
     </SafeAreaView>

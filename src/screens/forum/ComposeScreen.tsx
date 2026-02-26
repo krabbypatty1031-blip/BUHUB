@@ -55,6 +55,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
     : '';
   const functionType = route.params?.functionType;
   const functionTitle = route.params?.functionTitle;
+  const functionId = route.params?.functionId ?? (route.params?.functionIndex != null ? String(route.params.functionIndex) : undefined);
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
@@ -127,6 +128,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
           pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
           images: type === 'poll' ? [] : imageUrls,
           quotedPostId: quotePostId,
+          functionType,
+          functionId,
+          functionTitle,
         },
         {
           onSuccess: () => {
@@ -145,7 +149,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
       showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
       setIsPosting(false);
     }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t]);
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);
 
   return (
     <SafeAreaView style={styles.container}>

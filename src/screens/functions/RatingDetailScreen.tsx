@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingItem } from '../../types';
-import { useRatings } from '../../hooks/useRatings';
+import { useRatingDetail } from '../../hooks/useRatings';
 import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -44,9 +44,8 @@ function DimensionBar({
 export default function RatingDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { category, index } = route.params;
-  const { data: ratings, isLoading } = useRatings(category);
-  const item: RatingItem | undefined = ratings?.[index];
+  const { category, id } = route.params;
+  const { data: item, isLoading } = useRatingDetail(category, id);
 
   const overallScore = useMemo(() => {
     if (!item) return 0;
@@ -181,7 +180,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
             style={styles.rateButton}
             activeOpacity={0.7}
             onPress={() =>
-              navigation.navigate('RatingForm', { category, index })
+              navigation.navigate('RatingForm', { category, id })
             }
           >
             <StarIcon size={18} color={colors.onPrimary} />

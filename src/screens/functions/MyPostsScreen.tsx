@@ -6,41 +6,41 @@ import {
   StyleSheet,
   FlatList,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerPost, Errand, SecondhandItem } from '../../types';
-import { usePartners } from '../../hooks/usePartners';
-import { useErrands } from '../../hooks/useErrands';
-import { useSecondhand } from '../../hooks/useSecondhand';
+import { usePartners, useDeletePartner } from '../../hooks/usePartners';
+import { useErrands, useDeleteErrand } from '../../hooks/useErrands';
+import { useSecondhand, useDeleteSecondhand } from '../../hooks/useSecondhand';
 import { useAuthStore } from '../../store/authStore';
-import { usePartnerStore } from '../../store/partnerStore';
-import { useErrandStore } from '../../store/errandStore';
-import { useSecondhandStore } from '../../store/secondhandStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { getRelativeTime } from '../../utils/formatTime';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   RepostIcon,
   ShareIcon,
   MoreHorizontalIcon,
   EditIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 import EmptyState from '../../components/common/EmptyState';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'MyPosts'>;
 
 type CardItem =
-  | { kind: 'partner'; data: PartnerPost; index: number }
-  | { kind: 'errand'; data: Errand; index: number }
-  | { kind: 'secondhand'; data: SecondhandItem; index: number };
+  | { kind: 'partner'; data: PartnerPost; id: string }
+  | { kind: 'errand'; data: Errand; id: string }
+  | { kind: 'secondhand'; data: SecondhandItem; id: string };
 
 export default function MyPostsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
@@ -50,13 +50,10 @@ export default function MyPostsScreen({ navigation }: Props) {
   const { data: partners } = usePartners();
   const { data: errands } = useErrands();
   const { data: secondhandItems } = useSecondhand();
-  const closePartner = usePartnerStore((s) => s.closePost);
-  const partnerClosed = usePartnerStore((s) => s.closedPosts);
-  const closeErrand = useErrandStore((s) => s.closePost);
-  const errandClosed = useErrandStore((s) => s.closedPosts);
-  const closeSecondhand = useSecondhandStore((s) => s.closePost);
-  const secondhandClosed = useSecondhandStore((s) => s.closedPosts);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const deletePartnerMutation = useDeletePartner();
+  const deleteErrandMutation = useDeleteErrand();
+  const deleteSecondhandMutation = useDeleteSecondhand();
 
   const [shareSheetItem, setShareSheetItem] = useState<CardItem | null>(null);
   const [actionItem, setActionItem] = useState<CardItem | null>(null);
@@ -64,18 +61,18 @@ export default function MyPostsScreen({ navigation }: Props) {
   const allPosts = useMemo(() => {
     const items: CardItem[] = [];
     if (partners) {
-      partners.forEach((item, index) => {
-        if (item.user === nickname) items.push({ kind: 'partner', data: item, index });
+      partners.forEach((item) => {
+        if (item.user === nickname) items.push({ kind: 'partner', data: item, id: item.id });
       });
     }
     if (errands) {
-      errands.forEach((item, index) => {
-        if (item.user === nickname) items.push({ kind: 'errand', data: item, index });
+      errands.forEach((item) => {
+        if (item.user === nickname) items.push({ kind: 'errand', data: item, id: item.id });
       });
     }
     if (secondhandItems) {
-      secondhandItems.forEach((item, index) => {
-        if (item.user === nickname) items.push({ kind: 'secondhand', data: item, index });
+      secondhandItems.forEach((item) => {
+        if (item.user === nickname) items.push({ kind: 'secondhand', data: item, id: item.id });
       });
     }
     items.sort((a, b) => new Date(b.data.expiresAt).getTime() - new Date(a.data.expiresAt).getTime());
@@ -86,28 +83,17 @@ export default function MyPostsScreen({ navigation }: Props) {
     (card: CardItem) => {
       switch (card.kind) {
         case 'partner':
-          navigation.navigate('PartnerDetail', { index: card.index });
+          navigation.navigate('PartnerDetail', { id: card.id });
           break;
         case 'errand':
-          navigation.navigate('ErrandDetail', { index: card.index });
+          navigation.navigate('ErrandDetail', { id: card.id });
           break;
         case 'secondhand':
-          navigation.navigate('SecondhandDetail', { index: card.index });
+          navigation.navigate('SecondhandDetail', { id: card.id });
           break;
       }
     },
     [navigation]
-  );
-
-  const isItemClosed = useCallback(
-    (card: CardItem): boolean => {
-      switch (card.kind) {
-        case 'partner': return partnerClosed.has(card.index);
-        case 'errand': return errandClosed.has(card.index);
-        case 'secondhand': return secondhandClosed.has(card.index);
-      }
-    },
-    [partnerClosed, errandClosed, secondhandClosed]
   );
 
   const isExpired = (card: CardItem): boolean => {
@@ -115,39 +101,63 @@ export default function MyPostsScreen({ navigation }: Props) {
   };
 
   const handleClosePost = useCallback(
-    (item: CardItem) => {
-      switch (item.kind) {
-        case 'partner': closePartner(item.index); break;
-        case 'errand': closeErrand(item.index); break;
-        case 'secondhand': closeSecondhand(item.index); break;
+    async (item: CardItem) => {
+      try {
+        switch (item.kind) {
+          case 'partner':
+            await deletePartnerMutation.mutateAsync(item.id);
+            break;
+          case 'errand':
+            await deleteErrandMutation.mutateAsync(item.id);
+            break;
+          case 'secondhand':
+            await deleteSecondhandMutation.mutateAsync(item.id);
+            break;
+        }
+        showSnackbar({ message: t('deletedPublish'), type: 'success' });
+      } catch {
+        showSnackbar({ message: t('networkError') || 'Delete failed', type: 'error' });
       }
-      showSnackbar({ message: t('postClosed'), type: 'success' });
     },
-    [closePartner, closeErrand, closeSecondhand, showSnackbar, t]
+    [
+      showSnackbar,
+      t,
+      deletePartnerMutation,
+      deleteErrandMutation,
+      deleteSecondhandMutation,
+    ]
   );
 
   const renderItem = useCallback(
     ({ item }: { item: CardItem }) => {
       const expired = isExpired(item);
-      const closed = isItemClosed(item);
       const d = item.data;
+      const displayMeta = buildPostMeta(t, lang, {
+        gradeKey: d.gradeKey,
+        majorKey: d.majorKey,
+        createdAt: d.createdAt,
+      });
 
       return (
         <TouchableOpacity
-          style={[styles.card, (expired || closed) && styles.cardExpired]}
+          style={[styles.card, expired && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => handlePress(item)}
         >
           <View style={styles.cardHeader}>
-            <Avatar text={d.avatar} size="md" gender={d.gender} />
+            <Avatar text={d.user} uri={d.avatar} size="sm" gender={d.gender} />
             <View style={styles.cardHeaderInfo}>
-              <View style={styles.nameTimeRow}>
+              <View style={styles.nameRow}>
                 <Text style={styles.userName}>{d.user}</Text>
+                {d.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {d.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.timeMeta}>{getRelativeTime(d.createdAt, lang)}</Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {displayMeta}
+                </Text>
               </View>
             </View>
-            {!expired && !closed && (
+            {!expired && (
               <TouchableOpacity
                 style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -180,17 +190,12 @@ export default function MyPostsScreen({ navigation }: Props) {
                   </Text>
                 </View>
               )}
-              {closed && !expired && !(item.kind === 'secondhand' && (d as SecondhandItem).sold) && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{t('postClosed')}</Text>
-                </View>
-              )}
             </View>
           </View>
         </TouchableOpacity>
       );
     },
-    [handlePress, isItemClosed, t, lang]
+    [handlePress, t, lang]
   );
 
   return (
@@ -206,7 +211,7 @@ export default function MyPostsScreen({ navigation }: Props) {
       <FlatList
         data={allPosts}
         renderItem={renderItem}
-        keyExtractor={(item) => `${item.kind}-${item.index}`}
+        keyExtractor={(item) => `${item.kind}-${item.id}`}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <EmptyState
@@ -252,7 +257,7 @@ export default function MyPostsScreen({ navigation }: Props) {
                 if (item) {
                   navigation.getParent()?.navigate('ForumTab', {
                     screen: 'Compose',
-                    params: { functionType: item.kind, functionTitle: item.data.title },
+                    params: { functionType: item.kind, functionTitle: item.data.title, functionId: item.id },
                   });
                 }
               }}
@@ -268,7 +273,20 @@ export default function MyPostsScreen({ navigation }: Props) {
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
-                if (item) handleClosePost(item);
+                if (item) {
+                  Alert.alert(
+                    t('closePost'),
+                    t('confirmClosePost'),
+                    [
+                      { text: t('cancel'), style: 'cancel' },
+                      {
+                        text: t('closePost'),
+                        style: 'destructive',
+                        onPress: () => handleClosePost(item),
+                      },
+                    ]
+                  );
+                }
               }}
             >
               <Text style={styles.actionTextDanger}>{t('closePost')}</Text>
@@ -284,14 +302,14 @@ export default function MyPostsScreen({ navigation }: Props) {
         functionType={shareSheetItem?.kind ?? 'partner'}
         functionTitle={shareSheetItem?.data.title ?? ''}
         functionPosterName={shareSheetItem?.data.user ?? ''}
-        functionIndex={shareSheetItem?.index ?? 0}
+        functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
     </SafeAreaView>
   );
 }
 
-const AVATAR_SIZE = 40; // md
+const AVATAR_SIZE = 32; // sm
 const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
@@ -343,9 +361,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: AVATAR_GAP,
   },
-  nameTimeRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   userName: {
     ...typography.titleSmall,
@@ -356,9 +375,10 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },
-  timeMeta: {
+  meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
   moreBtn: {
     width: 32,

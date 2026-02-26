@@ -142,8 +142,12 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           createdAt: new Date().toISOString(),
         },
         {
-          onSuccess: () => {
-            navigation.replace('SecondhandShare', { itemName: title, posterName: user.name, index: 0 });
+          onSuccess: (created) => {
+            navigation.replace('SecondhandShare', {
+              itemName: title,
+              posterName: user.name,
+              functionId: created.id,
+            });
           },
           onError: () => {
             showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });

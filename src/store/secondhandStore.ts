@@ -3,41 +3,41 @@ import type { SecondhandCategory } from '../types';
 
 interface SecondhandState {
   selectedCategory: SecondhandCategory | null;
-  wantedItems: Set<number>;
-  closedPosts: Set<number>;
+  wantedItems: Set<string>;
+  closedPosts: Set<string>;
   expiredNotified: boolean;
 
   setCategory: (category: SecondhandCategory | null) => void;
-  toggleWant: (index: number) => void;
-  hasWanted: (index: number) => boolean;
-  closePost: (index: number) => void;
-  isClosed: (index: number) => boolean;
+  toggleWant: (id: string) => void;
+  hasWanted: (id: string) => boolean;
+  closePost: (id: string) => void;
+  isClosed: (id: string) => boolean;
   setExpiredNotified: (value: boolean) => void;
 }
 
 export const useSecondhandStore = create<SecondhandState>()((set, get) => ({
   selectedCategory: null,
-  wantedItems: new Set<number>(),
-  closedPosts: new Set<number>(),
+  wantedItems: new Set<string>(),
+  closedPosts: new Set<string>(),
   expiredNotified: false,
 
   setCategory: (selectedCategory) => set({ selectedCategory }),
 
-  toggleWant: (index) =>
+  toggleWant: (id) =>
     set((state) => {
       const next = new Set(state.wantedItems);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return { wantedItems: next };
     }),
 
-  hasWanted: (index) => get().wantedItems.has(index),
-  closePost: (index) =>
+  hasWanted: (id) => get().wantedItems.has(id),
+  closePost: (id) =>
     set((state) => {
       const next = new Set(state.closedPosts);
-      next.add(index);
+      next.add(id);
       return { closedPosts: next };
     }),
-  isClosed: (index) => get().closedPosts.has(index),
+  isClosed: (id) => get().closedPosts.has(id),
   setExpiredNotified: (expiredNotified) => set({ expiredNotified }),
 }));

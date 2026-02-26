@@ -19,7 +19,7 @@ export function usePartnerDetail(id: string) {
 export function useCreatePartner() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: Omit<PartnerPost, 'user' | 'avatar' | 'gender' | 'bio' | 'expired' | 'joined'>) =>
+    mutationFn: (post: Omit<PartnerPost, 'id' | 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>) =>
       partnerService.create(post),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partners'] });

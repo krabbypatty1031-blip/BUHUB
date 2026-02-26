@@ -118,21 +118,23 @@ export default function ForumScreen({ navigation }: Props) {
 
   const handleFunctionPress = useCallback(
     (post: ForumPost) => {
-      if (!post.functionType || post.functionIndex == null) return;
+      const functionId =
+        post.functionId ?? (post.functionIndex != null ? String(post.functionIndex) : undefined);
+      if (!post.functionType || !functionId) return;
       const nav = navigation.getParent();
       if (!nav) return;
       switch (post.functionType) {
         case 'partner':
-          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
           break;
         case 'errand':
-          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
           break;
         case 'secondhand':
-          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
           break;
         case 'rating':
-          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, index: post.functionIndex } });
+          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
           break;
       }
     },

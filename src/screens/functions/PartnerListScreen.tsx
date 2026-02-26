@@ -22,7 +22,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { getRelativeTime } from '../../utils/formatTime';
+import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
   PlusIcon,
@@ -30,6 +30,8 @@ import {
   MoreHorizontalIcon,
   MessageIcon,
   RepostIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
@@ -77,17 +79,25 @@ export default function PartnerListScreen({ navigation }: Props) {
   );
 
   // Action menu state (ellipsis popover)
-  const [actionItem, setActionItem] = useState<{ post: PartnerPost; index: number } | null>(null);
+  const [actionItem, setActionItem] = useState<{ post: PartnerPost; id: string } | null>(null);
   // Forward sheet state (contact picker)
-  const [shareSheetItem, setShareSheetItem] = useState<{ post: PartnerPost; index: number } | null>(null);
+  const [shareSheetItem, setShareSheetItem] = useState<{ post: PartnerPost; id: string } | null>(null);
 
   const handleDmOrganizer = useCallback(
-    (item: PartnerPost, itemIndex: number) => {
+    (item: PartnerPost, functionId: string) => {
       const contactId = item.authorId;
       if (!contactId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'partner', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: {
+          contactId,
+          contactName: item.user,
+          contactAvatar: item.avatar,
+          forwardedType: 'partner',
+          forwardedTitle: item.title,
+          forwardedPosterName: item.user,
+          forwardedId: functionId,
+        },
       });
     },
     [navigation]
@@ -95,29 +105,37 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
-      const index = partners?.indexOf(item) ?? 0;
-      const isJoined = joinedActivities.has(index);
+      const isJoined = joinedActivities.has(item.id);
+      const displayMeta = buildPostMeta(t, lang, {
+        gradeKey: item.gradeKey,
+        majorKey: item.majorKey,
+        createdAt: item.createdAt,
+      });
       return (
         <TouchableOpacity
           style={[styles.card, item.expired && styles.cardExpired]}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('PartnerDetail', { index })}
+          onPress={() => navigation.navigate('PartnerDetail', { id: item.id })}
         >
           {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
-            <Avatar text={item.avatar} size="md" gender={item.gender} />
+            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
             <View style={styles.cardHeaderInfo}>
-              <View style={styles.nameTimeRow}>
+              <View style={styles.nameRow}>
                 <Text style={styles.userName}>{item.user}</Text>
+                {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.timeMeta}>{getRelativeTime(item.createdAt, lang)}</Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {displayMeta}
+                </Text>
               </View>
             </View>
             {!item.expired && (
               <TouchableOpacity
                 style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setActionItem({ post: item, index })}
+                onPress={() => setActionItem({ post: item, id: item.id })}
               >
                 <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
@@ -152,7 +170,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         </TouchableOpacity>
       );
     },
-    [joinedActivities, partners, navigation, t, lang]
+    [joinedActivities, navigation, t, lang]
   );
 
   return (
@@ -179,7 +197,7 @@ export default function PartnerListScreen({ navigation }: Props) {
       <FlatList
         data={partners}
         renderItem={renderItem}
-        keyExtractor={(_, index) => String(index)}
+        keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
@@ -236,7 +254,7 @@ export default function PartnerListScreen({ navigation }: Props) {
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
-                if (a) handleDmOrganizer(a.post, a.index);
+                if (a) handleDmOrganizer(a.post, a.id);
               }}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
@@ -255,14 +273,14 @@ export default function PartnerListScreen({ navigation }: Props) {
         functionType="partner"
         functionTitle={shareSheetItem?.post.title ?? ''}
         functionPosterName={shareSheetItem?.post.user ?? ''}
-        functionIndex={shareSheetItem?.index ?? 0}
+        functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
     </SafeAreaView>
   );
 }
 
-const AVATAR_SIZE = 40; // md
+const AVATAR_SIZE = 32; // sm
 const AVATAR_GAP = spacing.md; // 12
 
 const styles = StyleSheet.create({
@@ -319,9 +337,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: AVATAR_GAP,
   },
-  nameTimeRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   userName: {
     ...typography.titleSmall,
@@ -332,9 +351,10 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },
-  timeMeta: {
+  meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 1,
   },
   moreBtn: {
     width: 32,

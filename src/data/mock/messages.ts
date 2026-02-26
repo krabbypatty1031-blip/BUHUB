@@ -1,11 +1,11 @@
 import type { Contact, ChatHistory } from '../../types';
 
 export const mockContacts: Contact[] = [
-  { id: 'mock-1', name: '李同學', avatar: '李', message: '好嘅！咁我哋下週六見！', time: '10:30', unread: 2, pinned: true, gender: 'female' },
-  { id: 'mock-2', name: '王同學', avatar: '王', message: '收到，多謝你！', time: '昨日', unread: 0, pinned: true, gender: 'male' },
-  { id: 'mock-3', name: '陳同學', avatar: '陳', message: '你好！請問你發布嘅搭子活動仲有位嗎？', time: '週一', unread: 1, pinned: false, gender: 'female' },
-  { id: 'mock-4', name: '張同學', avatar: '張', message: '好期待！到時見～', time: '週日', unread: 0, pinned: false, gender: 'male' },
-  { id: 'mock-5', name: '浸大小明', avatar: '明', message: '', time: '', unread: 0, pinned: false, gender: 'male' },
+  { id: 'mock-1', name: '李同學', avatar: '李', grade: 'gradeUndergradY2', major: 'majorCS', message: '好嘅！咁我哋下週六見！', time: '10:30', unread: 2, pinned: true, gender: 'female' },
+  { id: 'mock-2', name: '王同學', avatar: '王', grade: 'gradeUndergradY3', major: 'majorComm', message: '收到，多謝你！', time: '昨日', unread: 0, pinned: true, gender: 'male' },
+  { id: 'mock-3', name: '陳同學', avatar: '陳', grade: 'gradeUndergradY1', major: 'majorJournalism', message: '你好！請問你發布嘅搭子活動仲有位嗎？', time: '週一', unread: 1, pinned: false, gender: 'female' },
+  { id: 'mock-4', name: '張同學', avatar: '張', grade: 'gradeUndergradY4', major: 'majorMusic', message: '好期待！到時見～', time: '週日', unread: 0, pinned: false, gender: 'male' },
+  { id: 'mock-5', name: '浸大小明', avatar: '明', grade: 'gradePostgrad', major: 'majorAI', message: '', time: '', unread: 0, pinned: false, gender: 'male' },
 ];
 
 export const mockChatHistory: Record<string, ChatHistory[]> = {

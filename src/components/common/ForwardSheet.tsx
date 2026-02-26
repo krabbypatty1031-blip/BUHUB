@@ -103,7 +103,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
             forwardedType: 'post',
             forwardedTitle: post.content,
             forwardedPosterName: post.name,
-            forwardedIndex: 0,
+            forwardedId: post.id,
             forwardedPostId: post.id,
             forwardedMessage: messageText.trim() || undefined,
           },
@@ -172,7 +172,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
             {/* ── Contact list ── */}
             <FlatList
               data={filteredContacts}
-              keyExtractor={(item) => item.name}
+              keyExtractor={(item) => item.id}
               renderItem={renderContact}
               style={styles.list}
               contentContainerStyle={styles.listContent}

@@ -19,7 +19,7 @@ export function useErrandDetail(id: string) {
 export function useCreateErrand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (errand: Omit<Errand, 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>) =>
+    mutationFn: (errand: Omit<Errand, 'id' | 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>) =>
       errandService.create(errand),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['errands'] });

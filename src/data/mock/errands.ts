@@ -13,6 +13,7 @@ const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(
 
 export const mockErrands: Errand[] = [
   {
+    id: 'errand-1',
     category: 'pickup',
     type: '代取',
     title: '幫忙攞快遞',
@@ -32,6 +33,7 @@ export const mockErrands: Errand[] = [
     createdAt: fortyMinAgo,
   },
   {
+    id: 'errand-2',
     category: 'buy',
     type: '代買',
     title: '幫忙買杯咖啡',
@@ -50,6 +52,7 @@ export const mockErrands: Errand[] = [
     createdAt: threeHoursAgo,
   },
   {
+    id: 'errand-3',
     category: 'pickup',
     type: '代取',
     title: '幫忙攞外賣',
@@ -69,6 +72,7 @@ export const mockErrands: Errand[] = [
     createdAt: twoDaysAgo,
   },
   {
+    id: 'errand-4',
     category: 'buy',
     type: '代買',
     title: '幫忙買文具',
@@ -87,6 +91,7 @@ export const mockErrands: Errand[] = [
     createdAt: sixHoursAgo,
   },
   {
+    id: 'errand-5',
     category: 'pickup',
     type: '代取',
     title: '幫忙攞圖書館嘅書',

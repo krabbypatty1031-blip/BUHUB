@@ -399,7 +399,7 @@ export default function MessagesScreen({ navigation }: Props) {
         <FlatList
           data={filteredContacts}
           renderItem={renderContact}
-          keyExtractor={(item) => item.name}
+          keyExtractor={(item) => item.id}
           ListHeaderComponent={!showSearch ? renderHeader : undefined}
           contentContainerStyle={styles.listContent}
           refreshing={isLoading}

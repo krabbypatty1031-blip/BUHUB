@@ -5,7 +5,8 @@ export interface ChatMessage {
   status?: 'read' | 'delivered' | 'sent';
   functionCard?: {
     type: 'partner' | 'errand' | 'secondhand' | 'post';
-    index: number;
+    id?: string;
+    index?: number;
     title: string;
     posterName: string;
     postId?: string;

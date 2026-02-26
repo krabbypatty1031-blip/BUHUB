@@ -119,7 +119,6 @@ const ChatBubble = React.memo(function ChatBubble({
       <View style={styles.bubbleCol}>
         {card ? (() => {
           const IconComp = TYPE_ICONS[card.type];
-          const shareCount = (card.index * 7 + 3) % 18 + 3;
           return (
             <TouchableOpacity
               style={styles.cardBubble}
@@ -144,8 +143,6 @@ const ChatBubble = React.memo(function ChatBubble({
                 {/* Footer */}
                 <View style={styles.cardFooter}>
                   <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
-                  <Text style={styles.cardDot}>·</Text>
-                  <Text style={styles.cardFooterText}>{t('sharedCount', { count: shareCount })}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -241,9 +238,20 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { contactId, contactName, contactAvatar, forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage } = route.params;
+  const {
+    contactId,
+    contactName,
+    contactAvatar,
+    forwardedType,
+    forwardedTitle,
+    forwardedPosterName,
+    forwardedId,
+    forwardedIndex,
+    forwardedPostId,
+    forwardedMessage,
+  } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactId);
-  const sendMessage = useSendMessage(contactId);
+  const sendMessageMutation = useSendMessage(contactId);
   const user = useAuthStore((s) => s.user);
   const { tabBarTranslateY } = useTabBarAnimation();
 
@@ -259,43 +267,42 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [cardMessages, setCardMessages] = useState<ChatMessage[]>([]);
   const cardSentRef = useRef<string | null>(null);
 
-  // Auto-send card message when forwarded params are present
+  // Auto-send forwarded text/card once when entering from "share to DM"
   useEffect(() => {
-    if (forwardedType && forwardedTitle && forwardedPosterName && forwardedIndex != null) {
-      const key = `${forwardedType}:${forwardedIndex}:${forwardedTitle}:${forwardedPostId || ''}`;
-      if (cardSentRef.current !== key) {
-        cardSentRef.current = key;
-        const now = new Date();
-        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        const newMessages: ChatMessage[] = [];
-        // If there's a forwarded message, create a text message first
-        if (forwardedMessage?.trim()) {
-          newMessages.push({
-            type: 'sent',
-            text: forwardedMessage.trim(),
-            time: timeStr,
-          });
-        }
-        // Create the card message
-        newMessages.push({
-          type: 'sent',
-          text: '',
-          time: timeStr,
-          functionCard: {
-            type: forwardedType as 'partner' | 'errand' | 'secondhand' | 'post',
-            index: forwardedIndex,
-            title: forwardedTitle,
-            posterName: forwardedPosterName,
-            ...(forwardedPostId ? { postId: forwardedPostId } : {}),
-          },
-        });
-        setCardMessages((prev) => [...prev, ...newMessages]);
-      }
+    if (!forwardedType || !forwardedTitle || !forwardedPosterName) return;
+    const normalizedType = forwardedType as 'partner' | 'errand' | 'secondhand' | 'post';
+    const resolvedId =
+      forwardedId ??
+      (typeof forwardedIndex === 'number' ? String(forwardedIndex) : undefined);
+    const key = `${normalizedType}:${resolvedId ?? ''}:${forwardedTitle}:${forwardedPostId ?? ''}`;
+    if (cardSentRef.current === key) return;
+    cardSentRef.current = key;
+
+    if (forwardedMessage?.trim()) {
+      sendMessageMutation.mutate({ text: forwardedMessage.trim() });
     }
-  }, [forwardedType, forwardedTitle, forwardedPosterName, forwardedIndex, forwardedPostId, forwardedMessage]);
+
+    sendMessageMutation.mutate({
+      functionCard: {
+        type: normalizedType,
+        ...(resolvedId ? { id: resolvedId } : {}),
+        title: forwardedTitle,
+        posterName: forwardedPosterName,
+        ...(forwardedPostId ? { postId: forwardedPostId } : {}),
+      },
+    });
+  }, [
+    forwardedType,
+    forwardedTitle,
+    forwardedPosterName,
+    forwardedId,
+    forwardedIndex,
+    forwardedPostId,
+    forwardedMessage,
+    sendMessageMutation,
+  ]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
@@ -328,11 +335,8 @@ export default function ChatScreen({ navigation, route }: Props) {
         });
       });
     }
-    cardMessages.forEach((m, i) => {
-      items.push({ kind: 'message', message: m, key: `card-${i}` });
-    });
     return items;
-  }, [chatHistory, cardMessages]);
+  }, [chatHistory]);
 
   /* ── Auto-scroll to bottom when data changes ── */
   const scrollToBottom = useCallback(() => {
@@ -356,12 +360,14 @@ export default function ChatScreen({ navigation, route }: Props) {
         secondhand: 'SecondhandDetail',
       } as const;
       if (card.type !== 'post') {
+        const functionId = card.id ?? (card.index != null ? String(card.index) : undefined);
+        if (!functionId) return;
         navigation.dispatch(
           CommonActions.navigate({
             name: 'FunctionsTab',
             params: {
               screen: screenMap[card.type],
-              params: { index: card.index },
+              params: { id: functionId },
             },
           })
         );
@@ -375,9 +381,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     const text = inputText.trim();
     if (!text) return;
     hapticLight();
-    sendMessage.mutate(text);
+    sendMessageMutation.mutate({ text });
     setInputText('');
-  }, [inputText, sendMessage]);
+  }, [inputText, sendMessageMutation]);
 
   /* ── Camera: open device camera ── */
   const handleCamera = useCallback(async () => {

@@ -1,8 +1,58 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { LikeNotification, FollowerNotification, CommentNotification, NotificationSettings, UnreadCount } from '../../types';
+import type {
+  LikeNotification,
+  FollowerNotification,
+  CommentNotification,
+  NotificationSettings,
+  UnreadCount,
+  Language,
+} from '../../types';
+import { getRelativeTime } from '../../utils/formatTime';
+import { useAuthStore } from '../../store/authStore';
 
 const USE_MOCK = false;
+
+type LikeAction = LikeNotification['action'];
+
+type RawLikeNotification = {
+  user?: string;
+  name?: string;
+  avatar?: string;
+  gender?: 'male' | 'female' | 'other' | 'secret';
+  grade?: string | null;
+  major?: string | null;
+  action?: string;
+  content?: string;
+  postContent?: string;
+  time?: string;
+  hasImage?: boolean;
+  postId?: string;
+  commentId?: string;
+};
+
+function getCurrentLanguage(): Language {
+  const lang = useAuthStore.getState().language;
+  return lang === 'tc' || lang === 'sc' || lang === 'en' ? lang : 'tc';
+}
+
+function normalizeNotificationTime(time?: string): string {
+  if (!time) return '';
+  const parsed = Date.parse(time);
+  if (Number.isNaN(parsed)) return time;
+  return getRelativeTime(new Date(parsed).toISOString(), getCurrentLanguage());
+}
+
+function normalizeLikeAction(rawAction: string | undefined, hasCommentId: boolean): LikeAction {
+  if (rawAction === 'likedYourPost' || rawAction === 'likedYourComment' || rawAction === 'likedYourReply') {
+    return rawAction;
+  }
+  const normalized = (rawAction ?? '').toLowerCase();
+  if (normalized.includes('reply')) return 'likedYourReply';
+  if (normalized.includes('comment')) return 'likedYourComment';
+  if (hasCommentId) return 'likedYourComment';
+  return 'likedYourPost';
+}
 
 export const notificationService = {
   async getLikes(): Promise<LikeNotification[]> {
@@ -11,7 +61,23 @@ export const notificationService = {
       return mockLikeNotifications;
     }
     const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.LIKES);
-    return data;
+    const list = Array.isArray(data) ? (data as RawLikeNotification[]) : [];
+    return list.map((item) => {
+      const hasCommentId = !!item.commentId;
+      return {
+        user: item.user ?? item.name ?? '',
+        avatar: item.avatar ?? '',
+        gender: item.gender ?? 'other',
+        grade: item.grade ?? undefined,
+        major: item.major ?? undefined,
+        action: normalizeLikeAction(item.action, hasCommentId),
+        content: item.content ?? item.postContent ?? '',
+        time: normalizeNotificationTime(item.time),
+        hasImage: item.hasImage,
+        postId: item.postId ?? '',
+        commentId: item.commentId,
+      };
+    });
   },
 
   async getFollowers(): Promise<FollowerNotification[]> {

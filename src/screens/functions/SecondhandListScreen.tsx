@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+﻿import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { getRelativeTime } from '../../utils/formatTime';
+import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
   PlusIcon,
@@ -34,6 +34,8 @@ import {
   RepostIcon,
   MoreHorizontalIcon,
   MessageIcon,
+  MaleIcon,
+  FemaleIcon,
 } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
@@ -51,19 +53,17 @@ const CARD_GAP = spacing.sm;
 /* ── Memoized Item Card ── */
 const ItemCard = React.memo(function ItemCard({
   item,
-  index,
+  id,
   onPress,
   onMore,
   t,
-  lang,
   cardWidth,
 }: {
   item: SecondhandItem;
-  index: number;
-  onPress: (index: number) => void;
-  onMore: (item: SecondhandItem, index: number) => void;
+  id: string;
+  onPress: (id: string) => void;
+  onMore: (item: SecondhandItem, id: string) => void;
   t: (key: string) => string;
-  lang: 'tc' | 'sc' | 'en';
   cardWidth: number;
 }) {
   const isSoldOrExpired = item.sold || item.expired;
@@ -72,7 +72,7 @@ const ItemCard = React.memo(function ItemCard({
     <TouchableOpacity
       style={[styles.card, { width: cardWidth }]}
       activeOpacity={0.7}
-      onPress={() => onPress(index)}
+      onPress={() => onPress(id)}
     >
       {/* Image area */}
       <View style={[styles.imageArea, { height: cardWidth * 0.8 }, isSoldOrExpired && styles.imageAreaDimmed]}>
@@ -108,16 +108,24 @@ const ItemCard = React.memo(function ItemCard({
 
         <Text style={styles.itemPrice}>{item.price}</Text>
 
-        {/* Footer: time */}
-        <View style={styles.cardFooter}>
-          <Text style={styles.timeText}>{getRelativeTime(item.createdAt, lang)}</Text>
+        <View style={styles.sellerRow}>
+          <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+          <View style={styles.sellerInfo}>
+            <View style={styles.sellerNameRow}>
+              <Text style={styles.sellerName} numberOfLines={1}>
+                {item.user}
+              </Text>
+              {item.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
+              {item.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
+            </View>
+          </View>
         </View>
         {!item.sold && !item.expired && (
           <TouchableOpacity
             style={styles.moreBtn}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            onPress={() => onMore(item, index)}
+            onPress={() => onMore(item, id)}
           >
             <MoreHorizontalIcon size={16} color={colors.onSurfaceVariant} />
           </TouchableOpacity>
@@ -128,8 +136,7 @@ const ItemCard = React.memo(function ItemCard({
 });
 
 export default function SecondhandListScreen({ navigation }: Props) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language as 'tc' | 'sc' | 'en';
+  const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
@@ -176,43 +183,50 @@ export default function SecondhandListScreen({ navigation }: Props) {
   );
 
   const handleItemPress = useCallback(
-    (index: number) => {
-      navigation.navigate('SecondhandDetail', { index });
+    (id: string) => {
+      navigation.navigate('SecondhandDetail', { id });
     },
     [navigation]
   );
 
   // Action menu state
-  const [actionItem, setActionItem] = useState<{ item: SecondhandItem; index: number } | null>(null);
+  const [actionItem, setActionItem] = useState<{ item: SecondhandItem; id: string } | null>(null);
   // Forward sheet state
-  const [shareSheetItem, setShareSheetItem] = useState<{ item: SecondhandItem; index: number } | null>(null);
+  const [shareSheetItem, setShareSheetItem] = useState<{ item: SecondhandItem; id: string } | null>(null);
 
   const handleDmSeller = useCallback(
-    (item: SecondhandItem, itemIndex: number) => {
+    (item: SecondhandItem, functionId: string) => {
       if (!item.authorId) return;
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
-        params: { contactId: item.authorId, contactName: item.user, contactAvatar: item.avatar, forwardedType: 'secondhand', forwardedTitle: item.title, forwardedPosterName: item.user, forwardedIndex: itemIndex },
+        params: {
+          contactId: item.authorId,
+          contactName: item.user,
+          contactAvatar: item.avatar,
+          forwardedType: 'secondhand',
+          forwardedTitle: item.title,
+          forwardedPosterName: item.user,
+          forwardedId: functionId,
+        },
       });
     },
     [navigation]
   );
 
   const handleMore = useCallback(
-    (item: SecondhandItem, index: number) => {
-      setActionItem({ item, index });
+    (item: SecondhandItem, id: string) => {
+      setActionItem({ item, id });
     },
     []
   );
 
   const renderItem = useCallback(
     ({ item }: { item: SecondhandItem }) => {
-      const index = items?.indexOf(item) ?? 0;
       return (
-        <ItemCard item={item} index={index} onPress={handleItemPress} onMore={handleMore} t={t} lang={lang} cardWidth={cardWidth} />
+        <ItemCard id={item.id} item={item} onPress={handleItemPress} onMore={handleMore} t={t} cardWidth={cardWidth} />
       );
     },
-    [items, handleItemPress, handleMore, t, lang, cardWidth]
+    [handleItemPress, handleMore, t, cardWidth]
   );
 
   return (
@@ -259,7 +273,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
       <FlatList
         data={filteredItems}
         renderItem={renderItem}
-        keyExtractor={(_, index) => String(index)}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
         refreshing={isLoading}
@@ -318,7 +332,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
-                if (a) handleDmSeller(a.item, a.index);
+                if (a) handleDmSeller(a.item, a.id);
               }}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
@@ -337,7 +351,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
         functionType="secondhand"
         functionTitle={shareSheetItem?.item.title ?? ''}
         functionPosterName={shareSheetItem?.item.user ?? ''}
-        functionIndex={shareSheetItem?.index ?? 0}
+        functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -503,15 +517,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing.sm,
   },
-
-  /* Card footer */
-  cardFooter: {
-    gap: spacing.xxs + 1,
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
-  timeText: {
-    ...typography.labelSmall,
-    color: colors.outline,
-    fontSize: 10,
+  sellerInfo: {
+    flex: 1,
+  },
+  sellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sellerName: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+    flexShrink: 0,
   },
 
   moreBtn: {

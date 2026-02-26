@@ -25,6 +25,9 @@ import {
   MaleIcon,
   FemaleIcon,
   ChevronRightIcon,
+  UsersIcon,
+  TruckIcon,
+  ShoppingBagIcon,
 } from './icons';
 
 interface PostCardProps {
@@ -201,9 +204,8 @@ function PostCard({
                 <TouchableOpacity
                   key={opt.id ?? `${i}-${opt.text}`}
                   style={styles.pollOption}
-                  activeOpacity={0.7}
-                  onPress={() => onVote?.(i)}
-                  disabled={!onVote}
+                  activeOpacity={1}
+                  disabled
                 >
                   <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
                   <Text
@@ -243,20 +245,29 @@ function PostCard({
             onPress={onFunctionPress}
           >
             <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.functionCard}>
-              <View style={styles.functionCardInfo}>
+              <View style={styles.functionCardHeader}>
+                <View style={styles.functionCardIconWrap}>
+                  {post.functionType === 'partner' && <UsersIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'errand' && <TruckIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'secondhand' && <ShoppingBagIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'rating' && <QuoteIcon size={12} color={colors.onSurface} />}
+                </View>
                 <Text style={styles.functionCardType}>
-                  {post.functionType === 'partner' ? '找搭子' :
-                   post.functionType === 'errand' ? '跑腿' :
-                   post.functionType === 'secondhand' ? '二手' :
-                   post.functionType === 'rating' ? '评分' : ''}
+                  {post.functionType === 'partner'
+                    ? t('findPartner')
+                    : post.functionType === 'errand'
+                      ? t('errands')
+                      : post.functionType === 'secondhand'
+                        ? t('secondhand')
+                        : t('forum')}
                 </Text>
-                {post.functionTitle && (
-                  <Text style={styles.functionCardTitle} numberOfLines={1}>
-                    {post.functionTitle}
-                  </Text>
-                )}
+                <ChevronRightIcon size={14} color="#999999" />
               </View>
-              <ChevronRightIcon size={14} color="#999999" />
+              {post.functionTitle && (
+                <Text style={styles.functionCardTitle} numberOfLines={2}>
+                  {post.functionTitle}
+                </Text>
+              )}
             </GradientCard>
           </TouchableOpacity>
         )}
@@ -451,14 +462,23 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   functionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
-  functionCardInfo: {
-    flex: 1,
+  functionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  functionCardIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   functionCardType: {
     ...typography.labelSmall,
@@ -466,13 +486,14 @@ const styles = StyleSheet.create({
     color: '#999999',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
-    marginBottom: 2,
+    flex: 1,
   },
   functionCardTitle: {
     ...typography.bodyMedium,
     fontSize: 13,
     color: '#000000',
-    fontWeight: '500',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   quotedCard: {
     borderRadius: borderRadius.md,

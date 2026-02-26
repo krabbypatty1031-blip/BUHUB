@@ -6,7 +6,7 @@ import FunctionShareLayout from '../../components/common/FunctionShareLayout';
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerShare'>;
 
 export default function PartnerShareScreen({ navigation, route }: Props) {
-  const { activityName, posterName, index } = route.params;
+  const { activityName, posterName, functionId } = route.params;
 
   return (
     <FunctionShareLayout
@@ -17,7 +17,7 @@ export default function PartnerShareScreen({ navigation, route }: Props) {
       functionType="partner"
       functionTitle={activityName}
       posterName={posterName}
-      index={index}
+      functionId={functionId}
     />
   );
 }

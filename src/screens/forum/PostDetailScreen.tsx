@@ -45,9 +45,13 @@ import {
   QuoteIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ChevronRightIcon,
   MoreHorizontalIcon,
   MaleIcon,
   FemaleIcon,
+  UsersIcon,
+  TruckIcon,
+  ShoppingBagIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
@@ -298,16 +302,30 @@ function ReplyItem({
   const nestedReplies = reply.replies ?? [];
   const totalNestedReplies = countDescendantReplies(reply.replies);
   const hasNestedReplies = nestedReplies.length > 0;
-  const shouldCollapseNested = nestedReplies.length > 0;
+  const NESTED_REPLY_BATCH_SIZE = 5;
   // Auto-expand if this reply's ID is in the expandedReplies list
   const shouldAutoExpandNested = expandedReplies.includes(reply.id);
-  const [showAllNestedReplies, setShowAllNestedReplies] = useState(!shouldCollapseNested || shouldAutoExpandNested);
+  const [visibleNestedRepliesCount, setVisibleNestedRepliesCount] = useState(
+    shouldAutoExpandNested ? nestedReplies.length : 0
+  );
+  const hasMoreNestedReplies = visibleNestedRepliesCount < nestedReplies.length;
+  const expandMoreText = lang === 'en' ? 'Expand more' : lang === 'sc' ? '展开更多' : '展開更多';
 
   useEffect(() => {
-    if (shouldAutoExpandNested && !showAllNestedReplies) {
-      setShowAllNestedReplies(true);
+    if (shouldAutoExpandNested) {
+      setVisibleNestedRepliesCount(nestedReplies.length);
     }
-  }, [shouldAutoExpandNested, showAllNestedReplies]);
+  }, [shouldAutoExpandNested, nestedReplies.length]);
+
+  const handleExpandNestedReplies = useCallback(() => {
+    if (visibleNestedRepliesCount === 0) {
+      setVisibleNestedRepliesCount(Math.min(NESTED_REPLY_BATCH_SIZE, nestedReplies.length));
+      return;
+    }
+    setVisibleNestedRepliesCount((prev) =>
+      Math.min(prev + NESTED_REPLY_BATCH_SIZE, nestedReplies.length)
+    );
+  }, [visibleNestedRepliesCount, nestedReplies.length]);
 
   return (
     <Animated.View
@@ -362,21 +380,9 @@ function ReplyItem({
       {/* Recursively render nested replies (level 3+) with collapse logic */}
       {hasNestedReplies && (
         <>
-          {/* Toggle button for nested replies */}
-          {shouldCollapseNested && !showAllNestedReplies && (
-            <TouchableOpacity
-              style={styles.toggleReplies}
-              onPress={() => setShowAllNestedReplies(true)}
-            >
-              <ChevronDownIcon size={14} color={colors.primary} />
-              <Text style={styles.toggleRepliesText}>
-                {t('expandReplies')} {totalNestedReplies} {t('repliesUnit')}
-              </Text>
-            </TouchableOpacity>
-          )}
           {/* Render nested replies */}
           <View style={styles.nestedRepliesContainer}>
-            {(showAllNestedReplies ? nestedReplies : nestedReplies.slice(0, 0)).map((nestedReply, i) => (
+            {nestedReplies.slice(0, visibleNestedRepliesCount).map((nestedReply, i) => (
               <ReplyItem
                 key={nestedReply.id || i}
                 reply={nestedReply}
@@ -394,11 +400,25 @@ function ReplyItem({
               />
             ))}
           </View>
-          {/* Collapse button when expanded */}
-          {shouldCollapseNested && showAllNestedReplies && (
+          {/* Toggle button for nested replies (shown below current list) */}
+          {hasMoreNestedReplies && (
             <TouchableOpacity
               style={styles.toggleReplies}
-              onPress={() => setShowAllNestedReplies(false)}
+              onPress={handleExpandNestedReplies}
+            >
+              <ChevronDownIcon size={14} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {visibleNestedRepliesCount === 0
+                  ? `${t('expandReplies')} ${totalNestedReplies} ${t('repliesUnit')}`
+                  : expandMoreText}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Collapse button when expanded */}
+          {!hasMoreNestedReplies && visibleNestedRepliesCount > 0 && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setVisibleNestedRepliesCount(0)}
             >
               <ChevronUpIcon size={14} color={colors.primary} />
               <Text style={styles.toggleRepliesText}>
@@ -440,20 +460,32 @@ function CommentItem({
   const isHighlighted = !!highlightId && comment.id === highlightId;
   const highlightedReplyId =
     highlightId && comment.replies?.find((r) => r.id === highlightId)?.id;
-  // Show 0 replies by default, collapse if there are any replies
-  const REPLY_PREVIEW_LIMIT = 0;
-  const hasReplies = comment.replies && comment.replies.length > 0;
+  // Show 0 replies by default, then expand in batches.
+  const REPLY_BATCH_SIZE = 5;
+  const directReplies = comment.replies ?? [];
+  const hasReplies = directReplies.length > 0;
   const totalReplies = countDescendantReplies(comment.replies);
-  const shouldCollapse = totalReplies > REPLY_PREVIEW_LIMIT;
+  const expandMoreText = lang === 'en' ? 'Expand more' : lang === 'sc' ? '展开更多' : '展開更多';
   // Auto-expand if this comment's ID is in the expandedReplies list
   const shouldAutoExpand = expandedReplies.includes(comment.id);
-  const [showAllReplies, setShowAllReplies] = useState(!shouldCollapse || !!highlightedReplyId || shouldAutoExpand);
+  const [visibleRepliesCount, setVisibleRepliesCount] = useState(
+    shouldAutoExpand || !!highlightedReplyId ? directReplies.length : 0
+  );
+  const hasMoreReplies = visibleRepliesCount < directReplies.length;
 
   useEffect(() => {
-    if ((shouldAutoExpand || !!highlightedReplyId) && !showAllReplies) {
-      setShowAllReplies(true);
+    if (shouldAutoExpand || !!highlightedReplyId) {
+      setVisibleRepliesCount(directReplies.length);
     }
-  }, [shouldAutoExpand, highlightedReplyId, showAllReplies]);
+  }, [shouldAutoExpand, highlightedReplyId, directReplies.length]);
+
+  const handleExpandReplies = useCallback(() => {
+    if (visibleRepliesCount === 0) {
+      setVisibleRepliesCount(Math.min(REPLY_BATCH_SIZE, directReplies.length));
+      return;
+    }
+    setVisibleRepliesCount((prev) => Math.min(prev + REPLY_BATCH_SIZE, directReplies.length));
+  }, [visibleRepliesCount, directReplies.length]);
 
   const commentMeta = useMemo(
     () =>
@@ -542,20 +574,8 @@ function CommentItem({
       {/* Replies */}
       {hasReplies && (
         <>
-          {/* Show toggle button only when there are more than 2 replies */}
-          {shouldCollapse && !showAllReplies && (
-            <TouchableOpacity
-              style={styles.toggleReplies}
-              onPress={() => setShowAllReplies(true)}
-            >
-              <ChevronDownIcon size={16} color={colors.primary} />
-              <Text style={styles.toggleRepliesText}>
-                {t('expandReplies')} {totalReplies} {t('repliesUnit')}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {/* Show replies (first 2 or all based on state) */}
-          {(showAllReplies ? (comment.replies ?? []) : (comment.replies?.slice(0, REPLY_PREVIEW_LIMIT) ?? [])).map((reply, i) => (
+          {/* Show replies based on progressive visible count. */}
+          {directReplies.slice(0, visibleRepliesCount).map((reply, i) => (
             <ReplyItem
               key={reply.id || i}
               reply={reply}
@@ -572,11 +592,25 @@ function CommentItem({
               registerItemRef={registerItemRef}
             />
           ))}
-          {/* Collapse button when expanded */}
-          {shouldCollapse && showAllReplies && (
+          {/* Expand in batches until all replies are visible (shown below current list). */}
+          {hasMoreReplies && (
             <TouchableOpacity
               style={styles.toggleReplies}
-              onPress={() => setShowAllReplies(false)}
+              onPress={handleExpandReplies}
+            >
+              <ChevronDownIcon size={16} color={colors.primary} />
+              <Text style={styles.toggleRepliesText}>
+                {visibleRepliesCount === 0
+                  ? `${t('expandReplies')} ${totalReplies} ${t('repliesUnit')}`
+                  : expandMoreText}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Collapse button when expanded */}
+          {!hasMoreReplies && visibleRepliesCount > 0 && (
+            <TouchableOpacity
+              style={styles.toggleReplies}
+              onPress={() => setVisibleRepliesCount(0)}
             >
               <ChevronUpIcon size={16} color={colors.primary} />
               <Text style={styles.toggleRepliesText}>
@@ -857,6 +891,30 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     }
   }, [post, navigation]);
 
+  const handleFunctionPress = useCallback(() => {
+    if (!post?.isFunction || !post.functionType) return;
+    const functionId =
+      post.functionId ?? (post.functionIndex != null ? String(post.functionIndex) : undefined);
+    if (!functionId) return;
+    const nav = navigation.getParent();
+    if (!nav) return;
+
+    switch (post.functionType) {
+      case 'partner':
+        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+        break;
+      case 'errand':
+        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+        break;
+      case 'secondhand':
+        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+        break;
+      case 'rating':
+        nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
+        break;
+    }
+  }, [post, navigation]);
+
   const handleLikeComment = useCallback((cId: string) => {
     hapticLight();
     likeCommentMutation.mutate(cId);
@@ -968,6 +1026,38 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
           <Text style={styles.postContent}>{post.content}</Text>
 
+          {post.isFunction && post.functionType && (
+            <TouchableOpacity
+              style={styles.functionCard}
+              activeOpacity={0.7}
+              onPress={handleFunctionPress}
+            >
+              <View style={styles.functionCardHeader}>
+                <View style={styles.functionCardIconWrap}>
+                  {post.functionType === 'partner' && <UsersIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'errand' && <TruckIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'secondhand' && <ShoppingBagIcon size={12} color={colors.onSurface} />}
+                  {post.functionType === 'rating' && <QuoteIcon size={12} color={colors.onSurface} />}
+                </View>
+                <Text style={styles.functionCardType}>
+                  {post.functionType === 'partner'
+                    ? t('findPartner')
+                    : post.functionType === 'errand'
+                      ? t('errands')
+                      : post.functionType === 'secondhand'
+                        ? t('secondhand')
+                        : t('forum')}
+                </Text>
+                <ChevronRightIcon size={12} color={colors.onSurfaceVariant} />
+              </View>
+              {!!post.functionTitle && (
+                <Text style={styles.functionCardTitle} numberOfLines={2}>
+                  {post.functionTitle}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           {post.quotedPost && post.quotedPost.id && (
             <TouchableOpacity
               style={styles.quotedPostCard}
@@ -1008,15 +1098,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     key={opt.id ?? `${i}-${opt.text}`}
                     style={styles.pollOption}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      if (!opt.id) return;
-                      votePostMutation.mutate({
-                        postId: post.id,
-                        optionId: opt.id,
-                        optionIndex: i,
-                      });
-                    }}
+                    activeOpacity={1}
+                    disabled
                   >
                     <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
                     <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
@@ -1400,6 +1483,39 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     padding: spacing.sm,
     marginBottom: spacing.md,
+  },
+  functionCard: {
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  functionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    gap: spacing.xs,
+  },
+  functionCardIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  functionCardType: {
+    ...typography.labelSmall,
+    color: colors.onSurfaceVariant,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    flex: 1,
+  },
+  functionCardTitle: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   quotedHeader: {
     flexDirection: 'row',

@@ -3,6 +3,7 @@ import type { RatingsData, ScoreDimension } from '../../types';
 export const mockRatings: RatingsData = {
   teacher: [
     {
+      id: 'teacher-1',
       name: 'Prof. Wong Chi Ming',
       department: 'Department of Computer Science',
       email: 'cmwong@hkbu.edu.hk',
@@ -18,6 +19,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 12.5,
     },
     {
+      id: 'teacher-2',
       name: 'Dr. Chen Wei',
       department: 'Department of Computer Science',
       email: 'wchen@hkbu.edu.hk',
@@ -35,6 +37,7 @@ export const mockRatings: RatingsData = {
   ],
   course: [
     {
+      id: 'course-1',
       name: 'COMP1001 Introduction to CS',
       department: 'Computer Science',
       code: 'COMP1001',
@@ -50,6 +53,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 6.5,
     },
     {
+      id: 'course-2',
       name: 'COMP3015 Software Engineering',
       department: 'Computer Science',
       code: 'COMP3015',
@@ -67,6 +71,7 @@ export const mockRatings: RatingsData = {
   ],
   canteen: [
     {
+      id: 'canteen-1',
       name: '浸大飯堂（善衡校園）',
       department: '善衡校園 · 地下',
       location: '善衡校園',
@@ -82,6 +87,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 5.8,
     },
     {
+      id: 'canteen-2',
       name: '聯福樓',
       department: '逸夫校園 · 2樓',
       location: '逸夫校園',
@@ -99,6 +105,7 @@ export const mockRatings: RatingsData = {
   ],
   major: [
     {
+      id: 'major-1',
       name: '計算機科學 Computer Science',
       department: '理學院',
       scores: [
@@ -113,6 +120,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 9.1,
     },
     {
+      id: 'major-2',
       name: '傳理學 Communication',
       department: '傳理學院',
       scores: [
@@ -127,6 +135,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 7.5,
     },
     {
+      id: 'major-3',
       name: '工商管理 BBA',
       department: '商學院',
       scores: [
@@ -141,6 +150,7 @@ export const mockRatings: RatingsData = {
       scoreVariance: 15.6,
     },
     {
+      id: 'major-4',
       name: '音樂學 Music',
       department: '文學院',
       scores: [

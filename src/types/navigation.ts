@@ -18,7 +18,7 @@ export type AuthStackParamList = {
 export type ForumStackParamList = {
   ForumHome: undefined;
   PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
-  Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionIndex?: number };
+  Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionId?: string; functionIndex?: number };
   Search: undefined;
   CircleDetail: { tag: string };
   UserProfile: { userName: string };
@@ -28,20 +28,20 @@ export type ForumStackParamList = {
 export type FunctionsStackParamList = {
   FunctionsHub: undefined;
   PartnerList: { category?: PartnerCategory };
-  PartnerDetail: { index: number };
+  PartnerDetail: { id: string };
   ComposePartner: { category?: string } | undefined;
-  PartnerShare: { activityName: string; posterName: string; index: number };
+  PartnerShare: { activityName: string; posterName: string; functionId: string };
   ErrandList: { category?: ErrandCategory };
-  ErrandDetail: { index: number };
+  ErrandDetail: { id: string };
   ComposeErrand: { category?: ErrandCategory } | undefined;
-  ErrandShare: { taskName: string; posterName: string; index: number };
+  ErrandShare: { taskName: string; posterName: string; functionId: string };
   SecondhandList: { category?: SecondhandCategory };
-  SecondhandDetail: { index: number };
+  SecondhandDetail: { id: string };
   ComposeSecondhand: { category?: SecondhandCategory } | undefined;
-  SecondhandShare: { itemName: string; posterName: string; index: number };
+  SecondhandShare: { itemName: string; posterName: string; functionId: string };
   RatingList: { category?: RatingCategory };
-  RatingDetail: { category: RatingCategory; index: number };
-  RatingForm: { category: RatingCategory; index: number };
+  RatingDetail: { category: RatingCategory; id: string };
+  RatingForm: { category: RatingCategory; id: string };
   MyPosts: undefined;
   FacilityBooking: undefined;
   LibraryDetail: undefined;
@@ -50,7 +50,7 @@ export type FunctionsStackParamList = {
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
+  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedId?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;

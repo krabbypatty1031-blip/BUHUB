@@ -27,7 +27,7 @@ interface FunctionForwardSheetProps {
   functionType: 'partner' | 'errand' | 'secondhand';
   functionTitle: string;
   functionPosterName: string;
-  functionIndex: number;
+  functionId: string;
   navigation: any;
 }
 
@@ -59,7 +59,7 @@ export default function FunctionForwardSheet({
   functionType,
   functionTitle,
   functionPosterName,
-  functionIndex,
+  functionId,
   navigation,
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
@@ -93,11 +93,11 @@ export default function FunctionForwardSheet({
           forwardedType: functionType,
           forwardedTitle: functionTitle,
           forwardedPosterName: functionPosterName,
-          forwardedIndex: functionIndex,
+          forwardedId: functionId,
         },
       });
     },
-    [navigation, functionType, functionTitle, functionPosterName, functionIndex, onClose]
+    [navigation, functionType, functionTitle, functionPosterName, functionId, onClose]
   );
 
   const renderContact = useCallback(
@@ -145,7 +145,7 @@ export default function FunctionForwardSheet({
           </View>
           <FlatList
             data={filteredContacts}
-            keyExtractor={(item) => item.name}
+            keyExtractor={(item) => item.id}
             renderItem={renderContact}
             style={styles.list}
             contentContainerStyle={styles.listContent}

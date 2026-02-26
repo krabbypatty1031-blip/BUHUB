@@ -20,7 +20,7 @@ export function useSecondhandDetail(id: string) {
 export function useCreateSecondhand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (item: Omit<SecondhandItem, 'user' | 'avatar' | 'gender' | 'bio' | 'sold'>) =>
+    mutationFn: (item: Omit<SecondhandItem, 'id' | 'user' | 'avatar' | 'gender' | 'bio' | 'sold'>) =>
       secondhandService.create(item),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secondhand'] });
@@ -59,7 +59,7 @@ export function useWantSecondhand() {
     },
     onError: (_error, id) => {
       // Reverse the optimistic toggle on failure
-      toggleWant(Number(id));
+      toggleWant(id);
     },
   });
 }

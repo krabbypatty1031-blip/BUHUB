@@ -4,6 +4,33 @@ import type { Errand, ErrandCategory, PaginationParams } from '../../types';
 
 const USE_MOCK = false;
 
+type ApiErrandCategory = 'PICKUP' | 'BUY' | 'OTHER';
+
+const toApiCategory = (category?: ErrandCategory): ApiErrandCategory | undefined => {
+  if (!category) return undefined;
+  return category.toUpperCase() as ApiErrandCategory;
+};
+
+const fromApiCategory = (category?: string): ErrandCategory => {
+  const normalized = (category ?? '').toLowerCase();
+  if (normalized === 'pickup' || normalized === 'buy') return normalized;
+  return 'other';
+};
+
+const mapErrand = (e: any): Errand => ({
+  ...e,
+  id: e.id,
+  category: fromApiCategory(e.category),
+  user: e.author?.nickname ?? e.author?.userName ?? e.user ?? '?',
+  avatar: e.author?.avatar ?? e.avatar ?? '',
+  gender: e.author?.gender ?? e.gender ?? 'other',
+  bio: e.author?.bio ?? e.bio ?? '',
+  gradeKey: e.author?.grade ?? e.gradeKey ?? undefined,
+  majorKey: e.author?.major ?? e.majorKey ?? undefined,
+  authorId: e.author?.id ?? e.authorId,
+  desc: e.description ?? e.desc,
+});
+
 export const errandService = {
   async getList(category?: ErrandCategory, params?: PaginationParams): Promise<Errand[]> {
     if (USE_MOCK) {
@@ -11,14 +38,8 @@ export const errandService = {
       const list = category ? mockErrands.filter((e) => e.category === category) : [...mockErrands];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, { params: { category, ...params } });
-    return (Array.isArray(data) ? data : []).map((e: any) => ({
-      ...e,
-      user: e.author?.nickname ?? e.user ?? '?',
-      avatar: e.author?.avatar ?? e.avatar ?? '',
-      authorId: e.author?.id ?? e.authorId,
-      desc: e.description ?? e.desc,
-    }));
+    const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, { params: { category: toApiCategory(category), ...params } });
+    return (Array.isArray(data) ? data : []).map(mapErrand);
   },
 
   async getDetail(id: string): Promise<Errand> {
@@ -27,30 +48,31 @@ export const errandService = {
       return mockErrands[Number(id)] || mockErrands[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.DETAIL(id));
-    return {
-      ...data,
-      user: data.author?.nickname ?? data.user ?? '?',
-      avatar: data.author?.avatar ?? data.avatar ?? '',
-      authorId: data.author?.id ?? data.authorId,
-      desc: data.description ?? data.desc,
-    };
+    return mapErrand(data);
   },
 
-  async create(errand: Omit<Errand, 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>): Promise<Errand> {
+  async create(errand: Omit<Errand, 'id' | 'user' | 'avatar' | 'gender' | 'bio' | 'expired'>): Promise<Errand> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
-      const newErrand: Errand = { ...errand, user: '我', avatar: '我', gender: 'male' as const, bio: '', expired: false };
+      const newErrand: Errand = {
+        ...errand,
+        id: `errand-${Date.now()}`,
+        user: '我',
+        avatar: '我',
+        gender: 'male' as const,
+        bio: '',
+        expired: false,
+      };
       mockErrands.unshift(newErrand);
       return newErrand;
     }
-    const { data } = await apiClient.post(ENDPOINTS.ERRAND.CREATE, errand);
-    return {
-      ...data,
-      user: data.author?.nickname ?? data.user ?? '?',
-      avatar: data.author?.avatar ?? data.avatar ?? '',
-      authorId: data.author?.id ?? data.authorId,
-      desc: data.description ?? data.desc,
+    const payload = {
+      ...errand,
+      category: toApiCategory(errand.category),
+      description: errand.desc,
     };
+    const { data } = await apiClient.post(ENDPOINTS.ERRAND.CREATE, payload);
+    return mapErrand(data);
   },
 
   async edit(id: string, errand: Partial<Errand>): Promise<Errand> {
@@ -59,8 +81,12 @@ export const errandService = {
       const original = mockErrands[Number(id)] || mockErrands[0];
       return { ...original, ...errand };
     }
-    const { data } = await apiClient.put(ENDPOINTS.ERRAND.EDIT(id), errand);
-    return data;
+    const payload: Record<string, unknown> = { ...errand };
+    if (errand.category) payload.category = toApiCategory(errand.category);
+    if (errand.desc !== undefined) payload.description = errand.desc;
+    delete payload.desc;
+    const { data } = await apiClient.put(ENDPOINTS.ERRAND.EDIT(id), payload);
+    return mapErrand(data);
   },
 
   async delete(id: string): Promise<{ success: boolean }> {

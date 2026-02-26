@@ -4,6 +4,39 @@ import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from 
 
 const USE_MOCK = false;
 
+const toApiCategory = (category: RatingCategory) => category.toUpperCase();
+
+const clampToFive = (value: number) => Math.max(0, Math.min(5, value));
+
+const normalizeScoreForSubmit = (value: number) => {
+  if (value > 5) {
+    return clampToFive(Number((value / 20).toFixed(2)));
+  }
+  return clampToFive(Number(value.toFixed(2)));
+};
+
+const mapScore = (score: any) => {
+  const key = score?.key ?? score?.dimension ?? '';
+  const rawValue = typeof score?.value === 'number' ? score.value : 0;
+  const value = rawValue <= 5 ? Math.round(rawValue * 20) : Math.round(rawValue);
+  return {
+    key,
+    label: score?.label ?? key,
+    value,
+  };
+};
+
+const mapRatingItem = (item: any): RatingItem => ({
+  ...item,
+  id: item.id,
+  scores: Array.isArray(item?.scores) ? item.scores.map(mapScore) : [],
+  tags: Array.isArray(item?.tags) ? item.tags : [],
+  tagCounts: item?.tagCounts ?? {},
+  ratingCount: item?.ratingCount ?? 0,
+  recentCount: item?.recentCount ?? 0,
+  scoreVariance: item?.scoreVariance ?? 0,
+});
+
 export const ratingService = {
   async getList(category: RatingCategory, sortMode: RatingSortMode = 'recent'): Promise<RatingItem[]> {
     if (USE_MOCK) {
@@ -16,8 +49,8 @@ export const ratingService = {
       }
       return items;
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(category));
-    return data;
+    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(toApiCategory(category)), { params: { sortMode } });
+    return (Array.isArray(data) ? data : []).map(mapRatingItem);
   },
 
   async getDetail(category: RatingCategory, id: string): Promise<RatingItem> {
@@ -25,8 +58,8 @@ export const ratingService = {
       const { mockRatings } = await import('../../data/mock/ratings');
       return mockRatings[category][Number(id)] || mockRatings[category][0];
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.DETAIL(category, id));
-    return data;
+    const { data } = await apiClient.get(ENDPOINTS.RATING.DETAIL(toApiCategory(category), id));
+    return mapRatingItem(data);
   },
 
   async submitRating(
@@ -37,7 +70,14 @@ export const ratingService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.RATING.SUBMIT(category, id), rating);
+    const normalizedScores = Object.entries(rating.scores).reduce<Record<string, number>>((acc, [key, value]) => {
+      acc[key] = normalizeScoreForSubmit(value);
+      return acc;
+    }, {});
+    const { data } = await apiClient.post(ENDPOINTS.RATING.SUBMIT(toApiCategory(category), id), {
+      ...rating,
+      scores: normalizedScores,
+    });
     return data;
   },
 
@@ -46,8 +86,21 @@ export const ratingService = {
       const { mockScoreDimensions } = await import('../../data/mock/ratings');
       return mockScoreDimensions[category] || [];
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.DIMENSIONS(category));
-    return data;
+    const { data } = await apiClient.get(ENDPOINTS.RATING.DIMENSIONS(toApiCategory(category)));
+    return (Array.isArray(data) ? data : []).map((dimension: any) => {
+      const rawLabel = dimension?.label;
+      const label = typeof rawLabel === 'string'
+        ? rawLabel
+        : (rawLabel?.tc ?? rawLabel?.sc ?? rawLabel?.en ?? dimension?.name ?? '');
+      const left = typeof rawLabel === 'object' ? (rawLabel?.left ?? rawLabel?.min ?? '') : '';
+      const right = typeof rawLabel === 'object' ? (rawLabel?.right ?? rawLabel?.max ?? '') : '';
+      return {
+        key: dimension?.name ?? '',
+        label,
+        left,
+        right,
+      };
+    });
   },
 
   async getTagOptions(category: RatingCategory): Promise<string[]> {
@@ -55,7 +108,7 @@ export const ratingService = {
       const { mockTagOptions } = await import('../../data/mock/ratings');
       return mockTagOptions[category] || [];
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.TAGS(category));
+    const { data } = await apiClient.get(ENDPOINTS.RATING.TAGS(toApiCategory(category)));
     return data;
   },
 };

@@ -4,6 +4,35 @@ import type { SecondhandItem, SecondhandCategory, PaginationParams } from '../..
 
 const USE_MOCK = false;
 
+type ApiSecondhandCategory = 'ELECTRONICS' | 'BOOKS' | 'FURNITURE' | 'OTHER';
+
+const toApiCategory = (category?: SecondhandCategory): ApiSecondhandCategory | undefined => {
+  if (!category) return undefined;
+  return category.toUpperCase() as ApiSecondhandCategory;
+};
+
+const fromApiCategory = (category?: string): SecondhandCategory => {
+  const normalized = (category ?? '').toLowerCase();
+  if (normalized === 'electronics' || normalized === 'books' || normalized === 'furniture') {
+    return normalized;
+  }
+  return 'other';
+};
+
+const mapSecondhand = (i: any): SecondhandItem => ({
+  ...i,
+  id: i.id,
+  category: fromApiCategory(i.category),
+  user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
+  avatar: i.author?.avatar ?? i.avatar ?? '',
+  gender: i.author?.gender ?? i.gender ?? 'other',
+  bio: i.author?.bio ?? i.bio ?? '',
+  gradeKey: i.author?.grade ?? i.gradeKey ?? undefined,
+  majorKey: i.author?.major ?? i.majorKey ?? undefined,
+  authorId: i.author?.id ?? i.authorId,
+  desc: i.description ?? i.desc,
+});
+
 export const secondhandService = {
   async getList(category?: SecondhandCategory, params?: PaginationParams): Promise<SecondhandItem[]> {
     if (USE_MOCK) {
@@ -11,14 +40,8 @@ export const secondhandService = {
       const list = category ? mockSecondhandItems.filter((i) => i.category === category) : [...mockSecondhandItems];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, { params: { category, ...params } });
-    return (Array.isArray(data) ? data : []).map((i: any) => ({
-      ...i,
-      user: i.author?.nickname ?? i.user ?? '?',
-      avatar: i.author?.avatar ?? i.avatar ?? '',
-      authorId: i.author?.id ?? i.authorId,
-      desc: i.description ?? i.desc,
-    }));
+    const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, { params: { category: toApiCategory(category), ...params } });
+    return (Array.isArray(data) ? data : []).map(mapSecondhand);
   },
 
   async getDetail(id: string): Promise<SecondhandItem> {
@@ -27,30 +50,31 @@ export const secondhandService = {
       return mockSecondhandItems[Number(id)] || mockSecondhandItems[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.DETAIL(id));
-    return {
-      ...data,
-      user: data.author?.nickname ?? data.user ?? '?',
-      avatar: data.author?.avatar ?? data.avatar ?? '',
-      authorId: data.author?.id ?? data.authorId,
-      desc: data.description ?? data.desc,
-    };
+    return mapSecondhand(data);
   },
 
-  async create(item: Omit<SecondhandItem, 'user' | 'avatar' | 'gender' | 'bio' | 'sold'>): Promise<SecondhandItem> {
+  async create(item: Omit<SecondhandItem, 'id' | 'user' | 'avatar' | 'gender' | 'bio' | 'sold'>): Promise<SecondhandItem> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
-      const newItem: SecondhandItem = { ...item, user: '我', avatar: '我', gender: 'male' as const, bio: '', sold: false };
+      const newItem: SecondhandItem = {
+        ...item,
+        id: `secondhand-${Date.now()}`,
+        user: '我',
+        avatar: '我',
+        gender: 'male' as const,
+        bio: '',
+        sold: false,
+      };
       mockSecondhandItems.unshift(newItem);
       return newItem;
     }
-    const { data } = await apiClient.post(ENDPOINTS.SECONDHAND.CREATE, item);
-    return {
-      ...data,
-      user: data.author?.nickname ?? data.user ?? '?',
-      avatar: data.author?.avatar ?? data.avatar ?? '',
-      authorId: data.author?.id ?? data.authorId,
-      desc: data.description ?? data.desc,
+    const payload = {
+      ...item,
+      category: toApiCategory(item.category),
+      description: item.desc,
     };
+    const { data } = await apiClient.post(ENDPOINTS.SECONDHAND.CREATE, payload);
+    return mapSecondhand(data);
   },
 
   async edit(id: string, item: Partial<SecondhandItem>): Promise<SecondhandItem> {
@@ -59,8 +83,12 @@ export const secondhandService = {
       const original = mockSecondhandItems[Number(id)] || mockSecondhandItems[0];
       return { ...original, ...item };
     }
-    const { data } = await apiClient.put(ENDPOINTS.SECONDHAND.EDIT(id), item);
-    return data;
+    const payload: Record<string, unknown> = { ...item };
+    if (item.category) payload.category = toApiCategory(item.category);
+    if (item.desc !== undefined) payload.description = item.desc;
+    delete payload.desc;
+    const { data } = await apiClient.put(ENDPOINTS.SECONDHAND.EDIT(id), payload);
+    return mapSecondhand(data);
   },
 
   async delete(id: string): Promise<{ success: boolean }> {
