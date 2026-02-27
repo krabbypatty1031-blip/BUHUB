@@ -67,13 +67,29 @@ export const normalizeImageUrl = (url: string | null | undefined): string | null
   return `${getImageBaseUrl()}/${url}`;
 };
 
+const PLACEHOLDER_AVATARS = new Set(['avatar1.png', 'avatar2.png', 'avatar3.png']);
+
+const DEFAULT_AVATAR_IDS = new Set([
+  'Luna', 'Felix', 'Mia', 'Leo', 'Nala', 'Rocky', 'Coco', 'Max', 'Bella', 'Finn', 'Aria', 'Sage',
+]);
+
 /**
  * Normalize avatar URL
- * Same as normalizeImageUrl but with avatar-specific handling if needed
+ * - Color (#xxx): return as-is
+ * - Default avatar ID (Luna, Felix, etc.): return as-is (don't turn into URL)
+ * - Placeholder (avatar1.png, single letter "A"): return null (don't fetch)
+ * - Otherwise: same as normalizeImageUrl
  */
 export const normalizeAvatarUrl = (avatar: string | null | undefined): string | null => {
+  if (!avatar) return null;
   if (typeof avatar === 'string' && avatar.startsWith('#')) {
     return avatar;
+  }
+  if (DEFAULT_AVATAR_IDS.has(avatar)) {
+    return avatar;
+  }
+  if (PLACEHOLDER_AVATARS.has(avatar) || (avatar.length <= 2 && !avatar.includes('/'))) {
+    return null;
   }
   return normalizeImageUrl(avatar);
 };

@@ -158,11 +158,6 @@ export default function EmailInputScreen({ navigation }: Props) {
       showSnackbar({ message: t('emailPlaceholder'), type: 'error' });
       return;
     }
-    const localPart = trimmed.split('@')[0];
-    if (!/^\d{8}$/.test(localPart)) {
-      showSnackbar({ message: t('emailMustBe8Digits'), type: 'error' });
-      return;
-    }
 
     setShowCaptcha(true);
     pan.setValue(0);

@@ -9,7 +9,8 @@ const TOKEN_KEY = 'buhub-token';
 // API base URL: use EXPO_PUBLIC_API_URL, or localhost in dev (10.0.2.2 for Android emulator)
 const getApiBaseUrl = () => {
   if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+    const url = process.env.EXPO_PUBLIC_API_URL;
+    return url.endsWith('/api') ? url : `${url.replace(/\/$/, '')}/api`;
   }
   if (__DEV__) {
     return Platform.OS === 'android'

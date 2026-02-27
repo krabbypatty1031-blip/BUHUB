@@ -14,29 +14,24 @@ interface AvatarProps {
 
 const SIZES = { xs: 24, sm: 32, md: 40, lg: 56, xl: 80 };
 
+const PLACEHOLDER_AVATARS = new Set(['avatar1.png', 'avatar2.png', 'avatar3.png']);
+
 function Avatar({ text, uri, defaultAvatar, size = 'md', gender }: AvatarProps) {
   const s = SIZES[size];
-  const normalizedUri = normalizeAvatarUrl(uri);
 
-  // 1. Custom uploaded image
-  const isImageUri = normalizedUri && (normalizedUri.startsWith('http') || normalizedUri.startsWith('file://') || normalizedUri.startsWith('data:'));
-  if (isImageUri) {
-    return (
-      <Image
-        source={{ uri: normalizedUri }}
-        style={[styles.image, { width: s, height: s, borderRadius: s / 2 }]}
-      />
-    );
+  // 1. Default avatar ID (Luna, Felix, etc.) - from uri or defaultAvatar prop
+  const defaultId = uri && getAvatarDef(uri) ? uri : defaultAvatar && getAvatarDef(defaultAvatar) ? defaultAvatar : null;
+  if (defaultId) {
+    return <DefaultAvatarSvg id={defaultId} size={s} />;
   }
 
   // 2. Color-based avatar (e.g., anonymous identity colors like #FF6B6B)
-  const isColorUri = normalizedUri && normalizedUri.startsWith('#');
-  if (isColorUri) {
+  if (uri && typeof uri === 'string' && uri.startsWith('#')) {
     return (
       <View
         style={[
           styles.colorAvatar,
-          { width: s, height: s, borderRadius: s / 2, backgroundColor: normalizedUri },
+          { width: s, height: s, borderRadius: s / 2, backgroundColor: uri },
         ]}
       >
         <Text
@@ -51,12 +46,24 @@ function Avatar({ text, uri, defaultAvatar, size = 'md', gender }: AvatarProps) 
     );
   }
 
-  // 3. Pre-designed default avatar
-  if (defaultAvatar && getAvatarDef(defaultAvatar)) {
-    return <DefaultAvatarSvg id={defaultAvatar} size={s} />;
+  // 3. Placeholder or non-URL (avatar1.png, single letter "A") - use initial, don't fetch
+  if (!uri || PLACEHOLDER_AVATARS.has(uri) || (typeof uri === 'string' && uri.length <= 2 && !uri.includes('/'))) {
+    return <InitialAvatar text={text || '?'} size={s} gender={gender} />;
   }
 
-  // 4. Initial-based avatar (fallback)
+  // 4. Custom uploaded image - real URL or /uploads/ path
+  const normalizedUri = normalizeAvatarUrl(uri);
+  const isImageUri = normalizedUri && (normalizedUri.startsWith('http') || normalizedUri.startsWith('file://') || normalizedUri.startsWith('data:'));
+  if (isImageUri) {
+    return (
+      <Image
+        source={{ uri: normalizedUri }}
+        style={[styles.image, { width: s, height: s, borderRadius: s / 2 }]}
+      />
+    );
+  }
+
+  // 5. Fallback
   return <InitialAvatar text={text || '?'} size={s} gender={gender} />;
 }
 
