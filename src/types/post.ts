@@ -33,6 +33,7 @@ export interface ForumPost {
   functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
+  sourcePostId?: string;
   quotedPost?: {
     id: string;
     name: string;

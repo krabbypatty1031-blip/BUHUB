@@ -1,10 +1,17 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { Contact, ChatHistory } from '../../types';
-import i18n from '../../i18n';
+import i18n, { normalizeLanguage } from '../../i18n';
+import { useAuthStore } from '../../store/authStore';
+import { normalizeAvatarUrl, normalizeImageUrl as normalizeMediaUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 const MESSAGE_CARD_PREFIX = '[BUHUB_CARD]';
+const MESSAGE_REPLY_PREFIX = '[BUHUB_REPLY]';
+const MESSAGE_AUDIO_PREFIX = '[BUHUB_AUDIO]';
+const MESSAGE_REACTION_PREFIX = '[BUHUB_REACTION]';
+const CARD_TITLE_MAX_LEN = 240;
+const CARD_POSTER_MAX_LEN = 80;
 
 type FunctionCardType = 'partner' | 'errand' | 'secondhand' | 'post';
 
@@ -16,14 +23,43 @@ type FunctionCardPayload = {
   postId?: string;
 };
 
+type ReplyPayload = {
+  text: string;
+  replyTo: {
+    text: string;
+    from: 'me' | 'them';
+  };
+};
+
+type AudioPayload = {
+  url: string;
+  durationMs?: number;
+  replyTo?: {
+    text: string;
+    from: 'me' | 'them';
+  };
+};
+
+type ReactionPayload = {
+  messageId: string;
+  emoji?: string | null;
+};
+
 export type SendMessagePayload =
   | string
   | {
       text?: string;
       functionCard?: FunctionCardPayload;
+      replyTo?: ReplyPayload['replyTo'];
+      audio?: AudioPayload;
+      reaction?: ReactionPayload;
     };
 
 type MessageLanguage = 'tc' | 'sc' | 'en';
+export type UserPresence = {
+  isOnline: boolean;
+  lastSeen: number | null;
+};
 
 const CARD_TYPE_LABEL_KEYS: Record<FunctionCardType, string> = {
   partner: 'findPartner',
@@ -33,8 +69,11 @@ const CARD_TYPE_LABEL_KEYS: Record<FunctionCardType, string> = {
 };
 
 function getCurrentLanguage(): MessageLanguage {
+  const storeLang = normalizeLanguage(useAuthStore.getState().language);
+  if (storeLang) return storeLang;
   const lang = i18n.language;
-  if (lang === 'tc' || lang === 'sc' || lang === 'en') return lang;
+  const normalized = normalizeLanguage(lang);
+  if (normalized) return normalized;
   if (lang.toLowerCase().startsWith('en')) return 'en';
   if (lang.toLowerCase().includes('hans') || lang.toLowerCase().includes('cn')) return 'sc';
   return 'tc';
@@ -81,8 +120,31 @@ function buildCardPreview(card: FunctionCardPayload): string {
   });
 }
 
+function sanitizeCardText(value: string | undefined, maxLen: number, fallback: string): string {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return fallback;
+  return trimmed.slice(0, maxLen);
+}
+
 function encodeFunctionCard(card: FunctionCardPayload): string {
-  return `${MESSAGE_CARD_PREFIX}${JSON.stringify(card)}`;
+  const safeCard: FunctionCardPayload = {
+    ...card,
+    title: sanitizeCardText(card.title, CARD_TITLE_MAX_LEN, '-'),
+    posterName: sanitizeCardText(card.posterName, CARD_POSTER_MAX_LEN, '-'),
+  };
+  return `${MESSAGE_CARD_PREFIX}${JSON.stringify(safeCard)}`;
+}
+
+function encodeReplyPayload(payload: ReplyPayload): string {
+  return `${MESSAGE_REPLY_PREFIX}${JSON.stringify(payload)}`;
+}
+
+function encodeAudioPayload(payload: AudioPayload): string {
+  return `${MESSAGE_AUDIO_PREFIX}${JSON.stringify(payload)}`;
+}
+
+function encodeReactionPayload(payload: ReactionPayload): string {
+  return `${MESSAGE_REACTION_PREFIX}${JSON.stringify(payload)}`;
 }
 
 function parseMessageContent(raw: string): {
@@ -94,7 +156,67 @@ function parseMessageContent(raw: string): {
     posterName: string;
     postId?: string;
   };
+  replyTo?: ReplyPayload['replyTo'];
+  audio?: AudioPayload;
+  reaction?: ReactionPayload;
 } {
+  if (raw.startsWith(MESSAGE_REACTION_PREFIX)) {
+    try {
+      const payload = JSON.parse(raw.slice(MESSAGE_REACTION_PREFIX.length)) as ReactionPayload;
+      if (!payload?.messageId) return { text: raw };
+      return {
+        text: '',
+        reaction: {
+          messageId: payload.messageId,
+          emoji: typeof payload.emoji === 'string' ? payload.emoji : '',
+        },
+      };
+    } catch {
+      return { text: raw };
+    }
+  }
+
+  if (raw.startsWith(MESSAGE_AUDIO_PREFIX)) {
+    try {
+      const payload = JSON.parse(raw.slice(MESSAGE_AUDIO_PREFIX.length)) as AudioPayload;
+      if (!payload?.url) return { text: raw };
+      return {
+        text: '',
+        audio: {
+          url: payload.url,
+          ...(typeof payload.durationMs === 'number' ? { durationMs: payload.durationMs } : {}),
+        },
+        ...(payload.replyTo?.text &&
+        (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
+          ? { replyTo: payload.replyTo }
+          : {}),
+      };
+    } catch {
+      return { text: raw };
+    }
+  }
+
+  if (raw.startsWith(MESSAGE_REPLY_PREFIX)) {
+    try {
+      const payload = JSON.parse(raw.slice(MESSAGE_REPLY_PREFIX.length)) as ReplyPayload;
+      if (
+        !payload?.replyTo?.text ||
+        (payload.replyTo.from !== 'me' && payload.replyTo.from !== 'them')
+      ) {
+        return { text: raw };
+      }
+      return {
+        text: payload.text ?? '',
+        replyTo: {
+          text: payload.replyTo.text,
+          from: payload.replyTo.from,
+        },
+      };
+    } catch {
+      return { text: raw };
+    }
+  }
+
   if (!raw.startsWith(MESSAGE_CARD_PREFIX)) {
     return { text: raw };
   }
@@ -120,12 +242,48 @@ function parseMessageContent(raw: string): {
 }
 
 function groupMessagesByDate(
-  messages: Array<{ content?: string; text?: string; createdAt?: string; time?: string; isMine: boolean; id: string }>
+  messages: Array<{
+    content?: string;
+    text?: string;
+    createdAt?: string;
+    time?: string;
+    images?: string[];
+    isDeleted?: boolean;
+    isRead?: boolean;
+    isMine: boolean;
+    id: string;
+  }>
 ): ChatHistory[] {
   const groups = new Map<string, ChatHistory>();
+  const renderedMessageById = new Map<string, NonNullable<ChatHistory['messages'][number]>>();
+  const actorReactionByTarget = new Map<string, { me?: string; them?: string }>();
   const now = new Date();
   const language = getCurrentLanguage();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const applyReactions = (targetId: string) => {
+    const target = renderedMessageById.get(targetId);
+    if (!target) return;
+    const actorState = actorReactionByTarget.get(targetId);
+    if (!actorState) {
+      target.reactions = [];
+      return;
+    }
+
+    const entries = new Map<string, { emoji: string; count: number; reactedByMe?: boolean }>();
+    if (actorState.me) {
+      const current = entries.get(actorState.me) ?? { emoji: actorState.me, count: 0 };
+      current.count += 1;
+      current.reactedByMe = true;
+      entries.set(actorState.me, current);
+    }
+    if (actorState.them) {
+      const current = entries.get(actorState.them) ?? { emoji: actorState.them, count: 0 };
+      current.count += 1;
+      entries.set(actorState.them, current);
+    }
+    target.reactions = Array.from(entries.values());
+  };
 
   for (const m of messages) {
     const timestamp = m.createdAt ?? m.time ?? new Date().toISOString();
@@ -136,15 +294,65 @@ function groupMessagesByDate(
       groups.set(dateKey, { date: dateLabel, messages: [] });
     }
 
+    if (m.isDeleted) {
+      groups.get(dateKey)!.messages.push({
+        id: m.id,
+        createdAt: timestamp,
+        type: m.isMine ? 'sent' : 'received',
+        text: m.isMine
+          ? tMessage('messageYouRecalled')
+          : tMessage('messagePeerRecalled'),
+        images: [],
+        isRecalled: true,
+        time: formatChatTime(timestamp),
+      });
+      continue;
+    }
+
     const rawText = m.content ?? m.text ?? '';
     const parsed = parseMessageContent(rawText);
-    groups.get(dateKey)!.messages.push({
+    if (parsed.reaction) {
+      const actor = m.isMine ? 'me' : 'them';
+      const current = actorReactionByTarget.get(parsed.reaction.messageId) ?? {};
+      if (parsed.reaction.emoji) {
+        current[actor] = parsed.reaction.emoji;
+        actorReactionByTarget.set(parsed.reaction.messageId, current);
+      } else {
+        delete current[actor];
+        if (current.me || current.them) {
+          actorReactionByTarget.set(parsed.reaction.messageId, current);
+        } else {
+          actorReactionByTarget.delete(parsed.reaction.messageId);
+        }
+      }
+      applyReactions(parsed.reaction.messageId);
+      continue;
+    }
+
+    const nextMessage: NonNullable<ChatHistory['messages'][number]> = {
+      id: m.id,
+      createdAt: timestamp,
       type: m.isMine ? 'sent' : 'received',
       text: parsed.text,
+      images: Array.isArray(m.images)
+        ? m.images
+            .map((img) => normalizeMediaUrl(img))
+            .filter((img): img is string => typeof img === 'string' && img.length > 0)
+        : [],
+      ...(parsed.audio
+        ? (() => {
+            const audioUrl = normalizeMediaUrl(parsed.audio.url);
+            return audioUrl ? { audio: { ...parsed.audio, url: audioUrl } } : {};
+          })()
+        : {}),
+      ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
       time: formatChatTime(timestamp),
-      status: 'read',
+      ...(m.isMine ? { status: (m.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
       ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
-    });
+    };
+    groups.get(dateKey)!.messages.push(nextMessage);
+    renderedMessageById.set(m.id, nextMessage);
+    applyReactions(m.id);
   }
 
   return Array.from(groups.values());
@@ -155,8 +363,26 @@ function normalizeSendContent(payload: SendMessagePayload): string {
     return payload.trim();
   }
 
+  if (payload.reaction) {
+    return encodeReactionPayload(payload.reaction);
+  }
+
+  if (payload.audio) {
+    return encodeAudioPayload({
+      ...payload.audio,
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    });
+  }
+
   if (payload.functionCard) {
     return encodeFunctionCard(payload.functionCard);
+  }
+
+  if (payload.replyTo) {
+    return encodeReplyPayload({
+      text: (payload.text ?? '').trim(),
+      replyTo: payload.replyTo,
+    });
   }
 
   return (payload.text ?? '').trim();
@@ -172,21 +398,38 @@ export const messageService = {
     return (Array.isArray(data) ? data : []).map((c: {
       userId: string;
       user: {
+        userName?: string | null;
         nickname: string;
         avatar: string;
         gender?: string;
         grade?: string | null;
         major?: string | null;
       };
-      latestMessage: { content: string; createdAt: string };
+      latestMessage: { content: string; images?: string[]; createdAt: string; isDeleted?: boolean };
       unreadCount: number;
     }) => {
-      const parsed = parseMessageContent(c.latestMessage?.content ?? '');
-      const preview = parsed.functionCard ? buildCardPreview(parsed.functionCard) : parsed.text;
+      const preview = c.latestMessage?.isDeleted
+        ? tMessage('messageRecalledPreview')
+        : (() => {
+            const parsed = parseMessageContent(c.latestMessage?.content ?? '');
+            return parsed.functionCard
+              ? buildCardPreview(parsed.functionCard)
+              : parsed.audio
+                ? tMessage('messageAudioPreview')
+                : parsed.reaction
+                  ? parsed.reaction.emoji
+                    ? tMessage('messageReactionPreview', {
+                        emoji: parsed.reaction.emoji,
+                        defaultValue: `[Reacted] ${parsed.reaction.emoji}`,
+                      })
+                    : ''
+                  : (parsed.text || ((c.latestMessage?.images?.length ?? 0) > 0 ? tMessage('messageImagePreview') : ''));
+          })();
       return {
         id: c.userId,
+        userName: c.user?.userName ?? undefined,
         name: c.user?.nickname ?? '?',
-        avatar: c.user?.avatar ?? '',
+        avatar: normalizeAvatarUrl(c.user?.avatar) ?? '',
         grade: c.user?.grade ?? undefined,
         major: c.user?.major ?? undefined,
         message: preview || '',
@@ -209,9 +452,49 @@ export const messageService = {
     return groupMessagesByDate(messages);
   },
 
+  async canSendMessage(userId: string): Promise<boolean> {
+    if (USE_MOCK) return true;
+    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CAN_SEND(userId));
+    return Boolean((data as { canSendMessage?: boolean })?.canSendMessage);
+  },
+
+  async sendTyping(toUserId: string, isTyping: boolean): Promise<void> {
+    if (USE_MOCK) return;
+    await apiClient.post(ENDPOINTS.MESSAGE.TYPING, { toUserId, isTyping });
+  },
+
+  async heartbeatPresence(): Promise<UserPresence> {
+    if (USE_MOCK) {
+      return { isOnline: true, lastSeen: Date.now() };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.MESSAGE.PRESENCE_HEARTBEAT);
+    const payload = data as { isOnline?: boolean; lastSeen?: number | null };
+    return {
+      isOnline: Boolean(payload?.isOnline),
+      lastSeen: typeof payload?.lastSeen === 'number' ? payload.lastSeen : null,
+    };
+  },
+
+  async goOffline(): Promise<void> {
+    if (USE_MOCK) return;
+    await apiClient.delete(ENDPOINTS.MESSAGE.PRESENCE_HEARTBEAT);
+  },
+
+  async getPresence(userId: string): Promise<UserPresence> {
+    if (USE_MOCK) {
+      return { isOnline: false, lastSeen: null };
+    }
+    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.PRESENCE(userId));
+    const payload = data as { isOnline?: boolean; lastSeen?: number | null };
+    return {
+      isOnline: Boolean(payload?.isOnline),
+      lastSeen: typeof payload?.lastSeen === 'number' ? payload.lastSeen : null,
+    };
+  },
+
   async sendMessage(receiverId: string, payload: SendMessagePayload, images?: string[]): Promise<{ success: boolean }> {
     const content = normalizeSendContent(payload);
-    if (!content) return { success: false };
+    if (!content && (!images || images.length === 0)) return { success: false };
 
     if (USE_MOCK) {
       const { mockChatHistory } = await import('../../data/mock/messages');
@@ -221,6 +504,9 @@ export const messageService = {
       const newMsg = {
         type: 'sent' as const,
         text: parsed.text,
+        images: images ?? [],
+        ...(parsed.audio ? { audio: parsed.audio } : {}),
+        ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
         time,
         status: 'sent' as const,
         ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),

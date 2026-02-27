@@ -1,7 +1,147 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../api/services/user.service';
 import { useForumStore } from '../store/forumStore';
-import type { User, Language, FollowListItem } from '../types';
+import type { User, Language, FollowListItem, MyContent, UserPublicProfile, FollowerNotification } from '../types';
+
+function normalizeHandle(handle: string | null | undefined): string {
+  return (handle ?? '').trim().toLowerCase();
+}
+
+function isSameHandle(left: string | null | undefined, right: string | null | undefined): boolean {
+  const a = normalizeHandle(left);
+  const b = normalizeHandle(right);
+  return a.length > 0 && b.length > 0 && a === b;
+}
+
+function applyFollowStateToFollowerNotifications(
+  list: FollowerNotification[] | undefined,
+  userName: string,
+  followed: boolean
+): FollowerNotification[] | undefined {
+  if (!list) return list;
+  return list.map((item) =>
+    isSameHandle(item.userName ?? item.user, userName)
+      ? { ...item, isFollowed: followed }
+      : item
+  );
+}
+
+function buildFollowListItem(
+  userName: string,
+  publicProfile?: UserPublicProfile,
+  followersList?: FollowListItem[]
+): FollowListItem {
+  const existingFollower = followersList?.find((item) => item.userName === userName);
+  return {
+    userName,
+    nickname: existingFollower?.nickname ?? publicProfile?.nickname,
+    avatar: existingFollower?.avatar ?? publicProfile?.avatar ?? '',
+    gender: existingFollower?.gender ?? publicProfile?.gender ?? 'other',
+    bio: existingFollower?.bio ?? publicProfile?.bio ?? '',
+    major: existingFollower?.major ?? publicProfile?.major ?? '',
+    grade: existingFollower?.grade ?? publicProfile?.grade ?? '',
+    isFollowed: true,
+  };
+}
+
+function applyFollowStateToCache(
+  params: {
+    userName: string;
+    followed: boolean;
+    publicProfile?: UserPublicProfile;
+    followingList?: FollowListItem[];
+    followersList?: FollowListItem[];
+    followerNotifications?: FollowerNotification[];
+    myContent?: MyContent;
+  }
+) {
+  const {
+    userName,
+    followed,
+    publicProfile,
+    followingList,
+    followersList,
+    followerNotifications,
+    myContent,
+  } = params;
+
+  if (publicProfile) {
+    const nextFollowerCount = Math.max(
+      0,
+      (publicProfile.stats?.followerCount ?? 0) + (followed ? 1 : -1)
+    );
+    return {
+      publicProfile: {
+        ...publicProfile,
+        isFollowedByMe: followed,
+        stats: {
+          ...publicProfile.stats,
+          followerCount: nextFollowerCount,
+        },
+      },
+      followingList: followingList
+        ? followed
+          ? followingList.some((item) => item.userName === userName)
+            ? followingList.map((item) =>
+                item.userName === userName ? { ...item, isFollowed: true } : item
+              )
+            : [buildFollowListItem(userName, publicProfile, followersList), ...followingList]
+          : followingList.filter((item) => item.userName !== userName)
+        : followingList,
+      followersList: followersList
+        ? followersList.map((item) =>
+            item.userName === userName ? { ...item, isFollowed: followed } : item
+          )
+        : followersList,
+      followerNotifications: applyFollowStateToFollowerNotifications(
+        followerNotifications,
+        userName,
+        followed
+      ),
+      myContent: myContent
+        ? {
+            ...myContent,
+            stats: {
+              ...myContent.stats,
+              following: Math.max(0, (myContent.stats?.following ?? 0) + (followed ? 1 : -1)),
+            },
+          }
+        : myContent,
+    };
+  }
+
+  return {
+    publicProfile,
+    followingList: followingList
+      ? followed
+        ? followingList.some((item) => item.userName === userName)
+          ? followingList.map((item) =>
+              item.userName === userName ? { ...item, isFollowed: true } : item
+            )
+          : [buildFollowListItem(userName, undefined, followersList), ...followingList]
+        : followingList.filter((item) => item.userName !== userName)
+      : followingList,
+    followersList: followersList
+      ? followersList.map((item) =>
+          item.userName === userName ? { ...item, isFollowed: followed } : item
+        )
+      : followersList,
+    followerNotifications: applyFollowStateToFollowerNotifications(
+      followerNotifications,
+      userName,
+      followed
+    ),
+    myContent: myContent
+      ? {
+          ...myContent,
+          stats: {
+            ...myContent.stats,
+            following: Math.max(0, (myContent.stats?.following ?? 0) + (followed ? 1 : -1)),
+          },
+        }
+      : myContent,
+  };
+}
 
 export function useProfile() {
   return useQuery({
@@ -64,10 +204,139 @@ export function useFollowUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (userName: string) => userService.followUser(userName),
-    onSuccess: () => {
+    onMutate: async (userName) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['publicProfile', userName] }),
+        queryClient.cancelQueries({ queryKey: ['followingList'] }),
+        queryClient.cancelQueries({ queryKey: ['followersList'] }),
+        queryClient.cancelQueries({ queryKey: ['notifications', 'followers'] }),
+        queryClient.cancelQueries({ queryKey: ['myContent'] }),
+      ]);
+
+      const previousPublicProfile = queryClient.getQueryData<UserPublicProfile>(['publicProfile', userName]);
+      const previousFollowingList = queryClient.getQueryData<FollowListItem[]>(['followingList']);
+      const previousFollowersList = queryClient.getQueryData<FollowListItem[]>(['followersList']);
+      const previousFollowerNotifications = queryClient.getQueryData<FollowerNotification[]>(['notifications', 'followers']);
+      const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+
+      const currentlyFollowed =
+        previousPublicProfile?.isFollowedByMe ??
+        previousFollowingList?.some((item) => item.userName === userName) ??
+        previousFollowersList?.find((item) => item.userName === userName)?.isFollowed ??
+        previousFollowerNotifications?.find((item) => isSameHandle(item.userName ?? item.user, userName))?.isFollowed ??
+        false;
+      const nextFollowed = !currentlyFollowed;
+
+      const next = applyFollowStateToCache({
+        userName,
+        followed: nextFollowed,
+        publicProfile: previousPublicProfile,
+        followingList: previousFollowingList,
+        followersList: previousFollowersList,
+        followerNotifications: previousFollowerNotifications,
+        myContent: previousMyContent,
+      });
+
+      if (previousPublicProfile) {
+        queryClient.setQueryData(['publicProfile', userName], next.publicProfile);
+      }
+      if (previousFollowingList) {
+        queryClient.setQueryData(['followingList'], next.followingList);
+      }
+      if (previousFollowersList) {
+        queryClient.setQueryData(['followersList'], next.followersList);
+      }
+      if (previousFollowerNotifications) {
+        queryClient.setQueryData(['notifications', 'followers'], next.followerNotifications);
+      }
+      if (previousMyContent) {
+        queryClient.setQueryData(['myContent'], next.myContent);
+      }
+
+      return {
+        userName,
+        previousPublicProfile,
+        previousFollowingList,
+        previousFollowersList,
+        previousFollowerNotifications,
+        previousMyContent,
+      };
+    },
+    onError: (_error, _userName, context) => {
+      if (!context) return;
+      const {
+        userName,
+        previousPublicProfile,
+        previousFollowingList,
+        previousFollowersList,
+        previousFollowerNotifications,
+        previousMyContent,
+      } = context;
+
+      if (previousPublicProfile) {
+        queryClient.setQueryData(['publicProfile', userName], previousPublicProfile);
+      }
+      if (previousFollowingList) {
+        queryClient.setQueryData(['followingList'], previousFollowingList);
+      }
+      if (previousFollowersList) {
+        queryClient.setQueryData(['followersList'], previousFollowersList);
+      }
+      if (previousFollowerNotifications) {
+        queryClient.setQueryData(['notifications', 'followers'], previousFollowerNotifications);
+      }
+      if (previousMyContent) {
+        queryClient.setQueryData(['myContent'], previousMyContent);
+      }
+    },
+    onSuccess: (result, userName) => {
+      const currentPublicProfile = queryClient.getQueryData<UserPublicProfile>(['publicProfile', userName]);
+      const currentFollowingList = queryClient.getQueryData<FollowListItem[]>(['followingList']);
+      const currentFollowersList = queryClient.getQueryData<FollowListItem[]>(['followersList']);
+      const currentFollowerNotifications = queryClient.getQueryData<FollowerNotification[]>(['notifications', 'followers']);
+      const currentMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+
+      const currentFollowed =
+        currentPublicProfile?.isFollowedByMe ??
+        currentFollowingList?.some((item) => item.userName === userName) ??
+        currentFollowersList?.find((item) => item.userName === userName)?.isFollowed ??
+        currentFollowerNotifications?.find((item) => isSameHandle(item.userName ?? item.user, userName))?.isFollowed ??
+        false;
+
+      if (result.followed !== currentFollowed) {
+        const next = applyFollowStateToCache({
+          userName,
+          followed: result.followed,
+          publicProfile: currentPublicProfile,
+          followingList: currentFollowingList,
+          followersList: currentFollowersList,
+          followerNotifications: currentFollowerNotifications,
+          myContent: currentMyContent,
+        });
+
+        if (currentPublicProfile) {
+          queryClient.setQueryData(['publicProfile', userName], next.publicProfile);
+        }
+        if (currentFollowingList) {
+          queryClient.setQueryData(['followingList'], next.followingList);
+        }
+        if (currentFollowersList) {
+          queryClient.setQueryData(['followersList'], next.followersList);
+        }
+        if (currentFollowerNotifications) {
+          queryClient.setQueryData(['notifications', 'followers'], next.followerNotifications);
+        }
+        if (currentMyContent) {
+          queryClient.setQueryData(['myContent'], next.myContent);
+        }
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
       queryClient.invalidateQueries({ queryKey: ['followingList'] });
       queryClient.invalidateQueries({ queryKey: ['followersList'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'followers'] });
     },
   });
 }

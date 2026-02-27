@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,57 +8,78 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { FollowerNotification } from '../../types';
-import { useFollowerNotifications } from '../../hooks/useNotifications';
+import { useFollowerNotifications, useMarkAsRead } from '../../hooks/useNotifications';
+import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { useFollowUser } from '../../hooks/useUser';
+import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon } from '../../components/common/icons';
+import { BackIcon, UsersIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyFollowers'>;
 
-function FollowerItem({ item }: { item: FollowerNotification }) {
+function FollowerItem({
+  item,
+  onAvatarPress,
+}: {
+  item: FollowerNotification;
+  onAvatarPress: (userName: string) => void;
+}) {
   const { t } = useTranslation();
   const followUser = useFollowUser();
-  const [followed, setFollowed] = useState(item.isFollowed);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const targetUserName = item.userName ?? item.user;
+  const followed = item.isFollowed;
 
   const handleFollow = useCallback(() => {
-    followUser.mutate(item.user, {
-      onSuccess: () => {
-        setFollowed((prev) => !prev);
+    if (!targetUserName) return;
+    followUser.mutate(targetUserName, {
+      onError: () => {
+        showSnackbar({ message: t('followFailed'), type: 'error' });
       },
     });
-  }, [item.user, followUser]);
+  }, [targetUserName, followUser, showSnackbar, t]);
 
   return (
     <View style={styles.notificationItem}>
-      <Avatar
-        text={item.user}
-        uri={item.avatar || null}
-        size="md"
-        gender={item.gender}
-      />
+      <TouchableOpacity onPress={() => onAvatarPress(targetUserName)}>
+        <Avatar
+          text={item.user}
+          uri={item.avatar || null}
+          size="md"
+          gender={item.gender}
+        />
+      </TouchableOpacity>
       <View style={styles.notificationContent}>
-        <Text style={styles.notificationUser} numberOfLines={1}>
-          {item.user}
-        </Text>
-        <View style={styles.actionRow}>
+        <View style={styles.notificationHeader}>
+          <View style={styles.notificationNameRow}>
+            <Text style={styles.notificationUser} numberOfLines={1}>
+              {item.user}
+            </Text>
+            {item.gender === 'male' ? (
+              <MaleIcon size={12} color={colors.genderMale} />
+            ) : null}
+            {item.gender === 'female' ? (
+              <FemaleIcon size={12} color={colors.genderFemale} />
+            ) : null}
+          </View>
           <Text style={styles.notificationTime}>{item.time}</Text>
+        </View>
+        <View style={styles.actionRow}>
           <UsersIcon size={14} color={colors.primary} />
           <Text style={styles.notificationAction}>
             {t('followedYou')}
           </Text>
         </View>
-        {item.bio ? (
-          <Text style={styles.bioText} numberOfLines={1}>
-            {item.bio}
-          </Text>
-        ) : null}
       </View>
       <TouchableOpacity
         style={[
@@ -66,7 +87,7 @@ function FollowerItem({ item }: { item: FollowerNotification }) {
           followed && styles.followBackBtnFollowed,
         ]}
         onPress={handleFollow}
-        disabled={followUser.isPending}
+        disabled={followUser.isPending || !targetUserName}
         activeOpacity={0.7}
       >
         {followUser.isPending ? (
@@ -79,8 +100,8 @@ function FollowerItem({ item }: { item: FollowerNotification }) {
             ]}
           >
             {followed
-              ? t('followed')
-              : t('followBack')}
+              ? t('alreadyFollowed')
+              : t('follow')}
           </Text>
         )}
       </TouchableOpacity>
@@ -91,15 +112,45 @@ function FollowerItem({ item }: { item: FollowerNotification }) {
 export default function NotifyFollowersScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: notifications, isLoading, refetch } = useFollowerNotifications();
+  const markAsRead = useMarkAsRead();
+  const setUnreadFollowers = useNotificationStore((s) => s.setUnreadFollowers);
+  const currentUser = useAuthStore((s) => s.user);
+  const isFocused = useIsFocused();
+  const hasMarkedReadOnFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      hasMarkedReadOnFocusRef.current = false;
+      return;
+    }
+    if (hasMarkedReadOnFocusRef.current) return;
+
+    hasMarkedReadOnFocusRef.current = true;
+    setUnreadFollowers(0);
+    markAsRead.mutate('followers');
+  }, [isFocused, markAsRead, setUnreadFollowers]);
+
+  const handleAvatarPress = useCallback(
+    (userName: string) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName,
+        displayName: userName,
+      });
+    },
+    [navigation, currentUser]
+  );
 
   const renderItem = useCallback(
-    ({ item }: { item: FollowerNotification }) => <FollowerItem item={item} />,
-    []
+    ({ item }: { item: FollowerNotification }) => (
+      <FollowerItem item={item} onAvatarPress={handleAvatarPress} />
+    ),
+    [handleAvatarPress]
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -108,7 +159,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>
-          {t('followerNotifications') || 'Followers'}
+          {t('followerNotifications')}
         </Text>
         <View style={styles.iconBtn} />
       </View>
@@ -128,7 +179,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {t('noNotifications') || 'No notifications yet'}
+                {t('noNotifications')}
               </Text>
             </View>
           }
@@ -193,10 +244,23 @@ const styles = StyleSheet.create({
   notificationContent: {
     flex: 1,
   },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xxs,
+  },
   notificationUser: {
     ...typography.titleSmall,
     color: colors.onSurface,
-    marginBottom: spacing.xxs,
+    flexShrink: 1,
+  },
+  notificationNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   notificationTime: {
     ...typography.bodySmall,
@@ -209,10 +273,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxs,
   },
   notificationAction: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  bioText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },

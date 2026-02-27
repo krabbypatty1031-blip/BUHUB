@@ -42,7 +42,6 @@ const apiClient = axios.create({
 });
 
 // Separate client for file uploads (multipart/form-data)
-// Do NOT set Content-Type header — axios auto-generates the boundary for FormData
 const uploadClient = axios.create({
   baseURL: API_BASE,
   timeout: 60000,
@@ -148,5 +147,6 @@ export const clearToken = async () => {
   await AsyncStorage.removeItem(TOKEN_KEY);
 };
 
+export { API_BASE };
 export { uploadClient };
 export default apiClient;

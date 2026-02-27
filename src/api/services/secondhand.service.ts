@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { SecondhandItem, SecondhandCategory, PaginationParams } from '../../types';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 
@@ -24,7 +25,7 @@ const mapSecondhand = (i: any): SecondhandItem => ({
   id: i.id,
   category: fromApiCategory(i.category),
   user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
-  avatar: i.author?.avatar ?? i.avatar ?? '',
+  avatar: normalizeAvatarUrl(i.author?.avatar ?? i.avatar) ?? '',
   gender: i.author?.gender ?? i.gender ?? 'other',
   bio: i.author?.bio ?? i.bio ?? '',
   gradeKey: i.author?.grade ?? i.gradeKey ?? undefined,
@@ -34,13 +35,20 @@ const mapSecondhand = (i: any): SecondhandItem => ({
 });
 
 export const secondhandService = {
-  async getList(category?: SecondhandCategory, params?: PaginationParams): Promise<SecondhandItem[]> {
+  async getList(category?: SecondhandCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<SecondhandItem[]> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
       const list = category ? mockSecondhandItems.filter((i) => i.category === category) : [...mockSecondhandItems];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, { params: { category: toApiCategory(category), ...params } });
+    const { includeExpired, ...paginationParams } = options || {};
+    const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, {
+      params: {
+        category: toApiCategory(category),
+        ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...paginationParams,
+      },
+    });
     return (Array.isArray(data) ? data : []).map(mapSecondhand);
   },
 
@@ -96,6 +104,14 @@ export const secondhandService = {
       return { success: true };
     }
     const { data } = await apiClient.delete(ENDPOINTS.SECONDHAND.DELETE(id));
+    return data;
+  },
+
+  async close(id: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.put(ENDPOINTS.SECONDHAND.EDIT(id), { expired: true });
     return data;
   },
 

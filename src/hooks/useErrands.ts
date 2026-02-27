@@ -8,6 +8,12 @@ export function useErrands(category?: ErrandCategory) {
     queryFn: () => errandService.getList(category || undefined),
   });
 }
+export function useMyErrands(category?: ErrandCategory) {
+  return useQuery({
+    queryKey: ['errands', 'all', category],
+    queryFn: () => errandService.getList(category || undefined, { includeExpired: true }),
+  });
+}
 
 export function useErrandDetail(id: string) {
   return useQuery({
@@ -44,6 +50,18 @@ export function useDeleteErrand() {
     mutationFn: (id: string) => errandService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['errands'] });
+    },
+  });
+}
+
+export function useCloseErrand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => errandService.close(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['errands'] });
+      queryClient.invalidateQueries({ queryKey: ['errands', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['errand'] });
     },
   });
 }

@@ -1,4 +1,3 @@
-// Spacing & Border Radius — Threads-style
 
 export const spacing = {
   xxs: 2,
@@ -19,8 +18,6 @@ export const borderRadius = {
   xl: 20,
   full: 9999,
 } as const;
-
-// Elevation — zeroed out for flat Threads-style design.
 // Kept as tokens so existing ...elevation[N] spreads don't break.
 const _flat = {
   shadowColor: 'transparent',

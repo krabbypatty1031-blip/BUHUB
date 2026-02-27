@@ -8,18 +8,24 @@ interface MessageState {
   mutedContacts: Set<string>;
   markedUnreadContacts: Set<string>;
   readContacts: Set<string>;
+  inboxSeenContacts: Set<string>;
+  activeChatContactId: string | null;
 
   setContacts: (contacts: Contact[]) => void;
   setActiveChatMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
-  togglePin: (name: string) => void;
-  toggleMute: (name: string) => void;
-  markAsUnread: (name: string) => void;
-  markAsRead: (name: string) => void;
-  clearUnread: (name: string) => void;
-  isPinned: (name: string, defaultPinned: boolean) => boolean;
-  isMuted: (name: string) => boolean;
-  getEffectiveUnread: (name: string, apiUnread: number) => number;
+  togglePin: (contactId: string) => void;
+  toggleMute: (contactId: string) => void;
+  markAsUnread: (contactId: string) => void;
+  markAsRead: (contactId: string) => void;
+  clearUnread: (contactId: string) => void;
+  markInboxSeen: (contactIds: string[]) => void;
+  handleIncomingMessage: (contactId: string) => void;
+  setActiveChatContact: (contactId: string | null) => void;
+  isPinned: (contactId: string, defaultPinned: boolean) => boolean;
+  isMuted: (contactId: string) => boolean;
+  getEffectiveUnread: (contactId: string, apiUnread: number) => number;
+  getEffectiveTabUnread: (contactId: string, apiUnread: number) => number;
 }
 
 export const useMessageStore = create<MessageState>()((set, get) => ({
@@ -29,6 +35,8 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   mutedContacts: new Set<string>(),
   markedUnreadContacts: new Set<string>(),
   readContacts: new Set<string>(),
+  inboxSeenContacts: new Set<string>(),
+  activeChatContactId: null,
 
   setContacts: (contacts) => set({ contacts }),
   setActiveChatMessages: (activeChatMessages) => set({ activeChatMessages }),
@@ -37,61 +45,128 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
       activeChatMessages: [...state.activeChatMessages, message],
     })),
 
-  togglePin: (name) =>
+  togglePin: (contactId) =>
     set((state) => {
       const next = new Set(state.pinnedContacts);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(contactId)) next.delete(contactId);
+      else next.add(contactId);
       return { pinnedContacts: next };
     }),
 
-  toggleMute: (name) =>
+  toggleMute: (contactId) =>
     set((state) => {
       const next = new Set(state.mutedContacts);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(contactId)) next.delete(contactId);
+      else next.add(contactId);
       return { mutedContacts: next };
     }),
 
-  markAsUnread: (name) =>
+  markAsUnread: (contactId) =>
     set((state) => {
       const nextUnread = new Set(state.markedUnreadContacts);
-      nextUnread.add(name);
+      nextUnread.add(contactId);
+
       const nextRead = new Set(state.readContacts);
-      nextRead.delete(name);
-      return { markedUnreadContacts: nextUnread, readContacts: nextRead };
+      nextRead.delete(contactId);
+
+      const nextInboxSeen = new Set(state.inboxSeenContacts);
+      nextInboxSeen.delete(contactId);
+
+      return {
+        markedUnreadContacts: nextUnread,
+        readContacts: nextRead,
+        inboxSeenContacts: nextInboxSeen,
+      };
     }),
 
-  markAsRead: (name) =>
+  markAsRead: (contactId) =>
     set((state) => {
       const nextRead = new Set(state.readContacts);
-      nextRead.add(name);
+      nextRead.add(contactId);
+
       const nextUnread = new Set(state.markedUnreadContacts);
-      nextUnread.delete(name);
-      return { readContacts: nextRead, markedUnreadContacts: nextUnread };
+      nextUnread.delete(contactId);
+
+      return {
+        readContacts: nextRead,
+        markedUnreadContacts: nextUnread,
+      };
     }),
 
-  clearUnread: (name) =>
+  clearUnread: (contactId) =>
     set((state) => {
       const nextUnread = new Set(state.markedUnreadContacts);
-      nextUnread.delete(name);
+      nextUnread.delete(contactId);
+
       const nextRead = new Set(state.readContacts);
-      nextRead.add(name);
-      return { markedUnreadContacts: nextUnread, readContacts: nextRead };
+      nextRead.add(contactId);
+
+      const nextInboxSeen = new Set(state.inboxSeenContacts);
+      nextInboxSeen.add(contactId);
+
+      return {
+        markedUnreadContacts: nextUnread,
+        readContacts: nextRead,
+        inboxSeenContacts: nextInboxSeen,
+      };
     }),
 
-  isPinned: (name, defaultPinned) => {
+  markInboxSeen: (contactIds) =>
+    set((state) => {
+      if (contactIds.length === 0) return state;
+      const nextInboxSeen = new Set(state.inboxSeenContacts);
+      contactIds.forEach((contactId) => {
+        if (contactId) nextInboxSeen.add(contactId);
+      });
+      return { inboxSeenContacts: nextInboxSeen };
+    }),
+
+  handleIncomingMessage: (contactId) =>
+    set((state) => {
+      if (!contactId) return state;
+
+      const nextUnread = new Set(state.markedUnreadContacts);
+      const nextRead = new Set(state.readContacts);
+      const nextInboxSeen = new Set(state.inboxSeenContacts);
+
+      if (state.activeChatContactId === contactId) {
+        nextUnread.delete(contactId);
+        nextRead.add(contactId);
+        nextInboxSeen.add(contactId);
+      } else {
+        nextRead.delete(contactId);
+        nextInboxSeen.delete(contactId);
+      }
+
+      return {
+        markedUnreadContacts: nextUnread,
+        readContacts: nextRead,
+        inboxSeenContacts: nextInboxSeen,
+      };
+    }),
+
+  setActiveChatContact: (contactId) => set({ activeChatContactId: contactId }),
+
+  isPinned: (contactId, defaultPinned) => {
     const { pinnedContacts } = get();
-    if (pinnedContacts.has(name)) return !defaultPinned;
+    if (pinnedContacts.has(contactId)) return !defaultPinned;
     return defaultPinned;
   },
 
-  isMuted: (name) => get().mutedContacts.has(name),
+  isMuted: (contactId) => get().mutedContacts.has(contactId),
 
-  getEffectiveUnread: (name, apiUnread) => {
+  getEffectiveUnread: (contactId, apiUnread) => {
     const { markedUnreadContacts, readContacts } = get();
-    if (markedUnreadContacts.has(name)) return 1;
-    if (readContacts.has(name)) return 0;
+    if (markedUnreadContacts.has(contactId)) return 1;
+    if (readContacts.has(contactId)) return 0;
     return apiUnread;
+  },
+
+  getEffectiveTabUnread: (contactId, apiUnread) => {
+    const { inboxSeenContacts } = get();
+    const effectiveUnread = get().getEffectiveUnread(contactId, apiUnread);
+    if (effectiveUnread <= 0) return 0;
+    if (inboxSeenContacts.has(contactId)) return 0;
+    return effectiveUnread;
   },
 }));

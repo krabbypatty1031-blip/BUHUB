@@ -28,11 +28,9 @@ export function useScrollTabBarAnimation() {
       const delta = offsetY - lastOffsetY.current;
 
       if (delta > SCROLL_THRESHOLD && isTabBarVisible.current) {
-        // Scrolling down → hide
         tabBarTranslateY.value = withTiming(TAB_BAR_HEIGHT, { duration: 250 });
         isTabBarVisible.current = false;
       } else if (delta < -SCROLL_THRESHOLD && !isTabBarVisible.current) {
-        // Scrolling up → show
         tabBarTranslateY.value = withTiming(0, { duration: 250 });
         isTabBarVisible.current = true;
       }

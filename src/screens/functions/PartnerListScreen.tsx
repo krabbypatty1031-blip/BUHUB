@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -23,9 +24,11 @@ import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { buildPostMeta } from '../../utils/formatTime';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import {
   BackIcon,
   PlusIcon,
+  SearchIcon,
   UsersIcon,
   MoreHorizontalIcon,
   MessageIcon,
@@ -82,11 +85,15 @@ export default function PartnerListScreen({ navigation }: Props) {
   const [actionItem, setActionItem] = useState<{ post: PartnerPost; id: string } | null>(null);
   // Forward sheet state (contact picker)
   const [shareSheetItem, setShareSheetItem] = useState<{ post: PartnerPost; id: string } | null>(null);
+  // Search state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const handleDmOrganizer = useCallback(
     (item: PartnerPost, functionId: string) => {
       const contactId = item.authorId;
       if (!contactId) return;
+      const backTo = buildChatBackTarget(navigation, 'FunctionsTab');
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
         params: {
@@ -97,6 +104,8 @@ export default function PartnerListScreen({ navigation }: Props) {
           forwardedTitle: item.title,
           forwardedPosterName: item.user,
           forwardedId: functionId,
+          forwardedNonce: `${Date.now()}-${functionId}-${contactId}`,
+          ...(backTo ? { backTo } : {}),
         },
       });
     },
@@ -181,8 +190,31 @@ export default function PartnerListScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('findPartner')}</Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => setShowSearch(!showSearch)}
+        >
+          <SearchIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
+
+      {/* Search Bar (collapsible) */}
+      {showSearch && (
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <SearchIcon size={18} color={colors.outline} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('searchPartner')}
+              placeholderTextColor={colors.outline}
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+              autoFocus
+            />
+          </View>
+        </View>
+      )}
 
       {/* Category Tabs */}
       <View style={styles.tabsContainer}>
@@ -236,30 +268,24 @@ export default function PartnerListScreen({ navigation }: Props) {
             <View style={styles.actionHandle} />
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
                 if (a) setShareSheetItem(a);
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
-                <RepostIcon size={20} color={colors.onSecondaryContainer} />
-              </View>
               <Text style={styles.actionText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
                 if (a) handleDmOrganizer(a.post, a.id);
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
-                <MessageIcon size={20} color={colors.primary} />
-              </View>
               <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
             </TouchableOpacity>
           </View>
@@ -307,6 +333,25 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    marginLeft: spacing.sm,
   },
   tabsContainer: {
     paddingHorizontal: spacing.lg,
@@ -457,5 +502,11 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+  },
+  actionRowCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
   },
 });

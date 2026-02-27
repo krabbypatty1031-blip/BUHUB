@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors } from '../../theme';
 import { DefaultAvatarSvg, InitialAvatar, getAvatarDef } from './DefaultAvatarPicker';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 
 interface AvatarProps {
   text: string;
@@ -15,26 +16,27 @@ const SIZES = { xs: 24, sm: 32, md: 40, lg: 56, xl: 80 };
 
 function Avatar({ text, uri, defaultAvatar, size = 'md', gender }: AvatarProps) {
   const s = SIZES[size];
+  const normalizedUri = normalizeAvatarUrl(uri);
 
   // 1. Custom uploaded image
-  const isImageUri = uri && (uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('data:'));
+  const isImageUri = normalizedUri && (normalizedUri.startsWith('http') || normalizedUri.startsWith('file://') || normalizedUri.startsWith('data:'));
   if (isImageUri) {
     return (
       <Image
-        source={{ uri }}
+        source={{ uri: normalizedUri }}
         style={[styles.image, { width: s, height: s, borderRadius: s / 2 }]}
       />
     );
   }
 
   // 2. Color-based avatar (e.g., anonymous identity colors like #FF6B6B)
-  const isColorUri = uri && uri.startsWith('#');
+  const isColorUri = normalizedUri && normalizedUri.startsWith('#');
   if (isColorUri) {
     return (
       <View
         style={[
           styles.colorAvatar,
-          { width: s, height: s, borderRadius: s / 2, backgroundColor: uri },
+          { width: s, height: s, borderRadius: s / 2, backgroundColor: normalizedUri },
         ]}
       >
         <Text

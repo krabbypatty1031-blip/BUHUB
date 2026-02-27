@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -18,10 +19,9 @@ import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon, StarIcon } from '../../components/common/icons';
+import { BackIcon, SearchIcon, StarIcon } from '../../components/common/icons';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
-import SearchInput from '../../components/common/SearchInput';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingList'>;
@@ -60,6 +60,7 @@ export default function RatingListScreen({ navigation, route }: Props) {
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
+  const [showSearch, setShowSearch] = useState(false);
   const sortMode = useRatingStore((s) => s.sortMode);
   const setSortMode = useRatingStore((s) => s.setSortMode);
 
@@ -161,8 +162,31 @@ export default function RatingListScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('ratings')}</Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => setShowSearch(!showSearch)}
+        >
+          <SearchIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
+
+      {/* Search Bar (collapsible) */}
+      {showSearch && (
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <SearchIcon size={18} color={colors.outline} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t(SEARCH_PLACEHOLDERS[category])}
+              placeholderTextColor={colors.outline}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoFocus
+            />
+          </View>
+        </View>
+      )}
 
       {/* Category Tabs */}
       <View style={styles.tabsContainer}>
@@ -170,15 +194,6 @@ export default function RatingListScreen({ navigation, route }: Props) {
           options={categoryOptions}
           value={category}
           onChange={handleCategoryChange}
-        />
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <SearchInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t(SEARCH_PLACEHOLDERS[category])}
         />
       </View>
 
@@ -242,9 +257,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  searchContainer: {
+  searchSection: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    marginLeft: spacing.sm,
   },
   sortRow: {
     paddingHorizontal: spacing.lg,

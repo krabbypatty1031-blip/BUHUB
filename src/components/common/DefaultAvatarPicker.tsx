@@ -8,8 +8,6 @@ import { colors, spacing, typography, borderRadius } from '../../theme';
 import type { Gender } from '../../types/common';
 import { ChevronDownIcon } from './icons';
 
-// ─── Avatar Definitions ─────────────────────────────────────
-
 export interface DefaultAvatarDef {
   id: string;
   bg: string;
@@ -61,8 +59,6 @@ export function getInitialBgColor(gender?: Gender): string {
   }
 }
 
-// ─── SVG Avatar Renderer (reusable across the app) ──────────
-
 interface DefaultAvatarSvgProps {
   id: string;
   size: number;
@@ -92,8 +88,6 @@ export function InitialAvatar({ text, size, gender }: { text: string; size: numb
     </View>
   );
 }
-
-// ─── Picker Component ───────────────────────────────────────
 
 interface DefaultAvatarPickerProps {
   selected: string | null;
@@ -142,9 +136,6 @@ function DefaultAvatarPicker({ selected, onSelect, label }: DefaultAvatarPickerP
 }
 
 export default React.memo(DefaultAvatarPicker);
-
-
-// ─── Styles ─────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   pickerContainer: {

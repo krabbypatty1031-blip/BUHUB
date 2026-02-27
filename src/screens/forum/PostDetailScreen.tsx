@@ -19,7 +19,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { CommonActions } from '@react-navigation/native';
 import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
 import { useAuthStore } from '../../store/authStore';
@@ -56,7 +55,9 @@ import {
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { hapticLight } from '../../utils/haptics';
+import { normalizeImageUrl } from '../../utils/imageUrl';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
 
@@ -309,7 +310,8 @@ function ReplyItem({
     shouldAutoExpandNested ? nestedReplies.length : 0
   );
   const hasMoreNestedReplies = visibleNestedRepliesCount < nestedReplies.length;
-  const expandMoreText = lang === 'en' ? 'Expand more' : lang === 'sc' ? '展开更多' : '展開更多';
+
+  const expandMoreText = t('expandMore');
 
   useEffect(() => {
     if (shouldAutoExpandNested) {
@@ -349,7 +351,7 @@ function ReplyItem({
               <Text style={styles.replyName}>{reply.name}</Text>
               {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
               {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
-              <Text style={styles.replyTime}> · {replyMeta}</Text>
+              <Text style={styles.replyTime}> ·{replyMeta}</Text>
             </View>
           </View>
         </View>
@@ -422,7 +424,7 @@ function ReplyItem({
             >
               <ChevronUpIcon size={14} color={colors.primary} />
               <Text style={styles.toggleRepliesText}>
-                {t('collapseReplies') || '收起'}
+                {t('collapseReplies')}
               </Text>
             </TouchableOpacity>
           )}
@@ -432,7 +434,7 @@ function ReplyItem({
   );
 }
 
-/* ── Comment item (一级评论) ── */
+/* ── Comment item (一级评论 ── */
 function CommentItem({
   comment,
   lang,
@@ -465,7 +467,7 @@ function CommentItem({
   const directReplies = comment.replies ?? [];
   const hasReplies = directReplies.length > 0;
   const totalReplies = countDescendantReplies(comment.replies);
-  const expandMoreText = lang === 'en' ? 'Expand more' : lang === 'sc' ? '展开更多' : '展開更多';
+  const expandMoreText = t('expandMore');
   // Auto-expand if this comment's ID is in the expandedReplies list
   const shouldAutoExpand = expandedReplies.includes(comment.id);
   const [visibleRepliesCount, setVisibleRepliesCount] = useState(
@@ -549,7 +551,7 @@ function CommentItem({
               {!comment.isAnonymous && comment.gender === 'female' && (
                 <FemaleIcon size={12} color={colors.genderFemale} />
               )}
-              <Text style={styles.commentDot}> · </Text>
+              <Text style={styles.commentDot}> ·</Text>
               <Text style={styles.commentMeta} numberOfLines={1}>{commentMeta}</Text>
             </View>
           </View>
@@ -614,7 +616,7 @@ function CommentItem({
             >
               <ChevronUpIcon size={16} color={colors.primary} />
               <Text style={styles.toggleRepliesText}>
-                {t('collapseReplies') || '收起'}
+                {t('collapseReplies')}
               </Text>
             </TouchableOpacity>
           )}
@@ -787,8 +789,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     const lastAtIndex = commentText.lastIndexOf('@');
     if (lastAtIndex === -1) return null;
     const afterAt = commentText.substring(lastAtIndex + 1);
-    // If there's a space after the mention text, it's already completed
-    if (afterAt.includes(' ')) return null;
+    // Mention ends when any whitespace appears (space/newline/tab).
+    if (/\s/.test(afterAt)) return null;
     return afterAt;
   }, [commentText]);
 
@@ -796,15 +798,22 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     if (mentionQuery === null || !contacts) return [];
     if (mentionQuery === '') return contacts;
     const q = mentionQuery.toLowerCase();
-    return contacts.filter((c) => c.name.toLowerCase().includes(q));
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.userName ?? '').toLowerCase().includes(q)
+    );
   }, [mentionQuery, contacts]);
 
   const showMentions = mentionQuery !== null && mentionSuggestions.length > 0;
 
   const handleMentionSelect = useCallback(
-    (contactName: string) => {
+    (contact: { name: string; userName?: string }) => {
       const lastAtIndex = commentText.lastIndexOf('@');
-      const newText = commentText.substring(0, lastAtIndex) + `@${contactName} `;
+      if (lastAtIndex === -1) return;
+      const mentionHandle = (contact.userName ?? contact.name).trim().replace(/\s+/g, '');
+      if (!mentionHandle) return;
+      const newText = commentText.substring(0, lastAtIndex) + `@${mentionHandle} `;
       setCommentText(newText);
     },
     [commentText]
@@ -834,13 +843,13 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const currentUser = useAuthStore((s) => s.user);
 
   const handleAvatarPress = useCallback(() => {
-    if (!post?.isAnonymous) {
-      if (post?.name === currentUser?.nickname) {
-        navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
-      } else {
-        navigation.navigate('UserProfile', { userName: post?.userName ?? post?.name ?? '' });
-      }
-    }
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser,
+      isAnonymous: post?.isAnonymous,
+      userName: post?.userName,
+      displayName: post?.name,
+    });
   }, [post, currentUser, navigation]);
 
   const handleComment = useCallback(() => {
@@ -875,7 +884,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           setIsAnonymous(false);
         },
         onError: () => {
-          showSnackbar({ message: t('commentFailed') || 'Failed to send comment', type: 'error' });
+          showSnackbar({ message: t('commentFailed'), type: 'error' });
         },
       }
     );
@@ -974,7 +983,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         setReportVisible(false);
         showSnackbar({ message: t('reportSubmitted'), type: 'success' });
       } catch {
-        showSnackbar({ message: t('reportFailed') || 'Failed to submit report', type: 'error' });
+        showSnackbar({ message: t('reportFailed'), type: 'error' });
       }
     },
     [postId, showSnackbar, t]
@@ -982,6 +991,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const renderHeader = useCallback(() => {
     if (!post) return null;
+    const headerImage = normalizeImageUrl(post.images?.[0] ?? post.image);
     return (
       <View>
         {/* Post Content */}
@@ -1018,7 +1028,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 ) : (
                   <Text style={styles.postName}>{post.name}</Text>
                 )}
-                <Text style={styles.postDot}> · </Text>
+                <Text style={styles.postDot}> ·</Text>
                 <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
               </View>
             </View>
@@ -1072,7 +1082,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 {post.quotedPost.content}
               </Text>
               <Text style={styles.quotedMeta}>
-                {post.quotedPost?.name} · {getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
+                {post.quotedPost?.name} ·{getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
               </Text>
             </TouchableOpacity>
           )}
@@ -1087,8 +1097,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {post.hasImage && post.image && (
-            <Image source={{ uri: post.image }} style={styles.postImage} />
+          {headerImage && (
+            <Image source={{ uri: headerImage }} style={styles.postImage} />
           )}
 
           {post.isPoll && post.pollOptions && (
@@ -1287,10 +1297,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             >
               {mentionSuggestions.map((contact) => (
                 <TouchableOpacity
-                  key={contact.name}
+                  key={contact.id}
                   style={styles.mentionItem}
                   activeOpacity={0.7}
-                  onPress={() => handleMentionSelect(contact.name)}
+                  onPress={() => handleMentionSelect(contact)}
                 >
                   <Avatar text={contact.name} uri={contact.avatar} size="sm" gender={contact.gender} />
                   <Text style={styles.mentionName}>{contact.name}</Text>
@@ -1331,8 +1341,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             placeholderTextColor={colors.onSurfaceVariant}
             value={commentText}
             onChangeText={setCommentText}
-            returnKeyType="send"
-            onSubmitEditing={handleSendComment}
+            multiline
+            textAlignVertical="top"
           />
           <TouchableOpacity
             style={[styles.sendBtn, !commentText.trim() && styles.sendBtnDisabled]}
@@ -1433,7 +1443,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
 
-  /* ── Post Section ── */
+  /* === Post Section === */
   postSection: {
     padding: spacing.lg,
   },
@@ -1898,10 +1908,12 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    height: 40,
+    minHeight: 40,
+    maxHeight: 120,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surface2,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     ...typography.bodyMedium,
     color: colors.onSurface,
   },

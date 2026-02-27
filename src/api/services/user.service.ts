@@ -2,8 +2,67 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import { useForumStore } from '../../store/forumStore';
 import type { User, UserPublicProfile, MyContent, LikedComment, WantedItem, FollowListItem, Language } from '../../types';
+import { normalizeAvatarUrl, normalizeImageUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
+
+const normalizeAvatarValue = (avatar: string | null | undefined): string => {
+  if (typeof avatar === 'string' && avatar.startsWith('#')) {
+    return avatar;
+  }
+  return normalizeAvatarUrl(avatar) ?? '';
+};
+
+const normalizeNullableAvatarValue = (avatar: string | null | undefined): string | null => {
+  if (typeof avatar === 'string' && avatar.startsWith('#')) {
+    return avatar;
+  }
+  return normalizeAvatarUrl(avatar) ?? null;
+};
+
+const normalizePostRecord = <T extends { avatar?: string; image?: string; images?: string[] }>(post: T): T => {
+  const normalizedImages = Array.isArray(post.images)
+    ? post.images
+        .map((img) => normalizeImageUrl(img))
+        .filter((img): img is string => typeof img === 'string' && img.length > 0)
+    : [];
+  const normalizedPrimaryImage = normalizeImageUrl(post.image);
+
+  return {
+    ...post,
+    avatar: normalizeAvatarValue(post.avatar),
+    images: normalizedImages.length > 0 ? normalizedImages : post.images,
+    image: normalizedPrimaryImage ?? post.image,
+  };
+};
+
+const normalizeCommentRecord = <T extends { avatar?: string }>(comment: T): T => ({
+  ...comment,
+  avatar: normalizeAvatarValue(comment.avatar),
+});
+
+const normalizeMyContentPayload = (payload: MyContent): MyContent => ({
+  ...payload,
+  posts: Array.isArray(payload.posts) ? payload.posts.map((post) => normalizePostRecord(post)) : [],
+  comments: Array.isArray(payload.comments) ? payload.comments.map((comment) => normalizeCommentRecord(comment)) : [],
+  anonPosts: Array.isArray(payload.anonPosts) ? payload.anonPosts.map((post) => normalizePostRecord(post)) : [],
+  anonComments: Array.isArray(payload.anonComments) ? payload.anonComments.map((comment) => normalizeCommentRecord(comment)) : [],
+  myLikes: {
+    posts: Array.isArray(payload.myLikes?.posts) ? payload.myLikes.posts.map((post) => normalizePostRecord(post)) : [],
+    comments: Array.isArray(payload.myLikes?.comments)
+      ? payload.myLikes.comments.map((comment) => normalizeCommentRecord(comment as LikedComment))
+      : [],
+  },
+  myBookmarks: {
+    posts: Array.isArray(payload.myBookmarks?.posts) ? payload.myBookmarks.posts.map((post) => normalizePostRecord(post)) : [],
+    comments: Array.isArray(payload.myBookmarks?.comments)
+      ? payload.myBookmarks.comments.map((comment) => normalizeCommentRecord(comment as LikedComment))
+      : [],
+  },
+  myWants: Array.isArray(payload.myWants)
+    ? payload.myWants.map((item: WantedItem) => ({ ...item, avatar: normalizeAvatarValue(item.avatar) }))
+    : [],
+});
 
 export const userService = {
   async getProfile(): Promise<User> {
@@ -22,7 +81,10 @@ export const userService = {
       };
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PROFILE);
-    return data;
+    return {
+      ...data,
+      avatar: normalizeNullableAvatarValue(data?.avatar),
+    };
   },
 
   async updateProfile(profile: Partial<User>): Promise<{ success: boolean }> {
@@ -47,7 +109,10 @@ export const userService = {
       return mockUsers[userName] || mockUsers[Object.keys(mockUsers)[0]];
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.PUBLIC_PROFILE(userName));
-    return data;
+    return {
+      ...data,
+      avatar: normalizeAvatarValue(data?.avatar),
+    };
   },
 
   async getMyContent(): Promise<MyContent> {
@@ -199,7 +264,7 @@ export const userService = {
       };
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.MY_CONTENT);
-    return data;
+    return normalizeMyContentPayload(data as MyContent);
   },
 
   async getFollowingList(): Promise<FollowListItem[]> {
@@ -211,10 +276,15 @@ export const userService = {
         gender: u.gender,
         bio: u.bio,
         isFollowed: true,
+        major: u.major,
+        grade: u.grade,
       }));
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.FOLLOWING);
-    return data;
+    return (Array.isArray(data) ? data : []).map((item: FollowListItem) => ({
+      ...item,
+      avatar: normalizeAvatarValue(item.avatar),
+    }));
   },
 
   async getFollowersList(): Promise<FollowListItem[]> {
@@ -226,10 +296,15 @@ export const userService = {
         gender: u.gender,
         bio: u.bio,
         isFollowed: false,
+        major: u.major,
+        grade: u.grade,
       }));
     }
     const { data } = await apiClient.get(ENDPOINTS.USER.FOLLOWERS);
-    return data;
+    return (Array.isArray(data) ? data : []).map((item: FollowListItem) => ({
+      ...item,
+      avatar: normalizeAvatarValue(item.avatar),
+    }));
   },
 
   async followUser(userName: string): Promise<{ followed: boolean }> {
@@ -274,7 +349,7 @@ export const userService = {
     // Backend returns { id, nickname, avatar, blockedAt }[]
     return (Array.isArray(data) ? data : []).map((b: { id: string; nickname: string; avatar: string }) => ({
       userName: b.nickname,
-      avatar: b.avatar,
+      avatar: normalizeAvatarValue(b.avatar),
       gender: 'other' as const,
       bio: '',
       isFollowed: false,

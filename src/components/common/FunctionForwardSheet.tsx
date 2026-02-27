@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,19 @@ import {
   Modal,
   StyleSheet,
   useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { CommonActions } from '@react-navigation/native';
+import { colors, spacing, borderRadius, typography } from '../../theme';
 import { useContacts } from '../../hooks/useMessages';
 import Avatar from './Avatar';
 import SearchInput from './SearchInput';
-import {
-  CloseIcon,
-  ChevronRightIcon,
-} from './icons';
+import { CloseIcon, SendIcon, CheckIcon } from './icons';
 import type { Contact } from '../../types';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 
 interface FunctionForwardSheetProps {
   visible: boolean;
@@ -31,24 +31,31 @@ interface FunctionForwardSheetProps {
   navigation: any;
 }
 
-/* ── Memoised contact row ── */
 interface ContactRowProps {
   item: Contact;
+  isSelected: boolean;
   onPress: (contact: Contact) => void;
 }
 
-const ContactRow = React.memo(function ContactRow({ item, onPress }: ContactRowProps) {
+const ContactRow = React.memo(function ContactRow({ item, isSelected, onPress }: ContactRowProps) {
   return (
     <TouchableOpacity
-      style={styles.contactRow}
+      style={[styles.contactRow, isSelected && styles.contactRowSelected]}
       activeOpacity={0.65}
       onPress={() => onPress(item)}
     >
       <Avatar text={item.name} uri={item.avatar || null} size="sm" />
-      <Text style={styles.contactName} numberOfLines={1}>
+      <Text
+        style={[styles.contactName, isSelected && styles.contactNameSelected]}
+        numberOfLines={1}
+      >
         {item.name}
       </Text>
-      <ChevronRightIcon size={16} color={colors.outlineVariant} />
+      {isSelected && (
+        <View style={styles.checkBadge}>
+          <CheckIcon size={14} color={colors.onPrimary} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 });
@@ -64,15 +71,20 @@ export default function FunctionForwardSheet({
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
   const { data: contacts } = useContacts();
+  const inputRef = useRef<TextInput>(null);
   const { height: screenHeight } = useWindowDimensions();
   const sheetHeight = Math.max(screenHeight * 0.55, 420);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const canSend = !!selectedContact;
 
-  // Reset state when sheet closes
   useEffect(() => {
     if (!visible) {
       setSearchQuery('');
+      setSelectedContact(null);
+      setMessageText('');
     }
   }, [visible]);
 
@@ -81,30 +93,54 @@ export default function FunctionForwardSheet({
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) ?? [];
 
-  const handleSelectContact = useCallback(
-    (contact: Contact) => {
-      onClose();
-      navigation.getParent()?.navigate('MessagesTab', {
-        screen: 'Chat',
+  const handleToggleContact = useCallback((contact: Contact) => {
+    setSelectedContact((prev) => (prev?.id === contact.id ? null : contact));
+  }, []);
+
+  const handleSend = useCallback(() => {
+    if (!selectedContact) return;
+    const backTo = buildChatBackTarget(navigation);
+    onClose();
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'MessagesTab',
         params: {
-          contactId: contact.id,
-          contactName: contact.name,
-          contactAvatar: contact.avatar || '',
-          forwardedType: functionType,
-          forwardedTitle: functionTitle,
-          forwardedPosterName: functionPosterName,
-          forwardedId: functionId,
+          screen: 'Chat',
+          params: {
+            contactId: selectedContact.id,
+            contactName: selectedContact.name,
+            contactAvatar: selectedContact.avatar || selectedContact.name,
+            forwardedType: functionType,
+            forwardedTitle: functionTitle,
+            forwardedPosterName: functionPosterName,
+            forwardedId: functionId,
+            forwardedMessage: messageText.trim() || undefined,
+            forwardedNonce: `${Date.now()}-${selectedContact.id}-${functionId}`,
+            ...(backTo ? { backTo } : {}),
+          },
         },
-      });
-    },
-    [navigation, functionType, functionTitle, functionPosterName, functionId, onClose]
-  );
+      })
+    );
+  }, [
+    selectedContact,
+    onClose,
+    navigation,
+    functionType,
+    functionTitle,
+    functionPosterName,
+    functionId,
+    messageText,
+  ]);
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => (
-      <ContactRow item={item} onPress={handleSelectContact} />
+      <ContactRow
+        item={item}
+        isSelected={selectedContact?.id === item.id}
+        onPress={handleToggleContact}
+      />
     ),
-    [handleSelectContact]
+    [selectedContact, handleToggleContact]
   );
 
   return (
@@ -119,40 +155,75 @@ export default function FunctionForwardSheet({
         activeOpacity={1}
         onPress={onClose}
       >
-        <View
-          style={[styles.sheet, { height: sheetHeight }]}
-          onStartShouldSetResponder={() => true}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.kavContainer}
         >
-          {/* ── Drag handle ── */}
-          <View style={styles.handle} />
+          <View
+            style={[styles.sheet, { height: sheetHeight }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.handle} />
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('forwardTo')}</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={8}
+                style={styles.closeBtn}
+              >
+                <CloseIcon size={22} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
 
-          {/* ── Header ── */}
-          <View style={styles.header}>
-            <View style={styles.headerBtn} />
-            <Text style={styles.title}>{t('selectContact')}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8} style={styles.headerBtn}>
-              <CloseIcon size={20} color={colors.onSurfaceVariant} />
-            </TouchableOpacity>
-          </View>
+            <View style={styles.searchWrap}>
+              <SearchInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={t('searchContacts')}
+              />
+            </View>
 
-          {/* ── Contact List ── */}
-          <View style={styles.searchWrap}>
-            <SearchInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder={t('searchContacts') || 'Search contacts...'}
+            <FlatList
+              data={filteredContacts}
+              keyExtractor={(item) => item.id}
+              renderItem={renderContact}
+              style={styles.list}
+              contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             />
+
+            <View style={styles.divider} />
+
+            <View style={styles.inputBar}>
+              <TextInput
+                ref={inputRef}
+                style={styles.messageInput}
+                value={messageText}
+                onChangeText={setMessageText}
+                placeholder={t('addMessagePlaceholder')}
+                placeholderTextColor={colors.outline}
+                editable={canSend}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendBtn,
+                  canSend ? styles.sendBtnActive : styles.sendBtnDisabled,
+                ]}
+                onPress={handleSend}
+                activeOpacity={canSend ? 0.7 : 1}
+                disabled={!canSend}
+              >
+                <SendIcon
+                  size={18}
+                  color={canSend ? colors.onPrimary : colors.outlineVariant}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-          <FlatList
-            data={filteredContacts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderContact}
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
+        </KeyboardAvoidingView>
       </TouchableOpacity>
     </Modal>
   );
@@ -164,11 +235,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
+  kavContainer: {
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
   },
   handle: {
     width: 36,
@@ -183,25 +256,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   title: {
     ...typography.titleMedium,
     color: colors.onSurface,
     fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
   },
-
-  /* Contact list */
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchWrap: {
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.sm,
@@ -221,10 +292,64 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     minHeight: 52,
   },
+  contactRowSelected: {
+    backgroundColor: colors.primaryContainer,
+  },
   contactName: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     flex: 1,
     marginLeft: spacing.md,
+  },
+  contactNameSelected: {
+    color: colors.onPrimaryContainer,
+    fontWeight: '500',
+  },
+  checkBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.xl,
+  },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  messageInput: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 88,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? spacing.md : spacing.sm,
+    paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.sm,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.onSurface,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  sendBtnDisabled: {
+    backgroundColor: colors.surfaceVariant,
   },
 });

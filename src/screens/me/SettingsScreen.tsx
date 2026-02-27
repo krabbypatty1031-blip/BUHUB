@@ -129,7 +129,7 @@ export default function SettingsScreen({ navigation }: Props) {
             setLanguage(langOption.value);
             changeLanguage(langOption.value);
             userService.updateLanguage(langOption.value).catch(() => {
-              showSnackbar({ message: t('saveFailed') || 'Save failed', type: 'error' });
+              showSnackbar({ message: t('saveFailed'), type: 'error' });
             });
           }
           break;
@@ -171,7 +171,7 @@ export default function SettingsScreen({ navigation }: Props) {
             queryClient.clear();
             deleteAccount();
           } catch {
-            showSnackbar({ message: t('deleteFailed') || 'Delete failed', type: 'error' });
+            showSnackbar({ message: t('deleteFailed'), type: 'error' });
           }
         },
       },

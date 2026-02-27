@@ -13,9 +13,9 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerPost, Errand, SecondhandItem } from '../../types';
-import { usePartners, useDeletePartner } from '../../hooks/usePartners';
-import { useErrands, useDeleteErrand } from '../../hooks/useErrands';
-import { useSecondhand, useDeleteSecondhand } from '../../hooks/useSecondhand';
+import { useMyPartners, useDeletePartner, useClosePartner } from '../../hooks/usePartners';
+import { useMyErrands, useDeleteErrand, useCloseErrand } from '../../hooks/useErrands';
+import { useMySecondhand, useDeleteSecondhand, useCloseSecondhand } from '../../hooks/useSecondhand';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -47,18 +47,22 @@ export default function MyPostsScreen({ navigation }: Props) {
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const currentUser = useAuthStore((s) => s.user);
   const nickname = currentUser?.nickname || currentUser?.name || '浸大小明';
-  const { data: partners } = usePartners();
-  const { data: errands } = useErrands();
-  const { data: secondhandItems } = useSecondhand();
+  const { data: partners } = useMyPartners();
+  const { data: errands } = useMyErrands();
+  const { data: secondhandItems } = useMySecondhand();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const deletePartnerMutation = useDeletePartner();
   const deleteErrandMutation = useDeleteErrand();
   const deleteSecondhandMutation = useDeleteSecondhand();
+  const closePartnerMutation = useClosePartner();
+  const closeErrandMutation = useCloseErrand();
+  const closeSecondhandMutation = useCloseSecondhand();
 
   const [shareSheetItem, setShareSheetItem] = useState<CardItem | null>(null);
   const [actionItem, setActionItem] = useState<CardItem | null>(null);
 
   const allPosts = useMemo(() => {
+    const now = new Date().getTime();
     const items: CardItem[] = [];
     if (partners) {
       partners.forEach((item) => {
@@ -75,7 +79,19 @@ export default function MyPostsScreen({ navigation }: Props) {
         if (item.user === nickname) items.push({ kind: 'secondhand', data: item, id: item.id });
       });
     }
-    items.sort((a, b) => new Date(b.data.expiresAt).getTime() - new Date(a.data.expiresAt).getTime());
+    const kindOrder = { partner: 0, errand: 1, secondhand: 2 };
+
+    items.sort((a, b) => {
+      const aExpired = new Date(a.data.expiresAt).getTime() < now;
+      const bExpired = new Date(b.data.expiresAt).getTime() < now;
+      if (aExpired !== bExpired) {
+        return aExpired ? 1 : -1;
+      }
+      const kindDiff = kindOrder[a.kind] - kindOrder[b.kind];
+      if (kindDiff !== 0) return kindDiff;
+      return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
+    });
+
     return items;
   }, [partners, errands, secondhandItems, nickname]);
 
@@ -99,8 +115,34 @@ export default function MyPostsScreen({ navigation }: Props) {
   const isExpired = (card: CardItem): boolean => {
     return card.data.expired;
   };
-
   const handleClosePost = useCallback(
+    async (item: CardItem) => {
+      try {
+        switch (item.kind) {
+          case 'partner':
+            await closePartnerMutation.mutateAsync(item.id);
+            break;
+          case 'errand':
+            await closeErrandMutation.mutateAsync(item.id);
+            break;
+          case 'secondhand':
+            await closeSecondhandMutation.mutateAsync(item.id);
+            break;
+        }
+        showSnackbar({ message: t('closedPublish'), type: 'success' });
+      } catch {
+        showSnackbar({ message: t('networkError'), type: 'error' });
+      }
+    },
+    [
+      showSnackbar,
+      t,
+      closePartnerMutation,
+      closeErrandMutation,
+      closeSecondhandMutation,
+    ]
+  );
+  const handleDeletePost = useCallback(
     async (item: CardItem) => {
       try {
         switch (item.kind) {
@@ -116,7 +158,7 @@ export default function MyPostsScreen({ navigation }: Props) {
         }
         showSnackbar({ message: t('deletedPublish'), type: 'success' });
       } catch {
-        showSnackbar({ message: t('networkError') || 'Delete failed', type: 'error' });
+        showSnackbar({ message: t('networkError'), type: 'error' });
       }
     },
     [
@@ -157,30 +199,30 @@ export default function MyPostsScreen({ navigation }: Props) {
                 </Text>
               </View>
             </View>
-            {!expired && (
-              <TouchableOpacity
-                style={styles.moreBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setActionItem(item)}
-              >
-                <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.moreBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => setActionItem(item)}
+            >
+              <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
           </View>
           <View style={styles.cardBody}>
             <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
             <Text style={styles.cardDesc} numberOfLines={2}>{d.desc}</Text>
             <View style={styles.cardFooter}>
-              {item.kind !== 'partner' && (
-                <Text style={styles.priceText}>
-                  {(d as Errand | SecondhandItem).price}
-                </Text>
-              )}
-              {item.kind === 'secondhand' && (d as SecondhandItem).sold && (
-                <View style={styles.soldBadge}>
-                  <Text style={styles.soldBadgeText}>{t('sold')}</Text>
-                </View>
-              )}
+              <View style={styles.cardFooterLeft}>
+                {item.kind !== 'partner' && (
+                  <Text style={styles.priceText}>
+                    {(d as Errand | SecondhandItem).price}
+                  </Text>
+                )}
+                {item.kind === 'secondhand' && (d as SecondhandItem).sold && (
+                  <View style={styles.soldBadge}>
+                    <Text style={styles.soldBadgeText}>{t('sold')}</Text>
+                  </View>
+                )}
+              </View>
               {expired && (
                 <View style={styles.expiredBadge}>
                   <Text style={styles.expiredBadgeText}>
@@ -236,21 +278,18 @@ export default function MyPostsScreen({ navigation }: Props) {
           <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.actionHandle} />
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
                 if (item) setShareSheetItem(item);
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
-                <RepostIcon size={20} color={colors.onSecondaryContainer} />
-              </View>
               <Text style={styles.actionText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
@@ -262,34 +301,58 @@ export default function MyPostsScreen({ navigation }: Props) {
                 }
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
-                <ShareIcon size={20} color={colors.primary} />
-              </View>
               <Text style={styles.actionText}>{t('forwardToForum')}</Text>
             </TouchableOpacity>
 
+            {/* 仅未过期帖子显示关闭选项 */}
+            {!actionItem?.data.expired && (
+              <TouchableOpacity
+                style={styles.actionRowCenter}
+                onPress={() => {
+                  const item = actionItem;
+                  setActionItem(null);
+                  if (item) {
+                    Alert.alert(
+                      t('closePost'),
+                      t('confirmClosePost'),
+                      [
+                        { text: t('cancel'), style: 'cancel' },
+                        {
+                          text: t('closePost'),
+                          style: 'destructive',
+                          onPress: () => handleClosePost(item),
+                        },
+                      ]
+                    );
+                  }
+                }}
+              >
+                <Text style={styles.actionTextDanger}>{t('closePost')}</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
                 if (item) {
                   Alert.alert(
-                    t('closePost'),
-                    t('confirmClosePost'),
+                    t('deletePost'),
+                    t('confirmDeletePost'),
                     [
                       { text: t('cancel'), style: 'cancel' },
                       {
-                        text: t('closePost'),
+                        text: t('deletePost'),
                         style: 'destructive',
-                        onPress: () => handleClosePost(item),
+                        onPress: () => handleDeletePost(item),
                       },
                     ]
                   );
                 }
               }}
             >
-              <Text style={styles.actionTextDanger}>{t('closePost')}</Text>
+              <Text style={styles.actionTextDanger}>{t('deletePost')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -403,8 +466,13 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
     marginTop: spacing.sm,
+  },
+  cardFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   priceText: {
     ...typography.titleSmall,
@@ -473,6 +541,12 @@ const styles = StyleSheet.create({
   actionTextDanger: {
     ...typography.bodyLarge,
     color: colors.error,
+  },
+  actionRowCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
   },
   empty: {
     flex: 1,

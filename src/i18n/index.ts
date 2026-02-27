@@ -7,6 +7,17 @@ import sc from './locales/sc.json';
 import en from './locales/en.json';
 
 const LANGUAGE_KEY = 'buhub-language';
+const SUPPORTED_LANGUAGES = ['tc', 'sc', 'en'] as const;
+
+export type Language = (typeof SUPPORTED_LANGUAGES)[number];
+
+export const normalizeLanguage = (lang?: string | null): Language | null => {
+  if (!lang) return null;
+  if (lang === 'tc' || lang === 'zh-TW') return 'tc';
+  if (lang === 'sc' || lang === 'zh-CN') return 'sc';
+  if (lang === 'en') return 'en';
+  return null;
+};
 
 const resources = {
   tc: { translation: tc },
@@ -26,18 +37,11 @@ i18n.use(initReactI18next).init({
   },
 });
 
-// Restore saved language preference
-AsyncStorage.getItem(LANGUAGE_KEY).then((lang) => {
-  if (lang && (lang === 'tc' || lang === 'sc' || lang === 'en')) {
-    i18n.changeLanguage(lang);
-  }
-});
-
-export const changeLanguage = async (lang: 'tc' | 'sc' | 'en') => {
-  await AsyncStorage.setItem(LANGUAGE_KEY, lang);
-  await i18n.changeLanguage(lang);
+export const changeLanguage = async (lang: Language | string) => {
+  const normalized = normalizeLanguage(lang);
+  if (!normalized) return;
+  await AsyncStorage.setItem(LANGUAGE_KEY, normalized);
+  await i18n.changeLanguage(normalized);
 };
-
-export type Language = 'tc' | 'sc' | 'en';
 
 export default i18n;

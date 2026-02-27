@@ -109,7 +109,7 @@ export default function EmailInputScreen({ navigation }: Props) {
         inputRefs.current[0]?.focus();
       }, 120);
     } catch (err: any) {
-      const msg = err?.message || t('sendCodeFailed') || 'Failed to send code';
+      const msg = err?.message || t('sendCodeFailed');
       showSnackbar({ message: msg, type: 'error' });
       pan.setValue(0);
       setCaptchaVerified(false);
@@ -158,11 +158,9 @@ export default function EmailInputScreen({ navigation }: Props) {
       showSnackbar({ message: t('emailPlaceholder'), type: 'error' });
       return;
     }
-
-    // Validate: @ symbol前必须是8位数字
     const localPart = trimmed.split('@')[0];
     if (!/^\d{8}$/.test(localPart)) {
-      showSnackbar({ message: t('emailMustBe8Digits') || 'Email must have 8 digits before @', type: 'error' });
+      showSnackbar({ message: t('emailMustBe8Digits'), type: 'error' });
       return;
     }
 
@@ -189,7 +187,7 @@ export default function EmailInputScreen({ navigation }: Props) {
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      showSnackbar({ message: err?.message || t('sendCodeFailed') || 'Failed to send code', type: 'error' });
+      showSnackbar({ message: err?.message || t('sendCodeFailed'), type: 'error' });
     } finally {
       setIsSendingCode(false);
     }
@@ -210,7 +208,7 @@ export default function EmailInputScreen({ navigation }: Props) {
         navigation.navigate('SetPassword', { email: email.trim() });
       }, 300);
     } catch {
-      showSnackbar({ message: t('verifyFailed') || 'Verification failed', type: 'error' });
+      showSnackbar({ message: t('verifyFailed'), type: 'error' });
     } finally {
       setIsVerifying(false);
     }

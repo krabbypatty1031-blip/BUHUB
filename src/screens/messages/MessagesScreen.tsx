@@ -1,4 +1,6 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -16,7 +18,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
 import { useContacts } from '../../hooks/useMessages';
-import { useBlockUser } from '../../hooks/useUser';
+import { useBlockUser, useBlockedList } from '../../hooks/useUser';
+import { useAuthStore } from '../../store/authStore';
 import { useMessageStore } from '../../store/messageStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useForumStore } from '../../store/forumStore';
@@ -27,7 +30,6 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
-import Svg, { Defs, RadialGradient, Stop, Circle as SvgCircle } from 'react-native-svg';
 import {
   HeartIcon,
   UserIcon,
@@ -36,6 +38,7 @@ import {
   CloseIcon,
   MessageIcon,
 } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'MessagesList'>;
 
@@ -44,40 +47,33 @@ interface NotifyEntry {
   icon: React.ReactNode;
   labelKey: string;
   countKey: 'unreadLikes' | 'unreadFollowers' | 'unreadComments';
-  gradientId: string;
-  gradientColor: string;
 }
 
 const ICON_SIZE = 60;
+const NOTIFY_ICON_SIZE = 32;
 
 const NOTIFY_ENTRIES: NotifyEntry[] = [
   {
     key: 'NotifyLikes',
-    icon: <HeartIcon size={26} color="#FF6B7A" fill="#FF6B7A" />,
+    icon: <HeartIcon size={NOTIFY_ICON_SIZE} color="#FF6B7A" fill="#FF6B7A" />,
     labelKey: 'likeNotifications',
     countKey: 'unreadLikes',
-    gradientId: 'gradLikes',
-    gradientColor: '#FF6B7A',
   },
   {
     key: 'NotifyFollowers',
-    icon: <UserIcon size={26} color="#4A90FF" />,
+    icon: <UserIcon size={NOTIFY_ICON_SIZE} color="#4A90FF" />,
     labelKey: 'followerNotifications',
     countKey: 'unreadFollowers',
-    gradientId: 'gradFollowers',
-    gradientColor: '#4A90FF',
   },
   {
     key: 'NotifyComments',
-    icon: <CommentIcon size={26} color="#4CD964" fill="#4CD964" />,
+    icon: <CommentIcon size={NOTIFY_ICON_SIZE} color="#4CD964" fill="#4CD964" />,
     labelKey: 'commentNotifications',
     countKey: 'unreadComments',
-    gradientId: 'gradComments',
-    gradientColor: '#4CD964',
   },
 ];
 
-/* ── Memoized contact row ── */
+/* Memoized contact row */
 const ContactRow = React.memo(function ContactRow({
   item,
   isPinned,
@@ -124,7 +120,7 @@ const ContactRow = React.memo(function ContactRow({
             style={[styles.contactMessage, isMuted && styles.contactMessageMuted]}
             numberOfLines={1}
           >
-            {isMuted ? '🔇 ' : ''}{item.message}
+            {isMuted ? '\u{1F507} ' : ''}{item.message}
           </Text>
           {showUnread ? (
             isMuted ? (
@@ -145,15 +141,17 @@ const ContactRow = React.memo(function ContactRow({
 
 export default function MessagesScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { data: contacts, isLoading, refetch } = useContacts();
+  const queryClient = useQueryClient();
+  const { data: contacts, isLoading, isFetching, refetch } = useContacts();
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
   const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
   const unreadComments = useNotificationStore((s) => s.unreadComments);
   const togglePin = useMessageStore((s) => s.togglePin);
   const toggleMute = useMessageStore((s) => s.toggleMute);
   const markAsUnread = useMessageStore((s) => s.markAsUnread);
-  const markAsRead = useMessageStore((s) => s.markAsRead);
+  const markConversationAsRead = useMessageStore((s) => s.markAsRead);
   const clearUnread = useMessageStore((s) => s.clearUnread);
+  const markInboxSeen = useMessageStore((s) => s.markInboxSeen);
   const pinnedContacts = useMessageStore((s) => s.pinnedContacts);
   const isPinned = useMessageStore((s) => s.isPinned);
   const isMuted = useMessageStore((s) => s.isMuted);
@@ -163,10 +161,40 @@ export default function MessagesScreen({ navigation }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
+  const setBlockedUsers = useForumStore((s) => s.setBlockedUsers);
   const blockUserMutation = useBlockUser();
+  const { data: blockedList } = useBlockedList();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
+  const isFocused = useIsFocused();
+  const shouldSnapshotInboxSeenRef = useRef(false);
+
+  useEffect(() => {
+    if (!blockedList) return;
+    setBlockedUsers(blockedList.map((u) => u.userName));
+  }, [blockedList, setBlockedUsers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      shouldSnapshotInboxSeenRef.current = true;
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      return () => {
+        shouldSnapshotInboxSeenRef.current = false;
+      };
+    }, [queryClient])
+  );
+
+  useEffect(() => {
+    if (!isFocused || !contacts || isFetching) return;
+    if (!shouldSnapshotInboxSeenRef.current) return;
+    shouldSnapshotInboxSeenRef.current = false;
+    const unreadContactIds = contacts
+      .filter((contact) => getEffectiveUnread(contact.id, contact.unread) > 0)
+      .map((contact) => contact.id);
+    markInboxSeen(unreadContactIds);
+  }, [contacts, getEffectiveUnread, isFetching, isFocused, markInboxSeen]);
 
   const unreadCounts: Record<string, number> = {
     unreadLikes,
@@ -174,10 +202,10 @@ export default function MessagesScreen({ navigation }: Props) {
     unreadComments,
   };
 
-  /* ── Filter & sort contacts: pinned first (skip pin sort when searching) ── */
+  /* Filter & sort contacts: pinned first (skip pin sort when searching) */
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
-    const visible = contacts.filter((c) => !isBlocked(c.name));
+    const visible = contacts.filter((c) => !isBlocked(c.userName ?? c.name));
     if (showSearch) {
       const q = searchQuery.trim().toLowerCase();
       if (q.length > 0) {
@@ -190,8 +218,8 @@ export default function MessagesScreen({ navigation }: Props) {
       return visible;
     }
     return [...visible].sort((a, b) => {
-      const aPinned = isPinned(a.name, a.pinned) ? 1 : 0;
-      const bPinned = isPinned(b.name, b.pinned) ? 1 : 0;
+      const aPinned = isPinned(a.id, a.pinned) ? 1 : 0;
+      const bPinned = isPinned(b.id, b.pinned) ? 1 : 0;
       return bPinned - aPinned;
     });
   }, [contacts, showSearch, searchQuery, pinnedContacts, isPinned, blockedUsers, isBlocked]);
@@ -207,43 +235,57 @@ export default function MessagesScreen({ navigation }: Props) {
     setActionSheetContact(contact);
   }, []);
 
+  const currentUser = useAuthStore((s) => s.user);
+
   const handleAvatarPress = useCallback(
     (contact: Contact) => {
-      navigation.navigate('UserProfile', { userName: contact.name });
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: contact.userName,
+        displayName: contact.name,
+      });
     },
-    [navigation]
+    [navigation, currentUser]
   );
 
   const handleActionToggleRead = useCallback(() => {
     if (actionSheetContact) {
-      const effectiveCount = getEffectiveUnread(actionSheetContact.name, actionSheetContact.unread);
+      const effectiveCount = getEffectiveUnread(actionSheetContact.id, actionSheetContact.unread);
       if (effectiveCount > 0) {
-        markAsRead(actionSheetContact.name);
+        markConversationAsRead(actionSheetContact.id);
       } else {
-        markAsUnread(actionSheetContact.name);
+        markAsUnread(actionSheetContact.id);
         showSnackbar({ message: t('markedAsUnread'), type: 'info' });
       }
     }
     setActionSheetContact(null);
-  }, [actionSheetContact, getEffectiveUnread, markAsRead, markAsUnread, showSnackbar, t]);
+  }, [actionSheetContact, getEffectiveUnread, markConversationAsRead, markAsUnread, showSnackbar, t]);
+
+  const handleOpenNotification = useCallback(
+    (entry: NotifyEntry) => {
+      navigation.navigate(entry.key);
+    },
+    [navigation]
+  );
 
   const handleActionPin = useCallback(() => {
     if (actionSheetContact) {
-      togglePin(actionSheetContact.name);
+      togglePin(actionSheetContact.id);
     }
     setActionSheetContact(null);
   }, [actionSheetContact, togglePin]);
 
   const handleActionMute = useCallback(() => {
     if (actionSheetContact) {
-      toggleMute(actionSheetContact.name);
+      toggleMute(actionSheetContact.id);
     }
     setActionSheetContact(null);
   }, [actionSheetContact, toggleMute]);
 
   const handleActionBlock = useCallback(() => {
     if (actionSheetContact) {
-      const contactName = actionSheetContact.name;
+      const blockHandle = actionSheetContact.userName ?? actionSheetContact.name;
       setActionSheetContact(null);
       Alert.alert(t('blockContact'), t('blockContactConfirm'), [
         { text: t('cancel'), style: 'cancel' },
@@ -251,7 +293,7 @@ export default function MessagesScreen({ navigation }: Props) {
           text: t('confirmBtn'),
           style: 'destructive',
           onPress: () => {
-            blockUserMutation.mutate(contactName);
+            blockUserMutation.mutate(blockHandle);
             showSnackbar({ message: t('blocked'), type: 'success' });
           },
         },
@@ -261,7 +303,7 @@ export default function MessagesScreen({ navigation }: Props) {
     }
   }, [actionSheetContact, blockUserMutation, showSnackbar, t]);
 
-  /* ── List header: user avatar + notifications ── */
+  /* List header: user avatar + notifications */
   const renderHeader = useCallback(() => {
     return (
       <View>
@@ -274,19 +316,9 @@ export default function MessagesScreen({ navigation }: Props) {
                 key={entry.key}
                 style={styles.notifyCard}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate(entry.key)}
+                onPress={() => handleOpenNotification(entry)}
               >
                 <View style={styles.notifyIconSquare}>
-                  <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox={`0 0 ${ICON_SIZE} ${ICON_SIZE}`} style={StyleSheet.absoluteFill}>
-                    <Defs>
-                      <RadialGradient id={entry.gradientId} cx="50%" cy="50%" r="50%">
-                        <Stop offset="0%" stopColor={entry.gradientColor} stopOpacity={0.45} />
-                        <Stop offset="60%" stopColor={entry.gradientColor} stopOpacity={0.15} />
-                        <Stop offset="100%" stopColor={entry.gradientColor} stopOpacity={0} />
-                      </RadialGradient>
-                    </Defs>
-                    <SvgCircle cx={ICON_SIZE / 2} cy={ICON_SIZE / 2} r={ICON_SIZE / 2} fill={`url(#${entry.gradientId})`} />
-                  </Svg>
                   {entry.icon}
                   {count > 0 && (
                     <View style={styles.notifyBadge}>
@@ -297,7 +329,7 @@ export default function MessagesScreen({ navigation }: Props) {
                   )}
                 </View>
                 <Text style={styles.notifyLabel} numberOfLines={1}>
-                  {t(entry.labelKey) || entry.labelKey}
+                  {t(entry.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -307,18 +339,18 @@ export default function MessagesScreen({ navigation }: Props) {
         {/* Section label */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {t('recentChats') || 'Recent Chats'}
+            {t('recentChats')}
           </Text>
         </View>
       </View>
     );
-  }, [navigation, t, unreadCounts]);
+  }, [handleOpenNotification, t, unreadCounts]);
 
   const renderContact = useCallback(
     ({ item }: { item: Contact }) => {
-      const pinned = showSearch ? false : isPinned(item.name, item.pinned);
-      const muted = isMuted(item.name);
-      const effectiveUnread = getEffectiveUnread(item.name, item.unread);
+      const pinned = showSearch ? false : isPinned(item.id, item.pinned);
+      const muted = isMuted(item.id);
+      const effectiveUnread = getEffectiveUnread(item.id, item.unread);
       return (
         <ContactRow
           item={item}
@@ -326,7 +358,7 @@ export default function MessagesScreen({ navigation }: Props) {
           isMuted={muted}
           effectiveUnread={effectiveUnread}
           onPress={() => {
-            clearUnread(item.name);
+            clearUnread(item.id);
             navigation.navigate('Chat', {
               contactId: item.id,
               contactName: item.name,
@@ -341,20 +373,20 @@ export default function MessagesScreen({ navigation }: Props) {
     [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, showSearch]
   );
 
-  /* ── Action sheet computed labels ── */
+  /* Action sheet computed labels */
   const actionSheetPinned = actionSheetContact
-    ? isPinned(actionSheetContact.name, actionSheetContact.pinned)
+    ? isPinned(actionSheetContact.id, actionSheetContact.pinned)
     : false;
   const actionSheetMuted = actionSheetContact
-    ? isMuted(actionSheetContact.name)
+    ? isMuted(actionSheetContact.id)
     : false;
   const actionSheetHasUnread = actionSheetContact
-    ? getEffectiveUnread(actionSheetContact.name, actionSheetContact.unread) > 0
+    ? getEffectiveUnread(actionSheetContact.id, actionSheetContact.unread) > 0
     : false;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ── Top Bar ── */}
+      {/* Top Bar */}
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>{t('messages')}</Text>
         <TouchableOpacity
@@ -370,15 +402,13 @@ export default function MessagesScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* ── Search Bar (expandable) ── */}
+      {/* Search Bar (expandable) */}
       {showSearch && (
         <View style={styles.searchBar}>
           <SearchIcon size={18} color={colors.onSurfaceVariant} />
           <TextInput
             style={styles.searchInput}
-            placeholder={
-              t('searchMessagesPlaceholder') || 'Search messages...'
-            }
+            placeholder={t('searchMessagesPlaceholder')}
             placeholderTextColor={colors.onSurfaceVariant}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -392,7 +422,7 @@ export default function MessagesScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* ── Main content ── */}
+      {/* Main content */}
       {isLoading && !contacts ? (
         <MessageListSkeleton />
       ) : (
@@ -410,7 +440,7 @@ export default function MessagesScreen({ navigation }: Props) {
                 icon={
                   <SearchIcon size={36} color={colors.onSurfaceVariant} />
                 }
-                title={t('noSearchResults') || 'No results found'}
+                title={t('noSearchResults')}
               />
             ) : (
               <EmptyState
@@ -421,10 +451,11 @@ export default function MessagesScreen({ navigation }: Props) {
               />
             )
           }
+          ItemSeparatorComponent={() => <View style={styles.contactSeparator} />}
         />
       )}
 
-      {/* ── Long-press Action Sheet Modal ── */}
+      {/* Long-press Action Sheet Modal */}
       <Modal
         visible={!!actionSheetContact}
         transparent
@@ -512,7 +543,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* ── Top Bar ── */
+  /* Top Bar */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -536,7 +567,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ── Search Bar ── */
+  /* Search Bar */
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -556,7 +587,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
-  /* ── Notification section ── */
+  /* Notification section */
   notifySection: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
@@ -573,15 +604,14 @@ const styles = StyleSheet.create({
   notifyIconSquare: {
     width: ICON_SIZE,
     height: ICON_SIZE,
-    borderRadius: 18,
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   notifyBadge: {
     position: 'absolute',
-    top: -4,
-    right: -6,
+    top: 10,
+    right: 10,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -603,7 +633,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* ── Section header ── */
+  /* Section header */
   sectionHeader: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
@@ -614,7 +644,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
 
-  /* ── Contact list ── */
+  /* Contact list */
   listContent: {
     paddingBottom: 100,
   },
@@ -627,6 +657,11 @@ const styles = StyleSheet.create({
   },
   contactItemPinned: {
     backgroundColor: colors.surface3,
+  },
+  contactSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginLeft: 76,
   },
   contactAvatarWrap: {
     position: 'relative',
@@ -685,7 +720,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.outline,
   },
 
-  /* ── Action Sheet Modal ── */
+  /* Action Sheet Modal */
   modalOverlay: {
     flex: 1,
     backgroundColor: colors.scrim,

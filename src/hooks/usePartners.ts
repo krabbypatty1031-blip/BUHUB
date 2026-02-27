@@ -8,6 +8,12 @@ export function usePartners(category?: PartnerCategory) {
     queryFn: () => partnerService.getList(category || undefined),
   });
 }
+export function useMyPartners(category?: PartnerCategory) {
+  return useQuery({
+    queryKey: ['partners', 'all', category],
+    queryFn: () => partnerService.getList(category || undefined, { includeExpired: true }),
+  });
+}
 
 export function usePartnerDetail(id: string) {
   return useQuery({
@@ -44,6 +50,18 @@ export function useDeletePartner() {
     mutationFn: (id: string) => partnerService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
+  });
+}
+
+export function useClosePartner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partnerService.close(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+      queryClient.invalidateQueries({ queryKey: ['partners', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['partner'] });
     },
   });
 }

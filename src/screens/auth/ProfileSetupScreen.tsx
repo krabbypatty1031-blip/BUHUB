@@ -148,7 +148,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         isLoggedIn: true,
       });
     } catch {
-      showSnackbar({ message: t('setupFailed') || 'Profile setup failed', type: 'error' });
+      showSnackbar({ message: t('setupFailed'), type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -183,7 +183,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         isLoggedIn: true,
       });
     } catch {
-      showSnackbar({ message: t('setupFailed') || 'Profile setup failed', type: 'error' });
+      showSnackbar({ message: t('setupFailed'), type: 'error' });
     } finally {
       setIsSaving(false);
     }

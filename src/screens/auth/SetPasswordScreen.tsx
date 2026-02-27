@@ -17,6 +17,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { getPasswordValidationReason } from '../../utils/validators';
@@ -28,6 +29,7 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const markPasswordSet = useAuthStore((s) => s.markPasswordSet);
 
   const {
     value: password,
@@ -74,6 +76,7 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     setIsSubmitting(true);
     try {
       await authService.setPassword(password);
+      markPasswordSet();
       navigation.navigate('ProfileSetup', { email });
     } catch {
       showSnackbar({ message: t('setPasswordFailed'), type: 'error' });
@@ -88,6 +91,7 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     isSubmitting,
     navigation,
     password,
+    markPasswordSet,
     showSnackbar,
     t,
   ]);

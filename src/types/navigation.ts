@@ -4,6 +4,20 @@ import { ErrandCategory } from './errand';
 import { SecondhandCategory } from './secondhand';
 import { RatingCategory } from './rating';
 
+export type TabRouteName = 'ForumTab' | 'FunctionsTab' | 'MessagesTab' | 'MeTab';
+
+export type ChatBackTarget = {
+  tab: TabRouteName;
+  screen?: string;
+  params?: Record<string, unknown>;
+};
+
+type BackToChatParams = {
+  contactId: string;
+  contactName: string;
+  contactAvatar: string;
+};
+
 // Auth Stack
 export type AuthStackParamList = {
   Language: undefined;
@@ -28,15 +42,15 @@ export type ForumStackParamList = {
 export type FunctionsStackParamList = {
   FunctionsHub: undefined;
   PartnerList: { category?: PartnerCategory };
-  PartnerDetail: { id: string };
+  PartnerDetail: { id: string; backToChat?: BackToChatParams };
   ComposePartner: { category?: string } | undefined;
   PartnerShare: { activityName: string; posterName: string; functionId: string };
   ErrandList: { category?: ErrandCategory };
-  ErrandDetail: { id: string };
+  ErrandDetail: { id: string; backToChat?: BackToChatParams };
   ComposeErrand: { category?: ErrandCategory } | undefined;
   ErrandShare: { taskName: string; posterName: string; functionId: string };
   SecondhandList: { category?: SecondhandCategory };
-  SecondhandDetail: { id: string };
+  SecondhandDetail: { id: string; backToChat?: BackToChatParams };
   ComposeSecondhand: { category?: SecondhandCategory } | undefined;
   SecondhandShare: { itemName: string; posterName: string; functionId: string };
   RatingList: { category?: RatingCategory };
@@ -50,7 +64,7 @@ export type FunctionsStackParamList = {
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedId?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string };
+  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedId?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string; forwardedNonce?: string; backTo?: ChatBackTarget };
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;

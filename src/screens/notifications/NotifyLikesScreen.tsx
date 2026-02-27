@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+﻿import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,62 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { LikeNotification } from '../../types';
-import { useLikeNotifications } from '../../hooks/useNotifications';
+import { useLikeNotifications, useMarkAsRead } from '../../hooks/useNotifications';
+import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, HeartIcon } from '../../components/common/icons';
+import { BackIcon, HeartIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyLikes'>;
 
 export default function NotifyLikesScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: notifications, isLoading, refetch } = useLikeNotifications();
+  const markAsRead = useMarkAsRead();
+  const setUnreadLikes = useNotificationStore((s) => s.setUnreadLikes);
+  const currentUser = useAuthStore((s) => s.user);
+  const isFocused = useIsFocused();
+  const hasMarkedReadOnFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      hasMarkedReadOnFocusRef.current = false;
+      return;
+    }
+    if (hasMarkedReadOnFocusRef.current) return;
+
+    hasMarkedReadOnFocusRef.current = true;
+    setUnreadLikes(0);
+    markAsRead.mutate('likes');
+  }, [isFocused, markAsRead, setUnreadLikes]);
 
   const handleAvatarPress = useCallback(
     (userName: string) => {
-      navigation.navigate('UserProfile', { userName });
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName,
+        displayName: userName,
+      });
     },
-    [navigation]
+    [navigation, currentUser]
   );
 
   const handleContentPress = useCallback(
     (item: LikeNotification) => {
+      if (!item.postId) return;
       if (item.action === 'likedYourPost') {
         navigation.navigate('PostDetail', { postId: item.postId });
       } else {
-        // likedYourComment or likedYourReply → go to post and scroll to comment
         navigation.navigate('PostDetail', {
           postId: item.postId,
           commentId: item.commentId,
@@ -48,61 +74,56 @@ export default function NotifyLikesScreen({ navigation }: Props) {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: LikeNotification }) => {
-      const profileMeta = [item.major, item.grade]
-        .filter((value): value is string => !!value && value.trim().length > 0)
-        .map((value) => t(value, { defaultValue: value }))
-        .join(' · ');
-
-      return (
-        <View style={styles.notificationItem}>
-          <TouchableOpacity onPress={() => handleAvatarPress(item.user)}>
-            <Avatar
-              text={item.user}
-              uri={item.avatar || null}
-              size="md"
-              gender={item.gender}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.notificationContent}
-            activeOpacity={0.7}
-            onPress={() => handleContentPress(item)}
-          >
-            <View style={styles.notificationHeader}>
+    ({ item }: { item: LikeNotification }) => (
+      <View style={styles.notificationItem}>
+        <TouchableOpacity onPress={() => handleAvatarPress(item.userName ?? item.user)}>
+          <Avatar
+            text={item.user}
+            uri={item.avatar || null}
+            size="md"
+            gender={item.gender}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.notificationContent}
+          activeOpacity={0.7}
+          onPress={() => handleContentPress(item)}
+        >
+          <View style={styles.notificationHeader}>
+            <View style={styles.notificationNameRow}>
               <Text style={styles.notificationUser} numberOfLines={1}>
                 {item.user}
               </Text>
-              <Text style={styles.notificationTime}>{item.time}</Text>
+              {item.gender === 'male' ? (
+                <MaleIcon size={12} color={colors.genderMale} />
+              ) : null}
+              {item.gender === 'female' ? (
+                <FemaleIcon size={12} color={colors.genderFemale} />
+              ) : null}
             </View>
-            {!!profileMeta && (
-              <Text style={styles.notificationMeta} numberOfLines={1}>
-                {profileMeta}
-              </Text>
-            )}
-            <View style={styles.actionRow}>
-              <HeartIcon size={14} color={colors.error} fill={colors.error} />
-              <Text style={styles.notificationAction}>
-                {t(item.action) || 'liked your post'}
+            <Text style={styles.notificationTime}>{item.time}</Text>
+          </View>
+          <View style={styles.actionRow}>
+            <HeartIcon size={14} color={colors.error} fill={colors.error} />
+            <Text style={styles.notificationAction}>
+              {t(item.action)}
+            </Text>
+          </View>
+          {item.content ? (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewText} numberOfLines={2}>
+                {item.content}
               </Text>
             </View>
-            {item.content ? (
-              <View style={styles.previewContainer}>
-                <Text style={styles.previewText} numberOfLines={2}>
-                  {item.content}
-                </Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        </View>
-      );
-    },
+          ) : null}
+        </TouchableOpacity>
+      </View>
+    ),
     [t, handleAvatarPress, handleContentPress]
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -111,7 +132,7 @@ export default function NotifyLikesScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>
-          {t('likeNotifications') || 'Likes'}
+          {t('likeNotifications')}
         </Text>
         <View style={styles.iconBtn} />
       </View>
@@ -131,7 +152,7 @@ export default function NotifyLikesScreen({ navigation }: Props) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {t('noNotifications') || 'No notifications yet'}
+                {t('noNotifications')}
               </Text>
             </View>
           }
@@ -204,17 +225,18 @@ const styles = StyleSheet.create({
   notificationUser: {
     ...typography.titleSmall,
     color: colors.onSurface,
+    flexShrink: 1,
+  },
+  notificationNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     flex: 1,
     marginRight: spacing.sm,
   },
   notificationTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-  },
-  notificationMeta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xxs,
   },
   actionRow: {
     flexDirection: 'row',

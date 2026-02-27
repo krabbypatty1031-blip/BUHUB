@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface UseImagePickerOptions {
   allowsMultiple?: boolean;
@@ -8,13 +9,14 @@ interface UseImagePickerOptions {
 }
 
 export function useImagePicker(options: UseImagePickerOptions = {}) {
+  const { t } = useTranslation();
   const { allowsMultiple = false, maxImages = 9 } = options;
   const [images, setImages] = useState<string[]>([]);
 
   const pickImages = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant photo library access to select images.');
+      Alert.alert(t('permissionNeededTitle'), t('photoPermissionMessage'));
       return;
     }
 
@@ -33,7 +35,7 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
         setImages(uris.slice(0, 1));
       }
     }
-  }, [allowsMultiple, maxImages, images.length]);
+  }, [allowsMultiple, maxImages, images.length, t]);
 
   const removeImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));

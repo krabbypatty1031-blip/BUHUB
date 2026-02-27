@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+﻿import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -101,6 +101,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     setTitle(enforceTitleLimit(text));
   }, []);
 
+  // Keep content length rules consistent while supporting native multiline behavior.
   const handleDescriptionChange = useCallback((text: string) => {
     setDescription(enforceContentLimit(text));
   }, []);
@@ -150,7 +151,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             });
           },
           onError: () => {
-            showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+            showSnackbar({ message: t('postFailed'), type: 'error' });
           },
           onSettled: () => {
             setIsPosting(false);
@@ -158,7 +159,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         },
       );
     } catch {
-      showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+      showSnackbar({ message: t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
   }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t, images, isPosting, createSecondhand, showSnackbar]);
@@ -191,7 +192,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formSection}>
-          {/* ── Category Selector ── */}
+          {/* ----- Category Selector ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('categoryLabel')}</Text>
             <View style={styles.chipRow}>
@@ -206,7 +207,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Image Picker ── */}
+          {/* ----- Image Picker ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('itemPhotos')}</Text>
             <View style={styles.imageGrid}>
@@ -229,7 +230,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Title ── */}
+          {/* ----- Title ----- */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>
@@ -249,7 +250,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Description ── */}
+          {/* ----- Description ----- */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>{t('contentLabel')}</Text>
@@ -262,14 +263,14 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
                 placeholderTextColor={colors.outline}
                 value={description}
                 onChangeText={handleDescriptionChange}
+                selectionColor={colors.primary}
                 multiline
                 textAlignVertical="top"
-                selectionColor={colors.primary}
               />
             </View>
           </View>
 
-          {/* ── Price ── */}
+          {/* ----- Price ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <DollarIcon size={14} color={colors.primary} />{' '}
@@ -289,7 +290,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Trade Location ── */}
+          {/* ----- Trade Location ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.primary} />{' '}
@@ -308,7 +309,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Condition Selector ── */}
+          {/* ----- Condition Selector ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('conditionLabel')}</Text>
             <TouchableOpacity
@@ -328,7 +329,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* ── Deadline ── */}
+          {/* ----- Deadline ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
@@ -519,14 +520,14 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   contentInputWrapper: {
-    minHeight: 96,
+    minHeight: 48,
   },
   contentInput: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    minHeight: 88,
+    minHeight: 48,
   },
   fieldInput: {
     ...typography.bodyMedium,
@@ -555,3 +556,4 @@ const styles = StyleSheet.create({
     color: colors.outline,
   },
 });
+

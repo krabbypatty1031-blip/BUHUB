@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { PartnerPost, PartnerCategory, PaginationParams } from '../../types';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 
@@ -24,7 +25,7 @@ const mapPartner = (p: any): PartnerPost => ({
   id: p.id,
   category: fromApiCategory(p.category),
   user: p.author?.nickname ?? p.author?.userName ?? p.user ?? '?',
-  avatar: p.author?.avatar ?? p.avatar ?? '',
+  avatar: normalizeAvatarUrl(p.author?.avatar ?? p.avatar) ?? '',
   gender: p.author?.gender ?? p.gender ?? 'other',
   bio: p.author?.bio ?? p.bio ?? '',
   gradeKey: p.author?.grade ?? p.gradeKey ?? undefined,
@@ -34,13 +35,20 @@ const mapPartner = (p: any): PartnerPost => ({
 });
 
 export const partnerService = {
-  async getList(category?: PartnerCategory, params?: PaginationParams): Promise<PartnerPost[]> {
+  async getList(category?: PartnerCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<PartnerPost[]> {
     if (USE_MOCK) {
       const { mockPartnerPosts } = await import('../../data/mock/partner');
       const list = category ? mockPartnerPosts.filter((p) => p.category === category) : [...mockPartnerPosts];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { data } = await apiClient.get(ENDPOINTS.PARTNER.LIST, { params: { category: toApiCategory(category), ...params } });
+    const { includeExpired, ...paginationParams } = options || {};
+    const { data } = await apiClient.get(ENDPOINTS.PARTNER.LIST, {
+      params: {
+        category: toApiCategory(category),
+        ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...paginationParams,
+      },
+    });
     return (Array.isArray(data) ? data : []).map(mapPartner);
   },
 
@@ -96,6 +104,14 @@ export const partnerService = {
       return { success: true };
     }
     const { data } = await apiClient.delete(ENDPOINTS.PARTNER.DELETE(id));
+    return data;
+  },
+
+  async close(id: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.put(ENDPOINTS.PARTNER.EDIT(id), { expired: true });
     return data;
   },
 

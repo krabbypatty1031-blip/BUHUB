@@ -2,6 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '../../types';
 import { generateAnonymousIdentity } from '../../lib/anonymous';
+import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 const FUNCTION_REF_PREFIX = '[FUNC_REF]';
@@ -60,6 +61,13 @@ function parseFunctionRef(content: string): {
   }
 }
 
+function resolveAvatarValue(avatar: string | null | undefined): string {
+  if (typeof avatar === 'string' && avatar.startsWith('#')) {
+    return avatar;
+  }
+  return normalizeAvatarUrl(avatar) ?? (avatar ?? '');
+}
+
 export const forumService = {
   async getCircleFollow(tag: string): Promise<{ tag: string; followerCount: number; followed: boolean }> {
     const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLE_FOLLOW(tag));
@@ -95,13 +103,27 @@ export const forumService = {
       }));
       const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
       const functionRef = parseFunctionRef(p.content ?? '');
+      const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
+      const normalizedImages = rawImages
+        .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
+        .filter((img: string | null): img is string => !!img);
+      const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
+      const primaryImage = normalizedImages[0] ?? fallbackImage;
+      const avatarSource = p.avatar ?? author.avatar;
+
       return {
         ...p,
         ...functionRef,
+        name: p.name ?? author.nickname ?? '?',
+        avatar: resolveAvatarValue(avatarSource),
+        userName: p.userName ?? author.userName ?? author.nickname,
         gradeKey: p.gradeKey ?? author.grade,
         majorKey: p.majorKey ?? author.major,
         pollOptions,
         isPoll,
+        images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
+        hasImage: !!primaryImage,
+        image: primaryImage,
       };
     });
   },
@@ -126,22 +148,32 @@ export const forumService = {
     const functionRef = parseFunctionRef(p.content ?? '');
     // Generate consistent anonymous identity based on author ID
     const anonIdentity = p.isAnonymous && author.id ? generateAnonymousIdentity(author.id) : null;
+    const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
+    const normalizedImages = rawImages
+      .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
+      .filter((img: string | null): img is string => !!img);
+    const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
+    const primaryImage = normalizedImages[0] ?? fallbackImage;
+    const avatarSource = anonIdentity?.avatar ?? author.avatar ?? p.avatar;
+    const resolvedAvatar = resolveAvatarValue(avatarSource);
     return {
       ...p,
       ...functionRef,
-      name: anonIdentity ? anonIdentity.name : (author.nickname ?? '?'),
-      avatar: anonIdentity ? anonIdentity.avatar : (author.avatar ?? ''),
+      name: anonIdentity ? anonIdentity.name : (author.nickname ?? p.name ?? '?'),
+      avatar: resolvedAvatar,
+      defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
       gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
-      gradeKey: author.grade,
-      majorKey: author.major,
+      gradeKey: author.grade ?? p.gradeKey,
+      majorKey: author.major ?? p.majorKey,
       meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' · '),
       likes: p.likeCount ?? p.likes ?? 0,
       comments: p.commentCount ?? p.comments ?? 0,
-      userName: author.userName ?? author.nickname,
+      userName: author.userName ?? p.userName ?? author.nickname,
       pollOptions,
       isPoll,
-      hasImage: (p.images?.length ?? 0) > 0,
-      image: p.images?.[0],
+      images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
+      hasImage: !!primaryImage,
+      image: primaryImage,
     };
   },
 
@@ -167,7 +199,7 @@ export const forumService = {
       return {
         id: r.id,
         name: rAnonIdentity ? rAnonIdentity.name : (r.author?.nickname ?? '?'),
-        avatar: rAnonIdentity ? rAnonIdentity.avatar : (r.author?.avatar ?? ''),
+        avatar: resolveAvatarValue(rAnonIdentity ? rAnonIdentity.avatar : r.author?.avatar),
         gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
         gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
         majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
@@ -196,7 +228,7 @@ export const forumService = {
       return {
         id: c.id,
         name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
-        avatar: anonIdentity ? anonIdentity.avatar : (c.author?.avatar ?? ''),
+        avatar: resolveAvatarValue(anonIdentity ? anonIdentity.avatar : c.author?.avatar),
         gender: isAnon ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
         gradeKey: isAnon ? undefined : (c.author?.grade ?? undefined),
         majorKey: isAnon ? undefined : (c.author?.major ?? undefined),
@@ -305,7 +337,7 @@ export const forumService = {
     return {
       id: c.id,
       name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
-      avatar: anonIdentity ? anonIdentity.avatar : (c.author?.avatar ?? ''),
+      avatar: resolveAvatarValue(anonIdentity ? anonIdentity.avatar : c.author?.avatar),
       content: c.content,
       time: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
       likes: c.likeCount ?? 0,
@@ -384,6 +416,7 @@ export const forumService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.SEARCH, { params: { q: query } });
     return (Array.isArray(data) ? data : []).map((p: any) => {
+      const author = p.author ?? {};
       const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
       const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
       const pollOptions = pollOpts?.map((o: any) => ({
@@ -392,7 +425,27 @@ export const forumService = {
       }));
       const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
       const functionRef = parseFunctionRef(p.content ?? '');
-      return pollOptions ? { ...p, ...functionRef, pollOptions, isPoll } : { ...p, ...functionRef, isPoll };
+      const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
+      const normalizedImages = rawImages
+        .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
+        .filter((img: string | null): img is string => !!img);
+      const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
+      const primaryImage = normalizedImages[0] ?? fallbackImage;
+      const avatarSource = p.avatar ?? author.avatar;
+      return {
+        ...p,
+        ...functionRef,
+        name: p.name ?? author.nickname ?? '?',
+        avatar: resolveAvatarValue(avatarSource),
+        userName: p.userName ?? author.userName ?? author.nickname,
+        gradeKey: p.gradeKey ?? author.grade,
+        majorKey: p.majorKey ?? author.major,
+        pollOptions,
+        isPoll,
+        images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
+        hasImage: !!primaryImage,
+        image: primaryImage,
+      };
     });
   },
 };

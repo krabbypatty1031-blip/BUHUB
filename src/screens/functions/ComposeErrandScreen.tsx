@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -78,6 +78,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
     setTitle(enforceTitleLimit(text));
   }, []);
 
+  // Keep content length rules consistent while supporting native multiline behavior.
   const handleContentChange = useCallback((text: string) => {
     setContent(enforceContentLimit(text));
   }, []);
@@ -121,7 +122,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
           });
         },
         onError: () => {
-          showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+          showSnackbar({ message: t('postFailed'), type: 'error' });
         },
         onSettled: () => {
           setIsPosting(false);
@@ -158,13 +159,13 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formSection}>
-          {/* ── Disclaimer ── */}
+          {/* ----- Disclaimer ----- */}
           <View style={styles.disclaimerCard}>
             <AlertTriangleIcon size={16} color={colors.onErrorContainer} />
             <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
           </View>
 
-          {/* ── Category Selector ── */}
+          {/* ----- Category Selector ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>{t('categoryLabel')}</Text>
             <View style={styles.chipRow}>
@@ -179,7 +180,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Title ── */}
+          {/* ----- Title ----- */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>
@@ -199,7 +200,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Content ── */}
+          {/* ----- Content ----- */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>{t('contentLabel')}</Text>
@@ -212,14 +213,14 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
                 placeholderTextColor={colors.outline}
                 value={content}
                 onChangeText={handleContentChange}
+                selectionColor={colors.primary}
                 multiline
                 textAlignVertical="top"
-                selectionColor={colors.primary}
               />
             </View>
           </View>
 
-          {/* ── Price ── */}
+          {/* ----- Price ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <DollarIcon size={14} color={colors.primary} />{' '}
@@ -239,7 +240,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Item ── */}
+          {/* ----- Item ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <PackageIcon size={14} color={colors.primary} />{' '}
@@ -258,7 +259,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── From ── */}
+          {/* ----- From ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.success} />{' '}
@@ -284,7 +285,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             <View style={styles.routeLine} />
           </View>
 
-          {/* ── To ── */}
+          {/* ----- To ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <MapPinIcon size={14} color={colors.error} />{' '}
@@ -303,7 +304,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* ── Deadline ── */}
+          {/* ----- Deadline ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               <ClockIcon size={14} color={colors.primary} />{' '}
@@ -455,14 +456,14 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   contentInputWrapper: {
-    minHeight: 96,
+    minHeight: 48,
   },
   contentInput: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    minHeight: 88,
+    minHeight: 48,
   },
   fieldInput: {
     ...typography.bodyMedium,
@@ -509,3 +510,4 @@ const styles = StyleSheet.create({
     color: colors.outline,
   },
 });
+

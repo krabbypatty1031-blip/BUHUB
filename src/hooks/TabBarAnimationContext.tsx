@@ -1,14 +1,30 @@
-import React, { createContext, useContext } from 'react';
-import { useSharedValue, type SharedValue } from 'react-native-reanimated';
+import React, { createContext, useContext, useEffect } from 'react';
+import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
 interface TabBarAnimationContextType {
   tabBarTranslateY: SharedValue<number>;
 }
 
 const TabBarAnimationContext = createContext<TabBarAnimationContextType | null>(null);
+const TAB_BAR_ANIM_DURATION = 250;
+let globalTabBarTranslateY: SharedValue<number> | null = null;
+
+export function showTabBar() {
+  if (!globalTabBarTranslateY) return;
+  globalTabBarTranslateY.value = withTiming(0, { duration: TAB_BAR_ANIM_DURATION });
+}
 
 export function TabBarAnimationProvider({ children }: { children: React.ReactNode }) {
   const tabBarTranslateY = useSharedValue(0);
+
+  useEffect(() => {
+    globalTabBarTranslateY = tabBarTranslateY;
+    return () => {
+      if (globalTabBarTranslateY === tabBarTranslateY) {
+        globalTabBarTranslateY = null;
+      }
+    };
+  }, [tabBarTranslateY]);
 
   return (
     <TabBarAnimationContext.Provider value={{ tabBarTranslateY }}>

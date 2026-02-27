@@ -9,6 +9,12 @@ export function useSecondhand(category?: SecondhandCategory) {
     queryFn: () => secondhandService.getList(category || undefined),
   });
 }
+export function useMySecondhand(category?: SecondhandCategory) {
+  return useQuery({
+    queryKey: ['secondhand', 'all', category],
+    queryFn: () => secondhandService.getList(category || undefined, { includeExpired: true }),
+  });
+}
 
 export function useSecondhandDetail(id: string) {
   return useQuery({
@@ -45,6 +51,18 @@ export function useDeleteSecondhand() {
     mutationFn: (id: string) => secondhandService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+    },
+  });
+}
+
+export function useCloseSecondhand() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => secondhandService.close(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhandItem'] });
     },
   });
 }

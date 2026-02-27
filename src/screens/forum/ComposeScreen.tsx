@@ -105,7 +105,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
     if (type === 'poll') {
       const validOpts = pollOptions.filter((o) => o.trim());
       if (validOpts.length < 2) {
-        showSnackbar({ message: t('pollOptionsMin') || 'Please add at least 2 poll options', type: 'error' });
+        showSnackbar({ message: t('pollOptionsMin'), type: 'error' });
         return;
       }
     }
@@ -138,7 +138,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
             navigation.goBack();
           },
           onError: () => {
-            showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+            showSnackbar({ message: t('postFailed'), type: 'error' });
           },
           onSettled: () => {
             setIsPosting(false);
@@ -146,7 +146,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         }
       );
     } catch {
-      showSnackbar({ message: t('postFailed') || 'Failed to post', type: 'error' });
+      showSnackbar({ message: t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
   }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);
@@ -486,7 +486,6 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.onSurface,
   },
-  // Quote card — gradient gray
   quoteCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,

@@ -5,13 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { usePartnerDetail } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -20,6 +23,7 @@ import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import { buildPostMeta } from '../../utils/formatTime';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import {
   BackIcon,
   UsersIcon,
@@ -36,15 +40,46 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;
 export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { id } = route.params;
+  const { id, backToChat } = route.params;
   const { data: partner } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const currentUser = useAuthStore((s) => s.user);
+  const currentUserName = currentUser?.name || currentUser?.nickname || '';
+  const isOwnPost = partner?.user === currentUserName;
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
+  const handleBack = useCallback(() => {
+    if (backToChat) {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: backToChat,
+      });
+      return;
+    }
+    navigation.goBack();
+  }, [navigation, backToChat]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!backToChat) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [backToChat, handleBack])
+  );
+
   const handleDmOrganizer = useCallback(() => {
     if (!partner?.authorId) return;
+    const backTo = buildChatBackTarget(navigation, 'FunctionsTab')
+      ?? {
+        tab: 'FunctionsTab' as const,
+        screen: 'PartnerDetail',
+        params: { id: partner.id },
+      };
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
       params: {
@@ -55,6 +90,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         forwardedTitle: partner.title,
         forwardedPosterName: partner.user,
         forwardedId: partner.id,
+        forwardedNonce: `${Date.now()}-${partner.id}-${partner.authorId}`,
+        backTo,
       },
     });
   }, [navigation, partner]);
@@ -63,7 +100,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
@@ -87,7 +124,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
@@ -127,7 +164,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 鈹€鈹€ Header: Title & Tags 鈹€鈹€ */}
+        {/* ----- Header: Title & Tags ----- */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
             <View style={styles.tag}>
@@ -147,7 +184,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Description 鈹€鈹€ */}
+        {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{partner.desc}</Text>
@@ -155,7 +192,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Time 鈹€鈹€ */}
+        {/* ----- Time ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('activityTime')}</Text>
           <View style={styles.detailRow}>
@@ -168,7 +205,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Location 鈹€鈹€ */}
+        {/* ----- Location ----- */}
         {partner.location ? (
           <>
             <View style={styles.section}>
@@ -184,7 +221,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           </>
         ) : null}
 
-        {/* 鈹€鈹€ Organizer 鈹€鈹€ */}
+        {/* ----- Organizer ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('organizer')}</Text>
           <View style={styles.organizerRow}>
@@ -201,16 +238,18 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
-        <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
+        {/* ----- Action Bar ----- */}
+        <View style={[styles.actionBar, (partner.expired || isOwnPost) && styles.actionBarDisabled]}>
           <TouchableOpacity
-            style={styles.dmButton}
+            style={[styles.dmButton, isOwnPost && styles.dmButtonDisabled]}
             activeOpacity={0.7}
             onPress={handleDmOrganizer}
-            disabled={partner.expired}
+            disabled={partner.expired || isOwnPost}
           >
-            <MessageIcon size={18} color={colors.onPrimary} />
-            <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
+            <MessageIcon size={18} color={isOwnPost ? colors.onSurfaceVariant : colors.onPrimary} />
+            <Text style={[styles.dmButtonText, isOwnPost && styles.dmButtonTextDisabled]}>
+              {isOwnPost ? t('cannotDmSelf') : t('partnerDmOrganizer')}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -226,7 +265,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
-            showSnackbar({ message: t('reportFailed') || 'Report failed', type: 'error' });
+            showSnackbar({ message: t('reportFailed'), type: 'error' });
           }
         }}
       />
@@ -251,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
+  /* ----- Top Bar ----- */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -273,7 +312,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* 鈹€鈹€ Empty 鈹€鈹€ */
+  /* ----- Empty ----- */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -289,7 +328,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* 鈹€鈹€ Header 鈹€鈹€ */
+  /* ----- Header ----- */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -336,7 +375,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
 
-  /* 鈹€鈹€ Shared 鈹€鈹€ */
+  /* ----- Shared ----- */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -354,14 +393,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* 鈹€鈹€ Description 鈹€鈹€ */
+  /* ----- Description ----- */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* 鈹€鈹€ Detail rows 鈹€鈹€ */
+  /* ----- Detail rows ----- */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -383,7 +422,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* 鈹€鈹€ Organizer 鈹€鈹€ */
+  /* ----- Organizer ----- */
   organizerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -411,7 +450,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
+  /* ----- Action Bar ----- */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -431,12 +470,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
+  dmButtonDisabled: {
+    backgroundColor: colors.surfaceVariant,
+  },
   dmButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
+  dmButtonTextDisabled: {
+    color: colors.onSurfaceVariant,
+  },
 
-  /* 鈹€鈹€ Popover 鈹€鈹€ */
+  /* ----- Popover ----- */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,

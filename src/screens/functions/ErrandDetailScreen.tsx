@@ -5,13 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useErrandDetail } from '../../hooks/useErrands';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -20,6 +23,7 @@ import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import { buildPostMeta } from '../../utils/formatTime';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import {
   BackIcon,
   DollarIcon,
@@ -39,16 +43,46 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'ErrandDetail'>;
 export default function ErrandDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { id } = route.params;
+  const { id, backToChat } = route.params;
   const { data: errand } = useErrandDetail(id);
-
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const currentUser = useAuthStore((s) => s.user);
+  const currentUserName = currentUser?.name || currentUser?.nickname || '';
+  const isOwnPost = errand?.user === currentUserName;
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
+  const handleBack = useCallback(() => {
+    if (backToChat) {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: backToChat,
+      });
+      return;
+    }
+    navigation.goBack();
+  }, [navigation, backToChat]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!backToChat) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [backToChat, handleBack])
+  );
+
   const handleDmPoster = useCallback(() => {
     if (!errand?.authorId) return;
+    const backTo = buildChatBackTarget(navigation, 'FunctionsTab')
+      ?? {
+        tab: 'FunctionsTab' as const,
+        screen: 'ErrandDetail',
+        params: { id: errand.id },
+      };
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
       params: {
@@ -59,6 +93,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         forwardedTitle: errand.title,
         forwardedPosterName: errand.user,
         forwardedId: errand.id,
+        forwardedNonce: `${Date.now()}-${errand.id}-${errand.authorId}`,
+        backTo,
       },
     });
   }, [navigation, errand]);
@@ -67,7 +103,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
@@ -91,7 +127,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
@@ -130,7 +166,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 鈹€鈹€ Header: Title & Tags 鈹€鈹€ */}
+        {/* ----- Header: Title & Tags ----- */}
         <View style={styles.headerSection}>
           <View style={styles.tagRow}>
             <View style={styles.tag}>
@@ -150,7 +186,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Reward 鈹€鈹€ */}
+        {/* ----- Reward ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('reward')}</Text>
           <View style={styles.rewardRow}>
@@ -166,7 +202,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Description 鈹€鈹€ */}
+        {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{errand.desc}</Text>
@@ -174,7 +210,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Route 鈹€鈹€ */}
+        {/* ----- Route ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('pickupLocation')}</Text>
           <View style={styles.routeWrap}>
@@ -205,7 +241,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Details: Item & Deadline 鈹€鈹€ */}
+        {/* ----- Details: Item & Deadline ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemLabel')}</Text>
           <View style={styles.detailRow}>
@@ -230,7 +266,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Poster 鈹€鈹€ */}
+        {/* ----- Poster ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('poster')}</Text>
           <View style={styles.posterRow}>
@@ -249,22 +285,24 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Disclaimer 鈹€鈹€ */}
+        {/* ----- Disclaimer ----- */}
         <View style={styles.disclaimerSection}>
           <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
-        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
-        <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
+        {/* ----- Action Bar ----- */}
+        <View style={[styles.actionBar, (errand.expired || isOwnPost) && styles.actionBarDisabled]}>
           <TouchableOpacity
-            style={styles.dmButton}
+            style={[styles.dmButton, isOwnPost && styles.dmButtonDisabled]}
             activeOpacity={0.7}
             onPress={handleDmPoster}
-            disabled={errand.expired}
+            disabled={errand.expired || isOwnPost}
           >
-            <MessageIcon size={18} color={colors.onPrimary} />
-            <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
+            <MessageIcon size={18} color={isOwnPost ? colors.onSurfaceVariant : colors.onPrimary} />
+            <Text style={[styles.dmButtonText, isOwnPost && styles.dmButtonTextDisabled]}>
+              {isOwnPost ? t('cannotDmSelf') : t('errandDmPoster')}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -280,7 +318,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
-            showSnackbar({ message: t('reportFailed') || 'Report failed', type: 'error' });
+            showSnackbar({ message: t('reportFailed'), type: 'error' });
           }
         }}
       />
@@ -305,7 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
+  /* ----- Top Bar ----- */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -327,7 +365,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* 鈹€鈹€ Empty 鈹€鈹€ */
+  /* ----- Empty ----- */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -343,7 +381,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* 鈹€鈹€ Header 鈹€鈹€ */
+  /* ----- Header ----- */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -390,7 +428,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
 
-  /* 鈹€鈹€ Shared 鈹€鈹€ */
+  /* ----- Shared ----- */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -408,7 +446,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* 鈹€鈹€ Reward 鈹€鈹€ */
+  /* ----- Reward ----- */
   rewardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -429,14 +467,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
   },
 
-  /* 鈹€鈹€ Description 鈹€鈹€ */
+  /* ----- Description ----- */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* 鈹€鈹€ Route 鈹€鈹€ */
+  /* ----- Route ----- */
   routeWrap: {
     gap: 0,
   },
@@ -484,7 +522,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* 鈹€鈹€ Detail rows 鈹€鈹€ */
+  /* ----- Detail rows ----- */
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -506,7 +544,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* 鈹€鈹€ Poster 鈹€鈹€ */
+  /* ----- Poster ----- */
   posterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -534,7 +572,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  /* 鈹€鈹€ Disclaimer 鈹€鈹€ */
+  /* ----- Disclaimer ----- */
   disclaimerSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -550,7 +588,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
+  /* ----- Action Bar ----- */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -570,12 +608,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
+  dmButtonDisabled: {
+    backgroundColor: colors.surfaceVariant,
+  },
   dmButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
+  dmButtonTextDisabled: {
+    color: colors.onSurfaceVariant,
+  },
 
-  /* 鈹€鈹€ Popover 鈹€鈹€ */
+  /* ----- Popover ----- */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,

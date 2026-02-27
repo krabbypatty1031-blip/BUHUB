@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+﻿import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,33 +8,59 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { CommentNotification } from '../../types';
-import { useCommentNotifications } from '../../hooks/useNotifications';
+import { useCommentNotifications, useMarkAsRead } from '../../hooks/useNotifications';
+import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, CommentIcon } from '../../components/common/icons';
+import { BackIcon, CommentIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyComments'>;
 
 export default function NotifyCommentsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: notifications, isLoading, refetch } = useCommentNotifications();
+  const markAsRead = useMarkAsRead();
+  const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
+  const currentUser = useAuthStore((s) => s.user);
+  const isFocused = useIsFocused();
+  const hasMarkedReadOnFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      hasMarkedReadOnFocusRef.current = false;
+      return;
+    }
+    if (hasMarkedReadOnFocusRef.current) return;
+
+    hasMarkedReadOnFocusRef.current = true;
+    setUnreadComments(0);
+    markAsRead.mutate('comments');
+  }, [isFocused, markAsRead, setUnreadComments]);
 
   const handleAvatarPress = useCallback(
     (userName: string) => {
-      navigation.navigate('UserProfile', { userName });
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName,
+        displayName: userName,
+      });
     },
-    [navigation]
+    [navigation, currentUser]
   );
 
   const handleContentPress = useCallback(
     (item: CommentNotification) => {
-      // All comment notifications navigate to the post and scroll to the comment
+      if (!item.postId) return;
       navigation.navigate('PostDetail', {
         postId: item.postId,
         commentId: item.commentId,
@@ -46,7 +72,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: CommentNotification }) => (
       <View style={styles.notificationItem}>
-        <TouchableOpacity onPress={() => handleAvatarPress(item.user)}>
+        <TouchableOpacity onPress={() => handleAvatarPress(item.userName ?? item.user)}>
           <Avatar
             text={item.user}
             uri={item.avatar || null}
@@ -60,18 +86,25 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
           onPress={() => handleContentPress(item)}
         >
           <View style={styles.notificationHeader}>
-            <Text style={styles.notificationUser} numberOfLines={1}>
-              {item.user}
-            </Text>
+            <View style={styles.notificationNameRow}>
+              <Text style={styles.notificationUser} numberOfLines={1}>
+                {item.user}
+              </Text>
+              {item.gender === 'male' ? (
+                <MaleIcon size={12} color={colors.genderMale} />
+              ) : null}
+              {item.gender === 'female' ? (
+                <FemaleIcon size={12} color={colors.genderFemale} />
+              ) : null}
+            </View>
             <Text style={styles.notificationTime}>{item.time}</Text>
           </View>
           <View style={styles.actionRow}>
             <CommentIcon size={14} color={colors.tertiary} />
             <Text style={styles.notificationAction}>
-              {t(item.action) || 'commented on your post'}
+              {t(item.action)}
             </Text>
           </View>
-          {/* Comment Preview */}
           {item.comment ? (
             <View style={styles.commentPreview}>
               <Text style={styles.commentText} numberOfLines={2}>
@@ -79,7 +112,6 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
               </Text>
             </View>
           ) : null}
-          {/* Original Post Reference */}
           {item.originalPost ? (
             <View style={styles.originalPostContainer}>
               <View style={styles.originalPostBar} />
@@ -96,7 +128,6 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -105,7 +136,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>
-          {t('commentNotifications') || 'Comments'}
+          {t('commentNotifications')}
         </Text>
         <View style={styles.iconBtn} />
       </View>
@@ -118,14 +149,14 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
         <FlatList
           data={notifications || []}
           renderItem={renderItem}
-          keyExtractor={(_, index) => String(index)}
+          keyExtractor={(item, index) => item.id || String(index)}
           contentContainerStyle={styles.listContent}
           refreshing={isLoading}
           onRefresh={refetch}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {t('noNotifications') || 'No notifications yet'}
+                {t('noNotifications')}
               </Text>
             </View>
           }
@@ -198,6 +229,12 @@ const styles = StyleSheet.create({
   notificationUser: {
     ...typography.titleSmall,
     color: colors.onSurface,
+    flexShrink: 1,
+  },
+  notificationNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     flex: 1,
     marginRight: spacing.sm,
   },

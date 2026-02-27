@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect, CommonActions } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
@@ -36,6 +36,7 @@ import {
 } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
@@ -90,13 +91,13 @@ export default function ForumScreen({ navigation }: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const handleAvatarPress = useCallback(
     (post: ForumPost) => {
-      if (!post.isAnonymous) {
-        if (post.name === currentUser?.nickname) {
-          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
-        } else {
-          navigation.navigate('UserProfile', { userName: post.name });
-        }
-      }
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        isAnonymous: post.isAnonymous,
+        userName: post.userName,
+        displayName: post.name,
+      });
     },
     [navigation, currentUser]
   );
@@ -249,7 +250,7 @@ export default function ForumScreen({ navigation }: Props) {
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{quotePostId ? t('quotePost') || 'Quote Post' : t('newPost')}</Text>
+              <Text style={styles.sheetTitle}>{quotePostId ? t('quotePost') : t('newPost')}</Text>
               <TouchableOpacity onPress={closeSheet}>
                 <CloseIcon size={24} color={colors.onSurface} />
               </TouchableOpacity>

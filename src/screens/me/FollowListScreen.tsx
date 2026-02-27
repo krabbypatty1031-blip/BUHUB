@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { FollowListItem } from '../../types';
 import { useFollowingList, useFollowersList, useFollowUser } from '../../hooks/useUser';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, UsersIcon } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'FollowList'>;
 
@@ -27,29 +29,36 @@ const FollowItem = React.memo(function FollowItem({
   onToggleFollow,
   followedLabel,
   followLabel,
+  t,
 }: {
-  item: FollowListItem & { _followed: boolean };
+  item: FollowListItem;
   onPress: () => void;
   onToggleFollow: () => void;
   followedLabel: string;
   followLabel: string;
+  t: (key: string) => string;
 }) {
+  const majorLabel = item.major ? t(item.major) : '';
+  const gradeLabel = item.grade ? t(item.grade) : '';
+  const subInfo = [majorLabel, gradeLabel].filter(Boolean).join(' / ');
+  const displayName = item.nickname || item.userName;
+
   return (
     <TouchableOpacity style={styles.itemRow} activeOpacity={0.7} onPress={onPress}>
-      <Avatar text={item.userName} uri={item.avatar} size="md" gender={item.gender} />
+      <Avatar text={displayName} uri={item.avatar} size="md" gender={item.gender} />
       <View style={styles.itemInfo}>
-        <Text style={styles.itemName} numberOfLines={1}>{item.userName}</Text>
-        {item.bio ? (
-          <Text style={styles.itemBio} numberOfLines={1}>{item.bio}</Text>
+        <Text style={styles.itemName} numberOfLines={1}>{displayName}</Text>
+        {subInfo ? (
+          <Text style={styles.itemSubInfo} numberOfLines={1}>{subInfo}</Text>
         ) : null}
       </View>
       <TouchableOpacity
-        style={[styles.followBtn, item._followed && styles.followBtnFollowed]}
+        style={[styles.followBtn, item.isFollowed && styles.followBtnFollowed]}
         activeOpacity={0.7}
         onPress={onToggleFollow}
       >
-        <Text style={[styles.followBtnText, item._followed && styles.followBtnTextFollowed]}>
-          {item._followed ? followedLabel : followLabel}
+        <Text style={[styles.followBtnText, item.isFollowed && styles.followBtnTextFollowed]}>
+          {item.isFollowed ? followedLabel : followLabel}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>
@@ -62,37 +71,37 @@ export default function FollowListScreen({ navigation, route }: Props) {
   const { data: followingData } = useFollowingList();
   const { data: followersData } = useFollowersList();
   const { mutate: followUser } = useFollowUser();
+  const currentUser = useAuthStore((s) => s.user);
 
   const sourceData = type === 'following' ? followingData : followersData;
 
-  // Local follow state overrides
-  const [followOverrides, setFollowOverrides] = useState<Record<string, boolean>>({});
-
-  const data = (sourceData || []).map((item) => ({
-    ...item,
-    _followed: followOverrides[item.userName] ?? item.isFollowed,
-  }));
-
   const handleToggleFollow = useCallback((userName: string) => {
-    setFollowOverrides((prev) => ({
-      ...prev,
-      [userName]: !(prev[userName] ?? sourceData?.find((i) => i.userName === userName)?.isFollowed ?? false),
-    }));
     followUser(userName);
-  }, [followUser, sourceData]);
+  }, [followUser]);
 
-  const followedLabel = t('followed');
+  const followedLabel = t('alreadyFollowed');
   const followLabel = t('follow');
 
-  const renderItem = useCallback(({ item }: { item: FollowListItem & { _followed: boolean } }) => (
-    <FollowItem
-      item={item}
-      onPress={() => navigation.navigate('UserProfile', { userName: item.userName })}
-      onToggleFollow={() => handleToggleFollow(item.userName)}
-      followedLabel={followedLabel}
-      followLabel={followLabel}
-    />
-  ), [navigation, handleToggleFollow, followedLabel, followLabel]);
+  const renderItem = useCallback(({ item }: { item: FollowListItem }) => {
+    const handlePress = () => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.nickname ?? item.userName,
+      });
+    };
+    return (
+      <FollowItem
+        item={item}
+        onPress={handlePress}
+        onToggleFollow={() => handleToggleFollow(item.userName)}
+        followedLabel={followedLabel}
+        followLabel={followLabel}
+        t={t}
+      />
+    );
+  }, [navigation, currentUser, handleToggleFollow, followedLabel, followLabel, t]);
 
   const title = type === 'following' ? t('followingListTitle') : t('followersListTitle');
   const emptyText = type === 'following' ? t('noFollowingYet') : t('noFollowersYet');
@@ -109,7 +118,7 @@ export default function FollowListScreen({ navigation, route }: Props) {
       </View>
 
       <FlatList
-        data={data}
+        data={sourceData || []}
         keyExtractor={(item) => item.userName}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -151,7 +160,7 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
@@ -159,16 +168,19 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
     marginRight: spacing.sm,
+    justifyContent: 'center',
   },
   itemName: {
     ...typography.titleSmall,
     color: colors.onSurface,
     fontWeight: '600',
+    lineHeight: 20,
   },
-  itemBio: {
+  itemSubInfo: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    marginTop: spacing.xxs,
+    marginTop: 2,
+    lineHeight: 18,
   },
   followBtn: {
     paddingHorizontal: spacing.md,
@@ -191,3 +203,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+

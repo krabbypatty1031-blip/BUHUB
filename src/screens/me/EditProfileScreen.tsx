@@ -23,6 +23,7 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 import Avatar from '../../components/common/Avatar';
 import {
   BackIcon,
@@ -46,7 +47,16 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   const { images: avatarImages, pickImages: pickAvatar } = useImagePicker();
   const pickedAvatar = avatarImages[0] || null;
-  const avatarUri = pickedAvatar || currentUser?.avatar;
+  const persistedAvatarUri = normalizeAvatarUrl(currentUser?.avatar);
+  const avatarUri = pickedAvatar || persistedAvatarUri;
+  const showAvatarImage = Boolean(
+    avatarUri &&
+      (avatarUri.startsWith('http') ||
+        avatarUri.startsWith('file://') ||
+        avatarUri.startsWith('data:'))
+  );
+  const imageAvatarUri: string | undefined =
+    showAvatarImage && typeof avatarUri === 'string' ? avatarUri : undefined;
   const [nickname, setNickname] = useState(currentUser?.nickname || currentUser?.name || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [grade, setGrade] = useState(currentUser?.grade || '');
@@ -84,11 +94,11 @@ export default function EditProfileScreen({ navigation }: Props) {
       updateUserStore(updates);
       updateProfile.mutate(updates, {
         onSuccess: () => {
-          showSnackbar({ message: t('saveSuccess') || 'Saved!', type: 'success' });
+          showSnackbar({ message: t('saveSuccess'), type: 'success' });
           navigation.goBack();
         },
         onError: () => {
-          showSnackbar({ message: t('saveError') || 'Failed to save', type: 'error' });
+          showSnackbar({ message: t('saveError'), type: 'error' });
         },
       });
     } finally {
@@ -107,7 +117,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>
-          {t('editProfile') || 'Edit Profile'}
+          {t('editProfile')}
         </Text>
         <TouchableOpacity
           onPress={handleSave}
@@ -133,11 +143,12 @@ export default function EditProfileScreen({ navigation }: Props) {
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
-              {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              {showAvatarImage ? (
+                <Image source={{ uri: imageAvatarUri }} style={styles.avatarImage} />
               ) : (
                 <Avatar
                   text={nickname || currentUser?.name || '?'}
+                  uri={avatarUri}
                   size="xl"
                   gender={currentUser?.gender}
                 />
@@ -153,7 +164,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           </View>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.6}>
             <Text style={styles.changeAvatarText}>
-              {t('changeAvatar') || 'Change Avatar'}
+              {t('changeAvatar')}
             </Text>
           </TouchableOpacity>
         </View>

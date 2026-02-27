@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { Errand, ErrandCategory, PaginationParams } from '../../types';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 
@@ -22,7 +23,7 @@ const mapErrand = (e: any): Errand => ({
   id: e.id,
   category: fromApiCategory(e.category),
   user: e.author?.nickname ?? e.author?.userName ?? e.user ?? '?',
-  avatar: e.author?.avatar ?? e.avatar ?? '',
+  avatar: normalizeAvatarUrl(e.author?.avatar ?? e.avatar) ?? '',
   gender: e.author?.gender ?? e.gender ?? 'other',
   bio: e.author?.bio ?? e.bio ?? '',
   gradeKey: e.author?.grade ?? e.gradeKey ?? undefined,
@@ -32,13 +33,20 @@ const mapErrand = (e: any): Errand => ({
 });
 
 export const errandService = {
-  async getList(category?: ErrandCategory, params?: PaginationParams): Promise<Errand[]> {
+  async getList(category?: ErrandCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<Errand[]> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
       const list = category ? mockErrands.filter((e) => e.category === category) : [...mockErrands];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, { params: { category: toApiCategory(category), ...params } });
+    const { includeExpired, ...paginationParams } = options || {};
+    const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, {
+      params: {
+        category: toApiCategory(category),
+        ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...paginationParams,
+      },
+    });
     return (Array.isArray(data) ? data : []).map(mapErrand);
   },
 
@@ -94,6 +102,14 @@ export const errandService = {
       return { success: true };
     }
     const { data } = await apiClient.delete(ENDPOINTS.ERRAND.DELETE(id));
+    return data;
+  },
+
+  async close(id: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.put(ENDPOINTS.ERRAND.EDIT(id), { expired: true });
     return data;
   },
 

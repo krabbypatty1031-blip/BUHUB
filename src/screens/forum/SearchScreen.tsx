@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { useSearch, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
@@ -23,6 +22,7 @@ import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Search'>;
 
@@ -63,13 +63,13 @@ export default function SearchScreen({ navigation }: Props) {
 
   const handleAvatarPress = useCallback(
     (post: ForumPost) => {
-      if (!post.isAnonymous) {
-        if (post.name === currentUser?.nickname) {
-          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
-        } else {
-          navigation.navigate('UserProfile', { userName: post.name });
-        }
-      }
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        isAnonymous: post.isAnonymous,
+        userName: post.userName,
+        displayName: post.name,
+      });
     },
     [navigation, currentUser]
   );

@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { UserPost, UserComment, ForumPost, Language, MyContent } from '../../types';
@@ -53,6 +52,7 @@ import {
 import { getRelativeTime, buildPostMeta } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { hapticLight } from '../../utils/haptics';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -126,16 +126,16 @@ const CommentItem = React.memo(function CommentItem({
 
   const handleDelete = useCallback(() => {
     showModal({
-      title: t('deleteCommentTitle') || 'Delete Comment',
-      message: t('deleteCommentMessage') || 'Are you sure you want to delete this comment?',
+      title: t('deleteCommentTitle'),
+      message: t('deleteCommentMessage'),
       onConfirm: () => {
         deleteCommentMutation.mutate(comment.commentId, {
           onSuccess: () => {
-            showSnackbar({ message: t('commentDeleted') || 'Comment deleted', type: 'success' });
+            showSnackbar({ message: t('commentDeleted'), type: 'success' });
             onUpdate();
           },
           onError: () => {
-            showSnackbar({ message: t('deleteFailed') || 'Failed to delete', type: 'error' });
+            showSnackbar({ message: t('deleteFailed'), type: 'error' });
           },
         });
       },
@@ -153,7 +153,7 @@ const CommentItem = React.memo(function CommentItem({
           onUpdate();
         }
       },
-      onError: () => showSnackbar({ message: t('likeFailed') || 'Failed to like', type: 'error' }),
+      onError: () => showSnackbar({ message: t('likeFailed'), type: 'error' }),
     });
   }, [comment.commentId, comment.liked, likeCommentMutation, showSnackbar, t, onLikeUpdate, onUpdate]);
 
@@ -168,7 +168,7 @@ const CommentItem = React.memo(function CommentItem({
           onUpdate();
         }
       },
-      onError: () => showSnackbar({ message: t('bookmarkFailed') || 'Failed to bookmark', type: 'error' }),
+      onError: () => showSnackbar({ message: t('bookmarkFailed'), type: 'error' }),
     });
   }, [comment.commentId, comment.bookmarked, bookmarkCommentMutation, showSnackbar, t, onBookmarkUpdate, onUpdate]);
 
@@ -310,13 +310,14 @@ export default function MeScreen({ navigation }: Props) {
   }, [navigation, quotePostId]);
 
   const handleAvatarPress = useCallback((post: ForumPost) => {
-    if (post.isAnonymous) return;
-    if (post.name === user?.nickname) {
-      navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
-      return;
-    }
-    navigation.navigate('UserProfile', { userName: post.userName ?? post.name });
-  }, [navigation, user?.nickname]);
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser: user,
+      isAnonymous: post.isAnonymous,
+      userName: post.userName,
+      displayName: post.name,
+    });
+  }, [navigation, user]);
 
   const handleTagPress = useCallback((_post: ForumPost, tag: string) => {
     navigation.getParent()?.navigate('ForumTab', {
@@ -463,6 +464,7 @@ export default function MeScreen({ navigation }: Props) {
               };
               const commentAsPost: ForumPost = {
                 id: c.commentId,
+                sourcePostId: c.postId,
                 name: likedCommentAsUser.name,
                 avatar: likedCommentAsUser.avatar,
                 defaultAvatar: likedCommentAsUser.defaultAvatar,
@@ -584,6 +586,7 @@ export default function MeScreen({ navigation }: Props) {
               };
               const commentAsPost: ForumPost = {
                 id: c.commentId,
+                sourcePostId: c.postId,
                 name: bookmarkedCommentAsUser.name,
                 avatar: bookmarkedCommentAsUser.avatar,
                 defaultAvatar: bookmarkedCommentAsUser.defaultAvatar,
@@ -650,6 +653,7 @@ export default function MeScreen({ navigation }: Props) {
         // Convert UserComment to ForumPost for forward
         const commentAsPost: ForumPost = {
           id: c.commentId,
+          sourcePostId: c.postId,
           name: c.name,
           avatar: c.avatar,
           defaultAvatar: c.defaultAvatar,
@@ -699,17 +703,17 @@ export default function MeScreen({ navigation }: Props) {
         }}
         onDelete={() => {
           showModal({
-            title: t('deletePostTitle') || 'Delete Post',
-            message: t('deletePostMessage') || 'Are you sure you want to delete this post?',
+            title: t('deletePostTitle'),
+            message: t('deletePostMessage'),
             onConfirm: () => {
               deletePostMutation.mutate(post.id, {
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['myContent'] });
                   queryClient.invalidateQueries({ queryKey: ['posts'] });
-                  showSnackbar({ message: t('postDeleted') || 'Post deleted', type: 'success' });
+                  showSnackbar({ message: t('postDeleted'), type: 'success' });
                 },
                 onError: () => {
-                  showSnackbar({ message: t('deleteFailed') || 'Failed to delete post', type: 'error' });
+                  showSnackbar({ message: t('deleteFailed'), type: 'error' });
                 },
               });
             },
@@ -910,7 +914,7 @@ export default function MeScreen({ navigation }: Props) {
             <View style={styles.composeSheetHandle} />
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>
-                {quotePostId ? t('quotePost') || 'Quote Post' : t('newPost')}
+                {quotePostId ? t('quotePost') : t('newPost')}
               </Text>
               <TouchableOpacity onPress={closeComposeSheet}>
                 <CloseIcon size={24} color={colors.onSurface} />
@@ -1024,6 +1028,7 @@ const styles = StyleSheet.create({
   profileAvatarWrap: {
     alignItems: 'center',
     justifyContent: 'flex-start',
+    marginLeft: -60,
   },
   nickname: {
     ...typography.headlineSmall,

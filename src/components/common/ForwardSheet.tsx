@@ -19,6 +19,7 @@ import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import { CloseIcon, SendIcon, CheckIcon } from './icons';
 import type { ForumPost, Contact } from '../../types';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 
 interface ForwardSheetProps {
   visible: boolean;
@@ -85,11 +86,13 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
     ) ?? [];
 
   const handleToggleContact = useCallback((contact: Contact) => {
-    setSelectedContact((prev) => (prev?.name === contact.name ? null : contact));
+    setSelectedContact((prev) => (prev?.id === contact.id ? null : contact));
   }, []);
 
   const handleSend = useCallback(() => {
     if (!selectedContact || !post) return;
+    const targetPostId = post.sourcePostId ?? post.id;
+    const backTo = buildChatBackTarget(navigation);
     onClose();
     navigation.dispatch(
       CommonActions.navigate({
@@ -103,9 +106,11 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
             forwardedType: 'post',
             forwardedTitle: post.content,
             forwardedPosterName: post.name,
-            forwardedId: post.id,
-            forwardedPostId: post.id,
+            forwardedId: targetPostId,
+            forwardedPostId: targetPostId,
             forwardedMessage: messageText.trim() || undefined,
+            forwardedNonce: `${Date.now()}-${selectedContact.id}-${targetPostId}`,
+            ...(backTo ? { backTo } : {}),
           },
         },
       })
@@ -116,7 +121,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
     ({ item }: { item: Contact }) => (
       <ContactRow
         item={item}
-        isSelected={selectedContact?.name === item.name}
+        isSelected={selectedContact?.id === item.id}
         onPress={handleToggleContact}
       />
     ),
@@ -165,7 +170,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
               <SearchInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder={t('searchContacts') || 'Search contacts...'}
+                placeholder={t('searchContacts')}
               />
             </View>
 
@@ -190,7 +195,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
                 style={styles.messageInput}
                 value={messageText}
                 onChangeText={setMessageText}
-                placeholder={t('addMessagePlaceholder') || 'Add a message...'}
+                placeholder={t('addMessagePlaceholder')}
                 placeholderTextColor={colors.outline}
                 editable={canSend}
                 multiline

@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { authService } from '../api/services/auth.service';
 import { Snackbar, ConfirmModal } from '../components/common';
 import { colors } from '../theme/colors';
+import { changeLanguage, normalizeLanguage } from '../i18n';
 
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
@@ -21,8 +22,20 @@ export default function AppNavigator() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
+  const setUser = useAuthStore((s) => s.setUser);
+  const setLanguage = useAuthStore((s) => s.setLanguage);
+  const language = useAuthStore((s) => s.language);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    const normalized = normalizeLanguage(language) ?? 'tc';
+    if (normalized !== language) {
+      setLanguage(normalized);
+    }
+    void changeLanguage(normalized);
+  }, [hasHydrated, language, setLanguage]);
 
   // Verify token on app startup (wait for hydration first)
   useEffect(() => {
@@ -36,6 +49,8 @@ export default function AppNavigator() {
         const result = await authService.verifyToken();
         if (!result.valid) {
           logout();
+        } else if (result.user) {
+          setUser(result.user);
         }
       } catch {
         logout();
@@ -44,7 +59,7 @@ export default function AppNavigator() {
       }
     };
     checkAuth();
-  }, [hasHydrated]); // Re-run when hydration completes
+  }, [hasHydrated, isLoggedIn, token, logout, setUser]); // Re-run when hydration completes
 
   if (!hasHydrated || isCheckingAuth) {
     return (

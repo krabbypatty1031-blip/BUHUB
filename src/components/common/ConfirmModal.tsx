@@ -78,13 +78,13 @@ export default function ConfirmModal() {
             style={({ pressed }) => [styles.cancelBtn, pressed && styles.btnPressed]}
             onPress={handleCancel}
           >
-            <Text style={styles.cancelText}>{t('cancel') || 'Cancel'}</Text>
+            <Text style={styles.cancelText}>{t('cancel')}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.confirmBtn, pressed && styles.confirmBtnPressed]}
             onPress={handleConfirm}
           >
-            <Text style={styles.confirmText}>{t('confirm') || 'Confirm'}</Text>
+            <Text style={styles.confirmText}>{t('confirm')}</Text>
           </Pressable>
         </View>
       </Animated.View>

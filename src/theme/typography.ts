@@ -14,8 +14,6 @@ const inter = {
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
 } as const;
-
-// Typography scale — Instagram-style: Inter font, tight spacing, strong weight contrast
 export const typography: Record<string, TextStyle> = {
   displayLarge: {
     fontSize: 57,

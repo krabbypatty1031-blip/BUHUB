@@ -6,15 +6,18 @@ import {
   StyleSheet,
   ScrollView,
   useWindowDimensions,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useSecondhandDetail, useWantSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -22,6 +25,7 @@ import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import { buildPostMeta } from '../../utils/formatTime';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -40,24 +44,55 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { width: screenWidth } = useWindowDimensions();
-  const { id } = route.params;
+  const { id, backToChat } = route.params;
   const { data: item } = useSecondhandDetail(id);
   const wantedItems = useSecondhandStore((s) => s.wantedItems);
   const toggleWant = useSecondhandStore((s) => s.toggleWant);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
+  const currentUser = useAuthStore((s) => s.user);
+  const currentUserName = currentUser?.name || currentUser?.nickname || '';
+  const isOwnPost = item?.user === currentUserName;
 
   const isWanted = wantedItems.has(id);
   const isSold = item?.sold ?? false;
   const isExpired = item ? item.expired && !item.sold : false;
-  const isDisabled = isSold || isExpired;
+  const isDisabled = isSold || isExpired || isOwnPost;
 
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
+  const handleBack = useCallback(() => {
+    if (backToChat) {
+      navigation.getParent()?.navigate('MessagesTab', {
+        screen: 'Chat',
+        params: backToChat,
+      });
+      return;
+    }
+    navigation.goBack();
+  }, [navigation, backToChat]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!backToChat) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [backToChat, handleBack])
+  );
+
   const handleContact = useCallback(() => {
     if (!item?.authorId) return;
+    const backTo = buildChatBackTarget(navigation, 'FunctionsTab')
+      ?? {
+        tab: 'FunctionsTab' as const,
+        screen: 'SecondhandDetail',
+        params: { id: item.id },
+      };
     navigation.getParent()?.navigate('MessagesTab', {
       screen: 'Chat',
       params: {
@@ -68,6 +103,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         forwardedTitle: item.title,
         forwardedPosterName: item.user,
         forwardedId: item.id,
+        forwardedNonce: `${Date.now()}-${item.id}-${item.authorId}`,
+        backTo,
       },
     });
   }, [navigation, item]);
@@ -86,7 +123,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('secondhandDetail')}</Text>
@@ -108,7 +145,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('secondhandDetail')}</Text>
@@ -147,7 +184,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 鈹€鈹€ Hero Image 鈹€鈹€ */}
+        {/* ----- Hero Image ----- */}
         <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isDisabled && styles.heroImageDimmed]}>
           <ShoppingBagIcon size={56} color={colors.outlineVariant} />
 
@@ -173,7 +210,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {/* 鈹€鈹€ Price & Title 鈹€鈹€ */}
+        {/* ----- Price & Title ----- */}
         <View style={styles.headerSection}>
           <Text style={styles.price}>{item.price}</Text>
           <Text style={styles.title}>{item.title}</Text>
@@ -202,7 +239,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Description 鈹€鈹€ */}
+        {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <Text style={styles.descriptionText}>{item.desc}</Text>
@@ -210,7 +247,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Trade Location 鈹€鈹€ */}
+        {/* ----- Trade Location ----- */}
         {item.location ? (
           <>
             <View style={styles.section}>
@@ -226,7 +263,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           </>
         ) : null}
 
-        {/* 鈹€鈹€ Seller 鈹€鈹€ */}
+        {/* ----- Seller ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('sellerLabel')}</Text>
           <View style={styles.sellerRow}>
@@ -245,13 +282,13 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* 鈹€鈹€ Disclaimer 鈹€鈹€ */}
+        {/* ----- Disclaimer ----- */}
         <View style={styles.disclaimerSection}>
           <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
           <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
         </View>
 
-        {/* 鈹€鈹€ Action Bar 鈹€鈹€ */}
+        {/* ----- Action Bar ----- */}
         <View style={[styles.actionBar, isDisabled && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={[styles.wantButton, isWanted && styles.wantedButton]}
@@ -274,8 +311,10 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             onPress={handleContact}
             disabled={isDisabled}
           >
-            <MessageIcon size={18} color={colors.onPrimary} />
-            <Text style={styles.contactButtonText}>{t('secondhandDmSeller')}</Text>
+            <MessageIcon size={18} color={isDisabled ? colors.onSurfaceVariant : colors.onPrimary} />
+            <Text style={[styles.contactButtonText, isDisabled && styles.contactButtonTextDisabled]}>
+              {isOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -291,7 +330,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
-            showSnackbar({ message: t('reportFailed') || 'Report failed', type: 'error' });
+            showSnackbar({ message: t('reportFailed'), type: 'error' });
           }
         }}
       />
@@ -316,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* 鈹€鈹€ Top Bar 鈹€鈹€ */
+  /* ----- Top Bar ----- */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -338,7 +377,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* 鈹€鈹€ Empty 鈹€鈹€ */
+  /* ----- Empty ----- */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -354,7 +393,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  /* 鈹€鈹€ Hero Image 鈹€鈹€ */
+  /* ----- Hero Image ----- */
   heroImage: {
     backgroundColor: colors.surface2,
     alignItems: 'center',
@@ -403,7 +442,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* 鈹€鈹€ Header: Price & Title 鈹€鈹€ */
+  /* ----- Header: Price & Title ----- */
   headerSection: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
@@ -457,7 +496,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  /* 鈹€鈹€ Shared 鈹€鈹€ */
+  /* ----- Shared ----- */
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.outlineVariant,
@@ -475,14 +514,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* 鈹€鈹€ Description 鈹€鈹€ */
+  /* ----- Description ----- */
   descriptionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
     lineHeight: 26,
   },
 
-  /* 鈹€鈹€ Location 鈹€鈹€ */
+  /* ----- Location ----- */
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,7 +542,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  /* 鈹€鈹€ Seller 鈹€鈹€ */
+  /* ----- Seller ----- */
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,7 +570,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  /* 鈹€鈹€ Disclaimer 鈹€鈹€ */
+  /* ----- Disclaimer ----- */
   disclaimerSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -547,7 +586,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* 鈹€鈹€ Action Bar 鈹€鈹€ */
+  /* ----- Action Bar ----- */
   actionBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
@@ -597,8 +636,11 @@ const styles = StyleSheet.create({
     ...typography.labelLarge,
     color: colors.onPrimary,
   },
+  contactButtonTextDisabled: {
+    color: colors.onSurfaceVariant,
+  },
 
-  /* 鈹€鈹€ Popover 鈹€鈹€ */
+  /* ----- Popover ----- */
   popoverOverlay: {
     position: 'absolute' as const,
     top: 56,
@@ -634,4 +676,3 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
-

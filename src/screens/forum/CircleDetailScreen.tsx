@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
@@ -22,6 +21,7 @@ import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'CircleDetail'>;
 
@@ -40,8 +40,6 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const { data: circleFollow } = useCircleFollow(tag);
   const toggleCircleFollowMutation = useToggleCircleFollow(tag);
   const followed = circleFollow?.followed ?? false;
-
-  // tag is an i18n key (e.g., "tagTreehole") — translate to current locale
   const displayName = useMemo(() => {
     const translated = t(tag);
     return translated !== tag ? translated : tag;
@@ -102,13 +100,13 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
 
   const handleAvatarPress = useCallback(
     (post: ForumPost) => {
-      if (!post.isAnonymous) {
-        if (post.name === currentUser?.nickname) {
-          navigation.dispatch(CommonActions.navigate({ name: 'MeTab' }));
-        } else {
-          navigation.navigate('UserProfile', { userName: post.name });
-        }
-      }
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        isAnonymous: post.isAnonymous,
+        userName: post.userName,
+        displayName: post.name,
+      });
     },
     [navigation, currentUser]
   );

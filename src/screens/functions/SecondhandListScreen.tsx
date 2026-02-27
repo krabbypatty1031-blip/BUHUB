@@ -24,6 +24,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import Avatar from '../../components/common/Avatar';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -147,6 +148,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const { data: items, isLoading, refetch } = useSecondhand(selectedCategory || undefined);
 
   const [searchText, setSearchText] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   // Filter by search text
   const filteredItems = useMemo(() => {
@@ -197,6 +199,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const handleDmSeller = useCallback(
     (item: SecondhandItem, functionId: string) => {
       if (!item.authorId) return;
+      const backTo = buildChatBackTarget(navigation, 'FunctionsTab');
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
         params: {
@@ -207,6 +210,8 @@ export default function SecondhandListScreen({ navigation }: Props) {
           forwardedTitle: item.title,
           forwardedPosterName: item.user,
           forwardedId: functionId,
+          forwardedNonce: `${Date.now()}-${functionId}-${item.authorId}`,
+          ...(backTo ? { backTo } : {}),
         },
       });
     },
@@ -237,23 +242,31 @@ export default function SecondhandListScreen({ navigation }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
-        <View style={styles.iconBtn} />
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => setShowSearch(!showSearch)}
+        >
+          <SearchIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <SearchIcon size={18} color={colors.outline} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('searchSecondhand')}
-            placeholderTextColor={colors.outline}
-            value={searchText}
-            onChangeText={setSearchText}
-            returnKeyType="search"
-          />
+      {/* Search Bar (collapsible) */}
+      {showSearch && (
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <SearchIcon size={18} color={colors.outline} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('searchSecondhand')}
+              placeholderTextColor={colors.outline}
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+              autoFocus
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Category Tabs */}
       <View style={styles.tabsContainer}>
@@ -314,30 +327,24 @@ export default function SecondhandListScreen({ navigation }: Props) {
             <View style={styles.actionHandle} />
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
                 if (a) setShareSheetItem(a);
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.secondaryContainer }]}>
-                <RepostIcon size={20} color={colors.onSecondaryContainer} />
-              </View>
               <Text style={styles.actionText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionRow}
+              style={styles.actionRowCenter}
               onPress={() => {
                 const a = actionItem;
                 setActionItem(null);
                 if (a) handleDmSeller(a.item, a.id);
               }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
-                <MessageIcon size={20} color={colors.primary} />
-              </View>
               <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
             </TouchableOpacity>
           </View>
@@ -370,6 +377,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
     ...typography.titleMedium,
@@ -387,6 +396,7 @@ const styles = StyleSheet.create({
   /* Search */
   searchSection: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
   searchBar: {
@@ -408,6 +418,7 @@ const styles = StyleSheet.create({
   /* Category Tabs */
   tabsContainer: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
 
@@ -595,5 +606,11 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+  },
+  actionRowCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
   },
 });

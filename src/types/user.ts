@@ -160,14 +160,18 @@ export interface MyContent {
 
 export interface FollowListItem {
   userName: string;
+  nickname?: string;
   avatar: string;
   gender: Gender;
   bio: string;
   isFollowed: boolean;
+  major?: string;
+  grade?: string;
 }
 
 export interface Contact {
   id: string; // userId for API calls
+  userName?: string;
   name: string;
   avatar: string;
   grade?: string;

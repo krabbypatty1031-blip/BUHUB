@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { FollowListItem } from '../../types';
 import { useBlockedList, useUnblockUser } from '../../hooks/useUser';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -20,6 +21,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, UsersIcon } from '../../components/common/icons';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Blocklist'>;
 
@@ -59,6 +61,7 @@ export default function BlocklistScreen({ navigation }: Props) {
   const { data: blockedData } = useBlockedList();
   const unblockUserMutation = useUnblockUser();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const currentUser = useAuthStore((s) => s.user);
 
   const handleUnblock = useCallback((userName: string) => {
     Alert.alert(t('unblock'), t('unblockConfirm'), [
@@ -76,14 +79,24 @@ export default function BlocklistScreen({ navigation }: Props) {
 
   const unblockLabel = t('unblock');
 
-  const renderItem = useCallback(({ item }: { item: FollowListItem }) => (
-    <BlockedItem
-      item={item}
-      onPress={() => navigation.navigate('UserProfile', { userName: item.userName })}
-      onUnblock={() => handleUnblock(item.userName)}
-      unblockLabel={unblockLabel}
-    />
-  ), [navigation, handleUnblock, unblockLabel]);
+  const renderItem = useCallback(({ item }: { item: FollowListItem }) => {
+    const handlePress = () => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.userName,
+      });
+    };
+    return (
+      <BlockedItem
+        item={item}
+        onPress={handlePress}
+        onUnblock={() => handleUnblock(item.userName)}
+        unblockLabel={unblockLabel}
+      />
+    );
+  }, [navigation, currentUser, handleUnblock, unblockLabel]);
 
   return (
     <SafeAreaView style={styles.container}>

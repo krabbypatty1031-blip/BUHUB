@@ -79,6 +79,11 @@ const ENDPOINTS = {
   MESSAGE: {
     CONVERSATIONS: '/messages/conversations',
     CHAT: (userId: string) => `/messages/chat/${userId}`,
+    CAN_SEND: (userId: string) => `/messages/can-send/${userId}`,
+    UPDATES: '/messages/updates',
+    TYPING: '/messages/typing',
+    PRESENCE_HEARTBEAT: '/messages/presence/heartbeat',
+    PRESENCE: (userId: string) => `/messages/presence/${userId}`,
     SEND: '/messages',
     MARK_READ: (messageId: string) => `/messages/${messageId}/read`,
     MESSAGE_DETAIL: (messageId: string) => `/messages/${messageId}`,

@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { getRelativeTime } from '../../utils/formatTime';
 import { useAuthStore } from '../../store/authStore';
+import { normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 
@@ -17,6 +18,7 @@ type LikeAction = LikeNotification['action'];
 
 type RawLikeNotification = {
   user?: string;
+  userName?: string;
   name?: string;
   avatar?: string;
   gender?: 'male' | 'female' | 'other' | 'secret';
@@ -29,6 +31,37 @@ type RawLikeNotification = {
   hasImage?: boolean;
   postId?: string;
   commentId?: string;
+};
+
+type RawFollowerNotification = {
+  user?: string;
+  userName?: string;
+  name?: string;
+  avatar?: string;
+  gender?: 'male' | 'female' | 'other' | 'secret';
+  bio?: string;
+  time?: string;
+  isFollowed?: boolean;
+};
+
+type CommentAction = CommentNotification['action'];
+type CommentType = CommentNotification['type'];
+
+type RawCommentNotification = {
+  id?: string;
+  user?: string;
+  userName?: string;
+  name?: string;
+  avatar?: string;
+  gender?: 'male' | 'female' | 'other' | 'secret';
+  action?: string;
+  type?: string;
+  comment?: string;
+  originalPost?: string;
+  postContent?: string;
+  postId?: string;
+  commentId?: string;
+  time?: string;
 };
 
 function getCurrentLanguage(): Language {
@@ -54,6 +87,26 @@ function normalizeLikeAction(rawAction: string | undefined, hasCommentId: boolea
   return 'likedYourPost';
 }
 
+function normalizeCommentType(rawType: string | undefined): CommentType {
+  if (rawType === 'comment' || rawType === 'reply' || rawType === 'mention') return rawType;
+  const normalized = (rawType ?? '').toLowerCase();
+  if (normalized.includes('reply')) return 'reply';
+  if (normalized.includes('mention')) return 'mention';
+  return 'comment';
+}
+
+function normalizeCommentAction(rawAction: string | undefined, type: CommentType): CommentAction {
+  if (rawAction === 'commentedYourPost' || rawAction === 'repliedYourComment' || rawAction === 'mentionedYou') {
+    return rawAction;
+  }
+  const normalized = (rawAction ?? '').toLowerCase();
+  if (normalized.includes('reply')) return 'repliedYourComment';
+  if (normalized.includes('mention')) return 'mentionedYou';
+  if (type === 'reply') return 'repliedYourComment';
+  if (type === 'mention') return 'mentionedYou';
+  return 'commentedYourPost';
+}
+
 export const notificationService = {
   async getLikes(): Promise<LikeNotification[]> {
     if (USE_MOCK) {
@@ -66,7 +119,8 @@ export const notificationService = {
       const hasCommentId = !!item.commentId;
       return {
         user: item.user ?? item.name ?? '',
-        avatar: item.avatar ?? '',
+        userName: item.userName ?? item.user ?? item.name ?? '',
+        avatar: normalizeAvatarUrl(item.avatar) ?? '',
         gender: item.gender ?? 'other',
         grade: item.grade ?? undefined,
         major: item.major ?? undefined,
@@ -86,7 +140,16 @@ export const notificationService = {
       return mockFollowerNotifications;
     }
     const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.FOLLOWERS);
-    return data;
+    const list = Array.isArray(data) ? (data as RawFollowerNotification[]) : [];
+    return list.map((item) => ({
+      user: item.user ?? item.name ?? item.userName ?? '',
+      userName: item.userName ?? item.user ?? item.name ?? '',
+      avatar: normalizeAvatarUrl(item.avatar) ?? '',
+      gender: item.gender ?? 'other',
+      bio: item.bio ?? '',
+      time: normalizeNotificationTime(item.time),
+      isFollowed: !!item.isFollowed,
+    }));
   },
 
   async getComments(): Promise<CommentNotification[]> {
@@ -95,7 +158,24 @@ export const notificationService = {
       return mockCommentNotifications;
     }
     const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.COMMENTS);
-    return data;
+    const list = Array.isArray(data) ? (data as RawCommentNotification[]) : [];
+    return list.map((item) => {
+      const type = normalizeCommentType(item.type);
+      return {
+        id: item.id ?? `${item.postId ?? ''}:${item.commentId ?? ''}:${item.time ?? ''}`,
+        user: item.user ?? item.name ?? item.userName ?? '',
+        userName: item.userName ?? item.user ?? item.name ?? '',
+        avatar: normalizeAvatarUrl(item.avatar) ?? '',
+        gender: item.gender ?? 'other',
+        action: normalizeCommentAction(item.action, type),
+        comment: item.comment ?? '',
+        originalPost: item.originalPost ?? item.postContent ?? '',
+        time: normalizeNotificationTime(item.time),
+        type,
+        postId: item.postId ?? '',
+        commentId: item.commentId ?? '',
+      };
+    });
   },
 
   async getUnreadCount(): Promise<UnreadCount> {
@@ -110,8 +190,7 @@ export const notificationService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    // Backend read-all marks all as read (PUT, no body)
-    await apiClient.put(ENDPOINTS.NOTIFICATION.MARK_READ);
+    await apiClient.put(ENDPOINTS.NOTIFICATION.MARK_READ, { type });
     return { success: true };
   },
 

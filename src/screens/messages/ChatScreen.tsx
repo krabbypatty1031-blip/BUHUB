@@ -3,6 +3,10 @@ import {
   View,
   Text,
   FlatList,
+  Image,
+  GestureResponderEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -10,8 +14,12 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
@@ -27,17 +35,29 @@ import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { ChatMessage, ChatHistory } from '../../types';
-import { useChatHistory, useSendMessage } from '../../hooks/useMessages';
+import { useCanSendMessage, useChatHistory, usePresence, useRecallMessage, useSendMessage } from '../../hooks/useMessages';
 import { useAuthStore } from '../../store/authStore';
+import { useMessageStore } from '../../store/messageStore';
+import { useUIStore } from '../../store/uiStore';
+import { useMessageRealtimeStore } from '../../store/messageRealtimeStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import { uploadService } from '../../api/services/upload.service';
+import { messageService } from '../../api/services/message.service';
+import {
+  VoiceMessageBubble,
+  RecordingOverlay,
+  type RecordingOverlayRef,
+  VoiceButton,
+} from '../../components/messages';
 import {
   BackIcon,
   SendIcon,
   CameraIcon,
   MicIcon,
+  KeyboardIcon,
   ImageIcon,
   CloseIcon,
   ChevronRightIcon,
@@ -46,19 +66,39 @@ import {
   ShoppingBagIcon,
   EditIcon,
 } from '../../components/common/icons';
-import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
+import { showTabBar, useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
 
 const TAB_BAR_HEIGHT = 80;
+const MIN_RECORD_DURATION_MS = 1000;
+const MAX_RECORD_DURATION_MS = 60000;
+const TYPING_STOP_DELAY_MS = 2500;
+const TYPING_STALE_MS = 6000;
+const RECALL_WINDOW_MS = 2 * 60 * 1000;
+const VOICE_ACTION_ZONE_WIDTH = 132;
+const VOICE_ACTION_ZONE_HEIGHT = 80;
+const VOICE_ACTION_ZONE_SIDE = 20;
+const VOICE_ACTION_ZONE_BOTTOM = 90;
+const PURE_BLACK = '#000000';
+const REACTION_OPTIONS = [
+  '\u{1F44D}',
+  '\u{2764}\u{FE0F}',
+  '\u{1F602}',
+  '\u{1F62E}',
+  '\u{1F622}',
+  '\u{1F44F}',
+];
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 
-/* ── Union type for FlatList data ── */
+/* ----- Union type for FlatList data ----- */
 type ChatListItem =
   | { kind: 'date'; date: string; key: string }
   | { kind: 'message'; message: ChatMessage; key: string };
 
-/* ── Date separator ── */
+type VoiceReleaseAction = 'send' | 'cancel' | 'transcribe';
+
+/* ----- Date separator ----- */
 const DateSeparator = React.memo(function DateSeparator({
   date,
 }: {
@@ -73,10 +113,10 @@ const DateSeparator = React.memo(function DateSeparator({
   );
 });
 
-/* ── Type label keys ── */
+/* ----- Type label keys ----- */
 const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand', post: 'forum' };
 
-/* ── Card theme – unified monochrome ── */
+/* ----- Card theme: unified monochrome ----- */
 const CARD_THEME = {
   bg: '#FFFFFF',
   iconBg: '#F5F5F5',
@@ -87,24 +127,54 @@ const CARD_THEME = {
 
 const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon, post: EditIcon };
 
-/* ── Chat bubble with avatar ── */
+/* ----- Chat bubble with avatar ----- */
 const ChatBubble = React.memo(function ChatBubble({
   message,
-  myAvatar,
-  theirAvatar,
+  myAvatarText,
+  myAvatarUri,
+  theirAvatarText,
+  theirAvatarUri,
   onCardPress,
+  onLongPressMessage,
+  onPlayAudio,
+  onPressReaction,
+  isAudioPlaying,
   t,
 }: {
   message: ChatMessage;
-  myAvatar: string;
-  theirAvatar: string;
+  myAvatarText: string;
+  myAvatarUri?: string | null;
+  theirAvatarText: string;
+  theirAvatarUri?: string | null;
   onCardPress?: (card: NonNullable<ChatMessage['functionCard']>) => void;
+  onLongPressMessage?: (message: ChatMessage) => void;
+  onPlayAudio?: (message: ChatMessage) => void;
+  onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
+  isAudioPlaying?: boolean;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const isMine = message.type === 'sent';
   const card = message.functionCard;
+  const isRecalled = Boolean(message.isRecalled);
+  const hasImages = Array.isArray(message.images) && message.images.length > 0;
+  const hasAudio = Boolean(message.audio?.url);
+  const hasReactions = Array.isArray(message.reactions) && message.reactions.length > 0;
+  const replyFromLabel = message.replyTo?.from === 'me'
+    ? t('youLabel')
+    : t('themLabel');
 
-  return (
+  if (isRecalled) {
+    const recalledText = isMine
+      ? t('messageYouRecalled')
+      : t('messagePeerRecalled');
+    return (
+      <View style={styles.recalledNoticeRow}>
+        <Text style={styles.recalledNoticeText}>{recalledText}</Text>
+      </View>
+    );
+  }
+
+  const bubbleNode = (
     <View
       style={[
         styles.bubbleRow,
@@ -113,79 +183,158 @@ const ChatBubble = React.memo(function ChatBubble({
     >
       {!isMine && (
         <View style={styles.avatarWrap}>
-          <Avatar text={theirAvatar} size="sm" />
+          <Avatar text={theirAvatarText} uri={theirAvatarUri} size="sm" />
         </View>
       )}
       <View style={styles.bubbleCol}>
-        {card ? (() => {
-          const IconComp = TYPE_ICONS[card.type];
-          return (
-            <TouchableOpacity
-              style={styles.cardBubble}
-              activeOpacity={0.8}
-              onPress={() => onCardPress?.(card)}
-            >
-              <View style={styles.cardContent}>
-                {/* Top row: icon + type label + arrow */}
-                <View style={styles.cardTopRow}>
-                  <View style={styles.cardIconCircle}>
-                    <IconComp size={13} color={CARD_THEME.iconColor} />
+        <View style={styles.bubbleBodyWrap}>
+          {card ? (() => {
+            const IconComp = TYPE_ICONS[card.type];
+            return (
+              <TouchableOpacity
+                style={styles.cardBubble}
+                activeOpacity={0.8}
+                onPress={() => onCardPress?.(card)}
+                onLongPress={() => onLongPressMessage?.(message)}
+                delayLongPress={300}
+              >
+                <View style={styles.cardContent}>
+                  {/* Top row: icon + type label + arrow */}
+                  <View style={styles.cardTopRow}>
+                    <View style={styles.cardIconCircle}>
+                      <IconComp size={13} color={CARD_THEME.iconColor} />
+                    </View>
+                    <Text style={styles.cardTypeText}>
+                      {t(TYPE_LABEL_KEYS[card.type]) || card.type}
+                    </Text>
+                    <ChevronRightIcon size={12} color="#CCCCCC" />
                   </View>
-                  <Text style={styles.cardTypeText}>
-                    {t(TYPE_LABEL_KEYS[card.type]) || card.type}
-                  </Text>
-                  <ChevronRightIcon size={12} color="#CCCCCC" />
+                  {/* Title */}
+                  <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
+                  {/* Divider */}
+                  <View style={styles.cardDivider} />
+                  {/* Footer */}
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
+                  </View>
                 </View>
-                {/* Title */}
-                <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
-                {/* Divider */}
-                <View style={styles.cardDivider} />
-                {/* Footer */}
-                <View style={styles.cardFooter}>
-                  <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })() : (
-          <View
-            style={[
-              styles.bubble,
-              isMine ? styles.bubbleMine : styles.bubbleTheirs,
-            ]}
-          >
-            <Text
+              </TouchableOpacity>
+            );
+          })() : hasImages ? (
+            <View
               style={[
-                styles.bubbleText,
-                isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+                styles.mediaBubble,
+                isMine ? styles.bubbleMine : styles.bubbleTheirs,
               ]}
             >
-              {message.text}
-            </Text>
-          </View>
-        )}
-        <Text
-          style={[
-            styles.bubbleTime,
-            isMine ? styles.bubbleTimeRight : styles.bubbleTimeLeft,
-          ]}
-        >
-          {message.time}
-        </Text>
+              {message.replyTo ? (
+                <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
+                  <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>{replyFromLabel}</Text>
+                  <Text style={[styles.replyText, isMine ? styles.replyTextMine : styles.replyTextTheirs]} numberOfLines={2}>
+                    {message.replyTo.text}
+                  </Text>
+                </View>
+              ) : null}
+              {message.text ? (
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+                  ]}
+                >
+                  {message.text}
+                </Text>
+              ) : null}
+              <View style={styles.mediaGrid}>
+                {message.images?.slice(0, 4).map((uri, index) => (
+                  <Image key={`${uri}-${index}`} source={{ uri }} style={styles.mediaImage} />
+                ))}
+              </View>
+            </View>
+          ) : hasAudio ? (
+            <VoiceMessageBubble
+              isMine={isMine}
+              durationMs={message.audio?.durationMs || 0}
+              isPlaying={isAudioPlaying}
+              isRead={message.status === 'read' || !isMine}
+              onPress={() => onPlayAudio?.(message)}
+              onLongPress={() => onLongPressMessage?.(message)}
+            />
+          ) : (
+            <View
+              style={[
+                styles.bubble,
+                isMine ? styles.bubbleMine : styles.bubbleTheirs,
+              ]}
+            >
+              {message.replyTo ? (
+                <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
+                  <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>{replyFromLabel}</Text>
+                  <Text style={[styles.replyText, isMine ? styles.replyTextMine : styles.replyTextTheirs]} numberOfLines={2}>
+                    {message.replyTo.text}
+                  </Text>
+                </View>
+              ) : null}
+              <Text
+                style={[
+                  styles.bubbleText,
+                  isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+                  isRecalled ? styles.bubbleTextRecalled : undefined,
+                ]}
+              >
+                {message.text}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.bubbleFooterRow}>
+          {hasReactions ? (
+            <View style={styles.reactionList}>
+              {message.reactions?.map((reaction) => (
+                <TouchableOpacity
+                  key={`${reaction.emoji}-${reaction.reactedByMe ? 'me' : 'peer'}`}
+                  style={[styles.reactionChip, reaction.reactedByMe ? styles.reactionChipMine : undefined]}
+                  activeOpacity={0.8}
+                  onPress={() => onPressReaction?.(message, reaction.emoji, Boolean(reaction.reactedByMe))}
+                >
+                  <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                  <Text style={styles.reactionCount}>{reaction.count}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View />
+          )}
+          <Text style={styles.bubbleTime}>{message.time}</Text>
+        </View>
       </View>
       {isMine && (
         <View style={styles.avatarWrap}>
-          <Avatar text={myAvatar} size="sm" />
+          <Avatar text={myAvatarText} uri={myAvatarUri} size="sm" />
         </View>
       )}
     </View>
   );
+
+  if (onLongPressMessage) {
+    return (
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={() => onLongPressMessage(message)}
+        delayLongPress={300}
+      >
+        {bubbleNode}
+      </TouchableOpacity>
+    );
+  }
+
+  return bubbleNode;
 });
 
-/* ── Waveform color palette ── */
+/* ----- Waveform color palette ----- */
 const WAVE_COLORS = [colors.error];
 
-/* ── Waveform bar (single animated bar with staggered start) ── */
+/* ----- Waveform bar (single animated bar with staggered start) ----- */
 const WAVE_BAR_COUNT = 24;
 const BAR_STAGGER_MS = 60;
 
@@ -223,7 +372,7 @@ const WaveBar = React.memo(function WaveBar({ index }: { index: number }) {
   );
 });
 
-/* ── Waveform bars container ── */
+/* ----- Waveform bars container ----- */
 const waveBars = Array.from({ length: WAVE_BAR_COUNT }, (_, i) => i);
 
 function WaveformBars() {
@@ -249,11 +398,45 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedIndex,
     forwardedPostId,
     forwardedMessage,
+    forwardedNonce,
+    backTo,
   } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactId);
+  const { data: canSendMessage } = useCanSendMessage(contactId);
+  const { data: presence } = usePresence(contactId);
   const sendMessageMutation = useSendMessage(contactId);
+  const sendMessage = sendMessageMutation.mutateAsync;
+  const recallMessageMutation = useRecallMessage(contactId);
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const clearUnread = useMessageStore((s) => s.clearUnread);
+  const setActiveChatContact = useMessageStore((s) => s.setActiveChatContact);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]);
+  const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
   const { tabBarTranslateY } = useTabBarAnimation();
+
+  const handleBack = useCallback(() => {
+    if (backTo?.tab) {
+      showTabBar();
+      const parent = navigation.getParent() as any;
+      if (!parent) return;
+      if (backTo.screen) {
+        parent.navigate(backTo.tab, {
+          screen: backTo.screen,
+          params: backTo.params,
+        });
+        return;
+      }
+      parent.navigate(backTo.tab);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.getParent()?.navigate('MessagesTab', { screen: 'MessagesList' });
+  }, [navigation, backTo]);
 
   // Hide tab bar when chat is focused, restore when leaving
   useFocusEffect(
@@ -265,89 +448,242 @@ export default function ChatScreen({ navigation, route }: Props) {
     }, [tabBarTranslateY])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      setActiveChatContact(contactId);
+      clearUnread(contactId);
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => {
+        setActiveChatContact(null);
+        sub.remove();
+      };
+    }, [clearUnread, contactId, handleBack, queryClient, setActiveChatContact])
+  );
+
   const [inputText, setInputText] = useState('');
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceReleaseAction, setVoiceReleaseActionState] = useState<VoiceReleaseAction>('send');
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
+  const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
+  const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
   const cardSentRef = useRef<string | null>(null);
+  const cardSendingRef = useRef<string | null>(null);
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingSentRef = useRef(false);
+  const audioSoundRef = useRef<Audio.Sound | null>(null);
+  const isRecordingRef = useRef(false);
+  const voiceReleaseActionRef = useRef<VoiceReleaseAction>('send');
+  const pendingReleaseActionRef = useRef<VoiceReleaseAction | null>(null);
+  const recordingOverlayRef = useRef<RecordingOverlayRef>(null);
+  const recordingStartTimeRef = useRef<number>(0);
+  const [recordingDurationMs, setRecordingDurationMs] = useState<number>(0);
+  const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
+
+  const setVoiceReleaseAction = useCallback((action: VoiceReleaseAction) => {
+    voiceReleaseActionRef.current = action;
+    setVoiceReleaseActionState(action);
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+    queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+  }, [contactId, isLoading, queryClient]);
 
   // Auto-send forwarded text/card once when entering from "share to DM"
   useEffect(() => {
-    if (!forwardedType || !forwardedTitle || !forwardedPosterName) return;
+    if (isLoading) return;
+    if (!forwardedType || !forwardedPosterName) return;
+    if (canSendMessage === false) return;
+    if (!['partner', 'errand', 'secondhand', 'post'].includes(forwardedType)) return;
     const normalizedType = forwardedType as 'partner' | 'errand' | 'secondhand' | 'post';
     const resolvedId =
       forwardedId ??
       (typeof forwardedIndex === 'number' ? String(forwardedIndex) : undefined);
-    const key = `${normalizedType}:${resolvedId ?? ''}:${forwardedTitle}:${forwardedPostId ?? ''}`;
-    if (cardSentRef.current === key) return;
-    cardSentRef.current = key;
+    const cardTitle = (forwardedTitle ?? '').trim() || (normalizedType === 'post' ? t('messageImagePreview') : '-');
+    const posterName = forwardedPosterName.trim() || t('themLabel');
+    const dedupeKey = forwardedNonce?.trim()
+      || `${normalizedType}:${resolvedId ?? ''}:${cardTitle}:${forwardedPostId ?? ''}:${forwardedMessage?.trim() ?? ''}`;
+    if (cardSentRef.current === dedupeKey || cardSendingRef.current === dedupeKey) return;
+    cardSendingRef.current = dedupeKey;
 
-    if (forwardedMessage?.trim()) {
-      sendMessageMutation.mutate({ text: forwardedMessage.trim() });
-    }
+    let cancelled = false;
+    const sendForwarded = async () => {
+      try {
+        if (forwardedMessage?.trim()) {
+          await sendMessage({ payload: { text: forwardedMessage.trim() } });
+        }
+        await sendMessage({
+          payload: {
+            functionCard: {
+              type: normalizedType,
+              ...(resolvedId ? { id: resolvedId } : {}),
+              title: cardTitle,
+              posterName,
+              ...(forwardedPostId ? { postId: forwardedPostId } : {}),
+            },
+          },
+        });
+        if (!cancelled) {
+          cardSentRef.current = dedupeKey;
+        }
+      } catch {
+        if (!cancelled) {
+          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        }
+      } finally {
+        if (cardSendingRef.current === dedupeKey) {
+          cardSendingRef.current = null;
+        }
+      }
+    };
+    void sendForwarded();
 
-    sendMessageMutation.mutate({
-      functionCard: {
-        type: normalizedType,
-        ...(resolvedId ? { id: resolvedId } : {}),
-        title: forwardedTitle,
-        posterName: forwardedPosterName,
-        ...(forwardedPostId ? { postId: forwardedPostId } : {}),
-      },
-    });
+    return () => {
+      cancelled = true;
+    };
   }, [
+    isLoading,
     forwardedType,
     forwardedTitle,
     forwardedPosterName,
+    canSendMessage,
     forwardedId,
     forwardedIndex,
     forwardedPostId,
     forwardedMessage,
-    sendMessageMutation,
+    forwardedNonce,
+    showSnackbar,
+    sendMessage,
+    t,
   ]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
+  const isNearBottomRef = useRef(true);
+  const hasInitialAutoScrollRef = useRef(false);
 
-  const myAvatar = user?.name?.charAt(0) || user?.nickname?.charAt(0) || '我';
+  const myAvatarText = user?.nickname || user?.name || t('meLabel');
+  const myAvatarUri = user?.avatar || null;
+  const theirAvatarText = contactName || t('themLabel');
+  const theirAvatarUri = contactAvatar || null;
   const hasText = inputText.trim().length > 0;
+  const buildReplyPreview = useCallback(
+    (message: ChatMessage) => {
+      if (message.isRecalled) {
+        return t('messageRecalledPreview');
+      }
+      if (message.audio?.url) {
+        return t('messageAudioPreview');
+      }
+      if (Array.isArray(message.images) && message.images.length > 0 && !message.text) {
+        return t('messageImagePreview');
+      }
+      if (message.functionCard) {
+        return t('messageSharedCardPreview', {
+          type: t(TYPE_LABEL_KEYS[message.functionCard.type]) || message.functionCard.type,
+          title: message.functionCard.title,
+        });
+      }
+      return message.text || t('inputMessage');
+    },
+    [t]
+  );
 
-  /* ── Chat trigger: disable input if last message is 'sent' (waiting for reply) ── */
-  const waitingForReply = useMemo(() => {
+  /* ----- Chat trigger: disable input if last message is 'sent' (waiting for reply) ----- */
+  const waitingForReplyByHistory = useMemo(() => {
     if (!chatHistory) return false;
     const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
     if (histories.length === 0) return false;
-    const lastGroup = histories[histories.length - 1];
-    if (!lastGroup.messages || lastGroup.messages.length === 0) return false;
-    const lastMsg = lastGroup.messages[lastGroup.messages.length - 1];
-    return lastMsg.type === 'sent';
+    const allMessages = histories.flatMap((h) => h.messages ?? []);
+    const hasSent = allMessages.some((m) => m.type === 'sent');
+    const hasReceived = allMessages.some((m) => m.type === 'received');
+    return hasSent && !hasReceived;
   }, [chatHistory]);
+  const waitingForReply = canSendMessage === false ? true : waitingForReplyByHistory;
+  const isContactTyping = Boolean(
+    typingState?.isTyping &&
+      typeof typingState?.updatedAt === 'number' &&
+      Date.now() - typingState.updatedAt < TYPING_STALE_MS
+  );
+  const statusText = isContactTyping
+    ? t('typing')
+    : (presence?.isOnline
+      ? t('onlineStatus')
+      : t('offlineStatus'));
+  const isOnlineStatus = isContactTyping || Boolean(presence?.isOnline);
 
-  /* ── Build flat list data with date separators ── */
+  useEffect(() => {
+    if (waitingForReply && isVoiceMode) {
+      setIsVoiceMode(false);
+    }
+  }, [isVoiceMode, waitingForReply]);
+
+  useEffect(() => {
+    if (!typingState?.isTyping || typeof typingState.updatedAt !== 'number') return;
+    const elapsed = Date.now() - typingState.updatedAt;
+    if (elapsed >= TYPING_STALE_MS) {
+      clearTyping(contactId);
+      return;
+    }
+    const timer = setTimeout(() => {
+      clearTyping(contactId);
+    }, TYPING_STALE_MS - elapsed + 50);
+    return () => clearTimeout(timer);
+  }, [clearTyping, contactId, typingState?.isTyping, typingState?.updatedAt]);
+
+  /* ----- Build flat list data with date separators ----- */
   const listData = useMemo<ChatListItem[]>(() => {
     const items: ChatListItem[] = [];
     if (chatHistory) {
       const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
       histories.forEach((h: ChatHistory, gi: number) => {
         if (h.date) {
-          items.push({ kind: 'date', date: h.date, key: `date-${gi}` });
+          items.push({ kind: 'date', date: h.date, key: `date-${h.date}-${gi}` });
         }
         h.messages.forEach((m: ChatMessage, mi: number) => {
-          items.push({ kind: 'message', message: m, key: `msg-${gi}-${mi}` });
+          const messageKey = m.id ? `msg-${m.id}` : `msg-${gi}-${mi}-${m.time}`;
+          items.push({ kind: 'message', message: m, key: messageKey });
         });
       });
     }
     return items;
   }, [chatHistory]);
 
-  /* ── Auto-scroll to bottom when data changes ── */
-  const scrollToBottom = useCallback(() => {
-    if (listData.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-    }
+  /* ----- Auto-scroll to bottom when data changes ----- */
+  const scrollToBottom = useCallback((force = false) => {
+    if (listData.length === 0) return;
+    if (!force && !isNearBottomRef.current) return;
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: false });
+    }, 80);
   }, [listData.length]);
 
-  /* ── Handle card press: navigate to detail ── */
+  const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    isNearBottomRef.current = distanceFromBottom <= 80;
+  }, []);
+
+  useEffect(() => {
+    hasInitialAutoScrollRef.current = false;
+    isNearBottomRef.current = true;
+  }, [contactId]);
+
+  useEffect(() => {
+    if (isLoading || listData.length === 0 || hasInitialAutoScrollRef.current) return;
+    scrollToBottom(true);
+    hasInitialAutoScrollRef.current = true;
+  }, [isLoading, listData.length, scrollToBottom]);
+
+  /* ----- Handle card press: navigate to detail ----- */
   const handleCardPress = useCallback(
     (card: NonNullable<ChatMessage['functionCard']>) => {
       if (card.type === 'post' && card.postId) {
@@ -367,51 +703,265 @@ export default function ChatScreen({ navigation, route }: Props) {
             name: 'FunctionsTab',
             params: {
               screen: screenMap[card.type],
-              params: { id: functionId },
+              params: {
+                id: functionId,
+                backToChat: {
+                  contactId,
+                  contactName,
+                  contactAvatar,
+                },
+              },
             },
           })
         );
       }
     },
-    [navigation]
+    [navigation, contactId, contactName, contactAvatar]
   );
 
-  /* ── Send message ── */
+  const canRecallMessage = useCallback((message?: ChatMessage | null) => {
+    if (!message || !message.id || message.type !== 'sent' || message.isRecalled) return false;
+    if (!message.createdAt) return false;
+    const sentTs = Date.parse(message.createdAt);
+    if (!Number.isFinite(sentTs)) return false;
+    return Date.now() - sentTs <= RECALL_WINDOW_MS;
+  }, []);
+
+  const doRecallMessage = useCallback(
+    (message: ChatMessage) => {
+      if (!canRecallMessage(message)) return;
+      recallMessageMutation.mutate(message.id!, {
+        onSuccess: () => {
+          setActionTarget(null);
+        },
+        onError: () => {
+          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        },
+      });
+    },
+    [canRecallMessage, recallMessageMutation, showSnackbar, t]
+  );
+
+  const handleMessageActions = useCallback(
+    (message: ChatMessage) => {
+      if (message.isRecalled) return;
+      setActionTarget(message);
+    },
+    []
+  );
+
+  const actionCurrentReactionEmoji =
+    actionTarget?.reactions?.find((reaction) => reaction.reactedByMe)?.emoji ?? null;
+
+  const handleSendReaction = useCallback(
+    (emoji: string) => {
+      if (!actionTarget?.id) return;
+      const nextEmoji = actionCurrentReactionEmoji === emoji ? '' : emoji;
+      sendMessageMutation.mutate(
+        { payload: { reaction: { messageId: actionTarget.id, emoji: nextEmoji } } },
+        {
+          onSuccess: () => {
+            setActionTarget(null);
+          },
+          onError: () => {
+            showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+          },
+        }
+      );
+    },
+    [actionCurrentReactionEmoji, actionTarget?.id, sendMessageMutation, showSnackbar, t]
+  );
+
+  const handlePressReaction = useCallback(
+    (message: ChatMessage, emoji: string, reactedByMe: boolean) => {
+      if (!message.id) return;
+      sendMessageMutation.mutate(
+        { payload: { reaction: { messageId: message.id, emoji: reactedByMe ? '' : emoji } } },
+        {
+          onError: () => {
+            showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+          },
+        }
+      );
+    },
+    [sendMessageMutation, showSnackbar, t]
+  );
+
+  /* ----- Send message ----- */
+  const sendTypingState = useCallback(
+    (isTyping: boolean) => {
+      if (waitingForReply && isTyping) {
+        typingSentRef.current = false;
+        return;
+      }
+      if (typingSentRef.current === isTyping) return;
+      void messageService
+        .sendTyping(contactId, isTyping)
+        .then(() => {
+          typingSentRef.current = isTyping;
+        })
+        .catch(() => {
+          // Ignore typing failures to avoid disrupting chat flow.
+        });
+    },
+    [contactId, waitingForReply]
+  );
+
+  useEffect(() => {
+    if (waitingForReply) {
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+        typingStopTimerRef.current = null;
+      }
+      if (typingSentRef.current) {
+        sendTypingState(false);
+      }
+      return;
+    }
+
+    const hasTypingText = inputText.trim().length > 0;
+    if (hasTypingText) {
+      sendTypingState(true);
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+      }
+      typingStopTimerRef.current = setTimeout(() => {
+        sendTypingState(false);
+      }, TYPING_STOP_DELAY_MS);
+    } else {
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+        typingStopTimerRef.current = null;
+      }
+      sendTypingState(false);
+    }
+  }, [inputText, sendTypingState, waitingForReply]);
+
+  useEffect(
+    () => () => {
+      if (typingStopTimerRef.current) {
+        clearTimeout(typingStopTimerRef.current);
+      }
+      if (typingSentRef.current) {
+        void messageService.sendTyping(contactId, false).catch(() => {
+          // Ignore cleanup failures.
+        });
+      }
+    },
+    [contactId]
+  );
+
+  useEffect(
+    () => () => {
+      const sound = audioSoundRef.current;
+      if (sound) {
+        void sound.unloadAsync();
+      }
+      audioSoundRef.current = null;
+      setPlayingAudioMessageId(null);
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      const recording = recordingRef.current;
+      if (recording) {
+        void recording.stopAndUnloadAsync().catch(() => {
+          // Ignore recording cleanup failures.
+        });
+      }
+      recordingRef.current = null;
+      isRecordingRef.current = false;
+    },
+    []
+  );
+
   const handleSend = useCallback(() => {
     const text = inputText.trim();
     if (!text) return;
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+    sendTypingState(false);
     hapticLight();
-    sendMessageMutation.mutate({ text });
-    setInputText('');
-  }, [inputText, sendMessageMutation]);
+    const replyPayload = replyTarget
+      ? {
+          text: buildReplyPreview(replyTarget),
+          from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+        }
+      : undefined;
+    sendMessageMutation.mutate(
+      { payload: { text, ...(replyPayload ? { replyTo: replyPayload } : {}) } },
+      {
+        onSuccess: () => {
+          setInputText('');
+          setReplyTarget(null);
+          queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+        },
+        onError: () => {
+          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        },
+      }
+    );
+  }, [buildReplyPreview, inputText, queryClient, replyTarget, sendMessageMutation, sendTypingState, showSnackbar, t]);
 
-  /* ── Camera: open device camera ── */
+  /* ----- Camera: open device camera ----- */
   const handleCamera = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission needed',
-        'Please grant camera access to take photos.'
-      );
-      return;
-    }
+      if (status !== 'granted') {
+        Alert.alert(
+          t('permissionNeededTitle'),
+          t('cameraPermissionMessage')
+        );
+        return;
+      }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.8,
     });
     if (!result.canceled && result.assets.length > 0) {
       hapticLight();
+      try {
+        const uploaded = await uploadService.uploadImages(
+          result.assets.map((asset, index) => ({
+            uri: asset.uri,
+            type: asset.mimeType || 'image/jpeg',
+            name: asset.fileName || `camera-${Date.now()}-${index}.jpg`,
+          }))
+        );
+        const replyPayload = replyTarget
+          ? {
+              text: buildReplyPreview(replyTarget),
+              from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+            }
+          : undefined;
+        sendMessageMutation.mutate(
+          { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
+          {
+            onSuccess: () => {
+              setReplyTarget(null);
+            },
+            onError: () => {
+              showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+            },
+          }
+        );
+      } catch {
+        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      }
     }
-  }, []);
+  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
 
-  /* ── Image: open photo library ── */
+  /* ----- Image: open photo library ----- */
   const handlePickImage = useCallback(async () => {
     const { status } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'Permission needed',
-        'Please grant photo library access to select images.'
+        t('permissionNeededTitle'),
+        t('photoPermissionMessage')
       );
       return;
     }
@@ -421,38 +971,46 @@ export default function ChatScreen({ navigation, route }: Props) {
     });
     if (!result.canceled && result.assets.length > 0) {
       hapticLight();
-    }
-  }, []);
-
-  /* ── Mic: start / stop recording ── */
-  const handleMicPress = useCallback(async () => {
-    if (isRecording) {
-      // Stop recording
       try {
-        if (recordingRef.current) {
-          await recordingRef.current.stopAndUnloadAsync();
-          recordingRef.current = null;
-        }
+        const uploaded = await uploadService.uploadImages(
+          result.assets.map((asset, index) => ({
+            uri: asset.uri,
+            type: asset.mimeType || 'image/jpeg',
+            name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
+          }))
+        );
+        const replyPayload = replyTarget
+          ? {
+              text: buildReplyPreview(replyTarget),
+              from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+            }
+          : undefined;
+        sendMessageMutation.mutate(
+          { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
+          {
+            onSuccess: () => {
+              setReplyTarget(null);
+            },
+            onError: () => {
+              showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+            },
+          }
+        );
       } catch {
-        // ignore
+        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
       }
-      setIsRecording(false);
-      hapticLight();
-      Alert.alert(
-        t('voiceNotSupported') || 'Voice-to-text coming soon'
-      );
-      return;
     }
+  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
 
-    // Start recording
+  const startRecordingSession = useCallback(async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          'Permission needed',
-          'Please grant microphone access to record audio.'
+          t('permissionNeededTitle'),
+          t('microphonePermissionMessage')
         );
-        return;
+        return false;
       }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
@@ -486,14 +1044,204 @@ export default function ChatScreen({ navigation, route }: Props) {
       );
       await recording.startAsync();
       recordingRef.current = recording;
+      isRecordingRef.current = true;
+      recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
+      setVoiceReleaseAction('send');
+      setRecordingDurationMs(0);
       hapticLight();
-    } catch {
-      Alert.alert('Error', 'Failed to start recording');
-    }
-  }, [isRecording, t]);
 
-  /* ── Render list item ── */
+      recordingDurationIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - recordingStartTimeRef.current;
+        setRecordingDurationMs(elapsed);
+
+        // Auto-stop when max recording duration is reached.
+        if (elapsed >= MAX_RECORD_DURATION_MS) {
+          if (recordingDurationIntervalRef.current) {
+            clearInterval(recordingDurationIntervalRef.current);
+            recordingDurationIntervalRef.current = null;
+          }
+          pendingReleaseActionRef.current = 'send';
+          setVoiceReleaseAction('send');
+          void handleHoldToTalkReleaseRef.current?.();
+        }
+      }, 100);
+
+      return true;
+    } catch {
+      Alert.alert(
+        t('errorTitle'),
+        t('recordingStartFailed')
+      );
+      return false;
+    }
+  }, [setVoiceReleaseAction, t]);
+
+  const stopRecordingSession = useCallback(async () => {
+    let recordedUri: string | null = null;
+    let durationMs: number | undefined;
+    const fallbackDurationMs =
+      recordingStartTimeRef.current > 0
+        ? Math.max(0, Date.now() - recordingStartTimeRef.current)
+        : 0;
+
+    if (recordingDurationIntervalRef.current) {
+      clearInterval(recordingDurationIntervalRef.current);
+      recordingDurationIntervalRef.current = null;
+    }
+
+    try {
+      if (recordingRef.current) {
+        const status = await recordingRef.current.getStatusAsync();
+        if (typeof status.durationMillis === 'number') {
+          durationMs = status.durationMillis;
+        }
+        await recordingRef.current.stopAndUnloadAsync();
+        recordedUri = recordingRef.current.getURI();
+      }
+    } catch {
+      // Ignore stop failures.
+    } finally {
+      recordingRef.current = null;
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      setRecordingDurationMs(0);
+      recordingStartTimeRef.current = 0;
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+        });
+      } catch {
+        // Ignore audio mode reset failures.
+      }
+    }
+    if (!recordedUri) return null;
+    const normalizedDurationMs = Math.max(durationMs ?? 0, fallbackDurationMs);
+    return { uri: recordedUri, durationMs: normalizedDurationMs };
+  }, []);
+
+  const sendRecordedAudio = useCallback(async (uri: string, durationMs?: number) => {
+    try {
+      const uploaded = await uploadService.uploadFile({
+        uri,
+        type: 'audio/m4a',
+        name: `voice-${Date.now()}.m4a`,
+      });
+      const replyPayload = replyTarget
+        ? {
+            text: buildReplyPreview(replyTarget),
+            from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+          }
+        : undefined;
+      sendMessageMutation.mutate(
+        {
+          payload: {
+            ...(replyPayload ? { replyTo: replyPayload } : {}),
+            audio: { url: uploaded.url, ...(typeof durationMs === 'number' ? { durationMs } : {}) },
+          },
+        },
+        {
+          onSuccess: () => {
+            setReplyTarget(null);
+          },
+          onError: () => {
+            showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+          },
+        }
+      );
+    } catch {
+      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+    }
+  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
+
+  const handleToggleVoiceMode = useCallback(() => {
+    if (isRecordingRef.current) return;
+    setIsVoiceMode((prev) => !prev);
+  }, []);
+
+  const handleHoldToTalkPressIn = useCallback(async () => {
+    if (waitingForReply) return;
+    await startRecordingSession();
+  }, [startRecordingSession, waitingForReply]);
+
+  const handleHoldToTalkMove = useCallback((event: GestureResponderEvent) => {
+    if (!isRecordingRef.current) return;
+    recordingOverlayRef.current?.handleTouchMove(
+      event.nativeEvent.pageX,
+      event.nativeEvent.pageY
+    );
+  }, []);
+
+  const handleHoldToTalkRelease = useCallback(async () => {
+    if (!isRecordingRef.current) return;
+    const result = await stopRecordingSession();
+    const releaseAction = pendingReleaseActionRef.current ?? voiceReleaseActionRef.current;
+    pendingReleaseActionRef.current = null;
+    setVoiceReleaseAction('send');
+    if (!result) return;
+    const effectiveDurationMs = Math.min(MAX_RECORD_DURATION_MS, result.durationMs ?? 0);
+
+    if (releaseAction === 'cancel') {
+      return;
+    }
+
+    if (effectiveDurationMs < MIN_RECORD_DURATION_MS) {
+      showSnackbar({ message: t('voiceTooShort'), type: 'error' });
+      return;
+    }
+
+    if (releaseAction === 'transcribe') {
+      const seconds = Math.max(1, Math.round(effectiveDurationMs / 1000));
+      const fallbackText = t('voiceTranscribeFallback', { seconds });
+      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${fallbackText}` : fallbackText));
+      setIsVoiceMode(false);
+      return;
+    }
+
+    await sendRecordedAudio(result.uri, effectiveDurationMs);
+  }, [sendRecordedAudio, setVoiceReleaseAction, showSnackbar, stopRecordingSession, t]);
+
+  useEffect(() => {
+    handleHoldToTalkReleaseRef.current = handleHoldToTalkRelease;
+  }, [handleHoldToTalkRelease]);
+
+  const handlePlayAudio = useCallback(async (message: ChatMessage) => {
+    if (!message.audio?.url) return;
+    try {
+      if (audioSoundRef.current) {
+        await audioSoundRef.current.unloadAsync();
+        audioSoundRef.current = null;
+      }
+
+      if (playingAudioMessageId && message.id && playingAudioMessageId === message.id) {
+        setPlayingAudioMessageId(null);
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: message.audio.url },
+        { shouldPlay: true }
+      );
+      audioSoundRef.current = sound;
+      setPlayingAudioMessageId(message.id ?? null);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        if (status.didJustFinish) {
+          setPlayingAudioMessageId(null);
+          void sound.unloadAsync();
+          if (audioSoundRef.current === sound) {
+            audioSoundRef.current = null;
+          }
+        }
+      });
+    } catch {
+      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      setPlayingAudioMessageId(null);
+    }
+  }, [playingAudioMessageId, showSnackbar, t]);
+
+  /* ----- Render list item ----- */
   const renderItem = useCallback(
     ({ item }: { item: ChatListItem }) => {
       if (item.kind === 'date') {
@@ -502,29 +1250,61 @@ export default function ChatScreen({ navigation, route }: Props) {
       return (
         <ChatBubble
           message={item.message}
-          myAvatar={myAvatar}
-          theirAvatar={contactAvatar}
+          myAvatarText={myAvatarText}
+          myAvatarUri={myAvatarUri}
+          theirAvatarText={theirAvatarText}
+          theirAvatarUri={theirAvatarUri}
           onCardPress={handleCardPress}
+          onLongPressMessage={handleMessageActions}
+          onPlayAudio={handlePlayAudio}
+          onPressReaction={handlePressReaction}
+          isAudioPlaying={Boolean(item.message.id && playingAudioMessageId === item.message.id)}
           t={t}
         />
       );
     },
-    [myAvatar, contactAvatar, handleCardPress, t]
+    [
+      myAvatarText,
+      myAvatarUri,
+      theirAvatarText,
+      theirAvatarUri,
+      handleCardPress,
+      handleMessageActions,
+      handlePlayAudio,
+      handlePressReaction,
+      playingAudioMessageId,
+      t,
+    ]
   );
+
+  const actionCanRecall = canRecallMessage(actionTarget);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           style={styles.iconBtn}
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle} numberOfLines={1}>
-          {contactName}
-        </Text>
+        <View style={styles.topBarTitleWrap}>
+          <Text style={styles.topBarTitle} numberOfLines={1}>
+            {contactName}
+          </Text>
+          <View style={styles.topBarStatusRow}>
+            <Text style={[styles.topBarSubtitle, isContactTyping ? styles.topBarSubtitleTyping : undefined]}>
+              {statusText}
+            </Text>
+            <View
+              style={[
+                styles.topBarStatusDot,
+                isOnlineStatus ? styles.topBarStatusDotOnline : styles.topBarStatusDotOffline,
+              ]}
+            />
+          </View>
+        </View>
         <View style={styles.iconBtn} />
       </View>
 
@@ -544,100 +1324,217 @@ export default function ChatScreen({ navigation, route }: Props) {
             renderItem={renderItem}
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.listContent}
-            onContentSizeChange={scrollToBottom}
-            onLayout={scrollToBottom}
+            onContentSizeChange={() => scrollToBottom(false)}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
           />
         )}
 
         {/* Input Bar */}
         {waitingForReply ? (
-          /* ── Waiting for reply: disabled input with hint ── */
+          /* ----- Waiting for reply: disabled input with hint ----- */
           <View style={styles.waitingBar}>
             <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
           </View>
         ) : (
-          <View style={styles.inputBar}>
-            {isRecording ? (
-              /* ── Recording mode: waveform + stop button ── */
-              <>
-                <TouchableOpacity
-                  style={styles.mediaBtn}
-                  activeOpacity={0.6}
-                  onPress={handleMicPress}
-                >
-                  <CloseIcon size={22} color={colors.error} />
-                </TouchableOpacity>
-                <View style={styles.recordingArea}>
-                  <WaveformBars />
-                  <Text style={styles.recordingText}>
-                    {t('recording') || 'Recording...'}
+          <View>
+            {replyTarget ? (
+              <View style={styles.replyComposer}>
+                <View style={styles.replyComposerTextWrap}>
+                  <Text style={styles.replyComposerLabel}>
+                    {t('replyAction')}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.replyComposerText}>
+                    {buildReplyPreview(replyTarget)}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.sendBtn}
-                  onPress={handleMicPress}
+                  style={styles.replyComposerClose}
+                  onPress={() => setReplyTarget(null)}
                   activeOpacity={0.7}
                 >
-                  <SendIcon size={20} color={colors.onPrimary} />
+                  <CloseIcon size={18} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          <View style={styles.inputBar}>
+            {isVoiceMode ? (
+              <>
+                <TouchableOpacity
+                  style={[styles.mediaBtn, styles.voiceModeBtn]}
+                  activeOpacity={0.7}
+                  onPress={handleToggleVoiceMode}
+                >
+                  <KeyboardIcon size={22} color={PURE_BLACK} />
+                </TouchableOpacity>
+                <VoiceButton
+                  state={isRecording ? 'recording' : 'idle'}
+                  onPressIn={handleHoldToTalkPressIn}
+                  onPressOut={handleHoldToTalkRelease}
+                  onTouchMove={handleHoldToTalkMove}
+                  disabled={waitingForReply}
+                  showIcon={false}
+                />
+                <TouchableOpacity
+                  style={styles.mediaBtn}
+                  activeOpacity={0.6}
+                  onPress={handlePickImage}
+                >
+                  <ImageIcon size={22} color={PURE_BLACK} />
                 </TouchableOpacity>
               </>
             ) : (
-              /* ── Normal mode ── */
               <>
-                {/* Left icon: camera (hidden when typing) */}
                 {!hasText && (
                   <TouchableOpacity
                     style={styles.mediaBtn}
                     activeOpacity={0.6}
                     onPress={handleCamera}
                   >
-                    <CameraIcon size={22} color={colors.onSurfaceVariant} />
+                    <CameraIcon size={22} color={PURE_BLACK} />
                   </TouchableOpacity>
                 )}
 
-                {/* Text input */}
                 <TextInput
                   style={styles.textInput}
-                  placeholder={t('inputMessage') || 'Type a message...'}
-                  placeholderTextColor={colors.onSurfaceVariant}
+                  placeholder={t('inputMessage')}
+                  placeholderTextColor={PURE_BLACK}
                   value={inputText}
                   onChangeText={setInputText}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSend}
+                  multiline
+                  textAlignVertical="top"
                 />
 
-                {/* Right icons: mic + image (hidden when typing), or send button */}
                 {hasText ? (
                   <TouchableOpacity
                     style={styles.sendBtn}
                     onPress={handleSend}
                     activeOpacity={0.7}
                   >
-                    <SendIcon size={20} color={colors.onPrimary} />
+                    <SendIcon size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 ) : (
                   <>
                     <TouchableOpacity
                       style={styles.mediaBtn}
                       activeOpacity={0.6}
-                      onPress={handleMicPress}
+                      onPress={handleToggleVoiceMode}
                     >
-                      <MicIcon size={22} color={colors.onSurfaceVariant} />
+                      <MicIcon size={22} color={PURE_BLACK} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.mediaBtn}
                       activeOpacity={0.6}
                       onPress={handlePickImage}
                     >
-                      <ImageIcon size={22} color={colors.onSurfaceVariant} />
+                      <ImageIcon size={22} color={PURE_BLACK} />
                     </TouchableOpacity>
                   </>
                 )}
               </>
             )}
           </View>
+          </View>
         )}
       </KeyboardAvoidingView>
+
+      <RecordingOverlay
+        ref={recordingOverlayRef}
+        visible={isRecording}
+        currentAction={voiceReleaseAction}
+        onActionChange={setVoiceReleaseAction}
+        durationMs={recordingDurationMs}
+        onRelease={(action) => {
+          pendingReleaseActionRef.current = action;
+          void handleHoldToTalkReleaseRef.current?.();
+        }}
+      />
+
+      <Modal
+        visible={!!actionTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionTarget(null)}
+      >
+        <Pressable
+          style={styles.actionOverlay}
+          onPress={() => setActionTarget(null)}
+        >
+          <Pressable style={styles.actionSheet} onPress={() => {}}>
+            <View style={styles.actionEmojiRow}>
+              {REACTION_OPTIONS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={[
+                    styles.actionEmojiBtn,
+                    actionCurrentReactionEmoji === emoji ? styles.actionEmojiBtnActive : undefined,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => handleSendReaction(emoji)}
+                >
+                  <Text style={styles.actionEmojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.actionDivider} />
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (actionTarget) setReplyTarget(actionTarget);
+                setActionTarget(null);
+              }}
+            >
+              <Text style={styles.actionText}>
+                {t('replyAction')}
+              </Text>
+            </TouchableOpacity>
+
+            {actionCanRecall ? (
+              <>
+                <View style={styles.actionDivider} />
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (!actionTarget) return;
+                    Alert.alert(
+                      t('recallMessage'),
+                      t('recallMessageConfirm'),
+                      [
+                        { text: t('cancel'), style: 'cancel' },
+                        {
+                          text: t('confirmBtn'),
+                          style: 'destructive',
+                          onPress: () => doRecallMessage(actionTarget),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={[styles.actionText, styles.actionTextDanger]}>
+                    {t('recallMessage')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            <View style={styles.actionDivider} />
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              activeOpacity={0.7}
+              onPress={() => setActionTarget(null)}
+            >
+              <Text style={[styles.actionText, styles.actionTextMuted]}>
+                {t('cancel')}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -661,11 +1558,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarTitle: {
+  topBarTitleWrap: {
     flex: 1,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarTitle: {
     ...typography.titleMedium,
     color: colors.onSurface,
+  },
+  topBarSubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  topBarStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 6,
+  },
+  topBarStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  topBarStatusDotOnline: {
+    backgroundColor: colors.success,
+  },
+  topBarStatusDotOffline: {
+    backgroundColor: colors.onSurfaceVariant,
+  },
+  topBarSubtitleTyping: {
+    color: colors.primary,
   },
   keyboardView: {
     flex: 1,
@@ -680,7 +1604,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 
-  /* ── Date separator ── */
+  /* ----- Date separator ----- */
   dateSeparator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -697,8 +1621,21 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     paddingHorizontal: spacing.sm,
   },
+  recalledNoticeRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.xs,
+  },
+  recalledNoticeText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    backgroundColor: colors.surface2,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
 
-  /* ── Bubble row (avatar + bubble) ── */
+  /* ----- Bubble row (avatar + bubble) ----- */
   bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -718,10 +1655,38 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginHorizontal: spacing.sm,
   },
+  bubbleBodyWrap: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+  },
+  bubbleFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
   bubble: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
+  },
+  mediaBubble: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    gap: spacing.xs,
+  },
+  mediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    maxWidth: 240,
+  },
+  mediaImage: {
+    width: 110,
+    height: 110,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface3,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -741,20 +1706,95 @@ const styles = StyleSheet.create({
   bubbleTextTheirs: {
     color: colors.onSurface,
   },
+  bubbleTextRecalled: {
+    fontStyle: 'italic',
+    opacity: 0.85,
+  },
+  replyBlock: {
+    borderLeftWidth: 2,
+    paddingLeft: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  replyBlockMine: {
+    borderLeftColor: 'rgba(255,255,255,0.45)',
+  },
+  replyBlockTheirs: {
+    borderLeftColor: colors.outline,
+  },
+  replyAuthor: {
+    ...typography.labelSmall,
+    marginBottom: 2,
+  },
+  replyAuthorMine: {
+    color: 'rgba(255,255,255,0.85)',
+  },
+  replyAuthorTheirs: {
+    color: colors.onSurfaceVariant,
+  },
+  replyText: {
+    ...typography.bodySmall,
+  },
+  replyTextMine: {
+    color: 'rgba(255,255,255,0.95)',
+  },
+  replyTextTheirs: {
+    color: colors.onSurface,
+  },
+  audioBubble: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    minWidth: 150,
+  },
+  audioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  audioLabel: {
+    ...typography.bodyMedium,
+  },
   bubbleTime: {
     ...typography.bodySmall,
     fontSize: 10,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  bubbleTimeRight: {
-    textAlign: 'right',
-  },
-  bubbleTimeLeft: {
-    textAlign: 'left',
+    marginLeft: spacing.sm,
   },
 
-  /* ── Function card bubble ── */
+  reactionList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reactionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  reactionChipMine: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surface1,
+  },
+  reactionEmoji: {
+    fontSize: 13,
+  },
+  reactionCount: {
+    ...typography.labelSmall,
+    fontSize: 10,
+    color: colors.onSurfaceVariant,
+  },
   cardBubble: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -826,69 +1866,230 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
   },
 
-  /* ── Input bar ── */
+  replyComposer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+    backgroundColor: colors.surface1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  replyComposerTextWrap: {
+    flex: 1,
+  },
+  replyComposerLabel: {
+    ...typography.labelSmall,
+    color: colors.primary,
+  },
+  replyComposerText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  replyComposerClose: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ----- Input bar ----- */
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
-    backgroundColor: colors.surface,
+    borderTopColor: '#D9D9D9',
+    backgroundColor: '#FFFFFF',
     gap: spacing.xs,
   },
   mediaBtn: {
     width: 40,
     height: 40,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: PURE_BLACK,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  voiceModeBtn: {
+    borderRadius: borderRadius.full,
   },
   textInput: {
     flex: 1,
     height: 40,
+    minHeight: 40,
+    maxHeight: 120,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: PURE_BLACK,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: PURE_BLACK,
   },
   sendBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: PURE_BLACK,
+    backgroundColor: PURE_BLACK,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  holdToTalkBtn: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  holdToTalkBtnRecording: {
+    backgroundColor: colors.surface3,
+  },
+  holdToTalkBtnCancel: {
+    backgroundColor: colors.errorContainer,
+  },
+  holdToTalkBtnTranscribe: {
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  holdToTalkText: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  voiceRecordingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+  },
+  voiceRecordingCenter: {
+    marginHorizontal: spacing.xxl,
+    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  voiceRecordingTitle: {
+    ...typography.titleMedium,
+    color: colors.onPrimary,
+  },
+  voiceRecordingHint: {
+    ...typography.bodySmall,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  voiceActionZone: {
+    position: 'absolute',
+    bottom: VOICE_ACTION_ZONE_BOTTOM,
+    width: VOICE_ACTION_ZONE_WIDTH,
+    height: VOICE_ACTION_ZONE_HEIGHT,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  voiceActionZoneLeft: {
+    left: VOICE_ACTION_ZONE_SIDE,
+  },
+  voiceActionZoneRight: {
+    right: VOICE_ACTION_ZONE_SIDE,
+  },
+  voiceActionZoneActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  voiceActionText: {
+    ...typography.labelSmall,
+    color: colors.onPrimary,
+  },
+  voiceActionTextActive: {
+    color: colors.onPrimary,
+  },
+  actionOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingBottom: 34,
+  },
+  actionEmojiRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  actionEmojiBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface2,
+  },
+  actionEmojiBtnActive: {
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  actionEmojiText: {
+    fontSize: 22,
+  },
+  actionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.lg,
+  },
+  actionItem: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+  },
+  actionText: {
+    ...typography.bodyLarge,
+    color: colors.onSurface,
+  },
+  actionTextDanger: {
+    color: colors.error,
+  },
+  actionTextMuted: {
+    color: colors.onSurfaceVariant,
+  },
 
-  /* ── Waiting for reply ── */
+  /* ----- Waiting for reply ----- */
   waitingBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
-    backgroundColor: colors.surface1,
   },
   waitingText: {
-    ...typography.bodySmall,
+    ...typography.titleMedium,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
   },
 
-  /* ── Recording mode ── */
-  recordingArea: {
-    flex: 1,
-    height: 40,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
   waveformContainer: {
     flex: 1,
     flexDirection: 'row',
@@ -899,9 +2100,5 @@ const styles = StyleSheet.create({
   waveBar: {
     width: 3,
     borderRadius: 1.5,
-  },
-  recordingText: {
-    ...typography.labelSmall,
-    color: colors.error,
   },
 });

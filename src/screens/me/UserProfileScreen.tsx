@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon } from '../../components/common/icons';
+import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
 
@@ -30,13 +31,11 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const [isFollowing, setIsFollowing] = useState(false);
-
-  useEffect(() => {
-    if (profile?.isFollowedByMe !== undefined) {
-      setIsFollowing(profile.isFollowedByMe);
-    }
-  }, [profile?.isFollowedByMe]);
+  const isFollowing = profile?.isFollowedByMe ?? false;
+  const profileMeta = [profile?.major, profile?.grade]
+    .filter((value): value is string => !!value && value.trim().length > 0)
+    .map((value) => t(value, { defaultValue: value }))
+    .join(' / ');
 
   const handleBlock = useCallback(() => {
     Alert.alert(t('blockUser'), t('blockUserConfirm'), [
@@ -54,16 +53,18 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   }, [t, blockUserMutation, userName, showSnackbar, navigation]);
 
   const handleFollow = useCallback(() => {
-    followUser.mutate(userName, {
-      onSuccess: () => {
-        setIsFollowing((prev) => !prev);
-      },
-    });
+    followUser.mutate(userName);
   }, [userName, followUser]);
 
   const handleMessage = useCallback(() => {
     const userId = profile?.id;
-    if (!userId) return; // Need userId for chat
+    if (!userId) return;
+    const backTo = buildChatBackTarget(navigation, 'MeTab')
+      ?? {
+        tab: 'MeTab' as const,
+        screen: 'UserProfile',
+        params: { userName },
+      };
     navigation.dispatch(
       CommonActions.navigate({
         name: 'MessagesTab',
@@ -73,6 +74,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             contactId: userId,
             contactName: profile?.nickname ?? userName,
             contactAvatar: profile?.avatar ?? '',
+            backTo,
           },
         },
       })
@@ -89,7 +91,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           >
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{userName}</Text>
+          <View style={styles.topBarCenterSpacer} />
           <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
             <MoreHorizontalIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
@@ -103,7 +105,6 @@ export default function UserProfileScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -111,16 +112,13 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle} numberOfLines={1}>
-          {userName}
-        </Text>
+        <View style={styles.topBarCenterSpacer} />
         <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
           <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Profile Header */}
         <View style={styles.profileHeader}>
           <Avatar
             text={userName}
@@ -129,12 +127,26 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             gender={profile?.gender}
           />
 
-          <Text style={styles.userName}>{profile?.nickname || userName}</Text>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>{profile?.nickname || userName}</Text>
+            {profile?.gender === 'male' ? (
+              <MaleIcon size={14} color={colors.genderMale} />
+            ) : null}
+            {profile?.gender === 'female' ? (
+              <FemaleIcon size={14} color={colors.genderFemale} />
+            ) : null}
+          </View>
+
+          {profileMeta ? (
+            <Text style={styles.profileMeta} numberOfLines={1}>
+              {profileMeta}
+            </Text>
+          ) : null}
+
           {profile?.bio ? (
             <Text style={styles.bio}>{profile.bio}</Text>
           ) : null}
 
-          {/* Stats */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile?.stats?.postCount ?? 0}</Text>
@@ -152,9 +164,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.actionRow}>
-            {/* Message Button */}
             <TouchableOpacity
               style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
               activeOpacity={0.85}
@@ -165,7 +175,6 @@ export default function UserProfileScreen({ navigation, route }: Props) {
               <Text style={styles.messageBtnText}>{t('message')}</Text>
             </TouchableOpacity>
 
-            {/* Follow Button */}
             <TouchableOpacity
               style={[
                 styles.followBtn,
@@ -193,8 +202,8 @@ export default function UserProfileScreen({ navigation, route }: Props) {
                     ]}
                   >
                     {isFollowing
-                      ? t('following') || 'Following'
-                      : t('follow') || 'Follow'}
+                      ? t('alreadyFollowed')
+                      : t('follow')}
                   </Text>
                 </>
               )}
@@ -226,11 +235,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarTitle: {
+  topBarCenterSpacer: {
     flex: 1,
-    textAlign: 'center',
-    ...typography.titleMedium,
-    color: colors.onSurface,
   },
   loadingContainer: {
     flex: 1,
@@ -243,19 +249,28 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  // Profile Header
   profileHeader: {
     alignItems: 'center',
     padding: spacing.xxl,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    marginBottom: spacing.xxs,
+  },
   userName: {
     ...typography.headlineSmall,
     color: colors.onSurface,
     fontWeight: '700',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+  },
+  profileMeta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.sm,
   },
   bio: {
     ...typography.bodyMedium,

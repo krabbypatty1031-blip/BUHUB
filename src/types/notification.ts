@@ -2,6 +2,7 @@ import { Gender } from './common';
 
 export interface LikeNotification {
   user: string;
+  userName?: string;
   avatar: string;
   gender: Gender;
   grade?: string;
@@ -16,17 +17,24 @@ export interface LikeNotification {
 
 export interface FollowerNotification {
   user: string;
+  userName?: string;
   avatar: string;
   gender: Gender;
   bio: string;
+  grade?: string;
+  major?: string;
   time: string;
   isFollowed: boolean;
 }
 
 export interface CommentNotification {
+  id?: string;
   user: string;
+  userName?: string;
   avatar: string;
   gender: Gender;
+  grade?: string;
+  major?: string;
   action: 'commentedYourPost' | 'repliedYourComment' | 'mentionedYou';
   comment: string;
   originalPost: string;

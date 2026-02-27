@@ -1,7 +1,24 @@
 export interface ChatMessage {
+  id?: string;
+  createdAt?: string;
   type: 'received' | 'sent';
   text: string;
+  images?: string[];
+  audio?: {
+    url: string;
+    durationMs?: number;
+  };
+  reactions?: Array<{
+    emoji: string;
+    count: number;
+    reactedByMe?: boolean;
+  }>;
+  replyTo?: {
+    text: string;
+    from: 'me' | 'them';
+  };
   time: string;
+  isRecalled?: boolean;
   status?: 'read' | 'delivered' | 'sent';
   functionCard?: {
     type: 'partner' | 'errand' | 'secondhand' | 'post';

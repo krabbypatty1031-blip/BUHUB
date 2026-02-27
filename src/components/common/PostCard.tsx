@@ -15,6 +15,7 @@ import type { Language } from '../../types';
 import Avatar from './Avatar';
 import Tag from './Tag';
 import PressScaleButton from './PressScaleButton';
+import { normalizeImageUrl } from '../../utils/imageUrl';
 import {
   HeartIcon,
   CommentIcon,
@@ -123,6 +124,10 @@ function PostCard({
         : '',
     [post.quotedPost, lang, minuteTick],
   );
+  const displayImage = useMemo(
+    () => normalizeImageUrl(post.image ?? post.images?.[0]),
+    [post.image, post.images],
+  );
 
   const handleLike = useCallback(() => {
     hapticLight();
@@ -192,8 +197,8 @@ function PostCard({
         )}
 
         {/* Image */}
-        {post.hasImage && post.image && (
-          <Image source={{ uri: post.image }} style={styles.image} />
+        {post.hasImage && displayImage && (
+          <Image source={{ uri: displayImage }} style={styles.image} />
         )}
 
         {/* Poll */}

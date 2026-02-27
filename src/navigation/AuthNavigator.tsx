@@ -13,10 +13,12 @@ import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthNavigator() {
-  const hasSelectedLanguage = useAuthStore((s) => s.hasSelectedLanguage);
-  // If user has previously selected a language (persisted), skip to Login
-  // Otherwise show InviteCode first, then Language
-  const initialRoute = hasSelectedLanguage ? 'Login' : 'InviteCode';
+  const hasCompletedRegistration = useAuthStore((s) => s.hasCompletedRegistration);
+  const forceLanguageOnNextLaunch = useAuthStore((s) => s.forceLanguageOnNextLaunch);
+
+  const initialRoute = forceLanguageOnNextLaunch
+    ? 'Language'
+    : (hasCompletedRegistration ? 'Login' : 'InviteCode');
 
   return (
     <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>

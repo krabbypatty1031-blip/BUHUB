@@ -63,8 +63,6 @@ export function getRelativeTime(isoDate: string, language: Language): string {
 
 export function translateMeta(meta: string, language: Language): string {
   if (!meta || language === 'tc') return meta;
-
-  // Split meta by ' · '
   const parts = meta.split(' · ');
   return parts.map((part) => translateTime(part.trim(), language)).join(' · ');
 }
