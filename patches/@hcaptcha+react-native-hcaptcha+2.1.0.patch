@@ -1,0 +1,33 @@
+diff --git a/node_modules/@hcaptcha/react-native-hcaptcha/Hcaptcha.js b/node_modules/@hcaptcha/react-native-hcaptcha/Hcaptcha.js
+index 1e1cbfa..fe2b3ed 100644
+--- a/node_modules/@hcaptcha/react-native-hcaptcha/Hcaptcha.js
++++ b/node_modules/@hcaptcha/react-native-hcaptcha/Hcaptcha.js
+@@ -1,7 +1,7 @@
+ import React, { useEffect, useMemo, useRef, useState } from 'react';
+ import WebView from 'react-native-webview';
+ import { ActivityIndicator, Linking, StyleSheet, TouchableWithoutFeedback, View } from 'react-native';
+-import ReactNativeVersion from 'react-native/Libraries/Core/ReactNativeVersion';
++import { version as ReactNativeVersion } from 'react-native/Libraries/Core/ReactNativeVersion';
+ 
+ import md5 from './md5';
+ import hcaptchaPackage from './package.json';
+@@ -115,7 +115,7 @@ const Hcaptcha = ({
+     () => {
+       var result = debug || {};
+       try {
+-        const {major, minor, patch} = ReactNativeVersion.version;
++        const {major, minor, patch} = ReactNativeVersion;
+         result[`rnver_${major}_${minor}_${patch}`] = true;
+         result['dep_' + md5(Object.keys(global).join(''))] = true;
+         result['sdk_' + hcaptchaPackage.version.toString().replace(/\./g, '_')] = true;
+@@ -136,6 +136,10 @@ const Hcaptcha = ({
+         <meta charset="UTF-8">
+         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+         <meta http-equiv="X-UA-Compatible" content="ie=edge">
++        <style>
++          html, body { margin: 0; padding: 0; min-height: 100vh; width: 100%; display: flex; justify-content: center; align-items: center; }
++          #hcaptcha-container { display: flex; justify-content: center; align-items: center; }
++        </style>
+         <script type="text/javascript">
+           Object.entries(${JSON.stringify(debugInfo)}).forEach(function (entry) { window[entry[0]] = entry[1] })
+         </script>

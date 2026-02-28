@@ -23,7 +23,7 @@ export type AuthStackParamList = {
   Language: undefined;
   Login: undefined;
   EmailInput: undefined;
-  SetPassword: { email: string };
+  SetPassword: { email: string; registrationToken?: string; agreedToTerms?: boolean };
   InviteCode: undefined;
   ProfileSetup: { email: string };
 };

@@ -27,7 +27,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SetPassword'>;
 
 export default function SetPasswordScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { email } = route.params;
+  const { email, registrationToken, agreedToTerms } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const markPasswordSet = useAuthStore((s) => s.markPasswordSet);
 
@@ -75,7 +75,11 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
 
     setIsSubmitting(true);
     try {
-      await authService.setPassword(password);
+      if (registrationToken && agreedToTerms) {
+        await authService.completeRegistration(email, registrationToken, password, agreedToTerms);
+      } else {
+        await authService.setPassword(password);
+      }
       markPasswordSet();
       navigation.navigate('ProfileSetup', { email });
     } catch {
@@ -94,6 +98,8 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     markPasswordSet,
     showSnackbar,
     t,
+    registrationToken,
+    agreedToTerms,
   ]);
 
   return (

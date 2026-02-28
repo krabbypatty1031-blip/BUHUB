@@ -9,6 +9,7 @@ const ENDPOINTS = {
     VERIFY_TOKEN: '/auth/verify-token',
     LOGIN: '/auth/login',
     SET_PASSWORD: '/auth/set-password',
+    COMPLETE_REGISTRATION: '/auth/complete-registration',
     CHANGE_PASSWORD: '/auth/password',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',

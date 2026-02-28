@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Animated,
-  PanResponder,
-  useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,10 +20,10 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
+import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/HCaptchaCaptcha';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
-const SLIDER_WIDTH = 46;
 const CODE_LENGTH = 6;
 const INITIAL_COUNTDOWN = 60;
 
@@ -34,16 +31,8 @@ export default function EmailInputScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const setToken = useAuthStore((s) => s.setToken);
-  const { width: screenWidth } = useWindowDimensions();
-
-  const { trackWidth, successThreshold } = useMemo(() => {
-    const tw = Math.min(screenWidth - 32 - 32, 340);
-    return { trackWidth: tw, successThreshold: tw - SLIDER_WIDTH - 4 };
-  }, [screenWidth]);
 
   const [email, setEmail] = useState('');
-  const [showCaptcha, setShowCaptcha] = useState(false);
-  const [captchaVerified, setCaptchaVerified] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
 
   const [codeSent, setCodeSent] = useState(false);
@@ -54,14 +43,16 @@ export default function EmailInputScreen({ navigation }: Props) {
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const captchaRef = useRef<HCaptchaCaptchaRef>(null);
+  const pendingCaptchaRef = useRef<'send' | 'resend'>('send');
 
   const emailRef = useRef(email);
   emailRef.current = email;
 
   const codeComplete = code.every((c) => c !== '');
 
-  const pan = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const siteKey =
+    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_HCAPTCHA_SITE_KEY) || '';
 
   const clearTimer = useCallback(() => {
     if (!timerRef.current) return;
@@ -90,69 +81,35 @@ export default function EmailInputScreen({ navigation }: Props) {
     };
   }, [clearTimer]);
 
-  const onCaptchaSuccess = useCallback(async () => {
-    const currentEmail = emailRef.current.trim();
-    if (!currentEmail) return;
+  const onCaptchaSuccess = useCallback(
+    async (token: string) => {
+      const currentEmail = emailRef.current.trim();
+      if (!currentEmail) return;
 
-    setIsSendingCode(true);
-    try {
-      await authService.sendCode(currentEmail);
-      showSnackbar({ message: t('codeSent'), type: 'success' });
+      setIsSendingCode(true);
+      try {
+        await authService.sendCode(currentEmail, token);
+        showSnackbar({ message: t('codeSent'), type: 'success' });
+        startCountdown();
 
-      setCodeSent(true);
-      setShowCaptcha(false);
-      setCaptchaVerified(false);
-      pan.setValue(0);
-      startCountdown();
-
-      setTimeout(() => {
-        inputRefs.current[0]?.focus();
-      }, 120);
-    } catch (err: any) {
-      const msg =
-        err?.errorCode === 'EMAIL_ALREADY_REGISTERED'
-          ? t('emailAlreadyRegistered')
-          : (err?.message || t('sendCodeFailed'));
-      showSnackbar({ message: msg, type: 'error' });
-      pan.setValue(0);
-      setCaptchaVerified(false);
-    } finally {
-      setIsSendingCode(false);
-    }
-  }, [showSnackbar, t, pan, startCountdown]);
-
-  const onCaptchaSuccessRef = useRef(onCaptchaSuccess);
-  onCaptchaSuccessRef.current = onCaptchaSuccess;
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        const dx = Math.max(0, Math.min(gestureState.dx, successThreshold));
-        pan.setValue(dx);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx >= successThreshold) {
-          Animated.spring(pan, {
-            toValue: successThreshold,
-            useNativeDriver: false,
-          }).start(() => {
-            setCaptchaVerified(true);
-            setTimeout(() => {
-              onCaptchaSuccessRef.current();
-            }, 380);
-          });
+        if (pendingCaptchaRef.current === 'send') {
+          setCodeSent(true);
+          setTimeout(() => inputRefs.current[0]?.focus(), 120);
         } else {
-          Animated.spring(pan, {
-            toValue: 0,
-            useNativeDriver: false,
-          }).start();
+          setCode(Array(CODE_LENGTH).fill(''));
+          inputRefs.current[0]?.focus();
         }
-      },
-      onPanResponderTerminationRequest: () => false,
-    })
-  ).current;
+      } catch (err: any) {
+        let msg = err?.message || t('sendCodeFailed');
+        if (err?.errorCode === 'EMAIL_ALREADY_REGISTERED') msg = t('emailAlreadyRegistered');
+        else if (err?.errorCode === 'CAPTCHA_FAILED') msg = t('captchaFailed');
+        showSnackbar({ message: msg, type: 'error' });
+      } finally {
+        setIsSendingCode(false);
+      }
+    },
+    [showSnackbar, t, startCountdown]
+  );
 
   const handleRequestCode = useCallback(() => {
     const trimmed = email.trim();
@@ -161,39 +118,25 @@ export default function EmailInputScreen({ navigation }: Props) {
       showSnackbar({ message: t('emailPlaceholder'), type: 'error' });
       return;
     }
+    if (!siteKey) {
+      showSnackbar({ message: t('captchaNotConfigured'), type: 'error' });
+      return;
+    }
+    pendingCaptchaRef.current = 'send';
+    captchaRef.current?.show();
+  }, [email, showSnackbar, t, siteKey]);
 
-    setShowCaptcha(true);
-    pan.setValue(0);
-    setCaptchaVerified(false);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-  }, [email, showSnackbar, t, pan, fadeAnim]);
-
-  const handleResend = useCallback(async () => {
+  const handleResend = useCallback(() => {
     if (countdown > 0 || isSendingCode) return;
     const currentEmail = email.trim();
     if (!currentEmail) return;
-
-    setIsSendingCode(true);
-    try {
-      await authService.sendCode(currentEmail);
-      showSnackbar({ message: t('codeSent'), type: 'success' });
-      startCountdown();
-      setCode(Array(CODE_LENGTH).fill(''));
-      inputRefs.current[0]?.focus();
-    } catch (err: any) {
-      const msg =
-        err?.errorCode === 'EMAIL_ALREADY_REGISTERED'
-          ? t('emailAlreadyRegistered')
-          : (err?.message || t('sendCodeFailed'));
-      showSnackbar({ message: msg, type: 'error' });
-    } finally {
-      setIsSendingCode(false);
+    if (!siteKey) {
+      showSnackbar({ message: t('captchaNotConfigured'), type: 'error' });
+      return;
     }
-  }, [countdown, email, isSendingCode, showSnackbar, startCountdown, t]);
+    pendingCaptchaRef.current = 'resend';
+    captchaRef.current?.show();
+  }, [countdown, email, isSendingCode, showSnackbar, siteKey]);
 
   const handleContinue = useCallback(async () => {
     if (!codeComplete || !agreed || isVerifying) return;
@@ -207,7 +150,11 @@ export default function EmailInputScreen({ navigation }: Props) {
 
       showSnackbar({ message: t('captchaSuccess'), type: 'success' });
       setTimeout(() => {
-        navigation.navigate('SetPassword', { email: email.trim() });
+        navigation.navigate('SetPassword', {
+          email: email.trim(),
+          registrationToken: result.registrationToken,
+          agreedToTerms: result.registrationToken ? agreed : undefined,
+        });
       }, 300);
     } catch {
       showSnackbar({ message: t('verifyFailed'), type: 'error' });
@@ -261,7 +208,7 @@ export default function EmailInputScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.form}>
-          <View style={[styles.inputField, (showCaptcha || codeSent) && styles.inputFieldLocked]}>
+          <View style={[styles.inputField, codeSent && styles.inputFieldLocked]}>
             <TextInput
               style={styles.emailInput}
               placeholder={t('emailPlaceholder')}
@@ -271,64 +218,30 @@ export default function EmailInputScreen({ navigation }: Props) {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              editable={!showCaptcha && !codeSent}
+              editable={!codeSent}
             />
           </View>
 
-          {!codeSent && showCaptcha && (
-            <Animated.View style={[styles.captchaInline, { opacity: fadeAnim }]}>
-              <Text style={styles.captchaHint}>
-                {captchaVerified ? t('captchaSuccess') : t('captchaDesc')}
-              </Text>
-
-              <View style={[styles.sliderTrackWrapper, { width: trackWidth }]}> 
-                <View style={[styles.track, { width: trackWidth }]}> 
-                  <Animated.View
-                    style={[
-                      styles.trackFill,
-                      {
-                        width: pan.interpolate({
-                          inputRange: [0, successThreshold],
-                          outputRange: [0, trackWidth],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                    ]}
-                  />
-                  <Text style={styles.trackText}>
-                    {captchaVerified ? t('captchaSuccess') : t('dragToVerify')}
-                  </Text>
-                </View>
-
-                <Animated.View
-                  style={[
-                    styles.slider,
-                    captchaVerified && styles.sliderSuccess,
-                    { transform: [{ translateX: pan }] },
-                  ]}
-                  {...panResponder.panHandlers}
-                >
-                  {captchaVerified ? (
-                    <CheckIcon size={22} color={colors.onPrimary} />
-                  ) : (
-                    <Text style={styles.sliderArrow}>{'>>'}</Text>
-                  )}
-                </Animated.View>
-              </View>
-            </Animated.View>
-          )}
+          {siteKey ? (
+            <HCaptchaCaptcha
+              ref={captchaRef}
+              siteKey={siteKey}
+              onSuccess={onCaptchaSuccess}
+              onError={(err) => showSnackbar({ message: err || t('sendCodeFailed'), type: 'error' })}
+            />
+          ) : null}
 
           {!codeSent ? (
             <TouchableOpacity
-              style={[styles.sendBtn, (!email.trim() || showCaptcha || isSendingCode) && styles.sendBtnDisabled]}
+              style={[styles.sendBtn, (!email.trim() || isSendingCode) && styles.sendBtnDisabled]}
               activeOpacity={0.85}
               onPress={handleRequestCode}
-              disabled={!email.trim() || showCaptcha || isSendingCode}
+              disabled={!email.trim() || isSendingCode}
             >
               {isSendingCode ? (
                 <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
-                <Text style={[styles.sendBtnText, (!email.trim() || showCaptcha) && styles.sendBtnTextDisabled]}>
+                <Text style={[styles.sendBtnText, !email.trim() && styles.sendBtnTextDisabled]}>
                   {t('sendCode')}
                 </Text>
               )}
@@ -478,61 +391,6 @@ const styles = StyleSheet.create({
   },
   sendBtnTextDisabled: {
     color: colors.onSurfaceVariant,
-  },
-
-  captchaInline: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-    gap: spacing.md,
-  },
-  captchaHint: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-
-  sliderTrackWrapper: {
-    height: SLIDER_WIDTH,
-    alignSelf: 'center',
-  },
-  track: {
-    height: SLIDER_WIDTH,
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  trackFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.full,
-  },
-  trackText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-  },
-  slider: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: SLIDER_WIDTH,
-    height: SLIDER_WIDTH,
-    backgroundColor: colors.primary,
-    borderRadius: SLIDER_WIDTH / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sliderSuccess: {
-    backgroundColor: colors.success,
-  },
-  sliderArrow: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: -2,
   },
 
   verifyStage: {

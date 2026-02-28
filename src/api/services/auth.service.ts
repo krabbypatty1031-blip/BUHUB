@@ -4,12 +4,16 @@ import ENDPOINTS from '../endpoints';
 const USE_MOCK = false;
 
 export const authService = {
-  async sendCode(email: string) {
+  async sendCode(email: string, captchaToken: string) {
     if (USE_MOCK) {
       return { success: true };
     }
     // send-code may take longer (email delivery); use 25s timeout
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.SEND_CODE, { email }, { timeout: 25000 });
+    const { data } = await apiClient.post(
+      ENDPOINTS.AUTH.SEND_CODE,
+      { email, captchaToken },
+      { timeout: 25000 }
+    );
     return data;
   },
 
@@ -26,6 +30,22 @@ export const authService = {
       return { success: true, token: 'mock-token-123' };
     }
     const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY, { email, code });
+    if (data.token) {
+      await setToken(data.token);
+    }
+    return data;
+  },
+
+  async completeRegistration(email: string, registrationToken: string, password: string, agreedToTerms: boolean) {
+    if (USE_MOCK) {
+      return { success: true, token: 'mock-token-123' };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.COMPLETE_REGISTRATION, {
+      email,
+      registrationToken,
+      password,
+      agreedToTerms,
+    });
     if (data.token) {
       await setToken(data.token);
     }
