@@ -24,6 +24,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
   BackIcon,
   UsersIcon,
@@ -44,8 +45,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { data: partner } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
-  const currentUserName = currentUser?.name || currentUser?.nickname || '';
-  const isOwnPost = partner?.user === currentUserName;
+  const isOwnPost = isCurrentUserFunctionAuthor(currentUser, partner?.authorId, partner?.user);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -73,7 +73,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   );
 
   const handleDmOrganizer = useCallback(() => {
-    if (!partner?.authorId) return;
+    if (!partner?.authorId || isOwnPost) return;
     const backTo = buildChatBackTarget(navigation, 'FunctionsTab')
       ?? {
         tab: 'FunctionsTab' as const,
@@ -94,7 +94,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         backTo,
       },
     });
-  }, [navigation, partner]);
+  }, [isOwnPost, navigation, partner]);
 
   if (!partner) {
     return (
@@ -239,7 +239,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         </View>
 
         {/* ----- Action Bar ----- */}
-        <View style={[styles.actionBar, (partner.expired || isOwnPost) && styles.actionBarDisabled]}>
+        <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={[styles.dmButton, isOwnPost && styles.dmButtonDisabled]}
             activeOpacity={0.7}

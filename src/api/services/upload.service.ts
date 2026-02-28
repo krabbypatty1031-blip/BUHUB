@@ -1,8 +1,10 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
 const USE_MOCK = false;
+const TOKEN_KEY = 'buhub-token';
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -85,6 +87,10 @@ async function uploadViaPresigned(
   console.log('[Upload] Upload URL:', uploadUrl);
 
   const headers: Record<string, string> = { 'Content-Type': normalizedType };
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   console.log('[Upload] Step 3: Uploading file...');
   let uploadResponse;

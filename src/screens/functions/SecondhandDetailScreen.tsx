@@ -7,6 +7,7 @@ import {
   ScrollView,
   useWindowDimensions,
   BackHandler,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +15,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import { useSecondhandDetail, useWantSecondhand } from '../../hooks/useSecondhand';
-import { useSecondhandStore } from '../../store/secondhandStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -26,6 +26,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -46,18 +47,18 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const { width: screenWidth } = useWindowDimensions();
   const { id, backToChat } = route.params;
   const { data: item } = useSecondhandDetail(id);
-  const wantedItems = useSecondhandStore((s) => s.wantedItems);
-  const toggleWant = useSecondhandStore((s) => s.toggleWant);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
   const currentUser = useAuthStore((s) => s.user);
-  const currentUserName = currentUser?.name || currentUser?.nickname || '';
-  const isOwnPost = item?.user === currentUserName;
+  const isOwnPost = isCurrentUserFunctionAuthor(currentUser, item?.authorId, item?.user);
 
-  const isWanted = wantedItems.has(id);
+  const isWanted = !!item?.isWanted;
   const isSold = item?.sold ?? false;
   const isExpired = item ? item.expired && !item.sold : false;
-  const isDisabled = isSold || isExpired || isOwnPost;
+  const isListingInactive = isSold || isExpired;
+  const isWantDisabled = isListingInactive || isOwnPost;
+  const isContactDisabled = isListingInactive || isOwnPost;
+  const primaryImage = item?.images?.[0];
 
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
@@ -86,7 +87,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   );
 
   const handleContact = useCallback(() => {
-    if (!item?.authorId) return;
+    if (!item?.authorId || isContactDisabled) return;
     const backTo = buildChatBackTarget(navigation, 'FunctionsTab')
       ?? {
         tab: 'FunctionsTab' as const,
@@ -107,17 +108,16 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         backTo,
       },
     });
-  }, [navigation, item]);
+  }, [isContactDisabled, item, navigation]);
 
   const handleWant = useCallback(() => {
-    toggleWant(id);
-    wantMutation.mutate(id);
+    wantMutation.mutate({ id, currentWanted: isWanted });
     if (!isWanted) {
-      showSnackbar({ message: t('notifiedSeller'), type: 'info' });
+      showSnackbar({ message: t('addedToCart'), type: 'info' });
     } else {
       showSnackbar({ message: t('wantCancelled'), type: 'info' });
     }
-  }, [toggleWant, id, isWanted, showSnackbar, t, wantMutation]);
+  }, [id, isWanted, showSnackbar, t, wantMutation]);
 
   if (!item) {
     return (
@@ -185,8 +185,12 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ----- Hero Image ----- */}
-        <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isDisabled && styles.heroImageDimmed]}>
-          <ShoppingBagIcon size={56} color={colors.outlineVariant} />
+        <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isListingInactive && styles.heroImageDimmed]}>
+          {primaryImage ? (
+            <Image source={{ uri: primaryImage }} style={styles.heroImageAsset} resizeMode="cover" />
+          ) : (
+            <ShoppingBagIcon size={56} color={colors.outlineVariant} />
+          )}
 
           {/* Condition badge */}
           <View style={styles.conditionBadge}>
@@ -289,12 +293,12 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         </View>
 
         {/* ----- Action Bar ----- */}
-        <View style={[styles.actionBar, isDisabled && styles.actionBarDisabled]}>
+        <View style={[styles.actionBar, isListingInactive && styles.actionBarDisabled]}>
           <TouchableOpacity
             style={[styles.wantButton, isWanted && styles.wantedButton]}
             activeOpacity={0.7}
             onPress={handleWant}
-            disabled={isDisabled}
+            disabled={isWantDisabled}
           >
             <HeartIcon
               size={18}
@@ -306,13 +310,13 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.contactButton, isDisabled && styles.contactButtonDisabled]}
+            style={[styles.contactButton, isContactDisabled && styles.contactButtonDisabled]}
             activeOpacity={0.7}
             onPress={handleContact}
-            disabled={isDisabled}
+            disabled={isContactDisabled}
           >
-            <MessageIcon size={18} color={isDisabled ? colors.onSurfaceVariant : colors.onPrimary} />
-            <Text style={[styles.contactButtonText, isDisabled && styles.contactButtonTextDisabled]}>
+            <MessageIcon size={18} color={isContactDisabled ? colors.onSurfaceVariant : colors.onPrimary} />
+            <Text style={[styles.contactButtonText, isContactDisabled && styles.contactButtonTextDisabled]}>
               {isOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
             </Text>
           </TouchableOpacity>
@@ -398,6 +402,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroImageAsset: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   heroImageDimmed: {
     opacity: 0.5,

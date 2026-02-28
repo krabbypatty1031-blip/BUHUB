@@ -12,6 +12,7 @@ import ErrandDetailScreen from '../screens/functions/ErrandDetailScreen';
 import ComposeErrandScreen from '../screens/functions/ComposeErrandScreen';
 import ErrandShareScreen from '../screens/functions/ErrandShareScreen';
 import SecondhandListScreen from '../screens/functions/SecondhandListScreen';
+import SecondhandCartScreen from '../screens/functions/SecondhandCartScreen';
 import SecondhandDetailScreen from '../screens/functions/SecondhandDetailScreen';
 import ComposeSecondhandScreen from '../screens/functions/ComposeSecondhandScreen';
 import RatingListScreen from '../screens/functions/RatingListScreen';
@@ -37,6 +38,7 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="ComposeErrand" component={ComposeErrandScreen} />
       <Stack.Screen name="ErrandShare" component={ErrandShareScreen} />
       <Stack.Screen name="SecondhandList" component={SecondhandListScreen} />
+      <Stack.Screen name="SecondhandCart" component={SecondhandCartScreen} />
       <Stack.Screen name="SecondhandDetail" component={SecondhandDetailScreen} />
       <Stack.Screen name="ComposeSecondhand" component={ComposeSecondhandScreen} />
       <Stack.Screen name="SecondhandShare" component={SecondhandShareScreen} />

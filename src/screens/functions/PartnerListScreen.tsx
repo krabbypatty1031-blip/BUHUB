@@ -15,6 +15,7 @@ import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerPost, PartnerCategory } from '../../types';
 import { usePartners } from '../../hooks/usePartners';
 import { usePartnerStore } from '../../store/partnerStore';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -25,6 +26,7 @@ import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
   BackIcon,
   PlusIcon,
@@ -56,6 +58,7 @@ export default function PartnerListScreen({ navigation }: Props) {
   const joinedActivities = usePartnerStore((s) => s.joinedActivities);
   const expiredNotified = usePartnerStore((s) => s.expiredNotified);
   const setExpiredNotified = usePartnerStore((s) => s.setExpiredNotified);
+  const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: partners, isLoading, refetch } = usePartners(selectedCategory || undefined);
 
@@ -92,7 +95,7 @@ export default function PartnerListScreen({ navigation }: Props) {
   const handleDmOrganizer = useCallback(
     (item: PartnerPost, functionId: string) => {
       const contactId = item.authorId;
-      if (!contactId) return;
+      if (!contactId || isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)) return;
       const backTo = buildChatBackTarget(navigation, 'FunctionsTab');
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
@@ -109,7 +112,13 @@ export default function PartnerListScreen({ navigation }: Props) {
         },
       });
     },
-    [navigation]
+    [currentUser, navigation]
+  );
+
+  const isActionItemOwnPost = useMemo(
+    () =>
+      actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.post.authorId, actionItem.post.user) : false,
+    [actionItem, currentUser]
   );
 
   const renderItem = useCallback(
@@ -285,8 +294,11 @@ export default function PartnerListScreen({ navigation }: Props) {
                 setActionItem(null);
                 if (a) handleDmOrganizer(a.post, a.id);
               }}
+              disabled={isActionItemOwnPost}
             >
-              <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
+              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
+                {isActionItemOwnPost ? t('cannotDmSelf') : t('partnerDmOrganizer')}
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -502,6 +514,9 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+  },
+  actionTextDisabled: {
+    color: colors.onSurfaceVariant,
   },
   actionRowCenter: {
     alignItems: 'center',

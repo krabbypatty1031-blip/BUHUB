@@ -432,6 +432,14 @@ export const ShoppingBagIcon = ({ size = D.size, color = D.color }: IconProps) =
   </Svg>
 );
 
+export const ShoppingCartIcon = ({ size = D.size, color = D.color }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx={9} cy={20} r={1.5} />
+    <Circle cx={18} cy={20} r={1.5} />
+    <Path d="M3 4h2l2.4 10.2a1 1 0 0 0 .98.8h9.82a1 1 0 0 0 .97-.76L21 8H7.2" />
+  </Svg>
+);
+
 export const TruckIcon = ({ size = D.size, color = D.color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
     <Rect x={1} y={3} width={15} height={13} />
@@ -574,6 +582,7 @@ export const iconMap = {
   lock: LockIcon,
   link: LinkIcon,
   shoppingBag: ShoppingBagIcon,
+  shoppingCart: ShoppingCartIcon,
   truck: TruckIcon,
   coffee: CoffeeIcon,
   at: AtIcon,

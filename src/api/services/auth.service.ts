@@ -103,7 +103,15 @@ export const authService = {
     return data;
   },
 
-  async setupProfile(profile: { nickname: string; grade: string; major: string; gender: string; bio?: string; avatar?: string }) {
+  async setupProfile(profile: {
+    nickname: string;
+    grade: string;
+    major: string;
+    gender: string;
+    bio?: string;
+    avatar?: string;
+    language?: 'tc' | 'sc' | 'en';
+  }) {
     if (USE_MOCK) {
       return { success: true };
     }

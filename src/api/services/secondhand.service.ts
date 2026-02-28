@@ -1,7 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { SecondhandItem, SecondhandCategory, PaginationParams } from '../../types';
-import { normalizeAvatarUrl } from '../../utils/imageUrl';
+import { normalizeAvatarUrl, normalizeImageUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
 
@@ -24,6 +24,11 @@ const mapSecondhand = (i: any): SecondhandItem => ({
   ...i,
   id: i.id,
   category: fromApiCategory(i.category),
+  images: Array.isArray(i.images)
+    ? i.images
+        .map((image: string) => normalizeImageUrl(image))
+        .filter((image: string | null): image is string => Boolean(image))
+    : [],
   user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
   avatar: normalizeAvatarUrl(i.author?.avatar ?? i.avatar) ?? '',
   gender: i.author?.gender ?? i.gender ?? 'other',
@@ -32,6 +37,7 @@ const mapSecondhand = (i: any): SecondhandItem => ({
   majorKey: i.author?.major ?? i.majorKey ?? undefined,
   authorId: i.author?.id ?? i.authorId,
   desc: i.description ?? i.desc,
+  isWanted: Boolean(i.isWanted ?? (Array.isArray(i.wants) && i.wants.length > 0)),
 });
 
 export const secondhandService = {

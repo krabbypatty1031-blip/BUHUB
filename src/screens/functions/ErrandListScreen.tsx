@@ -15,6 +15,7 @@ import type { FunctionsStackParamList } from '../../types/navigation';
 import type { Errand, ErrandCategory } from '../../types';
 import { useErrands } from '../../hooks/useErrands';
 import { useErrandStore } from '../../store/errandStore';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -25,6 +26,7 @@ import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
   BackIcon,
   PlusIcon,
@@ -54,6 +56,7 @@ export default function ErrandListScreen({ navigation }: Props) {
   const acceptedErrands = useErrandStore((s) => s.acceptedErrands);
   const expiredNotified = useErrandStore((s) => s.expiredNotified);
   const setExpiredNotified = useErrandStore((s) => s.setExpiredNotified);
+  const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: errands, isLoading, refetch } = useErrands(selectedCategory || undefined);
 
@@ -81,7 +84,7 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   const handleDmPoster = useCallback(
     (item: Errand, functionId: string) => {
-      if (!item.authorId) return;
+      if (!item.authorId || isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)) return;
       const backTo = buildChatBackTarget(navigation, 'FunctionsTab');
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
@@ -98,7 +101,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         },
       });
     },
-    [navigation]
+    [currentUser, navigation]
   );
 
   // Action menu state (ellipsis popover)
@@ -108,6 +111,12 @@ export default function ErrandListScreen({ navigation }: Props) {
   // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
+
+  const isActionItemOwnPost = useMemo(
+    () =>
+      actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.post.authorId, actionItem.post.user) : false,
+    [actionItem, currentUser]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
@@ -286,8 +295,11 @@ export default function ErrandListScreen({ navigation }: Props) {
                 setActionItem(null);
                 if (a) handleDmPoster(a.post, a.id);
               }}
+              disabled={isActionItemOwnPost}
             >
-              <Text style={styles.actionText}>{t('errandDmPoster')}</Text>
+              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
+                {isActionItemOwnPost ? t('cannotDmSelf') : t('errandDmPoster')}
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -521,6 +533,9 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+  },
+  actionTextDisabled: {
+    color: colors.onSurfaceVariant,
   },
   actionRowCenter: {
     alignItems: 'center',
