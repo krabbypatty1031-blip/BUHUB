@@ -8,7 +8,8 @@ export const authService = {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.SEND_CODE, { email });
+    // send-code may take longer (email delivery); use 25s timeout
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.SEND_CODE, { email }, { timeout: 25000 });
     return data;
   },
 

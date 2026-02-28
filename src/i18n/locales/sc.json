@@ -661,6 +661,7 @@
   "saveFailed": "保存失败",
   "setupFailed": "资料设置失败",
   "sendCodeFailed": "发送验证码失败",
+  "emailAlreadyRegistered": "该邮箱已注册，请使用密码登录",
   "verifyFailed": "验证失败",
   "postFailed": "发布失败",
   "commentFailed": "发送评论失败",

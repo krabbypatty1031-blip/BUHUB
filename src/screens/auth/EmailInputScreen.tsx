@@ -109,7 +109,10 @@ export default function EmailInputScreen({ navigation }: Props) {
         inputRefs.current[0]?.focus();
       }, 120);
     } catch (err: any) {
-      const msg = err?.message || t('sendCodeFailed');
+      const msg =
+        err?.errorCode === 'EMAIL_ALREADY_REGISTERED'
+          ? t('emailAlreadyRegistered')
+          : (err?.message || t('sendCodeFailed'));
       showSnackbar({ message: msg, type: 'error' });
       pan.setValue(0);
       setCaptchaVerified(false);
@@ -182,7 +185,11 @@ export default function EmailInputScreen({ navigation }: Props) {
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      showSnackbar({ message: err?.message || t('sendCodeFailed'), type: 'error' });
+      const msg =
+        err?.errorCode === 'EMAIL_ALREADY_REGISTERED'
+          ? t('emailAlreadyRegistered')
+          : (err?.message || t('sendCodeFailed'));
+      showSnackbar({ message: msg, type: 'error' });
     } finally {
       setIsSendingCode(false);
     }

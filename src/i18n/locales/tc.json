@@ -661,6 +661,7 @@
   "saveFailed": "儲存失敗",
   "setupFailed": "資料設定失敗",
   "sendCodeFailed": "發送驗證碼失敗",
+  "emailAlreadyRegistered": "該郵箱已註冊，請使用密碼登入",
   "verifyFailed": "驗證失敗",
   "postFailed": "發布失敗",
   "commentFailed": "發送評論失敗",

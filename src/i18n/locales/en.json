@@ -661,6 +661,7 @@
   "saveFailed": "Save failed",
   "setupFailed": "Profile setup failed",
   "sendCodeFailed": "Failed to send code",
+  "emailAlreadyRegistered": "This email is already registered. Please log in with your password.",
   "verifyFailed": "Verification failed",
   "postFailed": "Failed to post",
   "commentFailed": "Failed to send comment",

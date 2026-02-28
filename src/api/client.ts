@@ -91,6 +91,7 @@ const formatError = (error: any): ApiError => {
     return {
       code: error.response.status,
       message,
+      errorCode: data?.error?.code,
       details: data?.error?.details ?? data?.details,
     };
   }

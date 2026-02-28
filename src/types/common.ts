@@ -46,6 +46,7 @@ export interface PaginatedResponse<T> {
 export interface ApiError {
   code: number;
   message: string;
+  errorCode?: string; // Backend error code e.g. EMAIL_ALREADY_REGISTERED
   details?: string;
 }
 
