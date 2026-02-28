@@ -55,7 +55,9 @@ export const partnerService = {
   async getDetail(id: string): Promise<PartnerPost> {
     if (USE_MOCK) {
       const { mockPartnerPosts } = await import('../../data/mock/partner');
-      return mockPartnerPosts[Number(id)] || mockPartnerPosts[0];
+      const item = mockPartnerPosts.find((p) => p.id === id);
+      if (!item) throw new Error('Not found');
+      return item;
     }
     const { data } = await apiClient.get(ENDPOINTS.PARTNER.DETAIL(id));
     return mapPartner(data);
@@ -88,7 +90,8 @@ export const partnerService = {
   async edit(id: string, post: Partial<PartnerPost>): Promise<PartnerPost> {
     if (USE_MOCK) {
       const { mockPartnerPosts } = await import('../../data/mock/partner');
-      const original = mockPartnerPosts[Number(id)] || mockPartnerPosts[0];
+      const original = mockPartnerPosts.find((p) => p.id === id);
+      if (!original) throw new Error('Not found');
       return { ...original, ...post };
     }
     const payload: Record<string, unknown> = { ...post };

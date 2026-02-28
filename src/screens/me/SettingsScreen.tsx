@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -58,13 +58,17 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const handleTaskReminderChange = useCallback((value: boolean) => {
     setTaskReminder(value);
-    notificationService.updateSettings({ system: value }).catch(() => {});
-  }, []);
+    notificationService.updateSettings({ system: value }).catch(() => {
+      showSnackbar({ message: t('saveFailed'), type: 'error' });
+    });
+  }, [showSnackbar, t]);
 
   const handleDmNotificationChange = useCallback((value: boolean) => {
     setDmNotification(value);
-    notificationService.updateSettings({ messages: value }).catch(() => {});
-  }, []);
+    notificationService.updateSettings({ messages: value }).catch(() => {
+      showSnackbar({ message: t('saveFailed'), type: 'error' });
+    });
+  }, [showSnackbar, t]);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');

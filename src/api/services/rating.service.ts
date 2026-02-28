@@ -56,7 +56,10 @@ export const ratingService = {
   async getDetail(category: RatingCategory, id: string): Promise<RatingItem> {
     if (USE_MOCK) {
       const { mockRatings } = await import('../../data/mock/ratings');
-      return mockRatings[category][Number(id)] || mockRatings[category][0];
+      const items = mockRatings[category] || [];
+      const item = items.find((i) => i.id === id);
+      if (!item) throw new Error('Not found');
+      return item;
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.DETAIL(toApiCategory(category), id));
     return mapRatingItem(data);

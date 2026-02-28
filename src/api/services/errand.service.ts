@@ -53,7 +53,9 @@ export const errandService = {
   async getDetail(id: string): Promise<Errand> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
-      return mockErrands[Number(id)] || mockErrands[0];
+      const item = mockErrands.find((e) => e.id === id);
+      if (!item) throw new Error('Not found');
+      return item;
     }
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.DETAIL(id));
     return mapErrand(data);
@@ -86,7 +88,8 @@ export const errandService = {
   async edit(id: string, errand: Partial<Errand>): Promise<Errand> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
-      const original = mockErrands[Number(id)] || mockErrands[0];
+      const original = mockErrands.find((e) => e.id === id);
+      if (!original) throw new Error('Not found');
       return { ...original, ...errand };
     }
     const payload: Record<string, unknown> = { ...errand };

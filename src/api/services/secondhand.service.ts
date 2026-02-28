@@ -61,7 +61,9 @@ export const secondhandService = {
   async getDetail(id: string): Promise<SecondhandItem> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
-      return mockSecondhandItems[Number(id)] || mockSecondhandItems[0];
+      const item = mockSecondhandItems.find((i) => i.id === id);
+      if (!item) throw new Error('Not found');
+      return item;
     }
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.DETAIL(id));
     return mapSecondhand(data);
@@ -94,7 +96,8 @@ export const secondhandService = {
   async edit(id: string, item: Partial<SecondhandItem>): Promise<SecondhandItem> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
-      const original = mockSecondhandItems[Number(id)] || mockSecondhandItems[0];
+      const original = mockSecondhandItems.find((i) => i.id === id);
+      if (!original) throw new Error('Not found');
       return { ...original, ...item };
     }
     const payload: Record<string, unknown> = { ...item };
