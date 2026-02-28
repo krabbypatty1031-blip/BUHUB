@@ -16,6 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
+import { changeLanguage } from '../../i18n';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { authService } from '../../api/services/auth.service';
 import { uploadService } from '../../api/services/upload.service';
@@ -34,6 +35,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const email = route.params.email;
   const { t } = useTranslation();
   const setUser = useAuthStore((s) => s.setUser);
+  const language = useAuthStore((s) => s.language);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const { images, pickImages } = useImagePicker();
@@ -132,7 +134,9 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         major,
         gender: resolvedGender,
         avatar: finalAvatarUrl || selectedDefaultAvatar || undefined,
+        language,
       });
+      await changeLanguage(language);
 
       // Update local auth state
       setUser({
@@ -145,6 +149,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         major,
         bio: '',
         gender: resolvedGender,
+        language,
         isLoggedIn: true,
       });
     } catch {
@@ -152,7 +157,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     } finally {
       setIsSaving(false);
     }
-  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, email, setUser, showSnackbar, t]);
+  }, [nickname, grade, major, gender, avatarUri, selectedDefaultAvatar, email, language, setUser, showSnackbar, t]);
 
   const handleSkip = useCallback(async () => {
     setIsSaving(true);
@@ -168,7 +173,9 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         major: '',
         gender: 'secret',
         avatar: randomAvatarUrl,
+        language,
       });
+      await changeLanguage(language);
 
       setUser({
         name: randomNickname,
@@ -180,6 +187,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         major: '',
         bio: '',
         gender: 'secret',
+        language,
         isLoggedIn: true,
       });
     } catch {
@@ -187,7 +195,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     } finally {
       setIsSaving(false);
     }
-  }, [email, setUser, showSnackbar, t]);
+  }, [email, language, setUser, showSnackbar, t]);
 
   return (
     <SafeAreaView style={styles.container}>

@@ -8,14 +8,16 @@ import {
   StyleSheet,
   useWindowDimensions,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandItem, SecondhandCategory } from '../../types';
-import { useSecondhand } from '../../hooks/useSecondhand';
+import { useSecondhand, useWantedSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -25,11 +27,13 @@ import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import Avatar from '../../components/common/Avatar';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
   BackIcon,
   PlusIcon,
   SearchIcon,
   ShoppingBagIcon,
+  ShoppingCartIcon,
   MapPinIcon,
   AlertTriangleIcon,
   RepostIcon,
@@ -68,6 +72,7 @@ const ItemCard = React.memo(function ItemCard({
   cardWidth: number;
 }) {
   const isSoldOrExpired = item.sold || item.expired;
+  const primaryImage = item.images?.[0];
 
   return (
     <TouchableOpacity
@@ -77,7 +82,11 @@ const ItemCard = React.memo(function ItemCard({
     >
       {/* Image area */}
       <View style={[styles.imageArea, { height: cardWidth * 0.8 }, isSoldOrExpired && styles.imageAreaDimmed]}>
-        <ShoppingBagIcon size={32} color={colors.outlineVariant} />
+        {primaryImage ? (
+          <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+        ) : (
+          <ShoppingBagIcon size={32} color={colors.outlineVariant} />
+        )}
 
         {/* Condition tag - top left */}
         <View style={styles.conditionBadge}>
@@ -144,8 +153,10 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const setCategory = useSecondhandStore((s) => s.setCategory);
   const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
   const setExpiredNotified = useSecondhandStore((s) => s.setExpiredNotified);
+  const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: items, isLoading, refetch } = useSecondhand(selectedCategory || undefined);
+  const { data: wantedItems } = useWantedSecondhand();
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -198,7 +209,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   const handleDmSeller = useCallback(
     (item: SecondhandItem, functionId: string) => {
-      if (!item.authorId) return;
+      if (!item.authorId || isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)) return;
       const backTo = buildChatBackTarget(navigation, 'FunctionsTab');
       navigation.getParent()?.navigate('MessagesTab', {
         screen: 'Chat',
@@ -215,7 +226,13 @@ export default function SecondhandListScreen({ navigation }: Props) {
         },
       });
     },
-    [navigation]
+    [currentUser, navigation]
+  );
+
+  const isActionItemOwnPost = useMemo(
+    () =>
+      actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.item.authorId, actionItem.item.user) : false,
+    [actionItem, currentUser]
   );
 
   const handleMore = useCallback(
@@ -238,16 +255,31 @@ export default function SecondhandListScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.topBarSide}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+            <BackIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => setShowSearch(!showSearch)}
-        >
-          <SearchIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.topBarActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setShowSearch(!showSearch)}
+          >
+            <SearchIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('SecondhandCart')}
+          >
+            <ShoppingCartIcon size={24} color={colors.onSurface} />
+            {(wantedItems?.length ?? 0) > 0 ? (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{(wantedItems?.length ?? 0) > 99 ? '99+' : wantedItems?.length ?? 0}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar (collapsible) */}
@@ -344,8 +376,11 @@ export default function SecondhandListScreen({ navigation }: Props) {
                 setActionItem(null);
                 if (a) handleDmSeller(a.item, a.id);
               }}
+              disabled={isActionItemOwnPost}
             >
-              <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
+              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
+                {isActionItemOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -391,6 +426,34 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topBarSide: {
+    width: 96,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  topBarActions: {
+    width: 96,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    ...typography.labelSmall,
+    color: colors.onError,
+    fontWeight: '700',
+    fontSize: 10,
   },
 
   /* Search */
@@ -465,6 +528,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cardImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   imageAreaDimmed: {
     opacity: 0.45,
@@ -606,6 +675,9 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+  },
+  actionTextDisabled: {
+    color: colors.onSurfaceVariant,
   },
   actionRowCenter: {
     alignItems: 'center',

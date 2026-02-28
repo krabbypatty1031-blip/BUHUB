@@ -50,6 +50,7 @@ export type FunctionsStackParamList = {
   ComposeErrand: { category?: ErrandCategory } | undefined;
   ErrandShare: { taskName: string; posterName: string; functionId: string };
   SecondhandList: { category?: SecondhandCategory };
+  SecondhandCart: undefined;
   SecondhandDetail: { id: string; backToChat?: BackToChatParams };
   ComposeSecondhand: { category?: SecondhandCategory } | undefined;
   SecondhandShare: { itemName: string; posterName: string; functionId: string };

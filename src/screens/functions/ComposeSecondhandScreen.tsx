@@ -135,6 +135,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           type: t(category),
           title: title.trim(),
           desc: description.trim(),
+          images: imageUrls ?? [],
           price: `HK$${price.trim()}`,
           condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
           location: tradeLocation.trim(),

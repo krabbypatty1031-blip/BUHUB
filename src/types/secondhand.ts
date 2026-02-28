@@ -8,6 +8,7 @@ export interface SecondhandItem {
   type: string;
   title: string;
   desc: string;
+  images: string[];
   price: string;
   condition: string;
   location: string;
@@ -19,6 +20,7 @@ export interface SecondhandItem {
   gradeKey?: string;
   majorKey?: string;
   sold: boolean;
+  isWanted?: boolean;
   expiresAt: string;
   expired: boolean;
   createdAt: string;

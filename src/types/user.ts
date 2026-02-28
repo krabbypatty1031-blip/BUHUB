@@ -1,6 +1,7 @@
 import { Gender, Language, PollOption } from './common';
 
 export interface User {
+  id?: string;
   name: string;
   nickname: string;
   email: string;
