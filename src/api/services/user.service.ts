@@ -333,26 +333,29 @@ export const userService = {
 
   async requestDataExport(): Promise<{ jobId: string } | null> {
     if (USE_MOCK) return { jobId: 'mock-job-id' };
-    const { data } = await apiClient.post(ENDPOINTS.USER.EXPORT_REQUEST);
-    return data?.jobId ? { jobId: data.jobId } : null;
+    const res = await apiClient.post(ENDPOINTS.USER.EXPORT_REQUEST);
+    const data = res?.data ?? res;
+    const jobId = data?.jobId ?? data?.data?.jobId;
+    return typeof jobId === 'string' ? { jobId } : null;
   },
 
-  async pollExportJob(jobId: string, maxAttempts = 60): Promise<string | null> {
+  async pollExportJob(
+    jobId: string,
+    maxAttempts = 60
+  ): Promise<{ jobId: string; downloadUrl: string } | null> {
     const pollInterval = 2000;
     for (let i = 0; i < maxAttempts; i++) {
-      const { data } = await apiClient.get(ENDPOINTS.USER.EXPORT_STATUS(jobId));
-      if (data?.status === 'ready') return jobId;
-      if (data?.status === 'failed') return null;
+      const res = await apiClient.get(ENDPOINTS.USER.EXPORT_STATUS(jobId));
+      const data = res?.data ?? res;
+      const status = data?.status ?? data?.data?.status;
+      if (status === 'ready') {
+        const downloadUrl = data?.downloadUrl ?? data?.data?.downloadUrl;
+        return typeof downloadUrl === 'string' ? { jobId, downloadUrl } : null;
+      }
+      if (status === 'failed') return null;
       await new Promise((r) => setTimeout(r, pollInterval));
     }
     return null;
-  },
-
-  async downloadExport(jobId: string): Promise<Blob> {
-    const { data } = await apiClient.get(ENDPOINTS.USER.EXPORT_DOWNLOAD(jobId), {
-      responseType: 'blob',
-    });
-    return data;
   },
 
   async getBlockedList(): Promise<FollowListItem[]> {

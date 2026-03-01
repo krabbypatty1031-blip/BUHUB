@@ -23,7 +23,7 @@ import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/HCaptchaCaptcha';
-import { TERMS_URL } from '../../config/legal';
+import { TERMS_URL, PRIVACY_URL } from '../../config/legal';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
@@ -293,15 +293,22 @@ export default function EmailInputScreen({ navigation }: Props) {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    if (TERMS_URL) {
-                      Linking.openURL(TERMS_URL).catch(() => {});
-                    } else {
-                      Alert.alert(t('termsOfService'), t('termsComingSoon'));
-                    }
+                    if (TERMS_URL) Linking.openURL(TERMS_URL).catch(() => {});
+                    else Alert.alert(t('termsOfService'), t('termsComingSoon'));
                   }}
-                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4}}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 >
                   <Text style={styles.termsLink}>{t('termsOfService')}</Text>
+                </TouchableOpacity>
+                <Text style={styles.agreementText}>{t('agreeTermsAnd')}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (PRIVACY_URL) Linking.openURL(PRIVACY_URL).catch(() => {});
+                    else Alert.alert(t('privacyPolicy'), t('termsComingSoon'));
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                >
+                  <Text style={styles.termsLink}>{t('privacyPolicy')}</Text>
                 </TouchableOpacity>
               </View>
 

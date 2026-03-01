@@ -31,6 +31,7 @@
   "verifying": "Verifying...",
   "codeSent": "Code sent",
   "agreeTerms": "I have read and agree to the ",
+  "agreeTermsAnd": " and ",
   "termsOfService": "Terms of Service",
   "termsComingSoon": "Terms of Service will be available soon. Please contact support for details.",
   "continueBtn": "Continue",

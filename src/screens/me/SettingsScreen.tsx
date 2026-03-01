@@ -25,11 +25,7 @@ import { notificationService } from '../../api/services/notification.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import {
-  BackIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-} from '../../components/common/icons';
+import { BackIcon, ChevronRightIcon } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import { PRIVACY_URL, TERMS_URL } from '../../config/legal';
 
@@ -75,8 +71,6 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');
-  const [expandedLegal, setExpandedLegal] = useState(false);
-  const [expandedAgreement, setExpandedAgreement] = useState(false);
 
   // Visibility options
   const visibilityLabels: Record<Visibility, string> = {
@@ -193,23 +187,35 @@ export default function SettingsScreen({ navigation }: Props) {
     try {
       showSnackbar({ message: t('exportDataStarted'), type: 'info' });
       const result = await userService.requestDataExport();
-      if (result?.jobId) {
-        const jobId = await userService.pollExportJob(result.jobId);
-        if (jobId) {
-          const blob = await userService.downloadExport(jobId);
-          const jsonString = typeof blob === 'string' ? blob : await (blob as Blob).text();
-          await Share.share({
-            message: jsonString,
-            title: 'UHUB Data Export',
-          });
-          showSnackbar({ message: t('exportDataReady'), type: 'success' });
-        } else {
-          showSnackbar({ message: t('exportDataFailed'), type: 'error' });
-        }
-      } else {
+      if (!result?.jobId) {
         showSnackbar({ message: t('exportDataFailed'), type: 'error' });
+        return;
       }
-    } catch {
+      const pollResult = await userService.pollExportJob(result.jobId);
+      if (!pollResult?.downloadUrl) {
+        showSnackbar({ message: t('exportDataFailed'), type: 'error' });
+        return;
+      }
+      showSnackbar({ message: t('exportDataReady'), type: 'success' });
+      try {
+        const canOpen = await Linking.canOpenURL(pollResult.downloadUrl);
+        if (canOpen) {
+          await Linking.openURL(pollResult.downloadUrl);
+        }
+      } catch (_openErr) {
+        // Fallback: offer to share the link
+        try {
+          await Share.share({
+            url: pollResult.downloadUrl,
+            title: 'UHUB Data Export',
+            message: t('exportDataReady'),
+          });
+        } catch (_shareErr) {
+          // User cancelled or share not available
+        }
+      }
+    } catch (err) {
+      console.warn('[Export]', err);
       showSnackbar({ message: t('exportDataFailed'), type: 'error' });
     }
   }, [t, showSnackbar]);
@@ -289,21 +295,6 @@ export default function SettingsScreen({ navigation }: Props) {
           </TouchableOpacity>
           <Text style={styles.rowHint}>{t('exportDataHint')}</Text>
 
-          <View style={styles.divider} />
-
-          {/* Data Collection Notice */}
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => PRIVACY_URL ? Linking.openURL(PRIVACY_URL).catch(() => {}) : null}
-            disabled={!PRIVACY_URL}
-          >
-            <Text style={styles.rowLabel}>{t('dataCollectionNotice')}</Text>
-            {PRIVACY_URL && (
-              <View style={styles.rowRight}>
-                <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
-              </View>
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* ── Section 3: General ── */}
@@ -386,38 +377,6 @@ export default function SettingsScreen({ navigation }: Props) {
               </View>
             )}
           </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Legal Disclaimer (expandable) */}
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => setExpandedLegal((v) => !v)}
-          >
-            <Text style={styles.rowLabel}>{t('legalDisclaimer')}</Text>
-            <View style={[styles.chevronWrap, expandedLegal && styles.chevronRotated]}>
-              <ChevronDownIcon size={18} color={colors.onSurfaceVariant} />
-            </View>
-          </TouchableOpacity>
-          {expandedLegal && (
-            <Text style={styles.expandedText}>{t('legalDisclaimerContent')}</Text>
-          )}
-
-          <View style={styles.divider} />
-
-          {/* User Agreement (expandable) */}
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => setExpandedAgreement((v) => !v)}
-          >
-            <Text style={styles.rowLabel}>{t('userAgreement')}</Text>
-            <View style={[styles.chevronWrap, expandedAgreement && styles.chevronRotated]}>
-              <ChevronDownIcon size={18} color={colors.onSurfaceVariant} />
-            </View>
-          </TouchableOpacity>
-          {expandedAgreement && (
-            <Text style={styles.expandedText}>{t('userAgreementContent')}</Text>
-          )}
 
           <View style={styles.divider} />
 
@@ -590,24 +549,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     marginTop: spacing.xxs,
-  },
-
-  /* Expandable */
-  chevronWrap: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chevronRotated: {
-    transform: [{ rotate: '180deg' }],
-  },
-  expandedText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    lineHeight: 20,
   },
 
   /* Picker Modal (reused from ProfileSetupScreen) */
