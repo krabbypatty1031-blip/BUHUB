@@ -1,14 +1,16 @@
+const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
+
 /**
  * Get the base URL for images (without /api path)
  * From .env: EXPO_PUBLIC_APP_URL, EXPO_PUBLIC_API_URL, or EXPO_PUBLIC_DEV_API_URL (local dev)
  */
 const getImageBaseUrl = (): string => {
   const appUrl = process.env.EXPO_PUBLIC_APP_URL;
-  if (appUrl) return appUrl.replace(/\/$/, '');
+  if (appUrl) return normalizePublicBaseUrl(appUrl);
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl.replace(/\/api\/?$/, '');
+  if (apiUrl) return normalizePublicBaseUrl(apiUrl);
   const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
-  if (__DEV__ && devUrl) return devUrl.replace(/\/api\/?$/, '');
+  if (__DEV__ && devUrl) return normalizePublicBaseUrl(devUrl);
   return '';
 };
 

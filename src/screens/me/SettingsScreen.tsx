@@ -286,7 +286,10 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={styles.sectionHeader}>{t('myInviteCodes')}</Text>
         <View style={styles.sectionCard}>
-          <Text style={styles.rowHint}>{t('inviteCodesHint')}</Text>
+          <View style={styles.sectionHintBlock}>
+            <Text style={styles.sectionHint}>{t('inviteCodesHint')}</Text>
+          </View>
+          <View style={styles.divider} />
           {inviteCodesLoading ? (
             <View style={styles.row}>
               <Text style={styles.rowValueMuted}>...</Text>
@@ -592,6 +595,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
     marginTop: -spacing.xs,
+  },
+  sectionHintBlock: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  sectionHint: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    lineHeight: 20,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
