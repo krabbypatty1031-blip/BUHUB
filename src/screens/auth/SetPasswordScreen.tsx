@@ -30,6 +30,7 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
   const { email, registrationToken, agreedToTerms } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const markPasswordSet = useAuthStore((s) => s.markPasswordSet);
+  const pendingInviteCode = useAuthStore((s) => s.pendingInviteCode);
 
   const {
     value: password,
@@ -76,7 +77,17 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     setIsSubmitting(true);
     try {
       if (registrationToken && agreedToTerms) {
-        await authService.completeRegistration(email, registrationToken, password, agreedToTerms);
+        if (!pendingInviteCode) {
+          showSnackbar({ message: t('inviteCodeRequired'), type: 'error' });
+          return;
+        }
+        await authService.completeRegistration(
+          email,
+          registrationToken,
+          password,
+          pendingInviteCode,
+          agreedToTerms
+        );
       } else {
         await authService.setPassword(password);
       }
@@ -100,6 +111,7 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     t,
     registrationToken,
     agreedToTerms,
+    pendingInviteCode,
   ]);
 
   return (

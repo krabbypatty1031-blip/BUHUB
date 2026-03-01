@@ -17,9 +17,9 @@ export const authService = {
     return data;
   },
 
-  async verifyInviteCode(code: string): Promise<{ valid: boolean }> {
+  async verifyInviteCode(code: string): Promise<{ valid: boolean; code?: string }> {
     if (USE_MOCK) {
-      return { valid: true };
+      return { valid: true, code: code.trim().toUpperCase() };
     }
     const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY_INVITE_CODE, { code });
     return data;
@@ -36,7 +36,13 @@ export const authService = {
     return data;
   },
 
-  async completeRegistration(email: string, registrationToken: string, password: string, agreedToTerms: boolean) {
+  async completeRegistration(
+    email: string,
+    registrationToken: string,
+    password: string,
+    inviteCode: string,
+    agreedToTerms: boolean
+  ) {
     if (USE_MOCK) {
       return { success: true, token: 'mock-token-123' };
     }
@@ -44,6 +50,7 @@ export const authService = {
       email,
       registrationToken,
       password,
+      inviteCode,
       agreedToTerms,
     });
     if (data.token) {

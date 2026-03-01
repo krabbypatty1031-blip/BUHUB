@@ -15,12 +15,14 @@ interface AuthState {
   hasSelectedLanguage: boolean;
   hasCompletedRegistration: boolean;
   forceLanguageOnNextLaunch: boolean;
+  pendingInviteCode: string | null;
   _hasHydrated: boolean;
 
   setUser: (user: User) => void;
   updateUser: (updates: Partial<User>) => void;
   setLanguage: (lang: Language) => void;
   setToken: (token: string) => void;
+  setPendingInviteCode: (code: string | null) => void;
   markPasswordSet: () => void;
   logout: () => void;
   deleteAccount: () => void;
@@ -58,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
       hasSelectedLanguage: false,
       hasCompletedRegistration: false,
       forceLanguageOnNextLaunch: false,
+      pendingInviteCode: null,
       _hasHydrated: false,
 
       setUser: (user) =>
@@ -96,14 +99,16 @@ export const useAuthStore = create<AuthState>()(
         }),
       setLanguage: (language) => set({ language, hasSelectedLanguage: true }),
       setToken: (token) => set({ token }),
+      setPendingInviteCode: (code) => set({ pendingInviteCode: code }),
       markPasswordSet: () =>
         set({
           hasCompletedRegistration: true,
           forceLanguageOnNextLaunch: false,
+          pendingInviteCode: null,
         }),
       logout: () => {
         useForumStore.getState().clearVotedPolls();
-        set({ user: null, token: null, isLoggedIn: false });
+        set({ user: null, token: null, isLoggedIn: false, pendingInviteCode: null });
       },
       deleteAccount: () =>
         {
@@ -116,6 +121,7 @@ export const useAuthStore = create<AuthState>()(
             hasCompletedRegistration: false,
             forceLanguageOnNextLaunch: true,
             language: 'tc',
+            pendingInviteCode: null,
           });
         },
     }),

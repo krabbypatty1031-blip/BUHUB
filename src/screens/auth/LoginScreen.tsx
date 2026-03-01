@@ -142,7 +142,7 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.registerRow}>
           <Text style={styles.registerText}>{t('noAccount')}</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('EmailInput')}
+            onPress={() => navigation.navigate('InviteCode')}
             activeOpacity={0.7}
           >
             <Text style={styles.registerLink}>{t('registerNow')}</Text>

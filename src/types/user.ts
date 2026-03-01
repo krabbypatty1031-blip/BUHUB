@@ -15,6 +15,20 @@ export interface User {
   isLoggedIn: boolean;
 }
 
+export interface MyInviteCode {
+  id: string;
+  code: string;
+  createdAt: string;
+  usedAt: string | null;
+  status: 'used' | 'unused';
+  usedBy: {
+    id: string;
+    userName: string | null;
+    nickname: string;
+    email: string | null;
+  } | null;
+}
+
 export interface UserPublicProfile {
   id?: string;
   userName: string;

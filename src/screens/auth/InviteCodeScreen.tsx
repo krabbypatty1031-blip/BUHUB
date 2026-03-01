@@ -17,6 +17,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'InviteCode'>;
@@ -24,6 +25,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'InviteCode'>;
 export default function InviteCodeScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const setPendingInviteCode = useAuthStore((s) => s.setPendingInviteCode);
 
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +39,8 @@ export default function InviteCodeScreen({ navigation }: Props) {
     try {
       const result = await authService.verifyInviteCode(code.trim());
       if (result.valid) {
-        navigation.navigate('Language');
+        setPendingInviteCode(result.code || code.trim().toUpperCase());
+        navigation.navigate('EmailInput');
       } else {
         showSnackbar({ message: t('inviteCodeInvalid'), type: 'error' });
       }
@@ -46,11 +49,7 @@ export default function InviteCodeScreen({ navigation }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, isSubmitting, code, navigation, showSnackbar, t]);
-
-  const handleSkip = useCallback(() => {
-    navigation.navigate('Language');
-  }, [navigation]);
+  }, [canSubmit, isSubmitting, code, navigation, showSnackbar, t, setPendingInviteCode]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,14 +99,6 @@ export default function InviteCodeScreen({ navigation }: Props) {
               )}
             </TouchableOpacity>
 
-            {/* Skip */}
-            <TouchableOpacity
-              style={styles.skipBtn}
-            activeOpacity={0.7}
-            onPress={handleSkip}
-          >
-            <Text style={styles.skipText}>{t('inviteCodeSkip')}</Text>
-          </TouchableOpacity>
         </View>
         </View>
       </KeyboardAvoidingView>
@@ -181,14 +172,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nextBtnTextDisabled: {
-    color: colors.onSurfaceVariant,
-  },
-  skipBtn: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  skipText: {
-    ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
   },
 });
