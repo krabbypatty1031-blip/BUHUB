@@ -6,18 +6,21 @@ import type { ApiError } from '../types';
 
 const TOKEN_KEY = 'buhub-token';
 
-// API base URL: use EXPO_PUBLIC_API_URL, or localhost in dev (10.0.2.2 for Android emulator)
+// API base URL: from .env (EXPO_PUBLIC_API_URL, EXPO_PUBLIC_APP_URL, or EXPO_PUBLIC_DEV_API_URL for local dev)
 const getApiBaseUrl = () => {
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    const url = process.env.EXPO_PUBLIC_API_URL;
-    return url.endsWith('/api') ? url : `${url.replace(/\/$/, '')}/api`;
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) {
+    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl.replace(/\/$/, '')}/api`;
   }
-  if (__DEV__) {
-    return Platform.OS === 'android'
-      ? 'http://10.0.2.2:3000/api'
-      : 'http://localhost:3000/api';
+  const appUrl = process.env.EXPO_PUBLIC_APP_URL;
+  if (appUrl) {
+    return `${appUrl.replace(/\/$/, '')}/api`;
   }
-  return 'https://api.buhub.com/api';
+  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
+  if (__DEV__ && devUrl) {
+    return devUrl.endsWith('/api') ? devUrl : `${devUrl.replace(/\/$/, '')}/api`;
+  }
+  return '';
 };
 
 const API_BASE = getApiBaseUrl();

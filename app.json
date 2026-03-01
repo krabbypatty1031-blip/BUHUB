@@ -16,9 +16,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.buhub.app",
       "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false
-        }
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": false },
+        "NSCameraUsageDescription": "UHUB needs camera access to take photos for posts, avatars, and messages.",
+        "NSPhotoLibraryUsageDescription": "UHUB needs photo library access to select images for posts, avatars, and messages.",
+        "NSMicrophoneUsageDescription": "UHUB needs microphone access to record voice messages."
       }
     },
     "android": {
@@ -34,8 +35,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-font"
-    ]
+    "plugins": ["expo-font"]
   }
 }

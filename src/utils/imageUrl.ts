@@ -1,20 +1,15 @@
-import { Platform } from 'react-native';
-
 /**
  * Get the base URL for images (without /api path)
- * Images are typically served from the root path, not /api
+ * From .env: EXPO_PUBLIC_APP_URL, EXPO_PUBLIC_API_URL, or EXPO_PUBLIC_DEV_API_URL (local dev)
  */
 const getImageBaseUrl = (): string => {
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    // Remove '/api' suffix if present
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
-  }
-  if (__DEV__) {
-    return Platform.OS === 'android'
-      ? 'http://10.0.2.2:3000'
-      : 'http://localhost:3000';
-  }
-  return 'https://api.buhub.com';
+  const appUrl = process.env.EXPO_PUBLIC_APP_URL;
+  if (appUrl) return appUrl.replace(/\/$/, '');
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.replace(/\/api\/?$/, '');
+  const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
+  if (__DEV__ && devUrl) return devUrl.replace(/\/api\/?$/, '');
+  return '';
 };
 
 const isIpv4Host = (hostname: string): boolean => {

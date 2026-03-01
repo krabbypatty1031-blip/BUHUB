@@ -8,8 +8,8 @@ export type ReportTargetType = 'post' | 'comment' | 'user' | 'message' | 'functi
 export interface ReportPayload {
   targetType: ReportTargetType;
   targetId: string;
-  reason: string;
-  description?: string;
+  reasonCategory: string;
+  reason?: string;
 }
 
 export const reportService = {

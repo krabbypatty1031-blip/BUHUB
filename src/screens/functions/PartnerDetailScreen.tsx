@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -259,9 +259,9 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-        onSubmit={async (reason) => {
-          try {
-            await reportService.submit({ targetType: 'function', targetId: partner.id, reason });
+onSubmit={async (reasonCategory, reason) => {
+            try {
+            await reportService.submit({ targetType: 'function', targetId: partner.id, reasonCategory, reason });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {

@@ -102,6 +102,9 @@ const ENDPOINTS = {
     MY_CONTENT: '/user/profile/content',
     FOLLOWING: '/user/profile/following',
     FOLLOWERS: '/user/profile/followers',
+    EXPORT_REQUEST: '/user/export',
+    EXPORT_STATUS: (jobId: string) => `/user/export/${jobId}`,
+    EXPORT_DOWNLOAD: (jobId: string) => `/user/export/${jobId}/download`,
   },
 
   // Notifications (backend: register-token, [id]/read, read-all)

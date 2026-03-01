@@ -8,6 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +23,7 @@ import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/HCaptchaCaptcha';
+import { TERMS_URL } from '../../config/legal';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
@@ -277,19 +280,30 @@ export default function EmailInputScreen({ navigation }: Props) {
                 )}
               </View>
 
-              <TouchableOpacity
-                style={styles.agreementRow}
-                activeOpacity={0.7}
-                onPress={() => setAgreed((v) => !v)}
-              >
-                <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                  {agreed && <CheckIcon size={14} color={colors.onPrimary} />}
-                </View>
-                <Text style={styles.agreementText}>
-                  {t('agreeTerms')}
+              <View style={styles.agreementRow}>
+                <TouchableOpacity
+                  style={styles.agreementTouch}
+                  activeOpacity={0.7}
+                  onPress={() => setAgreed((v) => !v)}
+                >
+                  <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                    {agreed && <CheckIcon size={14} color={colors.onPrimary} />}
+                  </View>
+                  <Text style={styles.agreementText}>{t('agreeTerms')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (TERMS_URL) {
+                      Linking.openURL(TERMS_URL).catch(() => {});
+                    } else {
+                      Alert.alert(t('termsOfService'), t('termsComingSoon'));
+                    }
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4}}
+                >
                   <Text style={styles.termsLink}>{t('termsOfService')}</Text>
-                </Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={[styles.continueBtn, (!codeComplete || !agreed || isVerifying) && styles.continueBtnDisabled]}
@@ -436,7 +450,14 @@ const styles = StyleSheet.create({
   agreementRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  agreementTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
   },
   checkbox: {
     width: 22,
@@ -454,7 +475,7 @@ const styles = StyleSheet.create({
   agreementText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    flex: 1,
+    flexShrink: 1,
   },
   termsLink: {
     color: colors.primary,

@@ -253,7 +253,7 @@ function ReplyItem({
   onLike: (commentId: string) => void;
   onBookmark: (commentId: string) => void;
   onForward: () => void;
-  onReport: () => void;
+  onReport: (commentId: string) => void;
   highlightId?: string;
   level?: number;
   expandedReplies?: string[];
@@ -337,7 +337,7 @@ function ReplyItem({
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
       ]}
     >
-      <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
+      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(reply.id)}>
         <View style={styles.commentHeader}>
           <Avatar
             text={reply.name}
@@ -453,7 +453,7 @@ function CommentItem({
   onLike: (commentId: string) => void;
   onBookmark: (commentId: string) => void;
   onForward: () => void;
-  onReport: () => void;
+  onReport: (commentId: string) => void;
   highlightId?: string;
   expandedReplies?: string[];
   registerItemRef?: (id: string, node: View | null) => void;
@@ -533,7 +533,7 @@ function CommentItem({
       ]}
     >
       {/* Comment main */}
-      <TouchableOpacity activeOpacity={1} onLongPress={onReport}>
+      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(comment.id)}>
         <View style={styles.commentHeader}>
           <Avatar
             text={comment.name}
@@ -681,6 +681,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
   const [reportVisible, setReportVisible] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
+  const [reportTargetCommentId, setReportTargetCommentId] = useState<string | null>(null);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [commentActionVisible, setCommentActionVisible] = useState(false);
 
@@ -948,7 +949,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     setPopoverVisible(true);
   }, []);
 
-  const handleReportComment = useCallback(() => {
+  const handleReportComment = useCallback((commentId: string) => {
+    setReportTargetCommentId(commentId);
     setCommentActionVisible(true);
   }, []);
 
@@ -973,20 +975,23 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   );
 
   const handleReportSubmit = useCallback(
-    async (reason: string) => {
+    async (reasonCategory: string, reason?: string) => {
       try {
+        const isComment = !!reportTargetCommentId;
         await reportService.submit({
-          targetType: 'post',
-          targetId: postId,
+          targetType: isComment ? 'comment' : 'post',
+          targetId: isComment ? reportTargetCommentId! : postId,
+          reasonCategory,
           reason,
         });
         setReportVisible(false);
+        setReportTargetCommentId(null);
         showSnackbar({ message: t('reportSubmitted'), type: 'success' });
       } catch {
         showSnackbar({ message: t('reportFailed'), type: 'error' });
       }
     },
-    [postId, showSnackbar, t]
+    [postId, reportTargetCommentId, showSnackbar, t]
   );
 
   const renderHeader = useCallback(() => {
@@ -1262,6 +1267,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.popoverItem}
               onPress={() => {
                 setPopoverVisible(false);
+                setReportTargetCommentId(null);
                 setReportTitle(t('reportPost'));
                 setReportVisible(true);
               }}

@@ -3,7 +3,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
-const USE_MOCK = false;
+const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
+
+const getMockBaseUrl = (): string => {
+  const u = process.env.EXPO_PUBLIC_MOCK_BASE_URL || process.env.EXPO_PUBLIC_APP_URL;
+  if (u) return u.replace(/\/$/, '');
+  const api = process.env.EXPO_PUBLIC_API_URL;
+  if (api) return api.replace(/\/api\/?$/, '');
+  return '';
+};
 const TOKEN_KEY = 'buhub-token';
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -118,28 +126,32 @@ async function uploadViaPresigned(
 export const uploadService = {
   async uploadFile(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
     if (USE_MOCK) {
-      return { url: `https://mock.buhub.com/files/${file.name}` };
+      const base = getMockBaseUrl();
+      return { url: `${base}/mock/files/${file.name}` };
     }
     return uploadViaPresigned(file);
   },
 
   async uploadImage(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
     if (USE_MOCK) {
-      return { url: `https://mock.buhub.com/images/${file.name}` };
+      const base = getMockBaseUrl();
+      return { url: `${base}/mock/images/${file.name}` };
     }
     return uploadViaPresigned(file);
   },
 
   async uploadAvatar(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
     if (USE_MOCK) {
-      return { url: `https://mock.buhub.com/avatars/${file.name}` };
+      const base = getMockBaseUrl();
+      return { url: `${base}/mock/avatars/${file.name}` };
     }
     return uploadViaPresigned(file);
   },
 
   async uploadImages(files: { uri: string; type: string; name: string }[]): Promise<{ urls: string[] }> {
     if (USE_MOCK) {
-      return { urls: files.map((f) => `https://mock.buhub.com/images/${f.name}`) };
+      const base = getMockBaseUrl();
+      return { urls: files.map((f) => `${base}/mock/images/${f.name}`) };
     }
     const urls = await Promise.all(files.map((f) => uploadViaPresigned(f)));
     return { urls: urls.map((u) => u.url) };

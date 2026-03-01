@@ -8,6 +8,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  Linking,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +31,7 @@ import {
   ChevronDownIcon,
 } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
+import { PRIVACY_URL, TERMS_URL } from '../../config/legal';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Settings'>;
 
@@ -186,6 +189,31 @@ export default function SettingsScreen({ navigation }: Props) {
     navigation.navigate('Blocklist');
   }, [navigation]);
 
+  const handleExportData = useCallback(async () => {
+    try {
+      showSnackbar({ message: t('exportDataStarted'), type: 'info' });
+      const result = await userService.requestDataExport();
+      if (result?.jobId) {
+        const jobId = await userService.pollExportJob(result.jobId);
+        if (jobId) {
+          const blob = await userService.downloadExport(jobId);
+          const jsonString = typeof blob === 'string' ? blob : await (blob as Blob).text();
+          await Share.share({
+            message: jsonString,
+            title: 'UHUB Data Export',
+          });
+          showSnackbar({ message: t('exportDataReady'), type: 'success' });
+        } else {
+          showSnackbar({ message: t('exportDataFailed'), type: 'error' });
+        }
+      } else {
+        showSnackbar({ message: t('exportDataFailed'), type: 'error' });
+      }
+    } catch {
+      showSnackbar({ message: t('exportDataFailed'), type: 'error' });
+    }
+  }, [t, showSnackbar]);
+
   const currentLangLabel =
     t(LANGUAGE_OPTIONS.find((l) => l.value === language)?.labelKey || LANGUAGE_OPTIONS[0].labelKey);
 
@@ -249,6 +277,33 @@ export default function SettingsScreen({ navigation }: Props) {
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* Export Data */}
+          <TouchableOpacity style={styles.row} onPress={handleExportData}>
+            <Text style={styles.rowLabel}>{t('exportMyData')}</Text>
+            <View style={styles.rowRight}>
+              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.rowHint}>{t('exportDataHint')}</Text>
+
+          <View style={styles.divider} />
+
+          {/* Data Collection Notice */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => PRIVACY_URL ? Linking.openURL(PRIVACY_URL).catch(() => {}) : null}
+            disabled={!PRIVACY_URL}
+          >
+            <Text style={styles.rowLabel}>{t('dataCollectionNotice')}</Text>
+            {PRIVACY_URL && (
+              <View style={styles.rowRight}>
+                <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* ── Section 3: General ── */}
@@ -302,6 +357,38 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* ── Section 5: About & Legal ── */}
         <Text style={styles.sectionHeader}>{t('aboutLegal')}</Text>
         <View style={styles.sectionCard}>
+          {/* Privacy Policy */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => PRIVACY_URL && Linking.openURL(PRIVACY_URL).catch(() => {})}
+            disabled={!PRIVACY_URL}
+          >
+            <Text style={styles.rowLabel}>{t('privacyPolicy')}</Text>
+            {PRIVACY_URL && (
+              <View style={styles.rowRight}>
+                <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* Terms of Service */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => TERMS_URL && Linking.openURL(TERMS_URL).catch(() => {})}
+            disabled={!TERMS_URL}
+          >
+            <Text style={styles.rowLabel}>{t('termsOfService')}</Text>
+            {TERMS_URL && (
+              <View style={styles.rowRight}>
+                <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           {/* Legal Disclaimer (expandable) */}
           <TouchableOpacity
             style={styles.row}

@@ -7,30 +7,46 @@ import {
   Modal,
   Pressable,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, typography } from '../../theme';
+
+export const REPORT_CATEGORIES = [
+  'spam',
+  'hate_speech',
+  'violence',
+  'harassment',
+  'inappropriate',
+  'other',
+] as const;
 
 interface ReportModalProps {
   visible: boolean;
   title: string;
   onClose: () => void;
-  onSubmit: (reason: string) => void;
+  onSubmit: (reasonCategory: string, reason?: string) => void;
 }
 
 export default function ReportModal({ visible, title, onClose, onSubmit }: ReportModalProps) {
   const { t } = useTranslation();
+  const [category, setCategory] = useState<string>('');
   const [reason, setReason] = useState('');
 
   const handleSubmit = () => {
-    onSubmit(reason);
+    if (!category) return;
+    onSubmit(category, category === 'other' ? reason.trim() || undefined : undefined);
+    setCategory('');
     setReason('');
   };
 
   const handleClose = () => {
+    setCategory('');
     setReason('');
     onClose();
   };
+
+  const canSubmit = category && (category !== 'other' || reason.trim().length > 0);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
@@ -38,27 +54,47 @@ export default function ReportModal({ visible, title, onClose, onSubmit }: Repor
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.title}>{title}</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder={t('reportReasonPlaceholder')}
-            placeholderTextColor={colors.onSurfaceVariant}
-            value={reason}
-            onChangeText={setReason}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
+          <Text style={styles.label}>{t('reportCategory')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+            {REPORT_CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.categoryChip, category === c && styles.categoryChipSelected]}
+                onPress={() => setCategory(c)}
+              >
+                <Text style={[styles.categoryChipText, category === c && styles.categoryChipTextSelected]}>
+                  {t(`reportCategory_${c}`)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {category === 'other' && (
+            <>
+              <Text style={styles.label}>{t('reportReasonPlaceholder')}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('reportReasonDetailPlaceholder')}
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={reason}
+                onChangeText={setReason}
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+            </>
+          )}
 
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
               <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, !reason.trim() && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={!reason.trim()}
+              disabled={!canSubmit}
             >
-              <Text style={[styles.submitBtnText, !reason.trim() && styles.submitBtnTextDisabled]}>
+              <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>
                 {t('submitReport')}
               </Text>
             </TouchableOpacity>
@@ -77,7 +113,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    width: '85%',
+    width: '90%',
+    maxWidth: 400,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
@@ -87,11 +124,39 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     marginBottom: spacing.lg,
   },
+  label: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.sm,
+  },
+  categoryScroll: {
+    marginBottom: spacing.lg,
+    maxHeight: 44,
+  },
+  categoryChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    marginRight: spacing.sm,
+  },
+  categoryChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
+  },
+  categoryChipTextSelected: {
+    color: colors.onPrimary,
+  },
   input: {
     backgroundColor: colors.surface2,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    minHeight: 80,
+    minHeight: 60,
     ...typography.bodyMedium,
     color: colors.onSurface,
     marginBottom: spacing.lg,

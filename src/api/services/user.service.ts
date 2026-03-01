@@ -331,6 +331,30 @@ export const userService = {
     return data;
   },
 
+  async requestDataExport(): Promise<{ jobId: string } | null> {
+    if (USE_MOCK) return { jobId: 'mock-job-id' };
+    const { data } = await apiClient.post(ENDPOINTS.USER.EXPORT_REQUEST);
+    return data?.jobId ? { jobId: data.jobId } : null;
+  },
+
+  async pollExportJob(jobId: string, maxAttempts = 60): Promise<string | null> {
+    const pollInterval = 2000;
+    for (let i = 0; i < maxAttempts; i++) {
+      const { data } = await apiClient.get(ENDPOINTS.USER.EXPORT_STATUS(jobId));
+      if (data?.status === 'ready') return jobId;
+      if (data?.status === 'failed') return null;
+      await new Promise((r) => setTimeout(r, pollInterval));
+    }
+    return null;
+  },
+
+  async downloadExport(jobId: string): Promise<Blob> {
+    const { data } = await apiClient.get(ENDPOINTS.USER.EXPORT_DOWNLOAD(jobId), {
+      responseType: 'blob',
+    });
+    return data;
+  },
+
   async getBlockedList(): Promise<FollowListItem[]> {
     if (USE_MOCK) {
       const { mockUsers } = await import('../../data/mock/users');
