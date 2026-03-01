@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
@@ -18,19 +19,47 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/gif',
   'image/webp',
-  'audio/m4a',
-  'audio/aac',
-  'audio/mp4',
-  'audio/mpeg',
-  'audio/webm',
 ]);
+const MAX_IMAGE_EDGE = 1600;
+
+type UploadInput = { uri: string; type: string; name: string };
 
 function normalizeMimeType(type: string | undefined): string {
   const raw = (type ?? '').toLowerCase().trim();
   if (ALLOWED_MIME_TYPES.has(raw)) return raw;
   if (raw.startsWith('image/')) return 'image/jpeg';
-  if (raw.startsWith('audio/')) return 'audio/m4a';
   return 'image/jpeg';
+}
+
+function ensureJpegName(name: string): string {
+  return name.replace(/\.[a-z0-9]+$/i, '') + '.jpg';
+}
+
+async function compressImage(file: UploadInput): Promise<UploadInput> {
+  const normalizedType = normalizeMimeType(file.type);
+  if (!normalizedType.startsWith('image/')) {
+    throw new Error('仅支持图片上传');
+  }
+
+  if (normalizedType === 'image/gif') {
+    // Keep GIF as-is to avoid losing animation frames.
+    return { ...file, type: normalizedType };
+  }
+
+  const manipulated = await ImageManipulator.manipulateAsync(
+    file.uri,
+    [{ resize: { width: MAX_IMAGE_EDGE } }],
+    {
+      compress: 0.8,
+      format: ImageManipulator.SaveFormat.JPEG,
+    }
+  );
+
+  return {
+    uri: manipulated.uri,
+    type: 'image/jpeg',
+    name: ensureJpegName(file.name),
+  };
 }
 
 async function readLocalFileBlob(uri: string): Promise<Blob> {
@@ -57,14 +86,15 @@ async function readLocalFileBlob(uri: string): Promise<Blob> {
 }
 
 async function uploadViaPresigned(
-  file: { uri: string; type: string; name: string }
+  file: UploadInput
 ): Promise<{ url: string }> {
-  const normalizedType = normalizeMimeType(file.type);
-  console.log('[Upload] Step 1: Reading file from:', file.uri);
+  const compressedFile = await compressImage(file);
+  const normalizedType = normalizeMimeType(compressedFile.type);
+  console.log('[Upload] Step 1: Reading file from:', compressedFile.uri);
 
   let fileBlob: Blob;
   try {
-    fileBlob = await readLocalFileBlob(file.uri);
+    fileBlob = await readLocalFileBlob(compressedFile.uri);
     console.log('[Upload] File blob size:', fileBlob.size);
   } catch (fetchError) {
     console.error('[Upload] Step 1 error:', fetchError);
@@ -80,7 +110,7 @@ async function uploadViaPresigned(
   let presignedData;
   try {
     const { data } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
-      fileName: file.name,
+      fileName: compressedFile.name,
       fileSize,
       mimeType: normalizedType,
     });
@@ -124,7 +154,7 @@ async function uploadViaPresigned(
 }
 
 export const uploadService = {
-  async uploadFile(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
+  async uploadFile(file: UploadInput): Promise<{ url: string }> {
     if (USE_MOCK) {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/files/${file.name}` };
@@ -132,7 +162,7 @@ export const uploadService = {
     return uploadViaPresigned(file);
   },
 
-  async uploadImage(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
+  async uploadImage(file: UploadInput): Promise<{ url: string }> {
     if (USE_MOCK) {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/images/${file.name}` };
@@ -140,7 +170,7 @@ export const uploadService = {
     return uploadViaPresigned(file);
   },
 
-  async uploadAvatar(file: { uri: string; type: string; name: string }): Promise<{ url: string }> {
+  async uploadAvatar(file: UploadInput): Promise<{ url: string }> {
     if (USE_MOCK) {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/avatars/${file.name}` };
@@ -148,7 +178,7 @@ export const uploadService = {
     return uploadViaPresigned(file);
   },
 
-  async uploadImages(files: { uri: string; type: string; name: string }[]): Promise<{ urls: string[] }> {
+  async uploadImages(files: UploadInput[]): Promise<{ urls: string[] }> {
     if (USE_MOCK) {
       const base = getMockBaseUrl();
       return { urls: files.map((f) => `${base}/mock/images/${f.name}`) };
