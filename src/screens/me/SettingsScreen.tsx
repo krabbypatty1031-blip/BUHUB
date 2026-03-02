@@ -36,8 +36,8 @@ type Visibility = 'public' | 'mutual' | 'hidden';
 type PickerType = 'visibility' | 'language';
 
 const LANGUAGE_OPTIONS = [
-  { value: 'tc' as const, labelKey: 'cantonese' },
-  { value: 'sc' as const, labelKey: 'mandarin' },
+  { value: 'tc' as const, labelKey: 'cantonese', englishUiLabelKey: 'cantoneseEn' },
+  { value: 'sc' as const, labelKey: 'mandarin', englishUiLabelKey: 'mandarinEn' },
   { value: 'en' as const, labelKey: 'english' },
 ];
 
@@ -97,6 +97,20 @@ export default function SettingsScreen({ navigation }: Props) {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');
 
+  const getLanguageLabel = useCallback(
+    (langValue: (typeof LANGUAGE_OPTIONS)[number]['value']) => {
+      const option = LANGUAGE_OPTIONS.find((l) => l.value === langValue);
+      if (!option) return '';
+
+      const isEnglishUi = language === 'en';
+      if (isEnglishUi && option.englishUiLabelKey) {
+        return t(option.englishUiLabelKey);
+      }
+      return t(option.labelKey);
+    },
+    [language, t]
+  );
+
   // Visibility options
   const visibilityLabels: Record<Visibility, string> = {
     public: t('visibilityPublic'),
@@ -110,9 +124,9 @@ export default function SettingsScreen({ navigation }: Props) {
       case 'visibility':
         return [t('visibilityPublic'), t('visibilityMutualOnly'), t('visibilityHidden')];
       case 'language':
-        return LANGUAGE_OPTIONS.map((l) => t(l.labelKey));
+        return LANGUAGE_OPTIONS.map((l) => getLanguageLabel(l.value));
     }
-  }, [pickerType, t]);
+  }, [pickerType, t, getLanguageLabel]);
 
   const getPickerTitle = useCallback((): string => {
     switch (pickerType) {
@@ -128,9 +142,9 @@ export default function SettingsScreen({ navigation }: Props) {
       case 'visibility':
         return visibilityLabels[visibility];
       case 'language':
-        return t(LANGUAGE_OPTIONS.find((l) => l.value === language)?.labelKey || LANGUAGE_OPTIONS[0].labelKey);
+        return getLanguageLabel(language);
     }
-  }, [pickerType, visibility, language, visibilityLabels, t]);
+  }, [pickerType, visibility, language, visibilityLabels, getLanguageLabel]);
 
   const showPicker = useCallback((type: PickerType) => {
     setPickerType(type);
@@ -150,7 +164,7 @@ export default function SettingsScreen({ navigation }: Props) {
           break;
         }
         case 'language': {
-          const langOption = LANGUAGE_OPTIONS.find((l) => t(l.labelKey) === value);
+          const langOption = LANGUAGE_OPTIONS.find((l) => getLanguageLabel(l.value) === value);
           if (langOption) {
             setLanguage(langOption.value);
             changeLanguage(langOption.value);
@@ -163,7 +177,7 @@ export default function SettingsScreen({ navigation }: Props) {
       }
       setPickerVisible(false);
     },
-    [pickerType, t, setLanguage, showSnackbar]
+    [pickerType, t, setLanguage, showSnackbar, getLanguageLabel]
   );
 
   const handleLogout = useCallback(() => {
@@ -246,7 +260,7 @@ export default function SettingsScreen({ navigation }: Props) {
   }, [t, showSnackbar]);
 
   const currentLangLabel =
-    t(LANGUAGE_OPTIONS.find((l) => l.value === language)?.labelKey || LANGUAGE_OPTIONS[0].labelKey);
+    getLanguageLabel(language);
 
   return (
     <SafeAreaView style={styles.container}>

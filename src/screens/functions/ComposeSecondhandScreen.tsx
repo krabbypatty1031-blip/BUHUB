@@ -56,6 +56,20 @@ const CONDITIONS: Array<{ key: string; labelKey: string }> = [
   { key: 'fair', labelKey: 'conditionFair' },
 ];
 
+const normalizePriceInput = (value: string): string => {
+  const sanitized = value.replace(/[^\d.]/g, '');
+  if (!sanitized) return '';
+
+  const [integerPart, ...fractionParts] = sanitized.split('.');
+  if (fractionParts.length === 0) return integerPart;
+
+  const fraction = fractionParts.join('').slice(0, 2);
+  const safeInteger = integerPart || '0';
+  return fraction.length > 0 ? `${safeInteger}.${fraction}` : `${safeInteger}.`;
+};
+
+const isValidPrice = (value: string): boolean => /^\d+(\.\d{1,2})?$/.test(value.trim());
+
 export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
@@ -106,9 +120,13 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     setDescription(enforceContentLimit(text));
   }, []);
 
+  const handlePriceChange = useCallback((text: string) => {
+    setPrice(normalizePriceInput(text));
+  }, []);
+
   const canPost =
     title.trim().length > 0 &&
-    price.trim().length > 0 &&
+    isValidPrice(price) &&
     deadline !== null;
 
   const user = useAuthStore((s) => s.user);
@@ -283,7 +301,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
                 placeholder="HK$ 0"
                 placeholderTextColor={colors.outline}
                 value={price}
-                onChangeText={setPrice}
+                onChangeText={handlePriceChange}
                 keyboardType="numeric"
                 maxLength={10}
                 selectionColor={colors.primary}
