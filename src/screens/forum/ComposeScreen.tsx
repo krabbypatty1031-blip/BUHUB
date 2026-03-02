@@ -145,8 +145,8 @@ export default function ComposeScreen({ navigation, route }: Props) {
           },
         }
       );
-    } catch {
-      showSnackbar({ message: t('postFailed'), type: 'error' });
+    } catch (error: any) {
+      showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
   }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);

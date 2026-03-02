@@ -1,6 +1,6 @@
 {
   "name": "buhub-rn",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -34,7 +34,7 @@
     "expo-av": "~16.0.8",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
-    "expo-image-manipulator": "^55.0.9",
+    "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",

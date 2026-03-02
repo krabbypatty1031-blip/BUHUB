@@ -41,6 +41,8 @@ const LANGUAGE_OPTIONS = [
   { value: 'en' as const, labelKey: 'english' },
 ];
 
+const APP_VERSION = '0.1.0';
+
 export default function SettingsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
@@ -439,7 +441,7 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* Version Info */}
           <View style={styles.row}>
             <Text style={styles.rowLabel}>{t('versionInfo')}</Text>
-            <Text style={styles.rowValueMuted}>v1.0.0</Text>
+            <Text style={styles.rowValueMuted}>{`v${APP_VERSION}`}</Text>
           </View>
         </View>
       </ScrollView>

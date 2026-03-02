@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -159,8 +159,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           },
         },
       );
-    } catch {
-      showSnackbar({ message: t('postFailed'), type: 'error' });
+    } catch (error: any) {
+      showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
   }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t, images, isPosting, createSecondhand, showSnackbar]);

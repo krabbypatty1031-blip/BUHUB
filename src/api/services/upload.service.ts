@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImageManipulator from 'expo-image-manipulator';
-import apiClient from '../client';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import apiClient, { API_BASE } from '../client';
 import ENDPOINTS from '../endpoints';
 
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
@@ -21,8 +21,23 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ]);
 const MAX_IMAGE_EDGE = 1600;
+const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 
 type UploadInput = { uri: string; type: string; name: string };
+
+function getApiOrigin(): string {
+  if (API_BASE) return API_BASE.replace(/\/api\/?$/i, '');
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_DEV_API_URL;
+  return (fromEnv || '').replace(/\/api\/?$/i, '');
+}
+
+function resolveDevUploadUrl(uploadUrl: string, fileKey?: string): string {
+  if (!__DEV__) return uploadUrl;
+  if (!fileKey) return uploadUrl;
+  const apiOrigin = getApiOrigin();
+  if (!apiOrigin) return uploadUrl;
+  return `${apiOrigin}/api/upload/${fileKey}`;
+}
 
 function normalizeMimeType(type: string | undefined): string {
   const raw = (type ?? '').toLowerCase().trim();
@@ -46,14 +61,44 @@ async function compressImage(file: UploadInput): Promise<UploadInput> {
     return { ...file, type: normalizedType };
   }
 
-  const manipulated = await ImageManipulator.manipulateAsync(
-    file.uri,
-    [{ resize: { width: MAX_IMAGE_EDGE } }],
-    {
-      compress: 0.8,
-      format: ImageManipulator.SaveFormat.JPEG,
-    }
-  );
+  let originalSize = 0;
+  try {
+    const originalBlob = await readLocalFileBlob(file.uri);
+    originalSize = originalBlob.size;
+  } catch {
+    // Some Android content:// URIs are not directly fetchable; keep going.
+  }
+
+  const width = originalSize > 4 * 1024 * 1024 ? 1080 : originalSize > TARGET_MAX_IMAGE_SIZE ? 1280 : 1600;
+  const qualityEstimate = originalSize > 0
+    ? Math.max(0.45, Math.min(0.82, (TARGET_MAX_IMAGE_SIZE / originalSize) * 0.95))
+    : 0.72;
+
+  let manipulated;
+  try {
+    manipulated = await manipulateAsync(
+      file.uri,
+      [{ resize: { width: Math.min(width, MAX_IMAGE_EDGE) } }],
+      {
+        compress: qualityEstimate,
+        format: SaveFormat.JPEG,
+      }
+    );
+  } catch (error) {
+    throw new Error(`图片压缩失败: ${error instanceof Error ? error.message : 'unknown error'}`);
+  }
+
+  const compressedBlob = await readLocalFileBlob(manipulated.uri);
+  const compressedSize = compressedBlob.size;
+  if (__DEV__) {
+    console.log('[Upload] Compression summary:', {
+      originalSize,
+      compressedSize,
+      targetSize: TARGET_MAX_IMAGE_SIZE,
+      width,
+      quality: Number(qualityEstimate.toFixed(3)),
+    });
+  }
 
   return {
     uri: manipulated.uri,
@@ -72,7 +117,6 @@ async function readLocalFileBlob(uri: string): Promise<Blob> {
   for (const candidate of candidates) {
     try {
       const localResponse = await fetch(candidate);
-      console.log('[Upload] Step 1 result:', localResponse.status, localResponse.statusText, '| URI:', candidate);
       if (!localResponse.ok) {
         throw new Error(`Failed to fetch file: ${localResponse.status}`);
       }
@@ -90,14 +134,11 @@ async function uploadViaPresigned(
 ): Promise<{ url: string }> {
   const compressedFile = await compressImage(file);
   const normalizedType = normalizeMimeType(compressedFile.type);
-  console.log('[Upload] Step 1: Reading file from:', compressedFile.uri);
 
   let fileBlob: Blob;
   try {
     fileBlob = await readLocalFileBlob(compressedFile.uri);
-    console.log('[Upload] File blob size:', fileBlob.size);
   } catch (fetchError) {
-    console.error('[Upload] Step 1 error:', fetchError);
     throw new Error(`读取图片文件失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`);
   }
 
@@ -106,7 +147,6 @@ async function uploadViaPresigned(
     throw new Error('Could not determine file size');
   }
 
-  console.log('[Upload] Step 2: Getting presigned URL...');
   let presignedData;
   try {
     const { data } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
@@ -115,14 +155,12 @@ async function uploadViaPresigned(
       mimeType: normalizedType,
     });
     presignedData = data;
-    console.log('[Upload] Step 2 result:', presignedData);
   } catch (apiError) {
-    console.error('[Upload] Step 2 error:', apiError);
     throw new Error(`获取上传链接失败: ${apiError instanceof Error ? apiError.message : '未知错误'}`);
   }
 
-  const { uploadUrl, fileUrl } = presignedData;
-  console.log('[Upload] Upload URL:', uploadUrl);
+  const { uploadUrl, fileUrl, fileKey } = presignedData;
+  const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
 
   const headers: Record<string, string> = { 'Content-Type': normalizedType };
   const token = await AsyncStorage.getItem(TOKEN_KEY);
@@ -130,7 +168,6 @@ async function uploadViaPresigned(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  console.log('[Upload] Step 3: Uploading file...');
   let uploadResponse;
   try {
     uploadResponse = await fetch(uploadUrl, {
@@ -138,16 +175,20 @@ async function uploadViaPresigned(
       headers,
       body: fileBlob,
     });
-    console.log('[Upload] Step 3 result:', uploadResponse.status, uploadResponse.statusText);
+    if (!uploadResponse.ok && finalUploadUrl !== uploadUrl) {
+      uploadResponse = await fetch(finalUploadUrl, {
+        method: 'PUT',
+        headers,
+        body: fileBlob,
+      });
+    }
   } catch (uploadError) {
-    console.error('[Upload] Step 3 error:', uploadError);
     throw new Error(`上传文件失败: ${uploadError instanceof Error ? uploadError.message : '网络错误，请检查网络连接'}`);
   }
 
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
-    console.error('[Upload] Step 3 failed:', uploadResponse.status, errorText);
-    throw new Error(`Upload failed with status ${uploadResponse.status}`);
+    throw new Error(`上传失败(${uploadResponse.status}): ${errorText || 'unknown error'}`);
   }
 
   return { url: fileUrl };

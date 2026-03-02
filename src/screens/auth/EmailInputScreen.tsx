@@ -29,6 +29,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 
 const CODE_LENGTH = 6;
 const INITIAL_COUNTDOWN = 60;
+const HCAPTCHA_FALLBACK_SITE_KEY = '7a9ce63a-8a04-4cee-b196-ee9874482480';
 
 export default function EmailInputScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -55,7 +56,8 @@ export default function EmailInputScreen({ navigation }: Props) {
   const codeComplete = code.every((c) => c !== '');
 
   const siteKey =
-    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_HCAPTCHA_SITE_KEY) || '';
+    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_HCAPTCHA_SITE_KEY) ||
+    HCAPTCHA_FALLBACK_SITE_KEY;
 
   const clearTimer = useCallback(() => {
     if (!timerRef.current) return;
