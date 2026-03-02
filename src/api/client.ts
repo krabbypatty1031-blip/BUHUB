@@ -1,17 +1,28 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import type { ApiError } from '../types';
 
 const TOKEN_KEY = 'buhub-token';
 
-// API base URL: from .env (EXPO_PUBLIC_API_URL, EXPO_PUBLIC_APP_URL, or EXPO_PUBLIC_DEV_API_URL for local dev)
 const getApiBaseUrl = () => {
+  // 1) Prefer public env (dev / CI)
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) {
     return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl.replace(/\/$/, '')}/api`;
   }
+
+  // 2) Fallback to app.json extra.apiUrl (release-safe)
+  const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
+  if (extraApiUrl) {
+    return extraApiUrl.endsWith('/api')
+      ? extraApiUrl
+      : `${extraApiUrl.replace(/\/$/, '')}/api`;
+  }
+
+  // 3) Legacy APP_URL / DEV_API_URL fallback
   const appUrl = process.env.EXPO_PUBLIC_APP_URL;
   if (appUrl) {
     return `${appUrl.replace(/\/$/, '')}/api`;
@@ -20,14 +31,14 @@ const getApiBaseUrl = () => {
   if (__DEV__ && devUrl) {
     return devUrl.endsWith('/api') ? devUrl : `${devUrl.replace(/\/$/, '')}/api`;
   }
-  return '';
+
+  // 4) Last-resort hardcoded production URL
+  return 'https://www.uhub.help/api';
 };
 
 const API_BASE = getApiBaseUrl();
 
-if (__DEV__) {
-  console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
-}
+console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS, '| DEV:', __DEV__);
 
 // Callback for handling unauthorized (401) responses
 // Set by authStore to avoid circular dependency

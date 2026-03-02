@@ -21,6 +21,7 @@ import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
+import Constants from 'expo-constants';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/HCaptchaCaptcha';
 import { TERMS_URL, PRIVACY_URL } from '../../config/legal';
@@ -57,6 +58,8 @@ export default function EmailInputScreen({ navigation }: Props) {
 
   const siteKey =
     (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_HCAPTCHA_SITE_KEY) ||
+    (Constants.expoConfig?.extra as { hcaptchaSiteKey?: string } | undefined)
+      ?.hcaptchaSiteKey ||
     HCAPTCHA_FALLBACK_SITE_KEY;
 
   const clearTimer = useCallback(() => {
