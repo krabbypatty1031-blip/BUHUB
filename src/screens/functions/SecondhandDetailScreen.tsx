@@ -24,6 +24,8 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -121,7 +123,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
   if (!item) {
     return (
-      <SafeAreaView style={styles.container}>
+      <PageTranslationProvider>
+        <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
@@ -133,7 +136,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <ShoppingBagIcon size={48} color={colors.outlineVariant} />
           <Text style={styles.emptyText}>{t('notFound')}</Text>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </PageTranslationProvider>
     );
   }
 
@@ -142,7 +146,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PageTranslationProvider>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
@@ -217,7 +222,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         {/* ----- Price & Title ----- */}
         <View style={styles.headerSection}>
           <Text style={styles.price}>{item.price}</Text>
-          <Text style={styles.title}>{item.title}</Text>
+          <TranslatableText
+            entityType="secondhand"
+            entityId={item.id}
+            fieldName="title"
+            sourceText={item.title}
+            sourceLanguage={item.sourceLanguage}
+            textStyle={styles.title}
+          />
           <View style={styles.tagRow}>
             <View style={styles.tag}>
               <Text style={styles.tagText}>{t(item.category)}</Text>
@@ -238,6 +250,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 </View>
               </>
             )}
+            <PageTranslationToggle style={styles.headerTranslationToggle} />
           </View>
         </View>
 
@@ -246,7 +259,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
-          <Text style={styles.descriptionText}>{item.desc}</Text>
+          <TranslatableText
+            entityType="secondhand"
+            entityId={item.id}
+            fieldName="description"
+            sourceText={item.desc}
+            sourceLanguage={item.sourceLanguage}
+            textStyle={styles.descriptionText}
+          />
         </View>
 
         <View style={styles.divider} />
@@ -260,7 +280,15 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 <View style={styles.locationIcon}>
                   <MapPinIcon size={16} color={colors.onSurface} />
                 </View>
-                <Text style={styles.locationText}>{item.location}</Text>
+                <TranslatableText
+                  entityType="secondhand"
+                  entityId={item.id}
+                  fieldName="location"
+                  sourceText={item.location}
+                  sourceLanguage={item.sourceLanguage}
+                  textStyle={styles.locationText}
+                  containerStyle={styles.locationTextBlock}
+                />
               </View>
             </View>
             <View style={styles.divider} />
@@ -349,7 +377,8 @@ onSubmit={async (reasonCategory, reason) => {
         functionId={item.id}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </PageTranslationProvider>
   );
 }
 
@@ -458,6 +487,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
   },
+  headerTranslationToggle: {
+    marginLeft: 'auto',
+  },
   price: {
     ...typography.headlineMedium,
     color: colors.error,
@@ -550,6 +582,9 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     flex: 1,
     lineHeight: 22,
+  },
+  locationTextBlock: {
+    flex: 1,
   },
 
   /* ----- Seller ----- */

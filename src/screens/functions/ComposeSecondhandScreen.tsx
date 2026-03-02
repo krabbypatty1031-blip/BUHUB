@@ -127,6 +127,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const canPost =
     title.trim().length > 0 &&
     isValidPrice(price) &&
+    condition !== null &&
+    isValidPrice(price) &&
     deadline !== null;
 
   const user = useAuthStore((s) => s.user);
@@ -330,7 +332,9 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 
           {/* ----- Condition Selector ----- */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>{t('conditionLabel')}</Text>
+            <Text style={styles.fieldLabel}>
+              {t('conditionLabel')} <Text style={styles.required}>*</Text>
+            </Text>
             <TouchableOpacity
               style={styles.selectWrapper}
               activeOpacity={0.7}

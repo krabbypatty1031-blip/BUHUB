@@ -114,6 +114,8 @@ export const forumService = {
       return {
         ...p,
         ...functionRef,
+        lang: p.sourceLanguage ?? p.lang ?? 'tc',
+        sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
         name: p.name ?? author.nickname ?? '?',
         avatar: resolveAvatarValue(avatarSource),
         userName: p.userName ?? author.userName ?? author.nickname,
@@ -159,6 +161,8 @@ export const forumService = {
     return {
       ...p,
       ...functionRef,
+      lang: p.sourceLanguage ?? p.lang ?? 'tc',
+      sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
       name: anonIdentity ? anonIdentity.name : (author.nickname ?? p.name ?? '?'),
       avatar: resolvedAvatar,
       defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
@@ -203,6 +207,7 @@ export const forumService = {
         gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
         gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
         majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
+        sourceLanguage: r.sourceLanguage ?? 'tc',
         replyTo: parentName,
         content: r.content,
         time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
@@ -232,6 +237,7 @@ export const forumService = {
         gender: isAnon ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
         gradeKey: isAnon ? undefined : (c.author?.grade ?? undefined),
         majorKey: isAnon ? undefined : (c.author?.major ?? undefined),
+        sourceLanguage: c.sourceLanguage ?? 'tc',
         content: c.content,
         time,
         likes: c.likeCount ?? 0,
@@ -435,6 +441,8 @@ export const forumService = {
       return {
         ...p,
         ...functionRef,
+        lang: p.sourceLanguage ?? p.lang ?? 'tc',
+        sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
         name: p.name ?? author.nickname ?? '?',
         avatar: resolveAvatarValue(avatarSource),
         userName: p.userName ?? author.userName ?? author.nickname,

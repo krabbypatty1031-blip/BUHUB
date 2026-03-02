@@ -22,6 +22,8 @@ import { typography } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import Avatar from '../../components/common/Avatar';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
@@ -62,6 +64,7 @@ function CartItemCard({
   const isExpired = item.expired && !item.sold;
 
   return (
+    <PageTranslationProvider>
     <TouchableOpacity style={styles.card} activeOpacity={0.78} onPress={() => onPress(item.id)}>
       <View style={styles.cardImageWrap}>
         {primaryImage ? (
@@ -87,9 +90,16 @@ function CartItemCard({
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleWrap}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
+            <PageTranslationToggle style={styles.cardTranslationToggle} />
+            <TranslatableText
+              entityType="secondhand"
+              entityId={item.id}
+              fieldName="title"
+              sourceText={item.title}
+              sourceLanguage={item.sourceLanguage}
+              textStyle={styles.cardTitle}
+              numberOfLines={2}
+            />
             <Text style={styles.cardPrice}>{item.price}</Text>
           </View>
           <TouchableOpacity
@@ -111,9 +121,16 @@ function CartItemCard({
             <>
               <View style={styles.metaDot} />
               <MapPinIcon size={14} color={colors.onSurfaceVariant} />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {item.location}
-              </Text>
+              <TranslatableText
+                entityType="secondhand"
+                entityId={item.id}
+                fieldName="location"
+                sourceText={item.location}
+                sourceLanguage={item.sourceLanguage}
+                textStyle={styles.locationText}
+                containerStyle={styles.locationWrap}
+                numberOfLines={1}
+              />
             </>
           ) : null}
         </View>
@@ -127,6 +144,7 @@ function CartItemCard({
         </View>
       </View>
     </TouchableOpacity>
+    </PageTranslationProvider>
   );
 }
 
@@ -215,7 +233,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={24} color={colors.onSurface} />
@@ -310,7 +328,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -426,6 +444,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
   },
+  cardTranslationToggle: {
+    alignSelf: 'flex-start',
+  },
   cardPrice: {
     ...typography.titleMedium,
     color: colors.error,
@@ -461,6 +482,9 @@ const styles = StyleSheet.create({
   locationText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flex: 1,
+  },
+  locationWrap: {
     flex: 1,
   },
   footerRow: {

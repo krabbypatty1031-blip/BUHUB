@@ -34,6 +34,8 @@ import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import PressScaleButton from '../../components/common/PressScaleButton';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import {
   BackIcon,
   HeartIcon,
@@ -61,7 +63,7 @@ import { normalizeImageUrl } from '../../utils/imageUrl';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
 
-/* ── Helper functions for infinite nested comments ── */
+/* Helper functions for infinite nested comments */
 
 // Recursively find all parent comment IDs that need to be expanded
 // Returns null if not found, otherwise returns array of parent IDs
@@ -162,7 +164,7 @@ function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: bool
   return <Animated.View style={[styles.pollBar, isVoted && styles.pollBarVoted, barStyle]} />;
 }
 
-/* ── Inline action bar for comments / replies ── */
+/* Inline action bar for comments and replies */
 function ItemActions({
   likes,
   liked,
@@ -330,7 +332,8 @@ function ReplyItem({
   }, [visibleNestedRepliesCount, nestedReplies.length]);
 
   return (
-    <Animated.View
+    <PageTranslationProvider>
+      <Animated.View
       ref={(node) => registerItemRef?.(reply.id, node as unknown as View | null)}
       style={[
         isNestedReply ? styles.nestedReplyItem : styles.replyItem,
@@ -357,12 +360,27 @@ function ReplyItem({
         </View>
         <View style={styles.replyBodyContainer}>
           {reply.replyTo ? (
-            <Text style={styles.replyBody}>
-              <Text style={styles.replyToAt}>@{reply.replyTo}</Text>{' '}
-              {reply.content}
-            </Text>
+            <TranslatableText
+              entityType="comment"
+              entityId={reply.id}
+              fieldName="content"
+              sourceText={reply.content}
+              sourceLanguage={reply.sourceLanguage}
+              textStyle={styles.replyBody}
+              containerStyle={styles.replyTranslateBlock}
+              prefixText={`@${reply.replyTo}`}
+              prefixTextStyle={styles.replyToAt}
+            />
           ) : (
-            <Text style={styles.replyBody}>{reply.content}</Text>
+            <TranslatableText
+              entityType="comment"
+              entityId={reply.id}
+              fieldName="content"
+              sourceText={reply.content}
+              sourceLanguage={reply.sourceLanguage}
+              textStyle={styles.replyBody}
+              containerStyle={styles.replyTranslateBlock}
+            />
           )}
         </View>
       </TouchableOpacity>
@@ -378,6 +396,7 @@ function ReplyItem({
           replyCount={totalNestedReplies}
           size={14}
         />
+        <PageTranslationToggle style={styles.replyTranslationToggle} />
       </View>
       {/* Recursively render nested replies (level 3+) with collapse logic */}
       {hasNestedReplies && (
@@ -430,11 +449,12 @@ function ReplyItem({
           )}
         </>
       )}
-    </Animated.View>
+      </Animated.View>
+    </PageTranslationProvider>
   );
 }
 
-/* ── Comment item (一级评论 ── */
+/* Comment item (top-level comment) */
 function CommentItem({
   comment,
   lang,
@@ -525,7 +545,8 @@ function CommentItem({
     : undefined;
 
   return (
-    <Animated.View
+    <PageTranslationProvider>
+      <Animated.View
       ref={(node) => registerItemRef?.(comment.id, node as unknown as View | null)}
       style={[
         styles.commentItem,
@@ -556,7 +577,15 @@ function CommentItem({
             </View>
           </View>
         </View>
-        <Text style={styles.commentBody}>{comment.content}</Text>
+        <TranslatableText
+          entityType="comment"
+          entityId={comment.id}
+          fieldName="content"
+          sourceText={comment.content}
+          sourceLanguage={comment.sourceLanguage}
+          textStyle={styles.commentBody}
+          containerStyle={styles.commentTranslateBlock}
+        />
       </TouchableOpacity>
 
       {/* Actions: like, comment, forward, bookmark */}
@@ -571,6 +600,7 @@ function CommentItem({
           bookmarked={comment.bookmarked ?? false}
           replyCount={totalReplies}
         />
+        <PageTranslationToggle style={styles.commentTranslationToggle} />
       </View>
 
       {/* Replies */}
@@ -622,7 +652,8 @@ function CommentItem({
           )}
         </>
       )}
-    </Animated.View>
+      </Animated.View>
+    </PageTranslationProvider>
   );
 }
 
@@ -1000,6 +1031,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     return (
       <View>
         {/* Post Content */}
+        <PageTranslationProvider>
         <View style={styles.postSection}>
           <View style={styles.postHeader}>
             {post.isAnonymous ? (
@@ -1037,9 +1069,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
               </View>
             </View>
+            <PageTranslationToggle style={styles.postTranslationToggle} />
           </View>
-
-          <Text style={styles.postContent}>{post.content}</Text>
+          <TranslatableText
+            entityType="post"
+            entityId={post.id}
+            fieldName="content"
+            sourceText={post.content}
+            sourceLanguage={post.sourceLanguage ?? post.lang}
+            textStyle={styles.postContent}
+            containerStyle={styles.postTranslateBlock}
+          />
 
           {post.isFunction && post.functionType && (
             <TouchableOpacity
@@ -1083,9 +1123,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 <QuoteIcon size={12} color="#999999" />
                 <Text style={styles.quotedLabel}>引用帖子</Text>
               </View>
-              <Text style={styles.quotedContent} numberOfLines={3}>
-                {post.quotedPost.content}
-              </Text>
+              <TranslatableText
+                entityType="post"
+                entityId={post.quotedPost.id}
+                fieldName="content"
+                sourceText={post.quotedPost.content}
+                sourceLanguage={post.quotedPost.sourceLanguage}
+                textStyle={styles.quotedContent}
+                numberOfLines={3}
+              />
               <Text style={styles.quotedMeta}>
                 {post.quotedPost?.name} ·{getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
               </Text>
@@ -1200,6 +1246,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+        </PageTranslationProvider>
 
         <View style={styles.divider} />
 
@@ -1241,7 +1288,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -1413,7 +1460,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         onClose={() => setReportVisible(false)}
         onSubmit={handleReportSubmit}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -1488,6 +1535,14 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     lineHeight: 24,
     marginBottom: spacing.md,
+  },
+  postTranslateBlock: {
+    marginBottom: spacing.md,
+  },
+  postTranslationToggle: {
+    marginLeft: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingTop: 2,
   },
   postTags: {
     flexDirection: 'row',
@@ -1629,7 +1684,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
-  /* Post actions — 5 buttons evenly spaced */
+  /* Post actions: 5 buttons evenly spaced */
   postActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1656,7 +1711,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
   },
 
-  /* ── Comments ── */
+  /* Comments */
   commentSectionHeader: {
     padding: spacing.lg,
     paddingBottom: spacing.sm,
@@ -1673,6 +1728,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.xs,
+  },
+  commentTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   commentUserInfo: {
     marginLeft: spacing.sm,
@@ -1702,6 +1761,8 @@ const styles = StyleSheet.create({
   commentBody: {
     ...typography.bodyMedium,
     color: colors.onSurface,
+  },
+  commentTranslateBlock: {
     marginLeft: 40,
     marginBottom: spacing.xs,
   },
@@ -1709,6 +1770,8 @@ const styles = StyleSheet.create({
   /* Comment-level actions */
   commentActionsRow: {
     marginLeft: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemActions: {
     flexDirection: 'row',
@@ -1767,6 +1830,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.onSurface,
   },
+  replyTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
+  },
   replyToLabel: {
     fontSize: 11,
     color: colors.onSurfaceVariant,
@@ -1778,6 +1845,9 @@ const styles = StyleSheet.create({
   replyBodyContainer: {
     marginLeft: 28,
     marginTop: 2,
+    marginBottom: spacing.xxs,
+  },
+  replyTranslateBlock: {
     marginBottom: spacing.xxs,
   },
   replyBody: {
@@ -1792,6 +1862,8 @@ const styles = StyleSheet.create({
   },
   replyActions: {
     marginLeft: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   /* ── Mention Suggestions ── */

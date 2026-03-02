@@ -1,4 +1,4 @@
-import { Gender } from './common';
+import { Gender, Language } from './common';
 
 export type PartnerCategory = 'travel' | 'food' | 'course' | 'sports' | 'other';
 
@@ -8,6 +8,7 @@ export interface PartnerPost {
   type: string;
   title: string;
   desc: string;
+  sourceLanguage?: Language;
   time: string;
   location: string;
   user: string;

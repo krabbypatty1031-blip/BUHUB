@@ -129,6 +129,11 @@ const ENDPOINTS = {
   REPORT: {
     SUBMIT: '/reports',
   },
+
+  TRANSLATION: {
+    RESOLVE: '/translations/resolve',
+    BATCH: '/translations/batch',
+  },
 } as const;
 
 export default ENDPOINTS;

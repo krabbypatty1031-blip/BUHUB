@@ -22,6 +22,8 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -98,7 +100,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
   if (!partner) {
     return (
-      <SafeAreaView style={styles.container}>
+      <PageTranslationProvider>
+        <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
@@ -110,7 +113,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           <UsersIcon size={48} color={colors.outlineVariant} />
           <Text style={styles.emptyText}>{t('notFound')}</Text>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </PageTranslationProvider>
     );
   }
 
@@ -121,7 +125,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PageTranslationProvider>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
@@ -178,8 +183,16 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 </View>
               </>
             )}
+            <PageTranslationToggle style={styles.headerTranslationToggle} />
           </View>
-          <Text style={styles.title}>{partner.title}</Text>
+          <TranslatableText
+            entityType="partner"
+            entityId={partner.id}
+            fieldName="title"
+            sourceText={partner.title}
+            sourceLanguage={partner.sourceLanguage}
+            textStyle={styles.title}
+          />
         </View>
 
         <View style={styles.divider} />
@@ -187,7 +200,14 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
-          <Text style={styles.descriptionText}>{partner.desc}</Text>
+          <TranslatableText
+            entityType="partner"
+            entityId={partner.id}
+            fieldName="description"
+            sourceText={partner.desc}
+            sourceLanguage={partner.sourceLanguage}
+            textStyle={styles.descriptionText}
+          />
         </View>
 
         <View style={styles.divider} />
@@ -199,7 +219,15 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             <View style={styles.detailIcon}>
               <ClockIcon size={16} color={colors.onSurface} />
             </View>
-            <Text style={styles.detailValue}>{partner.time}</Text>
+            <TranslatableText
+              entityType="partner"
+              entityId={partner.id}
+              fieldName="time"
+              sourceText={partner.time}
+              sourceLanguage={partner.sourceLanguage}
+              textStyle={styles.detailValue}
+              containerStyle={styles.detailTextBlock}
+            />
           </View>
         </View>
 
@@ -214,7 +242,15 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 <View style={styles.detailIcon}>
                   <MapPinIcon size={16} color={colors.onSurface} />
                 </View>
-                <Text style={styles.detailValue}>{partner.location}</Text>
+                <TranslatableText
+                  entityType="partner"
+                  entityId={partner.id}
+                  fieldName="location"
+                  sourceText={partner.location}
+                  sourceLanguage={partner.sourceLanguage}
+                  textStyle={styles.detailValue}
+                  containerStyle={styles.detailTextBlock}
+                />
               </View>
             </View>
             <View style={styles.divider} />
@@ -280,7 +316,8 @@ onSubmit={async (reasonCategory, reason) => {
         functionId={partner.id}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </PageTranslationProvider>
   );
 }
 
@@ -334,6 +371,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
     gap: spacing.md,
+  },
+  headerTranslationToggle: {
+    marginLeft: 'auto',
   },
   tagRow: {
     flexDirection: 'row',
@@ -420,6 +460,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 22,
+  },
+  detailTextBlock: {
+    flex: 1,
   },
 
   /* ----- Organizer ----- */

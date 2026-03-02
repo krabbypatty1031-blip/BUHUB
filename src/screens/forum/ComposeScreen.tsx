@@ -20,6 +20,8 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import GradientCard from '../../components/common/GradientCard';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { CloseIcon, PlusIcon, CameraIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
 import { buildPostMeta } from '../../utils/formatTime';
 import type { Language } from '../../types';
@@ -152,7 +154,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
@@ -175,14 +177,25 @@ export default function ComposeScreen({ navigation, route }: Props) {
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Quoted Post */}
         {quotedPost && (
-          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
+          <PageTranslationProvider>
+            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
             <View style={styles.quoteHeader}>
               <QuoteIcon size={12} color="#999999" />
               <Text style={styles.quoteLabel}>{t('quotePost')}</Text>
+              <PageTranslationToggle style={styles.quoteTranslationToggle} />
             </View>
-            <Text style={styles.quoteContent} numberOfLines={3}>{quotedPost.content}</Text>
+            <TranslatableText
+              entityType="post"
+              entityId={quotedPost.id}
+              fieldName="content"
+              sourceText={quotedPost.content}
+              sourceLanguage={quotedPost.sourceLanguage}
+              textStyle={styles.quoteContent}
+              numberOfLines={3}
+            />
             <Text style={styles.quoteMeta}>{quotedPost.name} · {quotedMeta}</Text>
           </GradientCard>
+          </PageTranslationProvider>
         )}
 
         {/* Function Reference Card */}
@@ -294,7 +307,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -491,6 +504,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
+  },
+  quoteTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   quoteHeader: {
     flexDirection: 'row',

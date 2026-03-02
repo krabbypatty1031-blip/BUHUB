@@ -15,6 +15,8 @@ import type { Language } from '../../types';
 import Avatar from './Avatar';
 import Tag from './Tag';
 import PressScaleButton from './PressScaleButton';
+import { PageTranslationProvider, PageTranslationToggle } from './PageTranslation';
+import TranslatableText from './TranslatableText';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import {
   HeartIcon,
@@ -145,7 +147,8 @@ function PostCard({
   }, [onComment]);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <PageTranslationProvider>
+      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       {/* Header */}
       <View style={styles.header}>
         {!post.isAnonymous && onAvatarPress ? (
@@ -182,10 +185,18 @@ function PostCard({
         </View>
       </View>
 
-      {/* Body — aligned with name */}
+      {/* Body aligned with name */}
       <View style={styles.body}>
         {/* Content */}
-        <Text style={styles.content} numberOfLines={4}>{post.content}</Text>
+        <TranslatableText
+          entityType="post"
+          entityId={post.id}
+          fieldName="content"
+          sourceText={post.content}
+          sourceLanguage={post.sourceLanguage ?? post.lang}
+          textStyle={styles.content}
+          numberOfLines={4}
+        />
 
         {/* Tags */}
         {post.tags && post.tags.length > 0 && (
@@ -288,7 +299,15 @@ function PostCard({
                 <QuoteIcon size={12} color="#999999" />
                 <Text style={styles.quotedLabel}>引用帖子</Text>
               </View>
-              <Text style={styles.quotedContent} numberOfLines={3}>{post.quotedPost.content}</Text>
+              <TranslatableText
+                entityType="post"
+                entityId={post.quotedPost.id}
+                fieldName="content"
+                sourceText={post.quotedPost.content}
+                sourceLanguage={post.quotedPost.sourceLanguage}
+                textStyle={styles.quotedContent}
+                numberOfLines={3}
+              />
               <Text style={styles.quotedMeta}>{post.quotedPost.name} · {quotedTime}</Text>
             </GradientCard>
           </TouchableOpacity>
@@ -333,9 +352,11 @@ function PostCard({
               <TrashIcon size={18} color="#000000" />
             </TouchableOpacity>
           )}
+          <PageTranslationToggle style={styles.translationToggle} />
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </PageTranslationProvider>
   );
 }
 
@@ -356,6 +377,10 @@ const styles = StyleSheet.create({
   headerInfo: {
     marginLeft: spacing.md,
     flex: 1,
+  },
+  translationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   body: {
     marginLeft: 32 + spacing.md,

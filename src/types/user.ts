@@ -58,6 +58,7 @@ export interface UserPost {
   majorKey?: string;
   meta: string;
   lang: string;
+  sourceLanguage?: Language;
   content: string;
   translated?: { sc: string; en: string };
   time: string;
@@ -80,6 +81,7 @@ export interface UserPost {
   quotedPost?: {
     id: string;
     name: string;
+    sourceLanguage?: Language;
     content: string;
     createdAt: string;
   };
@@ -100,6 +102,7 @@ export interface UserComment {
   postAuthor: string;
   postContent: string;
   comment: string;
+  sourceLanguage?: Language;
   time: string;
   likes: number;
   liked?: boolean;
@@ -136,6 +139,7 @@ export interface LikedComment {
   postContent: string;
   commentAuthor: string;
   comment: string;
+  sourceLanguage?: Language;
   time: string;
   likes: number;
   replyCount?: number;

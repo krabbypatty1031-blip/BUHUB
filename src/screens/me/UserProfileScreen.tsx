@@ -31,6 +31,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const [popoverVisible, setPopoverVisible] = React.useState(false);
   const isFollowing = profile?.isFollowedByMe ?? false;
   const profileMeta = [profile?.major, profile?.grade]
     .filter((value): value is string => !!value && value.trim().length > 0)
@@ -51,6 +52,19 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       },
     ]);
   }, [t, blockUserMutation, userName, showSnackbar, navigation]);
+
+  const handleOpenActions = useCallback(() => {
+    setPopoverVisible(true);
+  }, []);
+
+  const handleCloseActions = useCallback(() => {
+    setPopoverVisible(false);
+  }, []);
+
+  const handleBlockAction = useCallback(() => {
+    setPopoverVisible(false);
+    handleBlock();
+  }, [handleBlock]);
 
   const handleFollow = useCallback(() => {
     followUser.mutate(userName);
@@ -92,10 +106,23 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.topBarCenterSpacer} />
-          <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
+          <TouchableOpacity onPress={handleOpenActions} style={styles.iconBtn}>
             <MoreHorizontalIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
         </View>
+        {popoverVisible && (
+          <TouchableOpacity
+            style={styles.popoverOverlay}
+            activeOpacity={1}
+            onPress={handleCloseActions}
+          >
+            <View style={styles.popoverBubble}>
+              <TouchableOpacity style={styles.popoverItem} onPress={handleBlockAction}>
+                <Text style={styles.popoverItemText}>{t('blockUser')}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -113,10 +140,24 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <View style={styles.topBarCenterSpacer} />
-        <TouchableOpacity onPress={handleBlock} style={styles.iconBtn}>
+        <TouchableOpacity onPress={handleOpenActions} style={styles.iconBtn}>
           <MoreHorizontalIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={handleCloseActions}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity style={styles.popoverItem} onPress={handleBlockAction}>
+              <Text style={styles.popoverItemText}>{t('blockUser')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHeader}>
@@ -347,5 +388,37 @@ const styles = StyleSheet.create({
   },
   followBtnTextFollowing: {
     color: colors.primary,
+  },
+  popoverOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  popoverBubble: {
+    position: 'absolute',
+    top: 52,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    zIndex: 101,
+  },
+  popoverItem: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.error,
   },
 });

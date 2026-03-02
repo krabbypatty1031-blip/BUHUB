@@ -22,7 +22,9 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
 import {
   BackIcon,
@@ -179,8 +181,10 @@ export default function MyPostsScreen({ navigation }: Props) {
         majorKey: d.majorKey,
         createdAt: d.createdAt,
       });
+      const entityType = item.kind === 'partner' ? 'partner' : item.kind === 'errand' ? 'errand' : 'secondhand';
 
       return (
+        <PageTranslationProvider>
         <TouchableOpacity
           style={[styles.card, expired && styles.cardExpired]}
           activeOpacity={0.7}
@@ -208,8 +212,24 @@ export default function MyPostsScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{d.title}</Text>
-            <Text style={styles.cardDesc} numberOfLines={2}>{d.desc}</Text>
+            <TranslatableText
+              entityType={entityType}
+              entityId={item.id}
+              fieldName="title"
+              sourceText={d.title}
+              sourceLanguage={d.sourceLanguage}
+              textStyle={styles.cardTitle}
+              numberOfLines={2}
+            />
+            <TranslatableText
+              entityType={entityType}
+              entityId={item.id}
+              fieldName="description"
+              sourceText={d.desc}
+              sourceLanguage={d.sourceLanguage}
+              textStyle={styles.cardDesc}
+              numberOfLines={2}
+            />
             <View style={styles.cardFooter}>
               <View style={styles.cardFooterLeft}>
                 {item.kind !== 'partner' && (
@@ -232,16 +252,18 @@ export default function MyPostsScreen({ navigation }: Props) {
                   </Text>
                 </View>
               )}
+              <PageTranslationToggle style={styles.cardTranslationToggle} />
             </View>
           </View>
         </TouchableOpacity>
+        </PageTranslationProvider>
       );
     },
     [handlePress, t, lang]
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <BackIcon size={24} color={colors.onSurface} />
@@ -368,7 +390,7 @@ export default function MyPostsScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -423,6 +445,10 @@ const styles = StyleSheet.create({
   cardHeaderInfo: {
     flex: 1,
     marginLeft: AVATAR_GAP,
+  },
+  cardTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   nameRow: {
     flexDirection: 'row',

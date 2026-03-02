@@ -1,4 +1,4 @@
-import { Gender } from './common';
+import { Gender, Language } from './common';
 
 export type ErrandCategory = 'pickup' | 'buy' | 'other';
 
@@ -8,6 +8,7 @@ export interface Errand {
   type: string;
   title: string;
   desc: string;
+  sourceLanguage?: Language;
   from: string;
   to: string;
   price: string;

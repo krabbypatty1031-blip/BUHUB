@@ -208,7 +208,7 @@ export default function ForumScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>UHUB</Text>
@@ -328,7 +328,7 @@ export default function ForumScreen({ navigation }: Props) {
         onClose={() => setForwardPost(null)}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 

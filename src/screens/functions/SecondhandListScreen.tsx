@@ -26,6 +26,8 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import Avatar from '../../components/common/Avatar';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import {
@@ -75,6 +77,7 @@ const ItemCard = React.memo(function ItemCard({
   const primaryImage = item.images?.[0];
 
   return (
+    <PageTranslationProvider>
     <TouchableOpacity
       style={[styles.card, { width: cardWidth }]}
       activeOpacity={0.7}
@@ -112,9 +115,19 @@ const ItemCard = React.memo(function ItemCard({
 
       {/* Card body */}
       <View style={styles.cardBody}>
-        <Text style={[styles.itemTitle, isSoldOrExpired && styles.textDimmed]} numberOfLines={2}>
-          {item.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <TranslatableText
+            entityType="secondhand"
+            entityId={id}
+            fieldName="title"
+            sourceText={item.title}
+            sourceLanguage={item.sourceLanguage}
+            textStyle={[styles.itemTitle, isSoldOrExpired && styles.textDimmed]}
+            containerStyle={styles.titleTextWrap}
+            numberOfLines={2}
+          />
+          <PageTranslationToggle style={styles.cardTranslationToggle} />
+        </View>
 
         <Text style={styles.itemPrice}>{item.price}</Text>
 
@@ -142,6 +155,7 @@ const ItemCard = React.memo(function ItemCard({
         )}
       </View>
     </TouchableOpacity>
+    </PageTranslationProvider>
   );
 });
 
@@ -252,7 +266,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.topBarSide}>
@@ -396,7 +410,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -529,6 +543,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    position: 'relative',
+  },
+  cardTranslationToggle: {
+    marginLeft: spacing.sm,
+    alignSelf: 'flex-start',
   },
   cardImage: {
     ...StyleSheet.absoluteFillObject,
@@ -581,11 +600,19 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  titleTextWrap: {
+    flex: 1,
+  },
   itemTitle: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     fontWeight: '500',
-    marginBottom: spacing.xs,
     lineHeight: 18,
   },
   textDimmed: {

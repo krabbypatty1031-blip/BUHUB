@@ -17,11 +17,13 @@ import { typography } from '../../theme/typography';
 import { CheckIcon } from '../../components/common/icons';
 
 type Language = 'tc' | 'sc' | 'en';
+
 const LANGUAGE_LABELS: Record<Language, Record<Language, string>> = {
-  tc: { tc: '粵語', sc: '普通話', en: '英文' },
-  sc: { tc: '粤语', sc: '普通话', en: '英文' },
-  en: { tc: 'Cantonese', sc: 'Mandarin', en: 'English' },
+  tc: { tc: '繁體中文', sc: '简体中文', en: 'English' },
+  sc: { tc: '繁體中文', sc: '简体中文', en: 'English' },
+  en: { tc: 'Traditional Chinese', sc: 'Simplified Chinese', en: 'English' },
 };
+
 const SELECT_LANGUAGE_LABELS: Record<Language, string> = {
   tc: '請選擇語言',
   sc: '请选择语言',

@@ -22,6 +22,8 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import TranslatableText from '../../components/common/TranslatableText';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -101,7 +103,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
   if (!errand) {
     return (
-      <SafeAreaView style={styles.container}>
+      <PageTranslationProvider>
+        <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <BackIcon size={24} color={colors.onSurface} />
@@ -113,7 +116,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <TruckIcon size={48} color={colors.outlineVariant} />
           <Text style={styles.emptyText}>{t('notFound')}</Text>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </PageTranslationProvider>
     );
   }
 
@@ -124,7 +128,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <PageTranslationProvider>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
@@ -180,8 +185,16 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                 </View>
               </>
             )}
+            <PageTranslationToggle style={styles.headerTranslationToggle} />
           </View>
-          <Text style={styles.title}>{errand.title}</Text>
+          <TranslatableText
+            entityType="errand"
+            entityId={errand.id}
+            fieldName="title"
+            sourceText={errand.title}
+            sourceLanguage={errand.sourceLanguage}
+            textStyle={styles.title}
+          />
         </View>
 
         <View style={styles.divider} />
@@ -205,7 +218,14 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         {/* ----- Description ----- */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
-          <Text style={styles.descriptionText}>{errand.desc}</Text>
+          <TranslatableText
+            entityType="errand"
+            entityId={errand.id}
+            fieldName="description"
+            sourceText={errand.desc}
+            sourceLanguage={errand.sourceLanguage}
+            textStyle={styles.descriptionText}
+          />
         </View>
 
         <View style={styles.divider} />
@@ -222,7 +242,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               </View>
               <View style={styles.routeContent}>
                 <Text style={styles.routeLabel}>{t('pickupLocation')}</Text>
-                <Text style={styles.routeValue}>{errand.from}</Text>
+                <TranslatableText
+                  entityType="errand"
+                  entityId={errand.id}
+                  fieldName="from"
+                  sourceText={errand.from}
+                  sourceLanguage={errand.sourceLanguage}
+                  textStyle={styles.routeValue}
+                  containerStyle={styles.routeTextBlock}
+                />
               </View>
             </View>
 
@@ -233,7 +261,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               </View>
               <View style={styles.routeContent}>
                 <Text style={styles.routeLabel}>{t('deliveryLocation')}</Text>
-                <Text style={styles.routeValue}>{errand.to}</Text>
+                <TranslatableText
+                  entityType="errand"
+                  entityId={errand.id}
+                  fieldName="to"
+                  sourceText={errand.to}
+                  sourceLanguage={errand.sourceLanguage}
+                  textStyle={styles.routeValue}
+                  containerStyle={styles.routeTextBlock}
+                />
               </View>
             </View>
           </View>
@@ -248,7 +284,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <View style={styles.detailIcon}>
               <PackageIcon size={16} color={colors.onSurface} />
             </View>
-            <Text style={styles.detailValue}>{errand.item}</Text>
+            <TranslatableText
+              entityType="errand"
+              entityId={errand.id}
+              fieldName="item"
+              sourceText={errand.item}
+              sourceLanguage={errand.sourceLanguage}
+              textStyle={styles.detailValue}
+              containerStyle={styles.detailTextBlock}
+            />
           </View>
         </View>
 
@@ -260,7 +304,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <View style={styles.detailIcon}>
               <ClockIcon size={16} color={colors.onSurface} />
             </View>
-            <Text style={styles.detailValue}>{errand.time}</Text>
+            <TranslatableText
+              entityType="errand"
+              entityId={errand.id}
+              fieldName="time"
+              sourceText={errand.time}
+              sourceLanguage={errand.sourceLanguage}
+              textStyle={styles.detailValue}
+              containerStyle={styles.detailTextBlock}
+            />
           </View>
         </View>
 
@@ -333,7 +385,8 @@ onSubmit={async (reasonCategory, reason) => {
         functionId={errand.id}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </PageTranslationProvider>
   );
 }
 
@@ -387,6 +440,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
     gap: spacing.md,
+  },
+  headerTranslationToggle: {
+    marginLeft: 'auto',
   },
   tagRow: {
     flexDirection: 'row',
@@ -521,6 +577,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 22,
   },
+  routeTextBlock: {
+    flex: 1,
+  },
 
   /* ----- Detail rows ----- */
   detailRow: {
@@ -542,6 +601,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 22,
+  },
+  detailTextBlock: {
+    flex: 1,
   },
 
   /* ----- Poster ----- */

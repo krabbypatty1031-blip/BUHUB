@@ -1,4 +1,4 @@
-import { Gender } from './common';
+import { Gender, Language } from './common';
 
 export type SecondhandCategory = 'electronics' | 'books' | 'furniture' | 'other';
 
@@ -8,6 +8,7 @@ export interface SecondhandItem {
   type: string;
   title: string;
   desc: string;
+  sourceLanguage?: Language;
   images: string[];
   price: string;
   condition: string;

@@ -23,7 +23,9 @@ import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
+import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -127,6 +129,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         createdAt: item.createdAt,
       });
       return (
+        <PageTranslationProvider>
         <TouchableOpacity
           style={[styles.card, item.expired && styles.cardExpired]}
           activeOpacity={0.7}
@@ -159,12 +162,24 @@ export default function ErrandListScreen({ navigation }: Props) {
 
           {/* Row 2+: Title & Content, aligned with name */}
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <Text style={styles.cardContent} numberOfLines={2}>
-              {item.desc}
-            </Text>
+            <TranslatableText
+              entityType="errand"
+              entityId={item.id}
+              fieldName="title"
+              sourceText={item.title}
+              sourceLanguage={item.sourceLanguage}
+              textStyle={styles.cardTitle}
+              numberOfLines={2}
+            />
+            <TranslatableText
+              entityType="errand"
+              entityId={item.id}
+              fieldName="description"
+              sourceText={item.desc}
+              sourceLanguage={item.sourceLanguage}
+              textStyle={styles.cardContent}
+              numberOfLines={2}
+            />
 
             {/* Footer: price + badges */}
             <View style={styles.cardFooter}>
@@ -179,16 +194,18 @@ export default function ErrandListScreen({ navigation }: Props) {
                   <Text style={styles.expiredBadgeText}>{t('errandExpired')}</Text>
                 </View>
               )}
+              <PageTranslationToggle style={styles.cardTranslationToggle} />
             </View>
           </View>
         </TouchableOpacity>
+        </PageTranslationProvider>
       );
     },
     [acceptedErrands, navigation, t, lang]
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -315,7 +332,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
@@ -407,6 +424,10 @@ const styles = StyleSheet.create({
   cardHeaderInfo: {
     flex: 1,
     marginLeft: AVATAR_GAP,
+  },
+  cardTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   nameRow: {
     flexDirection: 'row',

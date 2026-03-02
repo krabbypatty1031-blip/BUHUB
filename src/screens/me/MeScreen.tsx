@@ -28,8 +28,10 @@ import EmptyState from '../../components/common/EmptyState';
 import { ProfileSkeleton } from '../../components/common/Skeleton';
 import TabBar, { type TabOption } from '../../components/common/TabBar';
 import PostCard from '../../components/common/PostCard';
+import TranslatableText from '../../components/common/TranslatableText';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import PressScaleButton from '../../components/common/PressScaleButton';
+import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import {
   EditIcon,
   ShareIcon,
@@ -173,6 +175,7 @@ const CommentItem = React.memo(function CommentItem({
   }, [comment.commentId, comment.bookmarked, bookmarkCommentMutation, showSnackbar, t, onBookmarkUpdate, onUpdate]);
 
   return (
+    <PageTranslationProvider>
     <TouchableOpacity style={styles.commentItem} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.commentHeader}>
         <Avatar
@@ -197,7 +200,15 @@ const CommentItem = React.memo(function CommentItem({
         {t('replyTo')} @{comment.replyToName || comment.postAuthor}
       </Text>
 
-      <Text style={styles.commentBody} numberOfLines={3}>{comment.comment}</Text>
+      <TranslatableText
+        entityType="comment"
+        entityId={comment.commentId}
+        fieldName="content"
+        sourceText={comment.comment}
+        sourceLanguage={comment.sourceLanguage}
+        textStyle={styles.commentBody}
+        numberOfLines={3}
+      />
 
       <View style={styles.commentActionsRow}>
         <View style={styles.itemActions}>
@@ -223,8 +234,10 @@ const CommentItem = React.memo(function CommentItem({
             </TouchableOpacity>
           )}
         </View>
+        <PageTranslationToggle style={styles.commentTranslationToggle} />
       </View>
     </TouchableOpacity>
+    </PageTranslationProvider>
   );
 });
 
@@ -361,6 +374,7 @@ export default function MeScreen({ navigation }: Props) {
     content: p.content,
     createdAt: p.time,
     lang: p.lang,
+    sourceLanguage: p.sourceLanguage ?? (p.lang as Language),
     likes: p.likes,
     comments: p.comments,
     tags: p.tags,
@@ -377,7 +391,12 @@ export default function MeScreen({ navigation }: Props) {
     functionId: p.functionId,
     functionIndex: p.functionIndex,
     functionTitle: p.functionTitle,
-    quotedPost: p.quotedPost,
+    quotedPost: p.quotedPost
+      ? {
+        ...p.quotedPost,
+        sourceLanguage: p.quotedPost.sourceLanguage,
+      }
+      : undefined,
     liked: p.liked,
     bookmarked: p.bookmarked,
   }), []);
@@ -455,6 +474,7 @@ export default function MeScreen({ navigation }: Props) {
                 postAuthor: c.postAuthor,
                 postContent: c.postContent,
                 comment: c.comment,
+                sourceLanguage: c.sourceLanguage,
                 time: c.time,
                 likes: c.likes,
                 liked: c.liked ?? true,
@@ -1130,6 +1150,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  commentTranslationToggle: {
+    marginLeft: 'auto',
+    alignSelf: 'center',
+  },
   commentUserInfo: {
     marginLeft: spacing.sm,
     flex: 1,
@@ -1181,6 +1205,8 @@ const styles = StyleSheet.create({
   },
   commentActionsRow: {
     marginLeft: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemActions: {
     flexDirection: 'row',

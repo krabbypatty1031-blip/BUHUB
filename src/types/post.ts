@@ -1,4 +1,4 @@
-import type { Gender, Translated, PollOption } from './common';
+import type { Gender, Language, Translated, PollOption } from './common';
 
 export interface ForumPost {
   id: string;
@@ -12,6 +12,7 @@ export interface ForumPost {
   majorKey?: string;
   createdAt: string;
   lang: string;
+  sourceLanguage?: Language;
   content: string;
   translated?: Translated;
   images?: string[];
@@ -39,6 +40,7 @@ export interface ForumPost {
     name: string;
     avatar?: string;
     gender?: Gender;
+    sourceLanguage?: Language;
     content: string;
     createdAt?: string;
     isAnonymous?: boolean;
@@ -53,6 +55,7 @@ export interface Comment {
   gender?: Gender;
   gradeKey?: string;
   majorKey?: string;
+  sourceLanguage?: Language;
   content: string;
   time: string;
   createdAt?: string;
@@ -71,6 +74,7 @@ export interface Reply {
   gender?: Gender;
   gradeKey?: string;
   majorKey?: string;
+  sourceLanguage?: Language;
   replyTo: string;
   content: string;
   time: string;

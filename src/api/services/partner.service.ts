@@ -32,6 +32,7 @@ const mapPartner = (p: any): PartnerPost => ({
   majorKey: p.author?.major ?? p.majorKey ?? undefined,
   authorId: p.author?.id ?? p.authorId,
   desc: p.description ?? p.desc,
+  sourceLanguage: p.sourceLanguage ?? 'tc',
 });
 
 export const partnerService = {

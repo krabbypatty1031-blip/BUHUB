@@ -30,6 +30,7 @@ const mapErrand = (e: any): Errand => ({
   majorKey: e.author?.major ?? e.majorKey ?? undefined,
   authorId: e.author?.id ?? e.authorId,
   desc: e.description ?? e.desc,
+  sourceLanguage: e.sourceLanguage ?? 'tc',
 });
 
 export const errandService = {

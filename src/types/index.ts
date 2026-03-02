@@ -8,3 +8,4 @@ export * from './rating';
 export * from './message';
 export * from './notification';
 export * from './navigation';
+export * from './translation';

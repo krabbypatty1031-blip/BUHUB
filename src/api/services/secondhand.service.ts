@@ -38,6 +38,7 @@ const mapSecondhand = (i: any): SecondhandItem => ({
   authorId: i.author?.id ?? i.authorId,
   desc: i.description ?? i.desc,
   isWanted: Boolean(i.isWanted ?? (Array.isArray(i.wants) && i.wants.length > 0)),
+  sourceLanguage: i.sourceLanguage ?? 'tc',
 });
 
 export const secondhandService = {
