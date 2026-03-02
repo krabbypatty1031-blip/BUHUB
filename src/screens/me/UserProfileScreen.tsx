@@ -1,42 +1,103 @@
-﻿import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
+import type { ForumPost } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
+import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
 import { useUIStore } from '../../store/uiStore';
+import { useForumStore } from '../../store/forumStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, UsersIcon, MessageIcon, MoreHorizontalIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import EmptyState from '../../components/common/EmptyState';
+import PostCard from '../../components/common/PostCard';
+import ForwardSheet from '../../components/common/ForwardSheet';
+import { ForumListSkeleton } from '../../components/common/Skeleton';
+import {
+  BackIcon,
+  UsersIcon,
+  MessageIcon,
+  MoreHorizontalIcon,
+  MaleIcon,
+  FemaleIcon,
+  EditIcon,
+  ImageIcon,
+  BarChartIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from '../../components/common/icons';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { getVotedOptionIndex } from '../../utils/forum';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
+
+function normalizeHandle(value?: string | null): string {
+  return (value ?? '').trim().toLowerCase();
+}
 
 export default function UserProfileScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { userName } = route.params;
-  const { data: profile, isLoading } = usePublicProfile(userName);
+  const queryClient = useQueryClient();
+  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
+  const { data: allPosts, isLoading: postsLoading, refetch: refetchPosts } = usePosts();
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
+  const likePostMutation = useLikePost();
+  const bookmarkPostMutation = useBookmarkPost();
+  const votePostMutation = useVotePost();
+  const votedPolls = useForumStore((s) => s.votedPolls);
+  const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+
   const [popoverVisible, setPopoverVisible] = React.useState(false);
+  const [composeSheetVisible, setComposeSheetVisible] = useState(false);
+  const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
+  const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+
   const isFollowing = profile?.isFollowedByMe ?? false;
   const profileMeta = [profile?.major, profile?.grade]
     .filter((value): value is string => !!value && value.trim().length > 0)
     .map((value) => t(value, { defaultValue: value }))
     .join(' / ');
+
+  const profileHandles = useMemo(
+    () =>
+      new Set(
+        [
+          userName,
+          profile?.userName,
+          profile?.nickname,
+        ]
+          .map((value) => normalizeHandle(value))
+          .filter((value) => value.length > 0)
+      ),
+    [userName, profile?.userName, profile?.nickname]
+  );
+
+  const userPosts = useMemo(() => {
+    if (!allPosts) return [];
+    return allPosts.filter((post) => {
+      const postUserName = normalizeHandle(post.userName);
+      const postDisplayName = normalizeHandle(post.name);
+      return profileHandles.has(postUserName) || profileHandles.has(postDisplayName);
+    });
+  }, [allPosts, profileHandles]);
 
   const handleBlock = useCallback(() => {
     Alert.alert(t('blockUser'), t('blockUserConfirm'), [
@@ -95,40 +156,234 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     );
   }, [navigation, userName, profile]);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.topBar}>
+  const handlePostPress = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('PostDetail', { postId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleCommentPress = useCallback(
+    (post: ForumPost) => {
+      navigation.navigate('PostDetail', { postId: post.id });
+    },
+    [navigation]
+  );
+
+  const handleForward = useCallback((post: ForumPost) => {
+    setForwardPost(post);
+  }, []);
+
+  const handleQuote = useCallback((post: ForumPost) => {
+    setQuotePostId(post.id);
+    setComposeSheetVisible(true);
+  }, []);
+
+  const closeComposeSheet = useCallback(() => {
+    setComposeSheetVisible(false);
+    setQuotePostId(undefined);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    void Promise.all([refetchProfile(), refetchPosts()]);
+  }, [refetchProfile, refetchPosts]);
+
+  const selectComposeType = useCallback((type: 'text' | 'image' | 'poll') => {
+    setComposeSheetVisible(false);
+    navigation.getParent()?.navigate('ForumTab', {
+      screen: 'Compose',
+      params: { type, quotePostId },
+    });
+    setQuotePostId(undefined);
+  }, [navigation, quotePostId]);
+
+  const handleTagPress = useCallback((tag: string) => {
+    navigation.getParent()?.navigate('ForumTab', {
+      screen: 'CircleDetail',
+      params: { tag },
+    });
+  }, [navigation]);
+
+  const handleFunctionPress = useCallback((post: ForumPost) => {
+    const functionId =
+      post.functionId ?? (post.functionIndex != null ? String(post.functionIndex) : undefined);
+    if (!post.functionType || !functionId) return;
+    const nav = navigation.getParent();
+    if (!nav) return;
+    switch (post.functionType) {
+      case 'partner':
+        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+        break;
+      case 'errand':
+        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+        break;
+      case 'secondhand':
+        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+        break;
+      case 'rating':
+        nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher', id: functionId } });
+        break;
+    }
+  }, [navigation]);
+
+  const renderHeader = useMemo(() => (
+    <View>
+      <View style={styles.profileHeader}>
+        <Avatar
+          text={userName}
+          uri={profile?.avatar || null}
+          size="xl"
+          gender={profile?.gender}
+        />
+
+        <View style={styles.userNameRow}>
+          <Text style={styles.userName}>{profile?.nickname || userName}</Text>
+          {profile?.gender === 'male' ? (
+            <MaleIcon size={14} color={colors.genderMale} />
+          ) : null}
+          {profile?.gender === 'female' ? (
+            <FemaleIcon size={14} color={colors.genderFemale} />
+          ) : null}
+        </View>
+
+        {profileMeta ? (
+          <Text style={styles.profileMeta} numberOfLines={1}>
+            {profileMeta}
+          </Text>
+        ) : null}
+
+        {profile?.bio ? (
+          <Text style={styles.bio}>{profile.bio}</Text>
+        ) : null}
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile?.stats?.postCount ?? userPosts.length}</Text>
+            <Text style={styles.statLabel}>{t('postsStat')}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
+            <Text style={styles.statLabel}>{t('followingStat')}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
+            <Text style={styles.statLabel}>{t('followersStat')}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.iconBtn}
+            style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
+            activeOpacity={0.85}
+            onPress={handleMessage}
+            disabled={!profile?.id}
           >
-            <BackIcon size={24} color={colors.onSurface} />
+            <MessageIcon size={18} color={colors.onPrimary} />
+            <Text style={styles.messageBtnText}>{t('message')}</Text>
           </TouchableOpacity>
-          <View style={styles.topBarCenterSpacer} />
-          <TouchableOpacity onPress={handleOpenActions} style={styles.iconBtn}>
-            <MoreHorizontalIcon size={24} color={colors.onSurface} />
+
+          <TouchableOpacity
+            style={[
+              styles.followBtn,
+              isFollowing && styles.followBtnFollowing,
+            ]}
+            activeOpacity={0.85}
+            onPress={handleFollow}
+            disabled={followUser.isPending}
+          >
+            {followUser.isPending ? (
+              <ActivityIndicator
+                size="small"
+                color={isFollowing ? colors.primary : colors.onPrimary}
+              />
+            ) : (
+              <>
+                <UsersIcon
+                  size={18}
+                  color={isFollowing ? colors.primary : colors.onPrimary}
+                />
+                <Text
+                  style={[
+                    styles.followBtnText,
+                    isFollowing && styles.followBtnTextFollowing,
+                  ]}
+                >
+                  {isFollowing ? t('alreadyFollowed') : t('follow')}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
-        {popoverVisible && (
-          <TouchableOpacity
-            style={styles.popoverOverlay}
-            activeOpacity={1}
-            onPress={handleCloseActions}
-          >
-            <View style={styles.popoverBubble}>
-              <TouchableOpacity style={styles.popoverItem} onPress={handleBlockAction}>
-                <Text style={styles.popoverItemText}>{t('blockUser')}</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{t('postsStat')}</Text>
+      </View>
+    </View>
+  ), [userName, profile, profileMeta, userPosts.length, t, handleMessage, isFollowing, handleFollow, followUser.isPending]);
+
+  const renderPost = useCallback(
+    ({ item }: { item: ForumPost }) => {
+      const detailPost = item.isPoll ? queryClient.getQueryData<ForumPost>(['post', item.id]) : undefined;
+      const post = detailPost?.myVote
+        ? { ...item, myVote: detailPost.myVote, pollOptions: detailPost.pollOptions ?? item.pollOptions }
+        : item;
+      return (
+        <PostCard
+          post={post}
+          onPress={() => handlePostPress(post)}
+          onLike={() => likePostMutation.mutate(post.id)}
+          onComment={() => handleCommentPress(post)}
+          onForward={() => handleForward(post)}
+          onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+          onQuote={() => handleQuote(post)}
+          onTagPress={(tag) => handleTagPress(tag)}
+          onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+          onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
+          onVote={
+            post.isPoll
+              ? (optIdx) => {
+                  const optionId = post.pollOptions?.[optIdx]?.id;
+                  if (optionId) {
+                    votePostMutation.mutate({ postId: post.id, optionId, optionIndex: optIdx });
+                  }
+                }
+              : undefined
+          }
+          isLiked={post.liked ?? false}
+          isBookmarked={post.bookmarked ?? false}
+          votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
+        />
+      );
+    },
+    [
+      queryClient,
+      handlePostPress,
+      likePostMutation,
+      handleCommentPress,
+      handleForward,
+      bookmarkPostMutation,
+      handleQuote,
+      handleTagPress,
+      handleFunctionPress,
+      navigation,
+      votePostMutation,
+      votedPolls,
+    ]
+  );
+
+  const listExtraData = useMemo(
+    () => ({
+      votedPolls,
+      pollListRefreshKey,
+      pollVotes: userPosts.map((p) => (p.isPoll ? `${p.id}:${p.myVote?.optionId ?? ''}` : '')).join('|'),
+    }),
+    [votedPolls, pollListRefreshKey, userPosts]
+  );
+
+  const loading = profileLoading || postsLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -159,100 +414,100 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.profileHeader}>
-          <Avatar
-            text={userName}
-            uri={profile?.avatar || null}
-            size="xl"
-            gender={profile?.gender}
-          />
+      <FlashList
+        data={userPosts}
+        renderItem={renderPost}
+        keyExtractor={(item) => item.id}
+        extraData={listExtraData}
+        refreshing={loading}
+        onRefresh={handleRefresh}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          loading ? (
+            <ForumListSkeleton />
+          ) : (
+            <EmptyState
+              icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
+              title={t('noPosts')}
+            />
+          )
+        }
+      />
 
-          <View style={styles.userNameRow}>
-            <Text style={styles.userName}>{profile?.nickname || userName}</Text>
-            {profile?.gender === 'male' ? (
-              <MaleIcon size={14} color={colors.genderMale} />
-            ) : null}
-            {profile?.gender === 'female' ? (
-              <FemaleIcon size={14} color={colors.genderFemale} />
-            ) : null}
-          </View>
-
-          {profileMeta ? (
-            <Text style={styles.profileMeta} numberOfLines={1}>
-              {profileMeta}
-            </Text>
-          ) : null}
-
-          {profile?.bio ? (
-            <Text style={styles.bio}>{profile.bio}</Text>
-          ) : null}
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.postCount ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('postsStat')}</Text>
+      <Modal
+        visible={composeSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeComposeSheet}
+      >
+        <TouchableOpacity
+          style={styles.composeOverlay}
+          activeOpacity={1}
+          onPress={closeComposeSheet}
+        >
+          <View style={styles.composeSheet}>
+            <View style={styles.composeSheetHandle} />
+            <View style={styles.composeSheetHeader}>
+              <Text style={styles.composeSheetTitle}>
+                {quotePostId ? t('quotePost') : t('newPost')}
+              </Text>
+              <TouchableOpacity onPress={closeComposeSheet}>
+                <CloseIcon size={24} color={colors.onSurface} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('followingStat')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
-              <Text style={styles.statLabel}>{t('followersStat')}</Text>
-            </View>
-          </View>
 
-          <View style={styles.actionRow}>
             <TouchableOpacity
-              style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
-              activeOpacity={0.85}
-              onPress={handleMessage}
-              disabled={!profile?.id}
+              style={styles.composeOption}
+              onPress={() => selectComposeType('image')}
             >
-              <MessageIcon size={18} color={colors.onPrimary} />
-              <Text style={styles.messageBtnText}>{t('message')}</Text>
+              <View style={styles.composeOptionIcon}>
+                <ImageIcon size={24} color={colors.primary} />
+              </View>
+              <View style={styles.composeOptionInfo}>
+                <Text style={styles.composeOptionTitle}>{t('imagePost')}</Text>
+                <Text style={styles.composeOptionDesc}>{t('imagePostDesc')}</Text>
+              </View>
+              <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.followBtn,
-                isFollowing && styles.followBtnFollowing,
-              ]}
-              activeOpacity={0.85}
-              onPress={handleFollow}
-              disabled={followUser.isPending}
+              style={styles.composeOption}
+              onPress={() => selectComposeType('text')}
             >
-              {followUser.isPending ? (
-                <ActivityIndicator
-                  size="small"
-                  color={isFollowing ? colors.primary : colors.onPrimary}
-                />
-              ) : (
-                <>
-                  <UsersIcon
-                    size={18}
-                    color={isFollowing ? colors.primary : colors.onPrimary}
-                  />
-                  <Text
-                    style={[
-                      styles.followBtnText,
-                      isFollowing && styles.followBtnTextFollowing,
-                    ]}
-                  >
-                    {isFollowing
-                      ? t('alreadyFollowed')
-                      : t('follow')}
-                  </Text>
-                </>
-              )}
+              <View style={styles.composeOptionIcon}>
+                <EditIcon size={24} color={colors.primary} />
+              </View>
+              <View style={styles.composeOptionInfo}>
+                <Text style={styles.composeOptionTitle}>{t('textPost')}</Text>
+                <Text style={styles.composeOptionDesc}>{t('textPostDesc')}</Text>
+              </View>
+              <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.composeOption}
+              onPress={() => selectComposeType('poll')}
+            >
+              <View style={styles.composeOptionIcon}>
+                <BarChartIcon size={24} color={colors.primary} />
+              </View>
+              <View style={styles.composeOptionInfo}>
+                <Text style={styles.composeOptionTitle}>{t('poll')}</Text>
+                <Text style={styles.composeOptionDesc}>{t('pollDesc')}</Text>
+              </View>
+              <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
+      </Modal>
 
-      </ScrollView>
+      <ForwardSheet
+        visible={!!forwardPost}
+        post={forwardPost}
+        onClose={() => setForwardPost(null)}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -279,15 +534,7 @@ const styles = StyleSheet.create({
   topBarCenterSpacer: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
+  listContent: {
     paddingBottom: 100,
   },
   profileHeader: {
@@ -389,6 +636,16 @@ const styles = StyleSheet.create({
   followBtnTextFollowing: {
     color: colors.primary,
   },
+  sectionHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+    fontWeight: '700',
+  },
   popoverOverlay: {
     position: 'absolute',
     top: 0,
@@ -420,5 +677,62 @@ const styles = StyleSheet.create({
   popoverItemText: {
     ...typography.bodyMedium,
     color: colors.error,
+  },
+  composeOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  composeSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    paddingBottom: 32,
+  },
+  composeSheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outlineVariant,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+  },
+  composeSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  composeSheetTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+  },
+  composeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  composeOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  composeOptionInfo: {
+    flex: 1,
+  },
+  composeOptionTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+  },
+  composeOptionDesc: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
   },
 });

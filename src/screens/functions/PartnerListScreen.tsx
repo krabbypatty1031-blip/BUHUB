@@ -93,6 +93,17 @@ export default function PartnerListScreen({ navigation }: Props) {
   // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const filteredPartners = useMemo(() => {
+    if (!partners) return [];
+    const query = searchText.trim().toLowerCase();
+    if (!query) return partners;
+    return partners.filter((item) =>
+      item.title.toLowerCase().includes(query) ||
+      item.desc.toLowerCase().includes(query) ||
+      item.location.toLowerCase().includes(query) ||
+      item.user.toLowerCase().includes(query)
+    );
+  }, [partners, searchText]);
 
   const handleDmOrganizer = useCallback(
     (item: PartnerPost, functionId: string) => {
@@ -255,17 +266,19 @@ export default function PartnerListScreen({ navigation }: Props) {
 
       {/* Partner List */}
       <FlatList
-        data={partners}
+        data={filteredPartners}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState
               icon={<UsersIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noPartners')}
+              title={searchText.trim() ? t('noSearchResults') : t('noPartners')}
             />
           ) : null
         }
@@ -389,6 +402,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
   },

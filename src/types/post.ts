@@ -1,5 +1,12 @@
 import type { Gender, Language, Translated, PollOption } from './common';
 
+export interface ForumCircleSummary {
+  name: string;
+  usageCount: number;
+  followerCount: number;
+  followed: boolean;
+}
+
 export interface ForumPost {
   id: string;
   avatar: string;

@@ -1,15 +1,18 @@
 import { useRef, useCallback } from 'react';
 import { type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarAnimation } from './TabBarAnimationContext';
+import { layout } from '../theme/spacing';
 
-const TAB_BAR_HEIGHT = 80;
 const SCROLL_THRESHOLD = 10;
 
 export function useScrollTabBarAnimation() {
   const { tabBarTranslateY } = useTabBarAnimation();
+  const insets = useSafeAreaInsets();
   const lastOffsetY = useRef(0);
   const isTabBarVisible = useRef(true);
+  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -28,7 +31,7 @@ export function useScrollTabBarAnimation() {
       const delta = offsetY - lastOffsetY.current;
 
       if (delta > SCROLL_THRESHOLD && isTabBarVisible.current) {
-        tabBarTranslateY.value = withTiming(TAB_BAR_HEIGHT, { duration: 250 });
+        tabBarTranslateY.value = withTiming(hiddenTabBarOffset, { duration: 250 });
         isTabBarVisible.current = false;
       } else if (delta < -SCROLL_THRESHOLD && !isTabBarVisible.current) {
         tabBarTranslateY.value = withTiming(0, { duration: 250 });
@@ -37,7 +40,7 @@ export function useScrollTabBarAnimation() {
 
       lastOffsetY.current = offsetY;
     },
-    [tabBarTranslateY]
+    [hiddenTabBarOffset, tabBarTranslateY]
   );
 
   const show = useCallback(() => {

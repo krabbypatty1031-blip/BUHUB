@@ -5,6 +5,8 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +21,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
+import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
@@ -38,8 +41,9 @@ const CIRCLE_KEYS = [
 export default function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim();
   const inputRef = useRef<TextInput>(null);
-  const { data: rawResults } = useSearch(query);
+  const { data: rawResults } = useSearch(normalizedQuery);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const results = useMemo(() => rawResults?.filter((p) => !isBlocked(p.name)) ?? [], [rawResults, blockedUsers, isBlocked]);
@@ -176,7 +180,8 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {query.length === 0 ? (
+      {normalizedQuery.length === 0 ? (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.emptyState}>
           <Text style={styles.officialTagsTitle}>{t('officialTags')}</Text>
           <View style={styles.officialTagsList}>
@@ -196,6 +201,16 @@ export default function SearchScreen({ navigation }: Props) {
             <Text style={styles.hintText}>{t('searchHint')}</Text>
           </View>
         </View>
+        </TouchableWithoutFeedback>
+      ) : normalizedQuery.length < 2 ? (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.emptyState}>
+          <View style={styles.hintSection}>
+            <SearchIcon size={48} color={colors.outlineVariant} />
+            <Text style={styles.hintText}>{t('searchHint')}</Text>
+          </View>
+        </View>
+        </TouchableWithoutFeedback>
       ) : (
         <FlatList
           data={results}
@@ -203,6 +218,14 @@ export default function SearchScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           extraData={votedPolls}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          ListEmptyComponent={
+            <EmptyState
+              icon={<SearchIcon size={36} color={colors.onSurfaceVariant} />}
+              title={t('noSearchResults')}
+            />
+          }
         />
       )}
 
@@ -289,6 +312,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   listContent: {
+    flexGrow: 1,
     paddingBottom: spacing.lg,
   },
 });

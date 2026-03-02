@@ -174,7 +174,11 @@ export default function ComposeScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Quoted Post */}
         {quotedPost && (
           <PageTranslationProvider>

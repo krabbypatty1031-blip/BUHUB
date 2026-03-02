@@ -15,6 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { UserPost, UserComment, ForumPost, Language, MyContent } from '../../types';
 import { useProfile, useMyContent } from '../../hooks/useUser';
+import { useFollowedCircles } from '../../hooks/usePosts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLikePost, useBookmarkPost, useVotePost, useDeletePost, useDeleteComment, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
@@ -246,6 +247,7 @@ export default function MeScreen({ navigation }: Props) {
   const lang = i18n.language as Language;
   const { data: profile, isLoading } = useProfile();
   const { data: myContent } = useMyContent();
+  const { data: followedCircles } = useFollowedCircles();
   const user = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
@@ -255,6 +257,7 @@ export default function MeScreen({ navigation }: Props) {
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
+  const followedForumCount = followedCircles?.length ?? 0;
   const votedPolls = useForumStore((s) => s.votedPolls);
 
   const likePostMutation = useLikePost();
@@ -819,6 +822,16 @@ export default function MeScreen({ navigation }: Props) {
                   <Text style={styles.miniStatValue}>{stats?.followers ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
                     {t('followersStat')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.miniStatItem}
+                  activeOpacity={0.6}
+                  onPress={() => navigation.navigate('ForumList')}
+                >
+                  <Text style={styles.miniStatValue}>{followedForumCount}</Text>
+                  <Text style={styles.miniStatLabel}>
+                    {t('forumStat')}
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.miniStatItem}>

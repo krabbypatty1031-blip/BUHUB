@@ -79,6 +79,7 @@ export type MeStackParamList = {
   EditProfile: undefined;
   ShareProfile: undefined;
   FollowList: { type: 'following' | 'followers' };
+  ForumList: undefined;
   UserProfile: { userName: string };
   PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
   Settings: undefined;

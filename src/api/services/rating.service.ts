@@ -19,9 +19,10 @@ const mapScore = (score: any) => {
   const key = score?.key ?? score?.dimension ?? '';
   const rawValue = typeof score?.value === 'number' ? score.value : 0;
   const value = rawValue <= 5 ? Math.round(rawValue * 20) : Math.round(rawValue);
+  const rawLabel = typeof score?.label === 'string' ? score.label : key;
   return {
     key,
-    label: score?.label ?? key,
+    label: rawLabel || key,
     value,
   };
 };
@@ -29,6 +30,22 @@ const mapScore = (score: any) => {
 const mapRatingItem = (item: any): RatingItem => ({
   ...item,
   id: item.id,
+  name: typeof item?.name === 'string' && item.name.trim()
+    ? item.name.trim()
+    : (typeof item?.code === 'string' && item.code.trim()
+      ? item.code.trim()
+      : (typeof item?.email === 'string' && item.email.trim()
+        ? item.email.trim()
+        : 'Untitled')),
+  department: typeof item?.department === 'string' && item.department.trim()
+    ? item.department.trim()
+    : (typeof item?.location === 'string' && item.location.trim()
+      ? item.location.trim()
+      : 'Unknown'),
+  code: typeof item?.code === 'string' ? item.code : '',
+  email: typeof item?.email === 'string' ? item.email : '',
+  location: typeof item?.location === 'string' ? item.location : '',
+  avatar: typeof item?.avatar === 'string' ? item.avatar : '',
   scores: Array.isArray(item?.scores) ? item.scores.map(mapScore) : [],
   tags: Array.isArray(item?.tags) ? item.tags : [],
   tagCounts: item?.tagCounts ?? {},

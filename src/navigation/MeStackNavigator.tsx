@@ -6,6 +6,7 @@ import MeScreen from '../screens/me/MeScreen';
 import EditProfileScreen from '../screens/me/EditProfileScreen';
 import ShareProfileScreen from '../screens/me/ShareProfileScreen';
 import FollowListScreen from '../screens/me/FollowListScreen';
+import ForumListScreen from '../screens/me/ForumListScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
 import PostDetailScreen from '../screens/forum/PostDetailScreen';
 import SettingsScreen from '../screens/me/SettingsScreen';
@@ -20,6 +21,7 @@ export default function MeStackNavigator() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="ShareProfile" component={ShareProfileScreen} />
       <Stack.Screen name="FollowList" component={FollowListScreen} />
+      <Stack.Screen name="ForumList" component={ForumListScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />

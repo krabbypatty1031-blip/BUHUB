@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   LayoutChangeEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { translateLabel } from '../../utils/translate';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
@@ -87,6 +87,7 @@ function CustomSlider({
 
 export default function RatingFormScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { category, id } = route.params;
   const { data: item, isLoading } = useRatingDetail(category, id);
@@ -96,14 +97,15 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { tabBarTranslateY } = useTabBarAnimation();
+  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
 
   useFocusEffect(
     useCallback(() => {
-      tabBarTranslateY.value = withTiming(80, { duration: 250 });
+      tabBarTranslateY.value = withTiming(hiddenTabBarOffset, { duration: 250 });
       return () => {
         tabBarTranslateY.value = withTiming(0, { duration: 250 });
       };
-    }, [tabBarTranslateY])
+    }, [hiddenTabBarOffset, tabBarTranslateY])
   );
 
   const dimensionMap = useMemo(() => {
@@ -188,10 +190,14 @@ export default function RatingFormScreen({ navigation, route }: Props) {
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Target Info */}
         <View style={styles.targetSection}>
-          <Text style={styles.targetName}>{translateLabel(item.name, lang)}</Text>
+          <Text style={styles.targetName}>{translateLabel(item.name || 'Untitled', lang)}</Text>
           <Text style={styles.targetCategory}>{t(category)}</Text>
         </View>
 

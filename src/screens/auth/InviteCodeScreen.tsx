@@ -8,6 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -57,13 +59,14 @@ export default function InviteCodeScreen({ navigation }: Props) {
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.centerContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{t('inviteCodeTitle')}</Text>
-            <Text style={styles.desc}>{t('inviteCodeDesc')}</Text>
-          </View>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.centerContent}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('inviteCodeTitle')}</Text>
+              <Text style={styles.desc}>{t('inviteCodeDesc')}</Text>
+            </View>
 
-          <View style={styles.form}>
+            <View style={styles.form}>
             {/* Invite Code Input */}
             <View style={styles.inputField}>
               <TextInput
@@ -98,9 +101,9 @@ export default function InviteCodeScreen({ navigation }: Props) {
                 </Text>
               )}
             </TouchableOpacity>
-
-        </View>
-        </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

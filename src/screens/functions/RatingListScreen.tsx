@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingCategory, RatingItem, RatingSortMode } from '../../types';
 import { useRatings } from '../../hooks/useRatings';
@@ -67,6 +68,12 @@ export default function RatingListScreen({ navigation, route }: Props) {
   const category = route.params?.category || selectedCategory;
   const { data: ratings, isLoading, refetch } = useRatings(category, sortMode);
 
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
   const categoryOptions = useMemo<SegmentedControlOption<RatingCategory>[]>(
     () =>
       CATEGORIES.map((cat) => ({
@@ -95,11 +102,19 @@ export default function RatingListScreen({ navigation, route }: Props) {
     if (!ratings) return [];
     if (!searchQuery.trim()) return ratings;
     const q = searchQuery.toLowerCase();
-    return ratings.filter((item) =>
-      item.name.toLowerCase().includes(q) ||
-      item.department.toLowerCase().includes(q)
-    );
-  }, [ratings, searchQuery]);
+    return ratings.filter((item) => {
+      const rawName = item.name ?? '';
+      const rawDepartment = item.department ?? '';
+      const translatedName = translateLabel(rawName, lang);
+      const translatedDepartment = translateLabel(rawDepartment, lang);
+      return (
+        rawName.toLowerCase().includes(q) ||
+        rawDepartment.toLowerCase().includes(q) ||
+        translatedName.toLowerCase().includes(q) ||
+        translatedDepartment.toLowerCase().includes(q)
+      );
+    });
+  }, [ratings, searchQuery, lang]);
 
   const getTopTags = useCallback((item: RatingItem) => {
     const entries = Object.entries(item.tagCounts);
@@ -216,6 +231,8 @@ export default function RatingListScreen({ navigation, route }: Props) {
           refreshing={isLoading}
           onRefresh={refetch}
           drawDistance={250}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListEmptyComponent={
             <EmptyState
               icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
@@ -288,6 +305,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
+    flexGrow: 1,
     padding: spacing.lg,
     paddingBottom: 100,
   },

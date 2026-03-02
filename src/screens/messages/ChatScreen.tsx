@@ -17,8 +17,9 @@ import {
   Modal,
   Pressable,
   BackHandler,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
@@ -41,7 +42,7 @@ import { useMessageStore } from '../../store/messageStore';
 import { useUIStore } from '../../store/uiStore';
 import { useMessageRealtimeStore } from '../../store/messageRealtimeStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import { uploadService } from '../../api/services/upload.service';
@@ -69,7 +70,6 @@ import {
 import { showTabBar, useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
 
-const TAB_BAR_HEIGHT = 80;
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
 const TYPING_STOP_DELAY_MS = 2500;
@@ -387,6 +387,7 @@ function WaveformBars() {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const {
     contactId,
     contactName,
@@ -415,11 +416,42 @@ export default function ChatScreen({ navigation, route }: Props) {
   const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]);
   const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
   const { tabBarTranslateY } = useTabBarAnimation();
+  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
 
   const handleBack = useCallback(() => {
+    if (backTo?.tab === 'MessagesTab') {
+      showTabBar();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
+      if (!backTo.screen || backTo.screen === 'MessagesList') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MessagesList' }],
+        });
+        return;
+      }
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'MessagesList' },
+          {
+            name: backTo.screen as keyof MessagesStackParamList,
+            params: backTo.params as MessagesStackParamList[keyof MessagesStackParamList],
+          },
+        ],
+      });
+      return;
+    }
+
     if (backTo?.tab) {
       showTabBar();
       const parent = navigation.getParent() as any;
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MessagesList' }],
+      });
       if (!parent) return;
       if (backTo.screen) {
         parent.navigate(backTo.tab, {
@@ -441,11 +473,11 @@ export default function ChatScreen({ navigation, route }: Props) {
   // Hide tab bar when chat is focused, restore when leaving
   useFocusEffect(
     useCallback(() => {
-      tabBarTranslateY.value = withTiming(TAB_BAR_HEIGHT, { duration: 250 });
+      tabBarTranslateY.value = withTiming(hiddenTabBarOffset, { duration: 250 });
       return () => {
         tabBarTranslateY.value = withTiming(0, { duration: 250 });
       };
-    }, [tabBarTranslateY])
+    }, [hiddenTabBarOffset, tabBarTranslateY])
   );
 
   useFocusEffect(
@@ -472,6 +504,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const cardSentRef = useRef<string | null>(null);
   const cardSendingRef = useRef<string | null>(null);
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -486,10 +519,25 @@ export default function ChatScreen({ navigation, route }: Props) {
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const setVoiceReleaseAction = useCallback((action: VoiceReleaseAction) => {
     voiceReleaseActionRef.current = action;
     setVoiceReleaseActionState(action);
   }, []);
+
+  const composerBottomInset = isKeyboardVisible
+    ? spacing.sm
+    : Math.max(insets.bottom, spacing.sm);
 
   useEffect(() => {
     if (isLoading) return;
@@ -1280,7 +1328,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const actionCanRecall = canRecallMessage(actionTarget);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -1327,6 +1375,8 @@ export default function ChatScreen({ navigation, route }: Props) {
             onContentSizeChange={() => scrollToBottom(false)}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           />
         )}
 
@@ -1357,7 +1407,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             ) : null}
-          <View style={styles.inputBar}>
+          <View style={[styles.inputBar, { paddingBottom: composerBottomInset }]}>
             {isVoiceMode ? (
               <>
                 <TouchableOpacity

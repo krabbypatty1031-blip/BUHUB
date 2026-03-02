@@ -19,6 +19,9 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/gif',
   'image/webp',
+  'audio/m4a',
+  'audio/mp4',
+  'audio/x-m4a',
 ]);
 const MAX_IMAGE_EDGE = 1600;
 const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
@@ -43,11 +46,20 @@ function normalizeMimeType(type: string | undefined): string {
   const raw = (type ?? '').toLowerCase().trim();
   if (ALLOWED_MIME_TYPES.has(raw)) return raw;
   if (raw.startsWith('image/')) return 'image/jpeg';
+  if (raw.startsWith('audio/')) return 'audio/m4a';
   return 'image/jpeg';
 }
 
 function ensureJpegName(name: string): string {
   return name.replace(/\.[a-z0-9]+$/i, '') + '.jpg';
+}
+
+function ensureAudioName(name: string): string {
+  return name.replace(/\.[a-z0-9]+$/i, '') + '.m4a';
+}
+
+function isImageMimeType(type: string): boolean {
+  return type.startsWith('image/');
 }
 
 async function compressImage(file: UploadInput): Promise<UploadInput> {
@@ -132,12 +144,18 @@ async function readLocalFileBlob(uri: string): Promise<Blob> {
 async function uploadViaPresigned(
   file: UploadInput
 ): Promise<{ url: string }> {
-  const compressedFile = await compressImage(file);
-  const normalizedType = normalizeMimeType(compressedFile.type);
+  const normalizedType = normalizeMimeType(file.type);
+  const preparedFile = isImageMimeType(normalizedType)
+    ? await compressImage(file)
+    : {
+        ...file,
+        type: normalizedType,
+        name: ensureAudioName(file.name),
+      };
 
   let fileBlob: Blob;
   try {
-    fileBlob = await readLocalFileBlob(compressedFile.uri);
+    fileBlob = await readLocalFileBlob(preparedFile.uri);
   } catch (fetchError) {
     throw new Error(`读取图片文件失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`);
   }
@@ -150,7 +168,7 @@ async function uploadViaPresigned(
   let presignedData;
   try {
     const { data } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
-      fileName: compressedFile.name,
+      fileName: preparedFile.name,
       fileSize,
       mimeType: normalizedType,
     });

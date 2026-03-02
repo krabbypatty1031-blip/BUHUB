@@ -8,6 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -126,6 +128,8 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.contentInner}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('setPasswordTitle')}</Text>
           <Text style={styles.desc}>{t('setPasswordDesc')}</Text>
@@ -212,6 +216,8 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
             )}
           </TouchableOpacity>
         </View>
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -237,6 +243,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+  },
+  contentInner: {
+    flex: 1,
   },
   header: {
     marginBottom: spacing.xxxl,

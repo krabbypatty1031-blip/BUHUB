@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingItem } from '../../types';
 import { useRatingDetail } from '../../hooks/useRatings';
@@ -45,7 +46,13 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { category, id } = route.params;
-  const { data: item, isLoading } = useRatingDetail(category, id);
+  const { data: item, isLoading, refetch } = useRatingDetail(category, id);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const overallScore = useMemo(() => {
     if (!item) return 0;
@@ -69,10 +76,10 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   }, [item]);
 
   const getSubtitle = (ratingItem: RatingItem): string => {
-    if ('email' in ratingItem) return ratingItem.department;
-    if ('code' in ratingItem) return `${ratingItem.code} | ${ratingItem.department}`;
-    if ('location' in ratingItem) return ratingItem.location;
-    return ratingItem.department;
+    if ('email' in ratingItem) return ratingItem.department || ratingItem.email || '';
+    if ('code' in ratingItem) return [ratingItem.code, ratingItem.department].filter(Boolean).join(' | ');
+    if ('location' in ratingItem) return ratingItem.location || ratingItem.department || '';
+    return ratingItem.department || '';
   };
 
   if (isLoading) {
@@ -277,6 +284,7 @@ const styles = StyleSheet.create({
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.lg,
   },
   scoreCircle: {
@@ -293,16 +301,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   scoreInfo: {
-    flex: 1,
+    alignItems: 'center',
     gap: spacing.xs,
   },
   starsRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 2,
   },
   scoreCount: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
 
   /* ── Dimensions ── */

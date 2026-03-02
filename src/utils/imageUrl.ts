@@ -31,7 +31,7 @@ const rebaseLegacyAbsoluteUploadUrl = (url: string): string | null => {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) return null;
     if (!isLocalHost(parsed.hostname)) return null;
-    if (!parsed.pathname.startsWith('/uploads/')) return null;
+    if (!parsed.pathname.startsWith('/uploads/') && !parsed.pathname.startsWith('/api/uploads/')) return null;
     return `${getImageBaseUrl()}${parsed.pathname}${parsed.search}`;
   } catch {
     return null;

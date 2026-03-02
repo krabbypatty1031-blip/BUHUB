@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { ForumPost, CommentsData, Comment, Reply, PaginationParams } from '../../types';
+import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary } from '../../types';
 import { generateAnonymousIdentity } from '../../lib/anonymous';
 import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
 
@@ -69,6 +69,18 @@ function resolveAvatarValue(avatar: string | null | undefined): string {
 }
 
 export const forumService = {
+  async getCircles(params?: { followedOnly?: boolean }): Promise<ForumCircleSummary[]> {
+    const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLES, {
+      params: params?.followedOnly ? { followedOnly: 1 } : undefined,
+    });
+    return (Array.isArray(data) ? data : []).map((item: any) => ({
+      name: String(item?.name ?? ''),
+      usageCount: Number(item?.usageCount ?? 0),
+      followerCount: Number(item?.followerCount ?? 0),
+      followed: Boolean(item?.followed),
+    }));
+  },
+
   async getCircleFollow(tag: string): Promise<{ tag: string; followerCount: number; followed: boolean }> {
     const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLE_FOLLOW(tag));
     return {

@@ -338,6 +338,8 @@ export default function SecondhandListScreen({ navigation }: Props) {
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState
@@ -517,6 +519,7 @@ const styles = StyleSheet.create({
 
   /* List */
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: 100,

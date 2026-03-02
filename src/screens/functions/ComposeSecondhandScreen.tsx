@@ -126,7 +126,6 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 
   const canPost =
     title.trim().length > 0 &&
-    isValidPrice(price) &&
     condition !== null &&
     isValidPrice(price) &&
     deadline !== null;
@@ -210,6 +209,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formSection}>

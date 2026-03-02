@@ -14,6 +14,11 @@ export function showTabBar() {
   globalTabBarTranslateY.value = withTiming(0, { duration: TAB_BAR_ANIM_DURATION });
 }
 
+export function hideTabBar(offset: number) {
+  if (!globalTabBarTranslateY) return;
+  globalTabBarTranslateY.value = withTiming(offset, { duration: TAB_BAR_ANIM_DURATION });
+}
+
 export function TabBarAnimationProvider({ children }: { children: React.ReactNode }) {
   const tabBarTranslateY = useSharedValue(0);
 

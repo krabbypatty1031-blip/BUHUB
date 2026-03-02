@@ -434,6 +434,8 @@ export default function MessagesScreen({ navigation }: Props) {
           contentContainerStyle={styles.listContent}
           refreshing={isLoading}
           onRefresh={refetch}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListEmptyComponent={
             showSearch && searchQuery.trim() ? (
               <EmptyState
@@ -646,6 +648,7 @@ const styles = StyleSheet.create({
 
   /* Contact list */
   listContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   contactItem: {

@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -208,6 +210,8 @@ export default function EmailInputScreen({ navigation }: Props) {
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.contentInner}>
         <View style={styles.header}>
           <Text style={styles.title}>{codeSent ? t('verifyTitle') : t('emailInputTitle')}</Text>
           <Text style={styles.desc}>
@@ -339,6 +343,8 @@ export default function EmailInputScreen({ navigation }: Props) {
             </View>
           )}
         </View>
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -364,6 +370,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+  },
+  contentInner: {
+    flex: 1,
   },
   header: {
     marginBottom: spacing.xxxl,

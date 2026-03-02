@@ -6,7 +6,7 @@ import type { MainTabParamList } from './types';
 import { colors } from '../theme';
 import { layout } from '../theme/spacing';
 import { TabHomeIcon, TabCompassIcon, TabChatIcon, TabProfileIcon } from '../components/common/icons';
-import { TabBarAnimationProvider, showTabBar } from '../hooks/TabBarAnimationContext';
+import { TabBarAnimationProvider, hideTabBar, showTabBar } from '../hooks/TabBarAnimationContext';
 import AnimatedTabBar from '../components/common/AnimatedTabBar';
 import { useUnreadCount } from '../hooks/useNotifications';
 import { useContacts } from '../hooks/useMessages';
@@ -21,9 +21,22 @@ import MessagesStackNavigator from './MessagesStackNavigator';
 import MeStackNavigator from './MeStackNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const MANUAL_TAB_BAR_ROUTES = new Set(['Chat', 'RatingForm']);
+
+function getFocusedLeafRouteName(route: { state?: any } | undefined): string | undefined {
+  let state = route?.state;
+  while (state?.routes?.length) {
+    const current = state.routes[state.index ?? 0];
+    if (!current) return undefined;
+    if (!current.state) return current.name;
+    state = current.state;
+  }
+  return undefined;
+}
 
 export default function MainTabNavigator() {
   const insets = useSafeAreaInsets();
+  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
   useMessageRealtime();
   usePresenceHeartbeat();
   const { data: unreadData } = useUnreadCount();
@@ -70,7 +83,25 @@ export default function MainTabNavigator() {
       backBehavior="history"
       tabBar={(props) => <AnimatedTabBar {...props} />}
       screenListeners={({ navigation, route }) => ({
+        state: () => {
+          const state = navigation.getState();
+          const activeRouteName = state.routes[state.index]?.name;
+          if (activeRouteName !== route.name) {
+            return;
+          }
+          const focusedLeafRouteName = getFocusedLeafRouteName(route as any);
+          if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
+            hideTabBar(hiddenTabBarOffset);
+            return;
+          }
+          showTabBar();
+        },
         focus: () => {
+          const focusedLeafRouteName = getFocusedLeafRouteName(route as any);
+          if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
+            hideTabBar(hiddenTabBarOffset);
+            return;
+          }
           showTabBar();
         },
         tabPress: (e) => {

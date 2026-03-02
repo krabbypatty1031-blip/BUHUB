@@ -38,7 +38,9 @@ export function useSubmitRating(category: RatingCategory, id: string) {
     mutationFn: (rating: { scores: Record<string, number>; tags: string[]; comment?: string }) =>
       ratingService.submitRating(category, id, rating),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['ratings', category] });
+      queryClient.invalidateQueries({ queryKey: ['rating', category, id] });
+      queryClient.invalidateQueries({ queryKey: ['ratingTagOptions', category] });
     },
   });
 }

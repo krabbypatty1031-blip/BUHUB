@@ -102,6 +102,13 @@ export function usePosts() {
   });
 }
 
+export function useFollowedCircles() {
+  return useQuery({
+    queryKey: ['circles', 'followed'],
+    queryFn: () => forumService.getCircles({ followedOnly: true }),
+  });
+}
+
 export function useCircleFollow(tag: string) {
   return useQuery({
     queryKey: ['circleFollow', tag],
@@ -136,6 +143,7 @@ export function useToggleCircleFollow(tag: string) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['circleFollow', tag] });
+      queryClient.invalidateQueries({ queryKey: ['circles'] });
     },
   });
 }
@@ -159,10 +167,11 @@ export function useComments(postId: string) {
 }
 
 export function useSearch(query: string) {
+  const normalizedQuery = query.trim();
   return useQuery({
-    queryKey: ['search', query],
-    queryFn: () => forumService.search(query),
-    enabled: query.length > 0,
+    queryKey: ['search', normalizedQuery],
+    queryFn: () => forumService.search(normalizedQuery),
+    enabled: normalizedQuery.length >= 2,
   });
 }
 

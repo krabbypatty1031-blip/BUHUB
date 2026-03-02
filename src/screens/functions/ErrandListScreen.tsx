@@ -113,6 +113,19 @@ export default function ErrandListScreen({ navigation }: Props) {
   // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const filteredErrands = useMemo(() => {
+    if (!errands) return [];
+    const query = searchText.trim().toLowerCase();
+    if (!query) return errands;
+    return errands.filter((item) =>
+      item.title.toLowerCase().includes(query) ||
+      item.desc.toLowerCase().includes(query) ||
+      item.item.toLowerCase().includes(query) ||
+      item.from.toLowerCase().includes(query) ||
+      item.to.toLowerCase().includes(query) ||
+      item.user.toLowerCase().includes(query)
+    );
+  }, [errands, searchText]);
 
   const isActionItemOwnPost = useMemo(
     () =>
@@ -254,17 +267,19 @@ export default function ErrandListScreen({ navigation }: Props) {
 
       {/* Errand List */}
       <FlatList
-        data={errands}
+        data={filteredErrands}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={refetch}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState
               icon={<TruckIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noErrands')}
+              title={searchText.trim() ? t('noSearchResults') : t('noErrands')}
             />
           ) : null
         }
@@ -402,6 +417,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
   },

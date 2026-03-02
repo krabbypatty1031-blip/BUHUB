@@ -14,8 +14,9 @@ import {
   Modal,
   UIManager,
   findNodeHandle,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
@@ -660,6 +661,7 @@ function CommentItem({
 /* ── Main screen ── */
 export default function PostDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const lang = i18n.language as Language;
   const { postId, commentId, shouldReply } = route.params;
   const { data: post, isLoading } = usePostDetail(postId);
@@ -715,6 +717,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [reportTargetCommentId, setReportTargetCommentId] = useState<string | null>(null);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [commentActionVisible, setCommentActionVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   /* ── Refs ── */
   const inputRef = useRef<TextInput>(null);
@@ -726,6 +729,21 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       itemRefs.current.delete(id);
     }
   }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const composerBottomInset = isKeyboardVisible
+    ? spacing.sm
+    : layout.bottomNavHeight + insets.bottom;
 
   const targetCommentIndex = useMemo(() => {
     if (!commentId || !comments) return -1;
@@ -1275,7 +1293,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   if (isLoading || !post) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <BackIcon size={24} color={colors.onSurface} />
@@ -1288,7 +1306,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }
 
   return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -1338,6 +1356,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           onScrollToIndexFailed={handleScrollToIndexFailed}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         />
 
         {/* @ Mention Suggestions */}
@@ -1364,7 +1384,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         )}
 
         {/* Comment Input Bar */}
-        <View style={styles.commentInputBar}>
+        <View style={[styles.commentInputBar, { paddingBottom: composerBottomInset }]}>
           <View style={styles.anonToggle}>
             <IOSSwitch
               value={isAnonymous}
