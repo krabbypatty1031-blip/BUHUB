@@ -3,11 +3,14 @@ import { create } from 'zustand';
 interface ForumState {
   votedPolls: Map<string, number>;
   blockedUsers: Set<string>;
+  /** Bump to force forum list to re-render after vote (so poll results show). */
+  pollListRefreshKey: number;
 
   votePoll: (postId: string, optionIndex: number) => void;
   setVotedPoll: (postId: string, optionIndex: number) => void;
   clearVotedPoll: (postId: string) => void;
   clearVotedPolls: () => void;
+  bumpPollListRefresh: () => void;
   setBlockedUsers: (users: string[]) => void;
   blockUser: (userName: string) => void;
   unblockUser: (userName: string) => void;
@@ -17,6 +20,9 @@ interface ForumState {
 export const useForumStore = create<ForumState>()((set, get) => ({
   votedPolls: new Map<string, number>(),
   blockedUsers: new Set<string>(),
+  pollListRefreshKey: 0,
+
+  bumpPollListRefresh: () => set((s) => ({ pollListRefreshKey: s.pollListRefreshKey + 1 })),
 
   votePoll: (postId, optionIndex) =>
     set((state) => {

@@ -375,13 +375,57 @@ export function useVotePost() {
   const queryClient = useQueryClient();
   const setVotedPoll = useForumStore((s) => s.setVotedPoll);
   const clearVotedPoll = useForumStore((s) => s.clearVotedPoll);
+  const bumpPollListRefresh = useForumStore((s) => s.bumpPollListRefresh);
   return useMutation({
     mutationFn: ({ postId, optionId }: { postId: string; optionId: string; optionIndex: number }) =>
       forumService.votePost(postId, optionId),
-    onMutate: ({ postId, optionIndex }) => {
+    onMutate: async ({ postId, optionId, optionIndex }) => {
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      const previousPosts = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousPostDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousOptionIndex = useForumStore.getState().votedPolls.get(postId);
       setVotedPoll(postId, optionIndex);
-      return { previousOptionIndex };
+
+      const applyVote = (post: ForumPost): ForumPost => {
+        if (post.id !== postId || !post.pollOptions?.length) return post;
+        if (post.myVote?.optionId) return post;
+
+        const nextOptions = post.pollOptions.map((opt, i) => {
+          const isVotedOption = opt.id === optionId || i === optionIndex;
+          return isVotedOption ? { ...opt, voteCount: (opt.voteCount ?? 0) + 1 } : opt;
+        });
+        const totalVotes = nextOptions.reduce((sum, opt) => sum + (opt.voteCount ?? 0), 0);
+        const nextPollOptions = nextOptions.map((opt) => ({
+          ...opt,
+          percent: totalVotes > 0 ? Math.round(((opt.voteCount ?? 0) / totalVotes) * 100) : 0,
+        }));
+
+        return {
+          ...post,
+          pollOptions: nextPollOptions,
+          myVote: {
+            id: `optimistic-${postId}`,
+            optionId: post.pollOptions[optionIndex]?.id ?? optionId,
+            createdAt: new Date().toISOString(),
+          },
+        };
+      };
+
+      const listPost = previousPosts?.find((p) => p.id === postId);
+      const optimisticPost = listPost ? applyVote(listPost) : null;
+
+      if (previousPosts != null) {
+        queryClient.setQueryData<ForumPost[]>(['posts'], (old) => (old ? old.map(applyVote) : old));
+      }
+      if (optimisticPost) {
+        queryClient.setQueryData<ForumPost>(['post', postId], optimisticPost);
+      } else if (previousPostDetail) {
+        queryClient.setQueryData<ForumPost>(['post', postId], applyVote(previousPostDetail));
+      }
+
+      return { previousOptionIndex, previousPosts, previousPostDetail };
     },
     onError: (_err, variables, context) => {
       if (typeof context?.previousOptionIndex === 'number') {
@@ -389,10 +433,37 @@ export function useVotePost() {
       } else {
         clearVotedPoll(variables.postId);
       }
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts'], context.previousPosts);
+      }
+      if (context?.previousPostDetail) {
+        queryClient.setQueryData(['post', variables.postId], context.previousPostDetail);
+      }
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+    onSuccess: async (_data, variables) => {
+      const { postId } = variables;
+      let freshPost: ForumPost | null = null;
+      try {
+        freshPost = await forumService.getPostDetail(postId);
+        queryClient.setQueryData<ForumPost>(['post', postId], freshPost);
+      } catch {
+        // Ignore; list cache already has optimistic data
+      }
+
+      if (freshPost) {
+        queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
+          old?.map((p) => {
+            if (p.id !== postId) return p;
+            return {
+              ...p,
+              myVote: freshPost!.myVote,
+              pollOptions: freshPost!.pollOptions ?? p.pollOptions,
+            };
+          })
+        );
+        bumpPollListRefresh();
+      }
+
       queryClient.invalidateQueries({ queryKey: ['search'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },

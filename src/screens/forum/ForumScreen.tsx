@@ -11,6 +11,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
@@ -42,9 +43,11 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
 export default function ForumScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: allPosts, isLoading, refetch } = usePosts();
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
+  const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
   const posts = useMemo(() => allPosts?.filter((p) => !isBlocked(p.name)) ?? [], [allPosts, blockedUsers, isBlocked]);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const likePostMutation = useLikePost();
@@ -157,35 +160,51 @@ export default function ForumScreen({ navigation }: Props) {
   );
 
   const renderPost = useCallback(
-    ({ item }: { item: ForumPost }) => (
-      <PostCard
-        post={item}
-        onPress={() => handlePostPress(item)}
-        onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => likePostMutation.mutate(item.id)}
-        onComment={() => handleCommentPress(item)}
-        onForward={() => handleForward(item)}
-        onBookmark={() => bookmarkPostMutation.mutate(item.id)}
-        onQuote={() => handleQuote(item)}
-        onTagPress={(tag) => handleTagPress(item, tag)}
-        onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
-        onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
-        onVote={
-          item.isPoll
-            ? (optIdx) => {
-                const optionId = item.pollOptions?.[optIdx]?.id;
-                if (optionId) {
-                  votePostMutation.mutate({ postId: item.id, optionId, optionIndex: optIdx });
+    ({ item }: { item: ForumPost }) => {
+      const detailPost = item.isPoll ? queryClient.getQueryData<ForumPost>(['post', item.id]) : undefined;
+      const post = detailPost?.myVote
+        ? { ...item, myVote: detailPost.myVote, pollOptions: detailPost.pollOptions ?? item.pollOptions }
+        : item;
+      const votedOptionIndex = getVotedOptionIndex(post, votedPolls);
+      return (
+        <PostCard
+          post={post}
+          onPress={() => handlePostPress(post)}
+          onAvatarPress={!post.isAnonymous ? () => handleAvatarPress(post) : undefined}
+          onLike={() => likePostMutation.mutate(post.id)}
+          onComment={() => handleCommentPress(post)}
+          onForward={() => handleForward(post)}
+          onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+          onQuote={() => handleQuote(post)}
+          onTagPress={(tag) => handleTagPress(post, tag)}
+          onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+          onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
+          onVote={
+            post.isPoll
+              ? (optIdx) => {
+                  const optionId = post.pollOptions?.[optIdx]?.id;
+                  if (optionId) {
+                    votePostMutation.mutate({ postId: post.id, optionId, optionIndex: optIdx });
+                  }
                 }
-              }
-            : undefined
-        }
-        isLiked={item.liked ?? false}
-        isBookmarked={item.bookmarked ?? false}
-        votedOptionIndex={getVotedOptionIndex(item, votedPolls)}
-      />
-    ),
-    [posts, votedPolls, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation]
+              : undefined
+          }
+          isLiked={post.liked ?? false}
+          isBookmarked={post.bookmarked ?? false}
+          votedOptionIndex={votedOptionIndex}
+        />
+      );
+    },
+    [posts, votedPolls, pollListRefreshKey, queryClient, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation]
+  );
+
+  const listExtraData = useMemo(
+    () => ({
+      votedPolls,
+      pollListRefreshKey,
+      pollVotes: posts?.map((p) => (p.isPoll ? `${p.id}:${p.myVote?.optionId ?? ''}` : '')).join('|'),
+    }),
+    [votedPolls, pollListRefreshKey, posts]
   );
 
   return (
@@ -206,6 +225,7 @@ export default function ForumScreen({ navigation }: Props) {
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        extraData={listExtraData}
         refreshing={isLoading}
         onRefresh={refetch}
         onScroll={onScroll}

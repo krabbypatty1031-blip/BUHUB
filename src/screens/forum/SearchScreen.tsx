@@ -201,6 +201,7 @@ export default function SearchScreen({ navigation }: Props) {
           data={results}
           renderItem={renderResult}
           keyExtractor={(item) => item.id}
+          extraData={votedPolls}
           contentContainerStyle={styles.listContent}
         />
       )}

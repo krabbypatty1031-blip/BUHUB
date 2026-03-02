@@ -5,10 +5,13 @@ export function getVotedOptionIndex(
   post: ForumPost,
   votedPolls: Map<string, number>
 ): number | undefined {
+  // Prefer myVote from API/cache
   const optId = post.myVote?.optionId;
   if (optId) {
     const idx = post.pollOptions?.findIndex((o) => o.id === optId) ?? -1;
     if (idx >= 0) return idx;
   }
-  return votedPolls.get(post.id);
+  // Fallback to votedPolls store (optimistic update before cache sync)
+  const storeIndex = votedPolls.get(post.id);
+  return typeof storeIndex === 'number' ? storeIndex : undefined;
 }

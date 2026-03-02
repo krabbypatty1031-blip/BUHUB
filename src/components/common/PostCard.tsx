@@ -207,18 +207,18 @@ function PostCard({
             {post.pollOptions.map((opt, i) =>
               hasVoted ? (
                 <TouchableOpacity
-                  key={opt.id ?? `${i}-${opt.text}`}
+                  key={`voted-${opt.id ?? i}`}
                   style={styles.pollOption}
                   activeOpacity={1}
                   disabled
                 >
-                  <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
+                  <AnimatedPollBar percent={opt.percent ?? 0} isVoted={i === votedOptionIndex} />
                   <Text
                     style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {opt.text}
+                    {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
                   </Text>
                   <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>
                     {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
@@ -226,13 +226,13 @@ function PostCard({
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  key={opt.id ?? `${i}-${opt.text}`}
+                  key={`unvoted-${opt.id ?? i}`}
                   style={styles.pollOptionUnvoted}
                   activeOpacity={0.65}
                   onPress={() => onVote?.(i)}
                 >
                   <Text style={styles.pollTextUnvoted} numberOfLines={1} ellipsizeMode="tail">
-                    {opt.text}
+                    {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
                   </Text>
                 </TouchableOpacity>
               )

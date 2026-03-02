@@ -204,6 +204,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         ListHeaderComponent={renderHeader}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        extraData={votedPolls}
         contentContainerStyle={styles.listContent}
       />
 
