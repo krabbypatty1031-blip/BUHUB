@@ -1,11 +1,13 @@
 import React, { useCallback } from 'react';
 import {
+  ActionSheetIOS,
+  Platform,
+  Share,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +21,9 @@ import {
   MapPinIcon,
   ClockIcon,
 } from '../../components/common/icons';
+import {
+  openExternalBrowser,
+} from '../../utils/openExternalBrowser';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'LibraryDetail'>;
 
@@ -48,7 +53,23 @@ export default function LibraryDetailScreen({ navigation }: Props) {
   const { t } = useTranslation();
 
   const handleBook = useCallback(() => {
-    Linking.openURL(BOOKING_URL);
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showShareActionSheetWithOptions(
+        {
+          url: BOOKING_URL,
+          message: BOOKING_URL,
+        },
+        () => {
+          void Share.share({ url: BOOKING_URL, message: BOOKING_URL }).catch(() => {
+            void openExternalBrowser(BOOKING_URL, 'system');
+          });
+        },
+        () => undefined,
+      );
+      return;
+    }
+
+    void openExternalBrowser(BOOKING_URL, 'system');
   }, []);
 
   return (

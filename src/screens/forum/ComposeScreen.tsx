@@ -16,6 +16,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useCreatePost, usePostDetail } from '../../hooks/usePosts';
 import { uploadService } from '../../api/services/upload.service';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -61,6 +62,8 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -230,7 +233,15 @@ export default function ComposeScreen({ navigation, route }: Props) {
           <View style={styles.mediaRow}>
             {images.map((uri, i) => (
               <View key={i} style={styles.mediaThumb}>
-                <Image source={{ uri }} style={styles.mediaImage} />
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setPreviewIndex(i);
+                    setPreviewVisible(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.mediaImage} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.mediaRemove} onPress={() => removeImage(i)}>
                   <CloseIcon size={14} color={colors.onPrimary} />
                 </TouchableOpacity>
@@ -244,6 +255,12 @@ export default function ComposeScreen({ navigation, route }: Props) {
             )}
           </View>
         )}
+        <ImagePreviewModal
+          visible={previewVisible}
+          images={images}
+          initialIndex={previewIndex}
+          onClose={() => setPreviewVisible(false)}
+        />
 
         {/* Poll Form */}
         {type === 'poll' && (

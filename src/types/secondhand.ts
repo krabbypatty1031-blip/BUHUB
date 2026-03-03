@@ -14,6 +14,7 @@ export interface SecondhandItem {
   condition: string;
   location: string;
   user: string;
+  userName?: string;
   authorId?: string;
   avatar: string;
   gender: Gender;

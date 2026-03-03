@@ -38,8 +38,10 @@ export function useEditErrand() {
   return useMutation({
     mutationFn: ({ id, errand }: { id: string; errand: Partial<Errand> }) =>
       errandService.edit(id, errand),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['errands'] });
+      queryClient.invalidateQueries({ queryKey: ['errands', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['errand', variables.id] });
     },
   });
 }

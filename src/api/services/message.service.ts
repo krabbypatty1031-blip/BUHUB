@@ -10,6 +10,7 @@ const MESSAGE_CARD_PREFIX = '[BUHUB_CARD]';
 const MESSAGE_REPLY_PREFIX = '[BUHUB_REPLY]';
 const MESSAGE_AUDIO_PREFIX = '[BUHUB_AUDIO]';
 const MESSAGE_REACTION_PREFIX = '[BUHUB_REACTION]';
+const MESSAGE_ALBUM_PREFIX = '[BUHUB_ALBUM]';
 const CARD_TITLE_MAX_LEN = 240;
 const CARD_POSTER_MAX_LEN = 80;
 
@@ -45,6 +46,14 @@ type ReactionPayload = {
   emoji?: string | null;
 };
 
+type ImageAlbumPayload = {
+  count: number;
+  replyTo?: {
+    text: string;
+    from: 'me' | 'them';
+  };
+};
+
 export type SendMessagePayload =
   | string
   | {
@@ -53,6 +62,9 @@ export type SendMessagePayload =
       replyTo?: ReplyPayload['replyTo'];
       audio?: AudioPayload;
       reaction?: ReactionPayload;
+      imageAlbum?: {
+        count: number;
+      };
     };
 
 type MessageLanguage = 'tc' | 'sc' | 'en';
@@ -147,6 +159,10 @@ function encodeReactionPayload(payload: ReactionPayload): string {
   return `${MESSAGE_REACTION_PREFIX}${JSON.stringify(payload)}`;
 }
 
+function encodeImageAlbumPayload(payload: ImageAlbumPayload): string {
+  return `${MESSAGE_ALBUM_PREFIX}${JSON.stringify(payload)}`;
+}
+
 function parseMessageContent(raw: string): {
   text: string;
   functionCard?: {
@@ -159,7 +175,33 @@ function parseMessageContent(raw: string): {
   replyTo?: ReplyPayload['replyTo'];
   audio?: AudioPayload;
   reaction?: ReactionPayload;
+  imageAlbum?: ImageAlbumPayload;
 } {
+  if (raw.startsWith(MESSAGE_ALBUM_PREFIX)) {
+    try {
+      const payload = JSON.parse(raw.slice(MESSAGE_ALBUM_PREFIX.length)) as ImageAlbumPayload;
+      if (!payload?.count || payload.count < 1) {
+        return { text: raw };
+      }
+      return {
+        text: '',
+        imageAlbum: {
+          count: payload.count,
+          ...(payload.replyTo?.text &&
+          (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
+            ? { replyTo: payload.replyTo }
+            : {}),
+        },
+        ...(payload.replyTo?.text &&
+        (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
+          ? { replyTo: payload.replyTo }
+          : {}),
+      };
+    } catch {
+      return { text: raw };
+    }
+  }
+
   if (raw.startsWith(MESSAGE_REACTION_PREFIX)) {
     try {
       const payload = JSON.parse(raw.slice(MESSAGE_REACTION_PREFIX.length)) as ReactionPayload;
@@ -345,6 +387,7 @@ function groupMessagesByDate(
             return audioUrl ? { audio: { ...parsed.audio, url: audioUrl } } : {};
           })()
         : {}),
+      ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
       ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
       time: formatChatTime(timestamp),
       ...(m.isMine ? { status: (m.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
@@ -370,6 +413,13 @@ function normalizeSendContent(payload: SendMessagePayload): string {
   if (payload.audio) {
     return encodeAudioPayload({
       ...payload.audio,
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    });
+  }
+
+  if (payload.imageAlbum) {
+    return encodeImageAlbumPayload({
+      count: payload.imageAlbum.count,
       ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     });
   }
@@ -416,6 +466,8 @@ export const messageService = {
               ? buildCardPreview(parsed.functionCard)
               : parsed.audio
                 ? tMessage('messageAudioPreview')
+                : parsed.imageAlbum
+                  ? tMessage('messageAlbumPreview', { count: parsed.imageAlbum.count })
                 : parsed.reaction
                   ? parsed.reaction.emoji
                     ? tMessage('messageReactionPreview', {
@@ -505,6 +557,7 @@ export const messageService = {
         type: 'sent' as const,
         text: parsed.text,
         images: images ?? [],
+        ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
         ...(parsed.audio ? { audio: parsed.audio } : {}),
         ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
         time,

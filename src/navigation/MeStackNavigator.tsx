@@ -16,7 +16,13 @@ const Stack = createNativeStackNavigator<MeStackParamList>();
 
 export default function MeStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: false,
+      }}
+    >
       <Stack.Screen name="MeHome" component={MeScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="ShareProfile" component={ShareProfileScreen} />

@@ -30,6 +30,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
@@ -61,6 +62,7 @@ import { getVotedOptionIndex } from '../../utils/forum';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { hapticLight } from '../../utils/haptics';
 import { normalizeImageUrl } from '../../utils/imageUrl';
+import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
 
@@ -248,6 +250,7 @@ function ReplyItem({
   level = 2,
   expandedReplies = [],
   registerItemRef,
+  onAvatarPress,
 }: {
   reply: Reply;
   lang: Language;
@@ -261,6 +264,7 @@ function ReplyItem({
   level?: number;
   expandedReplies?: string[];
   registerItemRef?: (id: string, node: View | null) => void;
+  onAvatarPress?: (reply: Reply) => void;
 }) {
 
   const replyMeta = useMemo(
@@ -343,13 +347,28 @@ function ReplyItem({
     >
       <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(reply.id)}>
         <View style={styles.commentHeader}>
-          <Avatar
-            text={reply.name}
-            uri={reply.avatar}
-            defaultAvatar={reply.defaultAvatar}
-            size="xs"
-            gender={reply.gender}
-          />
+          {onAvatarPress && !reply.isAnonymous ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => onAvatarPress(reply)}
+            >
+              <Avatar
+                text={reply.name}
+                uri={reply.avatar}
+                defaultAvatar={reply.defaultAvatar}
+                size="xs"
+                gender={reply.gender}
+              />
+            </TouchableOpacity>
+          ) : (
+            <Avatar
+              text={reply.name}
+              uri={reply.avatar}
+              defaultAvatar={reply.defaultAvatar}
+              size="xs"
+              gender={reply.gender}
+            />
+          )}
           <View style={styles.commentUserInfo}>
             <View style={styles.replyNameRow}>
               <Text style={styles.replyName}>{reply.name}</Text>
@@ -419,6 +438,7 @@ function ReplyItem({
                 level={level + 1}
                 expandedReplies={expandedReplies}
                 registerItemRef={registerItemRef}
+                onAvatarPress={onAvatarPress}
               />
             ))}
           </View>
@@ -467,6 +487,7 @@ function CommentItem({
   highlightId,
   expandedReplies = [],
   registerItemRef,
+  onAvatarPress,
 }: {
   comment: Comment;
   lang: Language;
@@ -478,6 +499,7 @@ function CommentItem({
   highlightId?: string;
   expandedReplies?: string[];
   registerItemRef?: (id: string, node: View | null) => void;
+  onAvatarPress?: (comment: Comment | Reply) => void;
 }) {
   const { t } = useTranslation();
   const isHighlighted = !!highlightId && comment.id === highlightId;
@@ -557,13 +579,28 @@ function CommentItem({
       {/* Comment main */}
       <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(comment.id)}>
         <View style={styles.commentHeader}>
-          <Avatar
-            text={comment.name}
-            uri={comment.avatar}
-            defaultAvatar={comment.defaultAvatar}
-            size="sm"
-            gender={comment.gender}
-          />
+          {onAvatarPress && !comment.isAnonymous ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => onAvatarPress(comment)}
+            >
+              <Avatar
+                text={comment.name}
+                uri={comment.avatar}
+                defaultAvatar={comment.defaultAvatar}
+                size="sm"
+                gender={comment.gender}
+              />
+            </TouchableOpacity>
+          ) : (
+            <Avatar
+              text={comment.name}
+              uri={comment.avatar}
+              defaultAvatar={comment.defaultAvatar}
+              size="sm"
+              gender={comment.gender}
+            />
+          )}
           <View style={styles.commentUserInfo}>
             <View style={styles.commentNameRow}>
               <Text style={styles.commentName}>{comment.name}</Text>
@@ -623,6 +660,7 @@ function CommentItem({
               level={2}
               expandedReplies={expandedReplies}
               registerItemRef={registerItemRef}
+              onAvatarPress={onAvatarPress}
             />
           ))}
           {/* Expand in batches until all replies are visible (shown below current list). */}
@@ -718,10 +756,19 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [commentActionVisible, setCommentActionVisible] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   /* ── Refs ── */
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
+  const postImages = useMemo(
+    () =>
+      (post?.images ?? [])
+        .map((image) => normalizeImageUrl(image))
+        .filter((image): image is string => Boolean(image)),
+    [post?.images]
+  );
   const registerItemRef = useCallback((id: string, node: View | null) => {
     if (node) {
       itemRefs.current.set(id, node);
@@ -891,6 +938,28 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [post?.pollOptions],
   );
   const currentUser = useAuthStore((s) => s.user);
+  const isOwnPost = useMemo(
+    () =>
+      isCurrentUserContentOwner(currentUser, {
+        userName: post?.userName,
+        displayName: post?.name,
+        isAnonymous: post?.isAnonymous,
+      }),
+    [currentUser, post?.userName, post?.name, post?.isAnonymous]
+  );
+
+  const isOwnCommentContent = useCallback(
+    (item: Comment | Reply | null | undefined) =>
+      Boolean(
+        item &&
+          isCurrentUserContentOwner(currentUser, {
+            userName: item.userName,
+            displayName: item.name,
+            isAnonymous: item.isAnonymous,
+          })
+      ),
+    [currentUser]
+  );
 
   const handleAvatarPress = useCallback(() => {
     handleAvatarPressNavigation({
@@ -901,6 +970,19 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       displayName: post?.name,
     });
   }, [post, currentUser, navigation]);
+
+  const handleCommentAvatarPress = useCallback(
+    (item: Comment | Reply) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        isAnonymous: item.isAnonymous,
+        userName: item.userName,
+        displayName: item.name,
+      });
+    },
+    [currentUser, navigation]
+  );
 
   const handleComment = useCallback(() => {
     hapticLight();
@@ -995,13 +1077,22 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [bookmarkPostMutation, postId]);
 
   const handleReportPost = useCallback(() => {
+    if (isOwnPost) {
+      showSnackbar({ message: t('cannotReportOwnContent'), type: 'info' });
+      return;
+    }
     setPopoverVisible(true);
-  }, []);
+  }, [isOwnPost, showSnackbar, t]);
 
   const handleReportComment = useCallback((commentId: string) => {
+    const targetComment = findCommentById(commentsData, commentId);
+    if (isOwnCommentContent(targetComment)) {
+      showSnackbar({ message: t('cannotReportOwnContent'), type: 'info' });
+      return;
+    }
     setReportTargetCommentId(commentId);
     setCommentActionVisible(true);
-  }, []);
+  }, [commentsData, isOwnCommentContent, showSnackbar, t]);
 
   // Keep FlatList props stable so input-only state updates (e.g. isAnonymous)
   // do not trigger full list/header re-render that can cause image flicker.
@@ -1018,15 +1109,23 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         highlightId={commentId}
         expandedReplies={expandedReplies}
         registerItemRef={registerItemRef}
+        onAvatarPress={handleCommentAvatarPress}
       />
     ),
-    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId, expandedReplies, registerItemRef]
+    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId, expandedReplies, registerItemRef, handleCommentAvatarPress]
   );
 
   const handleReportSubmit = useCallback(
     async (reasonCategory: string, reason?: string) => {
       try {
         const isComment = !!reportTargetCommentId;
+        const targetComment = isComment ? findCommentById(commentsData, reportTargetCommentId!) : null;
+        if ((isComment && isOwnCommentContent(targetComment)) || (!isComment && isOwnPost)) {
+          setReportVisible(false);
+          setReportTargetCommentId(null);
+          showSnackbar({ message: t('cannotReportOwnContent'), type: 'info' });
+          return;
+        }
         await reportService.submit({
           targetType: isComment ? 'comment' : 'post',
           targetId: isComment ? reportTargetCommentId! : postId,
@@ -1040,12 +1139,12 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         showSnackbar({ message: t('reportFailed'), type: 'error' });
       }
     },
-    [postId, reportTargetCommentId, showSnackbar, t]
+    [commentsData, isOwnCommentContent, isOwnPost, postId, reportTargetCommentId, showSnackbar, t]
   );
 
   const renderHeader = useCallback(() => {
     if (!post) return null;
-    const headerImage = normalizeImageUrl(post.images?.[0] ?? post.image);
+    const headerImage = postImages[0] ?? normalizeImageUrl(post.images?.[0] ?? post.image);
     return (
       <View>
         {/* Post Content */}
@@ -1167,7 +1266,22 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           )}
 
           {headerImage && (
-            <Image source={{ uri: headerImage }} style={styles.postImage} />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                setPreviewIndex(0);
+                setPreviewVisible(true);
+              }}
+            >
+              <View style={styles.postImageWrap}>
+                <Image source={{ uri: headerImage }} style={styles.postImage} />
+                {postImages.length > 1 ? (
+                  <View style={styles.imageCountBadge}>
+                    <Text style={styles.imageCountBadgeText}>{`1/${postImages.length}`}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </TouchableOpacity>
           )}
 
           {post.isPoll && post.pollOptions && (
@@ -1275,7 +1389,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, isLiked, isBookmarked, votedOptionIndex, votePostMutation, handleLikePostPress, handleBookmarkPostPress, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
+  }, [post, postImages, isLiked, isBookmarked, votedOptionIndex, votePostMutation, handleLikePostPress, handleBookmarkPostPress, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
 
   const headerComponent = useMemo(() => renderHeader(), [renderHeader]);
 
@@ -1316,12 +1430,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
-        <TouchableOpacity onPress={handleReportPost} style={styles.iconBtn}>
-          <MoreHorizontalIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
+        {isOwnPost ? (
+          <View style={styles.iconBtn} />
+        ) : (
+          <TouchableOpacity onPress={handleReportPost} style={styles.iconBtn}>
+            <MoreHorizontalIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {popoverVisible && (
+      {!isOwnPost && popoverVisible && (
         <TouchableOpacity
           style={styles.popoverOverlay}
           activeOpacity={1}
@@ -1480,6 +1598,12 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         onClose={() => setReportVisible(false)}
         onSubmit={handleReportSubmit}
       />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={postImages.length > 0 ? postImages : post?.image ? [normalizeImageUrl(post.image) ?? post.image] : []}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
+      />
       </SafeAreaView>
   );
 }
@@ -1632,8 +1756,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 220,
     borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
     backgroundColor: colors.surface2,
+  },
+  postImageWrap: {
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
   },
   pollContainer: {
     marginBottom: spacing.md,

@@ -29,6 +29,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -99,6 +100,7 @@ export default function ErrandListScreen({ navigation }: Props) {
           forwardedPosterName: item.user,
           forwardedId: functionId,
           forwardedNonce: `${Date.now()}-${functionId}-${item.authorId}`,
+          forwardedRequiresConfirm: true,
           ...(backTo ? { backTo } : {}),
         },
       });
@@ -133,6 +135,18 @@ export default function ErrandListScreen({ navigation }: Props) {
     [actionItem, currentUser]
   );
 
+  const handleAvatarPress = useCallback(
+    (item: Errand) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.user,
+      });
+    },
+    [navigation, currentUser]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
       const isAccepted = acceptedErrands.has(item.id);
@@ -150,7 +164,15 @@ export default function ErrandListScreen({ navigation }: Props) {
         >
           {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
-            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleAvatarPress(item);
+              }}
+            >
+              <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+            </TouchableOpacity>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.userName}>{item.user}</Text>
@@ -214,7 +236,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [acceptedErrands, navigation, t, lang]
+    [acceptedErrands, navigation, t, lang, handleAvatarPress]
   );
 
   return (
@@ -262,7 +284,7 @@ export default function ErrandListScreen({ navigation }: Props) {
 
       {/* Disclaimer Banner */}
       <View style={styles.disclaimerBar}>
-        <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
+        <Text style={styles.disclaimerText}>{t('errandDisclaimer')}</Text>
       </View>
 
       {/* Errand List */}

@@ -27,6 +27,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   UsersIcon,
@@ -93,10 +94,27 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         forwardedPosterName: partner.user,
         forwardedId: partner.id,
         forwardedNonce: `${Date.now()}-${partner.id}-${partner.authorId}`,
+        forwardedRequiresConfirm: true,
         backTo,
       },
     });
   }, [isOwnPost, navigation, partner]);
+
+  const handleOrganizerAvatarPress = useCallback(() => {
+    if (!partner) return;
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser,
+      userName: partner.userName,
+      displayName: partner.user,
+    });
+  }, [navigation, currentUser, partner]);
+
+  const handleEdit = useCallback(() => {
+    if (!partner || !isOwnPost) return;
+    setPopoverVisible(false);
+    navigation.navigate('ComposePartner', { editId: partner.id, initialData: partner });
+  }, [partner, isOwnPost, navigation]);
 
   if (!partner) {
     return (
@@ -155,15 +173,21 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             >
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.popoverItem}
-              onPress={() => {
-                setPopoverVisible(false);
-                setReportVisible(true);
-              }}
-            >
-              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
-            </TouchableOpacity>
+            {isOwnPost ? (
+              <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.popoverItem}
+                onPress={() => {
+                  setPopoverVisible(false);
+                  setReportVisible(true);
+                }}
+              >
+                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       )}
@@ -261,7 +285,9 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('organizer')}</Text>
           <View style={styles.organizerRow}>
-            <Avatar text={partner.user} uri={partner.avatar} size="lg" gender={partner.gender} />
+            <TouchableOpacity activeOpacity={0.7} onPress={handleOrganizerAvatarPress}>
+              <Avatar text={partner.user} uri={partner.avatar} size="lg" gender={partner.gender} />
+            </TouchableOpacity>
             <View style={styles.organizerInfo}>
               <View style={styles.organizerNameRow}>
                 <Text style={styles.organizerName}>{partner.user}</Text>

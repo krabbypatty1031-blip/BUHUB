@@ -25,6 +25,7 @@ const mapPartner = (p: any): PartnerPost => ({
   id: p.id,
   category: fromApiCategory(p.category),
   user: p.author?.nickname ?? p.author?.userName ?? p.user ?? '?',
+  userName: p.author?.userName ?? p.userName ?? undefined,
   avatar: normalizeAvatarUrl(p.author?.avatar ?? p.avatar) ?? '',
   gender: p.author?.gender ?? p.gender ?? 'other',
   bio: p.author?.bio ?? p.bio ?? '',

@@ -20,6 +20,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
@@ -53,6 +54,9 @@ export default function SearchScreen({ navigation }: Props) {
   const votePostMutation = useVotePost();
   const currentUser = useAuthStore((s) => s.user);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 300);
@@ -137,6 +141,11 @@ export default function SearchScreen({ navigation }: Props) {
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onImagePress={(images, index) => {
+          setPreviewImages(images);
+          setPreviewIndex(index);
+          setPreviewVisible(true);
+        }}
         onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
         onVote={
           item.isPoll
@@ -234,6 +243,12 @@ export default function SearchScreen({ navigation }: Props) {
         post={forwardPost}
         onClose={() => setForwardPost(null)}
         navigation={navigation}
+      />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
       />
     </SafeAreaView>
   );

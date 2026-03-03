@@ -156,8 +156,11 @@ export default function MessagesScreen({ navigation }: Props) {
   const isPinned = useMessageStore((s) => s.isPinned);
   const isMuted = useMessageStore((s) => s.isMuted);
   const getEffectiveUnread = useMessageStore((s) => s.getEffectiveUnread);
+  const getEffectiveTabUnread = useMessageStore((s) => s.getEffectiveTabUnread);
   const markedUnreadContacts = useMessageStore((s) => s.markedUnreadContacts);
   const readContacts = useMessageStore((s) => s.readContacts);
+  const inboxSeenContacts = useMessageStore((s) => s.inboxSeenContacts);
+  const setUnreadMessages = useNotificationStore((s) => s.setUnreadMessages);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
@@ -174,6 +177,25 @@ export default function MessagesScreen({ navigation }: Props) {
     if (!blockedList) return;
     setBlockedUsers(blockedList.map((u) => u.userName));
   }, [blockedList, setBlockedUsers]);
+
+  useEffect(() => {
+    if (!contacts) {
+      setUnreadMessages(0);
+      return;
+    }
+    const unreadMessageCount = contacts.reduce(
+      (count, contact) => count + getEffectiveTabUnread(contact.id, contact.unread),
+      0
+    );
+    setUnreadMessages(unreadMessageCount);
+  }, [
+    contacts,
+    getEffectiveTabUnread,
+    markedUnreadContacts,
+    readContacts,
+    inboxSeenContacts,
+    setUnreadMessages,
+  ]);
 
   useFocusEffect(
     useCallback(() => {

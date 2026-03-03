@@ -40,9 +40,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-font"
-    ],
     "extra": {
       "apiUrl": "https://www.uhub.help/api",
       "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",

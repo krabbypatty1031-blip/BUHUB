@@ -38,8 +38,10 @@ export function useEditPartner() {
   return useMutation({
     mutationFn: ({ id, post }: { id: string; post: Partial<PartnerPost> }) =>
       partnerService.edit(id, post),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['partners'] });
+      queryClient.invalidateQueries({ queryKey: ['partners', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['partner', variables.id] });
     },
   });
 }

@@ -45,6 +45,7 @@ interface PostCardProps {
   onDelete?: () => void;
   onTagPress?: (tag: string) => void;
   onFunctionPress?: () => void;
+  onImagePress?: (images: string[], index: number) => void;
   onVote?: (optionIndex: number) => void;
   onQuotedPostPress?: (postId: string) => void;
   isLiked?: boolean;
@@ -78,6 +79,7 @@ function PostCard({
   onDelete,
   onTagPress,
   onFunctionPress,
+  onImagePress,
   onVote,
   onQuotedPostPress,
   isLiked,
@@ -209,7 +211,19 @@ function PostCard({
 
         {/* Image */}
         {post.hasImage && displayImage && (
-          <Image source={{ uri: displayImage }} style={styles.image} />
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => onImagePress?.(post.images?.length ? post.images : [displayImage], 0)}
+          >
+            <View style={styles.imageWrap}>
+              <Image source={{ uri: displayImage }} style={styles.image} />
+              {(post.images?.length ?? 0) > 1 ? (
+                <View style={styles.imageCountBadge}>
+                  <Text style={styles.imageCountBadgeText}>{`1/${post.images!.length}`}</Text>
+                </View>
+              ) : null}
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* Poll */}
@@ -420,8 +434,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: borderRadius.sm,
-    marginBottom: spacing.sm,
     backgroundColor: colors.surface2,
+  },
+  imageWrap: {
+    marginBottom: spacing.sm,
+    position: 'relative',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   pollContainer: {
     marginBottom: spacing.sm,

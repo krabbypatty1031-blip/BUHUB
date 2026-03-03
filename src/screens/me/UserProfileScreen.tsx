@@ -27,6 +27,7 @@ import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import {
   BackIcon,
@@ -69,6 +70,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   const isFollowing = profile?.isFollowedByMe ?? false;
   const profileMeta = [profile?.major, profile?.grade]
@@ -229,12 +231,20 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const renderHeader = useMemo(() => (
     <View>
       <View style={styles.profileHeader}>
-        <Avatar
-          text={userName}
-          uri={profile?.avatar || null}
-          size="xl"
-          gender={profile?.gender}
-        />
+        <TouchableOpacity
+          activeOpacity={profile?.avatar ? 0.7 : 1}
+          onPress={() => {
+            if (!profile?.avatar) return;
+            setAvatarPreviewVisible(true);
+          }}
+        >
+          <Avatar
+            text={userName}
+            uri={profile?.avatar || null}
+            size="xl"
+            gender={profile?.gender}
+          />
+        </TouchableOpacity>
 
         <View style={styles.userNameRow}>
           <Text style={styles.userName}>{profile?.nickname || userName}</Text>
@@ -433,6 +443,12 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             />
           )
         }
+      />
+
+      <ImagePreviewModal
+        visible={avatarPreviewVisible}
+        images={profile?.avatar ? [profile.avatar] : []}
+        onClose={() => setAvatarPreviewVisible(false)}
       />
 
       <Modal

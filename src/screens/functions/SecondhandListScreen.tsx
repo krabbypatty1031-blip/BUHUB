@@ -25,11 +25,13 @@ import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import Avatar from '../../components/common/Avatar';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -62,14 +64,18 @@ const ItemCard = React.memo(function ItemCard({
   item,
   id,
   onPress,
+  onAvatarPress,
   onMore,
+  onImagePress,
   t,
   cardWidth,
 }: {
   item: SecondhandItem;
   id: string;
   onPress: (id: string) => void;
+  onAvatarPress: (item: SecondhandItem) => void;
   onMore: (item: SecondhandItem, id: string) => void;
+  onImagePress: (images: string[], index: number) => void;
   t: (key: string) => string;
   cardWidth: number;
 }) {
@@ -86,10 +92,24 @@ const ItemCard = React.memo(function ItemCard({
       {/* Image area */}
       <View style={[styles.imageArea, { height: cardWidth * 0.8 }, isSoldOrExpired && styles.imageAreaDimmed]}>
         {primaryImage ? (
-          <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+          <TouchableOpacity
+            style={styles.imagePressTarget}
+            activeOpacity={0.9}
+            onPress={(event) => {
+              event.stopPropagation();
+              onImagePress(item.images ?? [primaryImage], 0);
+            }}
+          >
+            <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+          </TouchableOpacity>
         ) : (
           <ShoppingBagIcon size={32} color={colors.outlineVariant} />
         )}
+        {(item.images?.length ?? 0) > 1 ? (
+          <View style={styles.imageCountBadge}>
+            <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
+          </View>
+        ) : null}
 
         {/* Condition tag - top left */}
         <View style={styles.conditionBadge}>
@@ -132,7 +152,15 @@ const ItemCard = React.memo(function ItemCard({
         <Text style={styles.itemPrice}>{item.price}</Text>
 
         <View style={styles.sellerRow}>
-          <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={(event) => {
+              event.stopPropagation();
+              onAvatarPress(item);
+            }}
+          >
+            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+          </TouchableOpacity>
           <View style={styles.sellerInfo}>
             <View style={styles.sellerNameRow}>
               <Text style={styles.sellerName} numberOfLines={1}>
@@ -174,6 +202,9 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   // Filter by search text
   const filteredItems = useMemo(() => {
@@ -236,6 +267,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
           forwardedPosterName: item.user,
           forwardedId: functionId,
           forwardedNonce: `${Date.now()}-${functionId}-${item.authorId}`,
+          forwardedRequiresConfirm: true,
           ...(backTo ? { backTo } : {}),
         },
       });
@@ -249,6 +281,18 @@ export default function SecondhandListScreen({ navigation }: Props) {
     [actionItem, currentUser]
   );
 
+  const handleAvatarPress = useCallback(
+    (item: SecondhandItem) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.user,
+      });
+    },
+    [navigation, currentUser]
+  );
+
   const handleMore = useCallback(
     (item: SecondhandItem, id: string) => {
       setActionItem({ item, id });
@@ -259,10 +303,23 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: SecondhandItem }) => {
       return (
-        <ItemCard id={item.id} item={item} onPress={handleItemPress} onMore={handleMore} t={t} cardWidth={cardWidth} />
+        <ItemCard
+          id={item.id}
+          item={item}
+          onPress={handleItemPress}
+          onAvatarPress={handleAvatarPress}
+          onMore={handleMore}
+          onImagePress={(images, index) => {
+            setPreviewImages(images);
+            setPreviewIndex(index);
+            setPreviewVisible(true);
+          }}
+          t={t}
+          cardWidth={cardWidth}
+        />
       );
     },
-    [handleItemPress, handleMore, t, cardWidth]
+    [handleItemPress, handleAvatarPress, handleMore, t, cardWidth]
   );
 
   return (
@@ -412,6 +469,12 @@ export default function SecondhandListScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
+      />
       </SafeAreaView>
   );
 }
@@ -556,6 +619,23 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
+  },
+  imagePressTarget: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
   },
   imageAreaDimmed: {
     opacity: 0.45,

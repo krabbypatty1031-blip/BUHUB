@@ -22,12 +22,19 @@ import SecondhandShareScreen from '../screens/functions/SecondhandShareScreen';
 import MyPostsScreen from '../screens/functions/MyPostsScreen';
 import FacilityBookingScreen from '../screens/functions/FacilityBookingScreen';
 import LibraryDetailScreen from '../screens/functions/LibraryDetailScreen';
+import UserProfileScreen from '../screens/me/UserProfileScreen';
 
 const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
 export default function FunctionsStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: false,
+      }}
+    >
       <Stack.Screen name="FunctionsHub" component={FunctionsHubScreen} />
       <Stack.Screen name="PartnerList" component={PartnerListScreen} />
       <Stack.Screen name="PartnerDetail" component={PartnerDetailScreen} />
@@ -48,6 +55,7 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="MyPosts" component={MyPostsScreen} />
       <Stack.Screen name="FacilityBooking" component={FacilityBookingScreen} />
       <Stack.Screen name="LibraryDetail" component={LibraryDetailScreen} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} />
     </Stack.Navigator>
   );
 }

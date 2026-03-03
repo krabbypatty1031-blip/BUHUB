@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { PartnerCategory } from '../../types';
-import { useCreatePartner } from '../../hooks/usePartners';
+import { useCreatePartner, useEditPartner } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -44,16 +44,29 @@ const CATEGORIES: Array<{ key: PartnerCategory; labelKey: string }> = [
   { key: 'other', labelKey: 'other' },
 ];
 
+const parseDateOrNull = (value?: string | null): Date | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export default function ComposePartnerScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const editId = route.params?.editId;
+  const initialData = route.params?.initialData;
+  const isEditMode = Boolean(editId && initialData);
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const defaultCategory = (route.params?.category as PartnerCategory) || 'travel';
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [content, setContent] = useState(initialData?.desc ?? '');
+  const defaultCategory = initialData?.category ?? route.params?.category ?? 'travel';
   const [category, setCategory] = useState<PartnerCategory | null>(defaultCategory);
-  const [activityTime, setActivityTime] = useState<Date | null>(null);
-  const [deadlineTime, setDeadlineTime] = useState<Date | null>(null);
-  const [location, setLocation] = useState('');
+  const [activityTime, setActivityTime] = useState<Date | null>(
+    parseDateOrNull(initialData?.time) ?? parseDateOrNull(initialData?.expiresAt)
+  );
+  const [deadlineTime, setDeadlineTime] = useState<Date | null>(
+    parseDateOrNull(initialData?.expiresAt)
+  );
+  const [location, setLocation] = useState(initialData?.location ?? '');
   const [activityPickerVisible, setActivityPickerVisible] = useState(false);
   const [deadlinePickerVisible, setDeadlinePickerVisible] = useState(false);
 
@@ -105,40 +118,65 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const user = useAuthStore((s) => s.user);
   const createPartner = useCreatePartner();
+  const editPartner = useEditPartner();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
 
   const handlePost = useCallback(() => {
     if (!canPost || !user || isPosting) return;
     setIsPosting(true);
-    createPartner.mutate(
-      {
-        category: category!,
-        type: t(category!),
-        title: title.trim(),
-        desc: content.trim(),
-        time: formatDeadline(activityTime!),
-        location: location.trim(),
-        expiresAt: deadlineTime!.toISOString(),
-        createdAt: new Date().toISOString(),
+    const payload = {
+      category: category!,
+      type: t(category!),
+      title: title.trim(),
+      desc: content.trim(),
+      time: formatDeadline(activityTime!),
+      location: location.trim(),
+      expiresAt: deadlineTime!.toISOString(),
+      createdAt: initialData?.createdAt ?? new Date().toISOString(),
+    };
+
+    const onError = () => {
+      showSnackbar({ message: t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+    };
+
+    const onSettled = () => {
+      setIsPosting(false);
+    };
+
+    if (isEditMode && editId) {
+      editPartner.mutate(
+        { id: editId, post: payload },
+        {
+          onSuccess: (updated) => {
+            showSnackbar({ message: t('saveSuccess'), type: 'success' });
+            navigation.reset({
+              index: 1,
+              routes: [
+                { name: 'FunctionsHub' },
+                { name: 'MyPosts' },
+              ],
+            });
+          },
+          onError,
+          onSettled,
+        },
+      );
+      return;
+    }
+
+    createPartner.mutate(payload, {
+      onSuccess: (created) => {
+        navigation.replace('PartnerShare', {
+          activityName: title,
+          posterName: user.name,
+          functionId: created.id,
+        });
       },
-      {
-        onSuccess: (created) => {
-          navigation.replace('PartnerShare', {
-            activityName: title,
-            posterName: user.name,
-            functionId: created.id,
-          });
-        },
-        onError: () => {
-          showSnackbar({ message: t('postFailed'), type: 'error' });
-        },
-        onSettled: () => {
-          setIsPosting(false);
-        },
-      },
-    );
-  }, [canPost, navigation, title, user, category, content, activityTime, deadlineTime, location, t, isPosting, createPartner, showSnackbar]);
+      onError,
+      onSettled,
+    });
+  }, [canPost, user, isPosting, category, t, title, content, activityTime, location, deadlineTime, initialData?.createdAt, isEditMode, editId, editPartner, showSnackbar, navigation, createPartner]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -147,7 +185,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <CloseIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('newPartnerPost')}</Text>
+        <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newPartnerPost')}</Text>
         <TouchableOpacity
           style={[styles.postBtn, !canPost && styles.postBtnDisabled]}
           onPress={handlePost}
@@ -156,7 +194,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('publishBtn')}
+            {t(isEditMode ? 'save' : 'publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>

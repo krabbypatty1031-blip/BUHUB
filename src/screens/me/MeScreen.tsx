@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { UserPost, UserComment, ForumPost, Language, MyContent } from '../../types';
-import { useProfile, useMyContent } from '../../hooks/useUser';
+import { useProfile, useMyContent, useFollowingList, useFollowersList } from '../../hooks/useUser';
 import { useFollowedCircles } from '../../hooks/usePosts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLikePost, useBookmarkPost, useVotePost, useDeletePost, useDeleteComment, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
@@ -32,6 +32,7 @@ import PostCard from '../../components/common/PostCard';
 import TranslatableText from '../../components/common/TranslatableText';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import PressScaleButton from '../../components/common/PressScaleButton';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import {
   EditIcon,
@@ -88,6 +89,7 @@ const CommentItem = React.memo(function CommentItem({
   t,
   lang,
   onPress,
+  onAvatarPress,
   onUpdate,
   onComment,
   onForward,
@@ -99,6 +101,7 @@ const CommentItem = React.memo(function CommentItem({
   t: (key: string) => string;
   lang: Language;
   onPress: () => void;
+  onAvatarPress?: () => void;
   onUpdate: () => void;
   onComment?: () => void;
   onForward?: () => void;
@@ -179,13 +182,31 @@ const CommentItem = React.memo(function CommentItem({
     <PageTranslationProvider>
     <TouchableOpacity style={styles.commentItem} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.commentHeader}>
-        <Avatar
-          text={comment.name}
-          uri={comment.avatar}
-          defaultAvatar={comment.defaultAvatar}
-          size="sm"
-          gender={comment.gender}
-        />
+        {onAvatarPress && !comment.isAnonymous ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={(event) => {
+              event.stopPropagation();
+              onAvatarPress();
+            }}
+          >
+            <Avatar
+              text={comment.name}
+              uri={comment.avatar}
+              defaultAvatar={comment.defaultAvatar}
+              size="sm"
+              gender={comment.gender}
+            />
+          </TouchableOpacity>
+        ) : (
+          <Avatar
+            text={comment.name}
+            uri={comment.avatar}
+            defaultAvatar={comment.defaultAvatar}
+            size="sm"
+            gender={comment.gender}
+          />
+        )}
         <View style={styles.commentUserInfo}>
           <View style={styles.commentNameRow}>
             <Text style={styles.commentName}>{comment.name}</Text>
@@ -249,14 +270,25 @@ export default function MeScreen({ navigation }: Props) {
   const { data: myContent } = useMyContent();
   const { data: followedCircles } = useFollowedCircles();
   const user = useAuthStore((s) => s.user);
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
+  const shouldLoadFollowLists = blockedUsers.size > 0;
+  const { data: followingData } = useFollowingList({ enabled: shouldLoadFollowLists });
+  const { data: followersData } = useFollowersList({ enabled: shouldLoadFollowLists });
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [forwardComment, setForwardComment] = useState<ForumPost | null>(null);
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
+  const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
+  const followingCount = shouldLoadFollowLists && followingData
+    ? followingData.length
+    : (stats?.following ?? 0);
+  const followersCount = shouldLoadFollowLists && followersData
+    ? followersData.length
+    : (stats?.followers ?? 0);
   const followedForumCount = followedCircles?.length ?? 0;
   const votedPolls = useForumStore((s) => s.votedPolls);
 
@@ -332,6 +364,16 @@ export default function MeScreen({ navigation }: Props) {
       isAnonymous: post.isAnonymous,
       userName: post.userName,
       displayName: post.name,
+    });
+  }, [navigation, user]);
+
+  const handleCommentAvatarPress = useCallback((comment: UserComment) => {
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser: user,
+      isAnonymous: comment.isAnonymous,
+      userName: comment.userName,
+      displayName: comment.name,
     });
   }, [navigation, user]);
 
@@ -477,6 +519,7 @@ export default function MeScreen({ navigation }: Props) {
                 postAuthor: c.postAuthor,
                 postContent: c.postContent,
                 comment: c.comment,
+                userName: c.userName,
                 sourceLanguage: c.sourceLanguage,
                 time: c.time,
                 likes: c.likes,
@@ -506,6 +549,7 @@ export default function MeScreen({ navigation }: Props) {
                   t={t}
                   lang={lang}
                   onPress={() => goToComment(c.postId, c.commentId, false)}
+                  onAvatarPress={() => handleCommentAvatarPress(likedCommentAsUser)}
                   onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
                   onLikeUpdate={(liked) => {
                     if (!liked) {
@@ -600,6 +644,7 @@ export default function MeScreen({ navigation }: Props) {
                 postAuthor: c.postAuthor,
                 postContent: c.postContent,
                 comment: c.comment,
+                userName: c.userName,
                 time: c.time,
                 likes: c.likes,
                 liked: c.liked ?? false,
@@ -628,6 +673,7 @@ export default function MeScreen({ navigation }: Props) {
                   t={t}
                   lang={lang}
                   onPress={() => goToComment(c.postId, c.commentId, false)}
+                  onAvatarPress={() => handleCommentAvatarPress(bookmarkedCommentAsUser)}
                   onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
                   onBookmarkUpdate={(bookmarked) => {
                     if (!bookmarked) {
@@ -695,6 +741,7 @@ export default function MeScreen({ navigation }: Props) {
             t={t}
             lang={lang}
             onPress={() => goToComment(c.postId, c.commentId, false)}
+            onAvatarPress={() => handleCommentAvatarPress(c)}
             onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
             onComment={() => goToComment(c.postId, c.commentId, true)}
             onForward={() => setForwardComment(commentAsPost)}
@@ -809,7 +856,7 @@ export default function MeScreen({ navigation }: Props) {
                   activeOpacity={0.6}
                   onPress={() => navigation.navigate('FollowList', { type: 'following' })}
                 >
-                  <Text style={styles.miniStatValue}>{stats?.following ?? 0}</Text>
+                  <Text style={styles.miniStatValue}>{followingCount}</Text>
                   <Text style={styles.miniStatLabel}>
                     {t('followingStat')}
                   </Text>
@@ -819,7 +866,7 @@ export default function MeScreen({ navigation }: Props) {
                   activeOpacity={0.6}
                   onPress={() => navigation.navigate('FollowList', { type: 'followers' })}
                 >
-                  <Text style={styles.miniStatValue}>{stats?.followers ?? 0}</Text>
+                  <Text style={styles.miniStatValue}>{followersCount}</Text>
                   <Text style={styles.miniStatLabel}>
                     {t('followersStat')}
                   </Text>
@@ -843,7 +890,14 @@ export default function MeScreen({ navigation }: Props) {
               </View>
             </View>
 
-            <View style={styles.profileAvatarWrap}>
+            <TouchableOpacity
+              style={styles.profileAvatarWrap}
+              activeOpacity={displayUser?.avatar ? 0.7 : 1}
+              onPress={() => {
+                if (!displayUser?.avatar) return;
+                setAvatarPreviewVisible(true);
+              }}
+            >
               <Avatar
                 text={displayUser?.nickname || displayUser?.name || '?'}
                 uri={displayUser?.avatar}
@@ -851,7 +905,7 @@ export default function MeScreen({ navigation }: Props) {
                 size="xl"
                 gender={displayUser?.gender}
               />
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -998,6 +1052,12 @@ export default function MeScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <ImagePreviewModal
+        visible={avatarPreviewVisible}
+        images={displayUser?.avatar ? [displayUser.avatar] : []}
+        onClose={() => setAvatarPreviewVisible(false)}
+      />
 
       {/* Forward Sheet */}
       <ForwardSheet

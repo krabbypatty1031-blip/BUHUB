@@ -93,6 +93,7 @@ export interface UserComment {
   postId: string;
   commentId: string;
   name: string;
+  userName?: string;
   avatar: string;
   defaultAvatar?: string;
   gender?: Gender;
@@ -126,6 +127,7 @@ export interface LikedComment {
   postId: string;
   commentId: string;
   name?: string;
+  userName?: string;
   avatar?: string;
   defaultAvatar?: string;
   gender?: Gender;

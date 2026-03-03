@@ -47,8 +47,10 @@ export function useEditSecondhand() {
   return useMutation({
     mutationFn: ({ id, item }: { id: string; item: Partial<SecondhandItem> }) =>
       secondhandService.edit(id, item),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhandItem', variables.id] });
     },
   });
 }

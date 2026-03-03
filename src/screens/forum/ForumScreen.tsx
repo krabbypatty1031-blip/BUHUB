@@ -23,6 +23,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import EmptyState from '../../components/common/EmptyState';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import ForwardSheet from '../../components/common/ForwardSheet';
@@ -58,6 +59,9 @@ export default function ForumScreen({ navigation }: Props) {
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   // Restore tab bar when screen gets focus
   useFocusEffect(
@@ -178,6 +182,11 @@ export default function ForumScreen({ navigation }: Props) {
           onQuote={() => handleQuote(post)}
           onTagPress={(tag) => handleTagPress(post, tag)}
           onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+          onImagePress={(images, index) => {
+            setPreviewImages(images);
+            setPreviewIndex(index);
+            setPreviewVisible(true);
+          }}
           onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
           onVote={
             post.isPoll
@@ -327,6 +336,12 @@ export default function ForumScreen({ navigation }: Props) {
         post={forwardPost}
         onClose={() => setForwardPost(null)}
         navigation={navigation}
+      />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
       />
       </SafeAreaView>
   );

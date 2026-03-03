@@ -116,6 +116,7 @@ export default function FunctionForwardSheet({
             forwardedId: functionId,
             forwardedMessage: messageText.trim() || undefined,
             forwardedNonce: `${Date.now()}-${selectedContact.id}-${functionId}`,
+            forwardedRequiresConfirm: true,
             ...(backTo ? { backTo } : {}),
           },
         },
