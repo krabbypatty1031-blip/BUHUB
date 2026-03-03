@@ -27,6 +27,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
@@ -119,6 +120,17 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
     navigation.navigate('ComposeErrand', { editId: errand.id, initialData: errand });
   }, [errand, isOwnPost, navigation]);
 
+  const handleForwardToForum = useCallback(() => {
+    if (!errand) return;
+    setPopoverVisible(false);
+    navigateToForumComposeSelection({
+      navigation,
+      functionType: 'errand',
+      functionTitle: errand.title,
+      functionId: errand.id,
+    });
+  }, [errand, navigation]);
+
   if (!errand) {
     return (
       <PageTranslationProvider>
@@ -176,9 +188,14 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
-              <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                <Text style={styles.popoverItemText}>{t('editPost')}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
+                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity
                 style={styles.popoverItem}

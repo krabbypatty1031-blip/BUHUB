@@ -27,6 +27,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
@@ -116,6 +117,17 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     navigation.navigate('ComposePartner', { editId: partner.id, initialData: partner });
   }, [partner, isOwnPost, navigation]);
 
+  const handleForwardToForum = useCallback(() => {
+    if (!partner) return;
+    setPopoverVisible(false);
+    navigateToForumComposeSelection({
+      navigation,
+      functionType: 'partner',
+      functionTitle: partner.title,
+      functionId: partner.id,
+    });
+  }, [partner, navigation]);
+
   if (!partner) {
     return (
       <PageTranslationProvider>
@@ -174,9 +186,14 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
-              <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                <Text style={styles.popoverItemText}>{t('editPost')}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
+                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity
                 style={styles.popoverItem}

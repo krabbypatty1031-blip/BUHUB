@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
-export default function ForumScreen({ navigation }: Props) {
+export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: allPosts, isLoading, refetch } = usePosts();
@@ -58,6 +58,11 @@ export default function ForumScreen({ navigation }: Props) {
   const { tabBarTranslateY } = useTabBarAnimation();
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
+  const [functionRef, setFunctionRef] = useState<{
+    functionType: 'partner' | 'errand' | 'secondhand';
+    functionTitle: string;
+    functionId: string;
+  } | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -69,6 +74,24 @@ export default function ForumScreen({ navigation }: Props) {
       show();
     }, [show])
   );
+
+  useEffect(() => {
+    const pendingSelection = route.params?.pendingComposeSelection;
+    if (!pendingSelection) return;
+
+    setQuotePostId(pendingSelection.quotePostId);
+    if (pendingSelection.functionType && pendingSelection.functionTitle && pendingSelection.functionId) {
+      setFunctionRef({
+        functionType: pendingSelection.functionType,
+        functionTitle: pendingSelection.functionTitle,
+        functionId: pendingSelection.functionId,
+      });
+    } else {
+      setFunctionRef(undefined);
+    }
+    setComposeSheetVisible(true);
+    navigation.setParams({ pendingComposeSelection: undefined });
+  }, [navigation, route.params?.pendingComposeSelection]);
 
   const fabAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: tabBarTranslateY.value }],
@@ -119,6 +142,7 @@ export default function ForumScreen({ navigation }: Props) {
   const handleQuote = useCallback(
     (post: ForumPost) => {
       setQuotePostId(post.id);
+      setFunctionRef(undefined);
       setComposeSheetVisible(true);
     },
     []
@@ -152,15 +176,23 @@ export default function ForumScreen({ navigation }: Props) {
   const closeSheet = useCallback(() => {
     setComposeSheetVisible(false);
     setQuotePostId(undefined);
+    setFunctionRef(undefined);
   }, []);
 
   const selectComposeType = useCallback(
     (type: 'text' | 'image' | 'poll') => {
       setComposeSheetVisible(false);
-      navigation.navigate('Compose', { type, quotePostId });
+      navigation.navigate('Compose', {
+        type,
+        quotePostId,
+        functionType: functionRef?.functionType,
+        functionTitle: functionRef?.functionTitle,
+        functionId: functionRef?.functionId,
+      });
       setQuotePostId(undefined);
+      setFunctionRef(undefined);
     },
-    [navigation, quotePostId]
+    [navigation, quotePostId, functionRef]
   );
 
   const renderPost = useCallback(
@@ -258,7 +290,11 @@ export default function ForumScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.fab}
           activeOpacity={0.85}
-          onPress={() => setComposeSheetVisible(true)}
+          onPress={() => {
+            setQuotePostId(undefined);
+            setFunctionRef(undefined);
+            setComposeSheetVisible(true);
+          }}
         >
           <PlusIcon size={28} color={colors.onPrimary} />
         </TouchableOpacity>

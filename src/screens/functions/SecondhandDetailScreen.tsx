@@ -30,6 +30,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
@@ -132,6 +133,17 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     navigation.navigate('ComposeSecondhand', { editId: item.id, initialData: item });
   }, [item, isOwnPost, navigation]);
 
+  const handleForwardToForum = useCallback(() => {
+    if (!item) return;
+    setPopoverVisible(false);
+    navigateToForumComposeSelection({
+      navigation,
+      functionType: 'secondhand',
+      functionTitle: item.title,
+      functionId: item.id,
+    });
+  }, [item, navigation]);
+
   const handleWant = useCallback(() => {
     wantMutation.mutate({ id, currentWanted: isWanted });
     if (!isWanted) {
@@ -196,9 +208,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
-              <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                <Text style={styles.popoverItemText}>{t('editPost')}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
+                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity
                 style={styles.popoverItem}

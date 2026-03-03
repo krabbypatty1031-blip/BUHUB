@@ -16,6 +16,7 @@ import {
   MessageIcon,
 } from './icons';
 import FunctionForwardSheet from './FunctionForwardSheet';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 
 interface FunctionShareLayoutProps {
   navigation: any;
@@ -78,9 +79,11 @@ export default function FunctionShareLayout({
             style={styles.actionRow}
             activeOpacity={0.7}
             onPress={() => {
-              navigation.getParent()?.navigate('ForumTab', {
-                screen: 'Compose',
-                params: { functionType, functionTitle, functionId },
+              navigateToForumComposeSelection({
+                navigation,
+                functionType,
+                functionTitle,
+                functionId,
               });
             }}
           >

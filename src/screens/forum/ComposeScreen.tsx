@@ -59,6 +59,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const functionType = route.params?.functionType;
   const functionTitle = route.params?.functionTitle;
   const functionId = route.params?.functionId ?? (route.params?.functionIndex != null ? String(route.params.functionIndex) : undefined);
+  const hasFunctionRef = !!(functionType && functionTitle && functionId);
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
@@ -133,9 +134,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
           pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
           images: type === 'poll' ? [] : imageUrls,
           quotedPostId: quotePostId,
-          functionType,
-          functionId,
-          functionTitle,
+          functionType: hasFunctionRef ? functionType : undefined,
+          functionId: hasFunctionRef ? functionId : undefined,
+          functionTitle: hasFunctionRef ? functionTitle : undefined,
         },
         {
           onSuccess: () => {
@@ -154,7 +155,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
       showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -206,7 +207,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         )}
 
         {/* Function Reference Card */}
-        {functionType && functionTitle && (
+        {hasFunctionRef && (
           <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
             <Text style={styles.functionRefType}>
               {functionType === 'partner' ? t('findPartner') :

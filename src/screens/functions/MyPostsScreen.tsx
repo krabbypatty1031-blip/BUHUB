@@ -26,6 +26,7 @@ import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
@@ -353,10 +354,17 @@ export default function MyPostsScreen({ navigation }: Props) {
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
-                if (item) handleEditPost(item);
+                if (item) {
+                  navigateToForumComposeSelection({
+                    navigation,
+                    functionType: item.kind,
+                    functionTitle: item.data.title,
+                    functionId: item.id,
+                  });
+                }
               }}
             >
-              <Text style={styles.actionText}>{t('editPost')}</Text>
+              <Text style={styles.actionText}>{t('forwardToForum')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -364,15 +372,10 @@ export default function MyPostsScreen({ navigation }: Props) {
               onPress={() => {
                 const item = actionItem;
                 setActionItem(null);
-                if (item) {
-                  navigation.getParent()?.navigate('ForumTab', {
-                    screen: 'Compose',
-                    params: { functionType: item.kind, functionTitle: item.data.title, functionId: item.id },
-                  });
-                }
+                if (item) handleEditPost(item);
               }}
             >
-              <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+              <Text style={styles.actionText}>{t('editPost')}</Text>
             </TouchableOpacity>
 
             {/* 仅未过期帖子显示关闭选项 */}

@@ -12,6 +12,13 @@ export type ChatBackTarget = {
   params?: Record<string, unknown>;
 };
 
+export type ForumComposeSelectionParams = {
+  quotePostId?: string;
+  functionType?: 'partner' | 'errand' | 'secondhand';
+  functionTitle?: string;
+  functionId?: string;
+};
+
 type BackToChatParams = {
   contactId: string;
   contactName: string;
@@ -30,7 +37,7 @@ export type AuthStackParamList = {
 
 // Forum Stack
 export type ForumStackParamList = {
-  ForumHome: undefined;
+  ForumHome: { pendingComposeSelection?: ForumComposeSelectionParams } | undefined;
   PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
   Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionId?: string; functionIndex?: number };
   Search: undefined;
