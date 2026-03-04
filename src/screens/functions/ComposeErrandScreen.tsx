@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { ErrandCategory } from '../../types';
-import { useCreateErrand } from '../../hooks/useErrands';
+import { useCreateErrand, useEditErrand } from '../../hooks/useErrands';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -59,19 +59,25 @@ const normalizePriceInput = (value: string): string => {
 
 const isValidPrice = (value: string): boolean => /^\d+(\.\d{1,2})?$/.test(value.trim());
 
+const extractNumericPrice = (value: string | undefined): string =>
+  (value ?? '').replace(/[^\d.]/g, '');
+
 export default function ComposeErrandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const editId = route.params?.editId;
+  const initialData = route.params?.initialData;
+  const isEditMode = Boolean(editId && initialData);
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [price, setPrice] = useState('');
-  const defaultCategory = (route.params?.category as ErrandCategory) || 'pickup';
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [content, setContent] = useState(initialData?.desc ?? '');
+  const [price, setPrice] = useState(extractNumericPrice(initialData?.price));
+  const defaultCategory = initialData?.category ?? route.params?.category ?? 'pickup';
   const [category, setCategory] = useState<ErrandCategory>(defaultCategory);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [item, setItem] = useState('');
+  const [from, setFrom] = useState(initialData?.from ?? '');
+  const [to, setTo] = useState(initialData?.to ?? '');
+  const [item, setItem] = useState(initialData?.item ?? '');
   const [deadline, setDeadline] = useState<Date | null>(
-    () => new Date(Date.now() + 24 * 60 * 60 * 1000),
+    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000)),
   );
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -111,43 +117,68 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
 
   const user = useAuthStore((s) => s.user);
   const createErrand = useCreateErrand();
+  const editErrand = useEditErrand();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
 
   const handlePost = useCallback(() => {
     if (!canPost || !user || isPosting) return;
     setIsPosting(true);
-    createErrand.mutate(
-      {
-        category,
-        type: t(category),
-        title: title.trim(),
-        desc: content.trim(),
-        from: from.trim(),
-        to: to.trim(),
-        price: `HK$${price.trim()}`,
-        item: item.trim(),
-        time: formatDeadline(deadline!),
-        expiresAt: deadline!.toISOString(),
-        createdAt: new Date().toISOString(),
+    const payload = {
+      category,
+      type: t(category),
+      title: title.trim(),
+      desc: content.trim(),
+      from: from.trim(),
+      to: to.trim(),
+      price: `HK$${price.trim()}`,
+      item: item.trim(),
+      time: formatDeadline(deadline!),
+      expiresAt: deadline!.toISOString(),
+      createdAt: initialData?.createdAt ?? new Date().toISOString(),
+    };
+
+    const onError = () => {
+      showSnackbar({ message: t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+    };
+
+    const onSettled = () => {
+      setIsPosting(false);
+    };
+
+    if (isEditMode && editId) {
+      editErrand.mutate(
+        { id: editId, errand: payload },
+        {
+          onSuccess: (updated) => {
+            showSnackbar({ message: t('saveSuccess'), type: 'success' });
+            navigation.reset({
+              index: 1,
+              routes: [
+                { name: 'FunctionsHub' },
+                { name: 'MyPosts' },
+              ],
+            });
+          },
+          onError,
+          onSettled,
+        },
+      );
+      return;
+    }
+
+    createErrand.mutate(payload, {
+      onSuccess: (created) => {
+        navigation.replace('ErrandShare', {
+          taskName: title,
+          posterName: user.name,
+          functionId: created.id,
+        });
       },
-      {
-        onSuccess: (created) => {
-          navigation.replace('ErrandShare', {
-            taskName: title,
-            posterName: user.name,
-            functionId: created.id,
-          });
-        },
-        onError: () => {
-          showSnackbar({ message: t('postFailed'), type: 'error' });
-        },
-        onSettled: () => {
-          setIsPosting(false);
-        },
-      },
-    );
-  }, [canPost, navigation, title, user, category, content, from, to, price, item, deadline, t, isPosting, createErrand, showSnackbar]);
+      onError,
+      onSettled,
+    });
+  }, [canPost, user, isPosting, category, t, title, content, from, to, price, item, deadline, initialData?.createdAt, isEditMode, editId, editErrand, showSnackbar, navigation, createErrand]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -156,7 +187,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <CloseIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('newErrandPost')}</Text>
+        <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newErrandPost')}</Text>
         <TouchableOpacity
           style={[styles.postBtn, !canPost && styles.postBtnDisabled]}
           onPress={handlePost}
@@ -165,7 +196,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('publishBtn')}
+            {t(isEditMode ? 'save' : 'publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -181,7 +212,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
           {/* ----- Disclaimer ----- */}
           <View style={styles.disclaimerCard}>
             <AlertTriangleIcon size={16} color={colors.onErrorContainer} />
-            <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
+            <Text style={styles.disclaimerText}>{t('errandDisclaimer')}</Text>
           </View>
 
           {/* ----- Category Selector ----- */}

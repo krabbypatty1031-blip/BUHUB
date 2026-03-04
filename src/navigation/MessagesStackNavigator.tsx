@@ -14,7 +14,13 @@ const Stack = createNativeStackNavigator<MessagesStackParamList>();
 
 export default function MessagesStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: false,
+      }}
+    >
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="NotifyLikes" component={NotifyLikesScreen} />

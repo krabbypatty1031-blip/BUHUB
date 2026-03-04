@@ -30,6 +30,7 @@ const mapSecondhand = (i: any): SecondhandItem => ({
         .filter((image: string | null): image is string => Boolean(image))
     : [],
   user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
+  userName: i.author?.userName ?? i.userName ?? undefined,
   avatar: normalizeAvatarUrl(i.author?.avatar ?? i.avatar) ?? '',
   gender: i.author?.gender ?? i.gender ?? 'other',
   bio: i.author?.bio ?? i.bio ?? '',

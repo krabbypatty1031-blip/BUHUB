@@ -27,6 +27,8 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   DollarIcon,
@@ -96,10 +98,38 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         forwardedPosterName: errand.user,
         forwardedId: errand.id,
         forwardedNonce: `${Date.now()}-${errand.id}-${errand.authorId}`,
+        forwardedRequiresConfirm: true,
         backTo,
       },
     });
   }, [errand, isOwnPost, navigation]);
+
+  const handlePosterAvatarPress = useCallback(() => {
+    if (!errand) return;
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser,
+      userName: errand.userName,
+      displayName: errand.user,
+    });
+  }, [navigation, currentUser, errand]);
+
+  const handleEdit = useCallback(() => {
+    if (!errand || !isOwnPost) return;
+    setPopoverVisible(false);
+    navigation.navigate('ComposeErrand', { editId: errand.id, initialData: errand });
+  }, [errand, isOwnPost, navigation]);
+
+  const handleForwardToForum = useCallback(() => {
+    if (!errand) return;
+    setPopoverVisible(false);
+    navigateToForumComposeSelection({
+      navigation,
+      functionType: 'errand',
+      functionTitle: errand.title,
+      functionId: errand.id,
+    });
+  }, [errand, navigation]);
 
   if (!errand) {
     return (
@@ -157,15 +187,26 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             >
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.popoverItem}
-              onPress={() => {
-                setPopoverVisible(false);
-                setReportVisible(true);
-              }}
-            >
-              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
-            </TouchableOpacity>
+            {isOwnPost ? (
+              <>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
+                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.popoverItem}
+                onPress={() => {
+                  setPopoverVisible(false);
+                  setReportVisible(true);
+                }}
+              >
+                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       )}
@@ -322,7 +363,9 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('poster')}</Text>
           <View style={styles.posterRow}>
-            <Avatar text={errand.user} uri={errand.avatar} size="lg" gender={errand.gender} />
+            <TouchableOpacity activeOpacity={0.7} onPress={handlePosterAvatarPress}>
+              <Avatar text={errand.user} uri={errand.avatar} size="lg" gender={errand.gender} />
+            </TouchableOpacity>
             <View style={styles.posterInfo}>
               <View style={styles.posterNameRow}>
                 <Text style={styles.posterName}>{errand.user}</Text>
@@ -340,7 +383,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         {/* ----- Disclaimer ----- */}
         <View style={styles.disclaimerSection}>
           <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
-          <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
+          <Text style={styles.disclaimerText}>{t('errandDisclaimer')}</Text>
         </View>
 
         {/* ----- Action Bar ----- */}

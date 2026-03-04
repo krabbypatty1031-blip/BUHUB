@@ -21,11 +21,13 @@ import { borderRadius, elevation, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import Avatar from '../../components/common/Avatar';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   MapPinIcon,
@@ -50,13 +52,17 @@ type CartSection = {
 function CartItemCard({
   item,
   onPress,
+  onAvatarPress,
   onMore,
+  onImagePress,
   soldLabel,
   expiredLabel,
 }: {
   item: SecondhandItem;
   onPress: (id: string) => void;
+  onAvatarPress: (item: SecondhandItem) => void;
   onMore: (item: SecondhandItem) => void;
+  onImagePress: (images: string[], index: number) => void;
   soldLabel: string;
   expiredLabel: string;
 }) {
@@ -68,12 +74,26 @@ function CartItemCard({
     <TouchableOpacity style={styles.card} activeOpacity={0.78} onPress={() => onPress(item.id)}>
       <View style={styles.cardImageWrap}>
         {primaryImage ? (
-          <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+          <TouchableOpacity
+            style={styles.cardImagePressTarget}
+            activeOpacity={0.9}
+            onPress={(event) => {
+              event.stopPropagation();
+              onImagePress(item.images ?? [primaryImage], 0);
+            }}
+          >
+            <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+          </TouchableOpacity>
         ) : (
           <View style={styles.cardImageFallback}>
             <ShoppingBagIcon size={28} color={colors.outline} />
           </View>
         )}
+        {(item.images?.length ?? 0) > 1 ? (
+          <View style={styles.imageCountBadge}>
+            <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
+          </View>
+        ) : null}
         {(item.sold || isExpired) && <View style={styles.cardImageDimmer} />}
         {item.sold ? (
           <View style={[styles.statusBadge, styles.statusBadgeSold]}>
@@ -90,7 +110,6 @@ function CartItemCard({
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleWrap}>
-            <PageTranslationToggle style={styles.cardTranslationToggle} />
             <TranslatableText
               entityType="secondhand"
               entityId={item.id}
@@ -102,24 +121,33 @@ function CartItemCard({
             />
             <Text style={styles.cardPrice}>{item.price}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.moreButton}
-            activeOpacity={0.7}
-            onPress={() => onMore(item)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MoreHorizontalIcon size={18} color={colors.onSurfaceVariant} />
-          </TouchableOpacity>
+          <View style={styles.cardHeaderActions}>
+            <TouchableOpacity
+              style={styles.moreButton}
+              activeOpacity={0.7}
+              onPress={() => onMore(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MoreHorizontalIcon size={18} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+        <View style={styles.sellerRow}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={(event) => {
+              event.stopPropagation();
+              onAvatarPress(item);
+            }}
+          >
+            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+          </TouchableOpacity>
           <Text style={styles.sellerName} numberOfLines={1}>
             {item.user}
           </Text>
           {item.location ? (
             <>
-              <View style={styles.metaDot} />
               <MapPinIcon size={14} color={colors.onSurfaceVariant} />
               <TranslatableText
                 entityType="secondhand"
@@ -133,6 +161,7 @@ function CartItemCard({
               />
             </>
           ) : null}
+          <PageTranslationToggle style={styles.cardTranslationToggle} />
         </View>
 
         <View style={styles.footerRow}>
@@ -157,6 +186,9 @@ export default function SecondhandCartScreen({ navigation }: Props) {
 
   const [actionItem, setActionItem] = useState<CartActionItem | null>(null);
   const [shareSheetItem, setShareSheetItem] = useState<CartActionItem | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   const sections = useMemo<CartSection[]>(() => {
     const sorted = [...cartItems].sort(
@@ -204,6 +236,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
           forwardedPosterName: item.user,
           forwardedId: functionId,
           forwardedNonce: `${Date.now()}-${functionId}-${item.authorId}`,
+          forwardedRequiresConfirm: true,
           backTo,
         },
       });
@@ -219,17 +252,35 @@ export default function SecondhandCartScreen({ navigation }: Props) {
     [showSnackbar, t, wantMutation]
   );
 
+  const handleAvatarPress = useCallback(
+    (item: SecondhandItem) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.user,
+      });
+    },
+    [navigation, currentUser]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: SecondhandItem }) => (
       <CartItemCard
         item={item}
         onPress={handleItemPress}
+        onAvatarPress={handleAvatarPress}
         onMore={(next) => setActionItem({ item: next, id: next.id })}
+        onImagePress={(images, index) => {
+          setPreviewImages(images);
+          setPreviewIndex(index);
+          setPreviewVisible(true);
+        }}
         soldLabel={t('sold')}
         expiredLabel={t('secondhandExpired')}
       />
     ),
-    [handleItemPress, t]
+    [handleItemPress, handleAvatarPress, t]
   );
 
   return (
@@ -328,6 +379,12 @@ export default function SecondhandCartScreen({ navigation }: Props) {
         functionId={shareSheetItem?.id ?? ''}
         navigation={navigation}
       />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
+      />
       </SafeAreaView>
   );
 }
@@ -404,6 +461,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  cardImagePressTarget: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
+  },
   cardImageFallback: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -440,12 +514,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.md,
   },
+  cardHeaderActions: {
+    alignItems: 'flex-end',
+  },
   cardTitleWrap: {
     flex: 1,
     gap: spacing.xs,
   },
   cardTranslationToggle: {
-    alignSelf: 'flex-start',
+    marginLeft: 'auto',
+    alignSelf: 'center',
   },
   cardPrice: {
     ...typography.titleMedium,
@@ -463,16 +541,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  metaRow: {
+  sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: colors.outline,
   },
   sellerName: {
     ...typography.bodyMedium,
@@ -482,15 +554,15 @@ const styles = StyleSheet.create({
   locationText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-    flex: 1,
   },
   locationWrap: {
     flex: 1,
+    marginLeft: spacing.xxs,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   expiredHint: {
     ...typography.labelSmall,

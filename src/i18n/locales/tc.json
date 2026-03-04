@@ -8,7 +8,7 @@
   "cantoneseEn": "Cantonese",
   "mandarin": "普通話",
   "mandarinEn": "Mandarin",
-  "english": "English",
+  "english": "英語",
   "englishEn": "English",
   "continue": "繼續",
   "emailInputTitle": "驗證你嘅學校郵箱",
@@ -96,7 +96,7 @@
   "item": "物品",
   "condition": "成色",
   "message": "私信",
-  "disclaimer": "平台僅提供信息撮合，線下交易請注意安全",
+  "disclaimer": "平台僅提供資訊溝通，線下交易請注意安全",
   "rate": "評分",
   "teacher": "老師",
   "canteen": "餐飲",
@@ -130,6 +130,7 @@
   "copyLink": "複製鏈接",
   "linkCopied": "已複製鏈接",
   "save": "儲存",
+  "editPost": "編輯發布",
   "changeAvatar": "更換頭像",
   "labelNickname": "暱稱",
   "labelBio": "個性簽名",
@@ -276,8 +277,6 @@
   "booksTextbooks": "書籍教材",
   "furnitureLiving": "家具生活",
   "searchSecondhand": "搜尋二手物品...",
-  "searchErrands": "搜尋跑腿任務...",
-  "searchPartner": "搜尋搭子...",
   "noRelatedItems": "暫時冇相關物品",
   "soldStatus": "已售出",
   "forSale": "出售中",
@@ -510,7 +509,7 @@
   "dndModeDesc": "特定時間段內屏蔽所有非緊急通知",
   "aboutLegal": "法律與關於",
   "legalDisclaimer": "法律免責聲明",
-  "legalDisclaimerContent": "本平台僅提供信息撮合服務。「跑腿」及「二手」功能不提供支付環節，所有線下交易請注意人身及財產安全，平台不承擔任何交易相關責任。",
+  "legalDisclaimerContent": "本平台僅提供資訊溝通服務。「跑腿」及「二手」功能不提供支付環節，所有線下交易請注意人身及財產安全，平台不承擔任何交易相關責任。",
   "userAgreement": "用戶協議",
   "userAgreementContent": "用戶須遵守社區規範，合理使用「馬甲」功能，匿名發布須遵守相關守則，不得發布違法、侮辱性或虛假內容。違規者將被永久封禁。",
   "versionInfo": "版本信息",
@@ -603,6 +602,7 @@
   "anonymousUser": "匿名用戶",
   "genderLocked": "性別一經設定不可更改",
   "reportAction": "舉報",
+  "cannotReportOwnContent": "不能舉報自己的內容",
   "forwardAction": "轉發",
   "forwardDestination": "選擇轉發方式",
   "forwardToForum": "轉發到論壇",
@@ -702,7 +702,6 @@
   "sendCodeFailed": "發送驗證碼失敗",
   "emailAlreadyRegistered": "該郵箱已註冊，請使用密碼登入",
   "captchaNotConfigured": "驗證碼未配置，請設置 EXPO_PUBLIC_HCAPTCHA_SITE_KEY",
-  "captchaFailed": "驗證失敗，請重試",
   "verifyFailed": "驗證失敗",
   "postFailed": "發布失敗",
   "commentFailed": "發送評論失敗",
@@ -711,5 +710,16 @@
   "likeFailed": "點讚失敗",
   "followFailed": "操作失敗，請重試",
   "networkError": "網絡錯誤",
-  "errorTitle": "錯誤"
+  "errorTitle": "錯誤",
+  "errandDisclaimer": "平台僅提供資訊溝通，線下互動請注意安全"
+  ,"messageAlbumTitle": "\u804a\u5929\u76f8\u518a"
+  ,"messageAlbumPreview": "{{count}}\u5f35\u5716\u7247"
+  ,"imageSendModeTitle": "\u767c\u9001{{count}}\u5f35\u9078\u4e2d\u5716\u7247\u65b9\u5f0f"
+  ,"sendImagesSeparately": "\u9010\u5f35\u767c\u9001"
+  ,"sendImagesMerged": "\u5408\u4f75\u767c\u9001"
+  ,"openInBrowser": "\u9078\u64c7\u700f\u89bd\u5668"
+  ,"systemDefaultBrowser": "\u7cfb\u7d71\u9810\u8a2d\u700f\u89bd\u5668"
+  ,"googleChrome": "Google Chrome"
+  ,"microsoftEdge": "Microsoft Edge"
+  ,"mozillaFirefox": "Mozilla Firefox"
 }

@@ -13,6 +13,22 @@ function isSameHandle(left: string | null | undefined, right: string | null | un
   return a.length > 0 && b.length > 0 && a === b;
 }
 
+function filterBlockedFollowList(
+  list: FollowListItem[] | undefined,
+  blockedUsers: Set<string>
+): FollowListItem[] | undefined {
+  if (!list) return list;
+  if (blockedUsers.size === 0) return list;
+
+  const normalizedBlockedUsers = new Set(
+    Array.from(blockedUsers)
+      .map((userName) => normalizeHandle(userName))
+      .filter((userName) => userName.length > 0)
+  );
+
+  return list.filter((item) => !normalizedBlockedUsers.has(normalizeHandle(item.userName)));
+}
+
 function applyFollowStateToFollowerNotifications(
   list: FollowerNotification[] | undefined,
   userName: string,
@@ -186,17 +202,23 @@ export function usePublicProfile(userName: string) {
   });
 }
 
-export function useFollowingList() {
+export function useFollowingList(options?: { enabled?: boolean }) {
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
   return useQuery({
     queryKey: ['followingList'],
     queryFn: () => userService.getFollowingList(),
+    enabled: options?.enabled ?? true,
+    select: (data: FollowListItem[]) => filterBlockedFollowList(data, blockedUsers) ?? [],
   });
 }
 
-export function useFollowersList() {
+export function useFollowersList(options?: { enabled?: boolean }) {
+  const blockedUsers = useForumStore((s) => s.blockedUsers);
   return useQuery({
     queryKey: ['followersList'],
     queryFn: () => userService.getFollowersList(),
+    enabled: options?.enabled ?? true,
+    select: (data: FollowListItem[]) => filterBlockedFollowList(data, blockedUsers) ?? [],
   });
 }
 
@@ -347,15 +369,68 @@ export function useBlockUser() {
   const unblockUser = useForumStore((s) => s.unblockUser);
   return useMutation({
     mutationFn: (userName: string) => userService.blockUser(userName),
-    onMutate: (userName) => {
+    onMutate: async (userName) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['followingList'] }),
+        queryClient.cancelQueries({ queryKey: ['followersList'] }),
+        queryClient.cancelQueries({ queryKey: ['myContent'] }),
+      ]);
+
       blockUser(userName);
+
+      const previousFollowingList = queryClient.getQueryData<FollowListItem[]>(['followingList']);
+      const previousFollowersList = queryClient.getQueryData<FollowListItem[]>(['followersList']);
+      const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+
+      const wasFollowing = previousFollowingList?.some((item) => isSameHandle(item.userName, userName)) ?? false;
+      const wasFollower = previousFollowersList?.some((item) => isSameHandle(item.userName, userName)) ?? false;
+
+      const nextFollowingList = previousFollowingList?.filter((item) => !isSameHandle(item.userName, userName));
+      const nextFollowersList = previousFollowersList?.filter((item) => !isSameHandle(item.userName, userName));
+
+      if (previousFollowingList) {
+        queryClient.setQueryData(['followingList'], nextFollowingList);
+      }
+      if (previousFollowersList) {
+        queryClient.setQueryData(['followersList'], nextFollowersList);
+      }
+      if (previousMyContent) {
+        queryClient.setQueryData<MyContent>(['myContent'], {
+          ...previousMyContent,
+          stats: {
+            ...previousMyContent.stats,
+            following: Math.max(0, previousMyContent.stats.following - (wasFollowing ? 1 : 0)),
+            followers: Math.max(0, previousMyContent.stats.followers - (wasFollower ? 1 : 0)),
+          },
+        });
+      }
+
+      return {
+        previousFollowingList,
+        previousFollowersList,
+        previousMyContent,
+      };
     },
-    onError: (_err, userName) => {
+    onError: (_err, userName, context) => {
       unblockUser(userName);
+
+      if (context?.previousFollowingList) {
+        queryClient.setQueryData(['followingList'], context.previousFollowingList);
+      }
+      if (context?.previousFollowersList) {
+        queryClient.setQueryData(['followersList'], context.previousFollowersList);
+      }
+      if (context?.previousMyContent) {
+        queryClient.setQueryData(['myContent'], context.previousMyContent);
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_data, userName) => {
       queryClient.invalidateQueries({ queryKey: ['blockedList'] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['followingList'] });
+      queryClient.invalidateQueries({ queryKey: ['followersList'] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.invalidateQueries({ queryKey: ['publicProfile', userName] });
     },
   });
 }
@@ -372,8 +447,13 @@ export function useUnblockUser() {
     onError: (_err, userName) => {
       blockUser(userName);
     },
-    onSuccess: () => {
+    onSuccess: (_data, userName) => {
       queryClient.invalidateQueries({ queryKey: ['blockedList'] });
+      queryClient.invalidateQueries({ queryKey: ['followingList'] });
+      queryClient.invalidateQueries({ queryKey: ['followersList'] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicProfile', userName] });
     },
   });
 }

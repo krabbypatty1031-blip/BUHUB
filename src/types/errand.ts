@@ -15,6 +15,7 @@ export interface Errand {
   item: string;
   time: string;
   user: string;
+  userName?: string;
   authorId?: string;
   avatar: string;
   gender: Gender;

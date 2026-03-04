@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
+import { useUIStore } from '../store/uiStore';
 import { authService } from '../api/services/auth.service';
 import { Snackbar, ConfirmModal } from '../components/common';
 import { colors } from '../theme/colors';
-import { changeLanguage, normalizeLanguage } from '../i18n';
+import i18n, { changeLanguage, normalizeLanguage } from '../i18n';
+import type { ApiError } from '../types';
 
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
@@ -18,6 +20,11 @@ const AppTheme = {
   },
 };
 
+function isAuthFailure(error: unknown): boolean {
+  const apiError = error as Partial<ApiError> | undefined;
+  return apiError?.code === 401 || apiError?.errorCode === 'UNAUTHORIZED';
+}
+
 export default function AppNavigator() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const token = useAuthStore((s) => s.token);
@@ -26,6 +33,7 @@ export default function AppNavigator() {
   const setLanguage = useAuthStore((s) => s.setLanguage);
   const language = useAuthStore((s) => s.language);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -52,14 +60,21 @@ export default function AppNavigator() {
         } else if (result.user) {
           setUser(result.user);
         }
-      } catch {
-        logout();
+      } catch (error) {
+        if (isAuthFailure(error)) {
+          logout();
+        } else {
+          showSnackbar({ message: i18n.t('networkError'), type: 'error' });
+          if (__DEV__) {
+            console.log('[Auth] verify-token skipped because the server did not respond in time');
+          }
+        }
       } finally {
         setIsCheckingAuth(false);
       }
     };
     checkAuth();
-  }, [hasHydrated, isLoggedIn, token, logout, setUser]); // Re-run when hydration completes
+  }, [hasHydrated, isLoggedIn, token, logout, setUser, showSnackbar]); // Re-run when hydration completes
 
   if (!hasHydrated || isCheckingAuth) {
     return (

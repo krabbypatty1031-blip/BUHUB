@@ -13,10 +13,11 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandCategory } from '../../types';
-import { useCreateSecondhand } from '../../hooks/useSecondhand';
+import { useCreateSecondhand, useEditSecondhand } from '../../hooks/useSecondhand';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useUIStore } from '../../store/uiStore';
 import { uploadService } from '../../api/services/upload.service';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -70,20 +71,36 @@ const normalizePriceInput = (value: string): string => {
 
 const isValidPrice = (value: string): boolean => /^\d+(\.\d{1,2})?$/.test(value.trim());
 
+const extractNumericPrice = (value: string | undefined): string =>
+  (value ?? '').replace(/[^\d.]/g, '');
+
+const isRemoteImage = (uri: string): boolean => /^https?:\/\//i.test(uri);
+
 export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const editId = route.params?.editId;
+  const initialData = route.params?.initialData;
+  const isEditMode = Boolean(editId && initialData);
 
-  const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const defaultCategory = (route.params?.category as SecondhandCategory) || 'electronics';
+  const { images, pickImages, removeImage } = useImagePicker({
+    allowsMultiple: true,
+    maxImages: 9,
+    initialImages: initialData?.images ?? [],
+  });
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [description, setDescription] = useState(initialData?.desc ?? '');
+  const [price, setPrice] = useState(extractNumericPrice(initialData?.price));
+  const defaultCategory = initialData?.category ?? route.params?.category ?? 'electronics';
   const [category, setCategory] = useState<SecondhandCategory>(defaultCategory);
-  const [condition, setCondition] = useState<string | null>(null);
+  const [condition, setCondition] = useState<string | null>(
+    CONDITIONS.find((item) => t(item.labelKey) === initialData?.condition)?.key ?? null
+  );
   const [conditionPickerVisible, setConditionPickerVisible] = useState(false);
-  const [tradeLocation, setTradeLocation] = useState('');
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [tradeLocation, setTradeLocation] = useState(initialData?.location ?? '');
   const [deadline, setDeadline] = useState<Date | null>(
-    () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
   );
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -132,6 +149,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
 
   const user = useAuthStore((s) => s.user);
   const createSecondhand = useCreateSecondhand();
+  const editSecondhand = useEditSecondhand();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
 
@@ -139,50 +157,76 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     if (!canPost || !user || isPosting) return;
     setIsPosting(true);
     try {
-      // Upload images if any
-      let imageUrls: string[] | undefined;
-      if (images.length > 0) {
+      const remoteImages = images.filter(isRemoteImage);
+      const localImages = images.filter((uri) => !isRemoteImage(uri));
+
+      let uploadedImages: string[] = [];
+      if (localImages.length > 0) {
         const result = await uploadService.uploadImages(
-          images.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
+          localImages.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
         );
-        imageUrls = result.urls;
+        uploadedImages = result.urls;
       }
 
-      createSecondhand.mutate(
-        {
-          category,
-          type: t(category),
-          title: title.trim(),
-          desc: description.trim(),
-          images: imageUrls ?? [],
-          price: `HK$${price.trim()}`,
-          condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
-          location: tradeLocation.trim(),
-          expiresAt: deadline!.toISOString(),
-          expired: false,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          onSuccess: (created) => {
-            navigation.replace('SecondhandShare', {
-              itemName: title,
-              posterName: user.name,
-              functionId: created.id,
+      const payload = {
+        category,
+        type: t(category),
+        title: title.trim(),
+        desc: description.trim(),
+        images: [...remoteImages, ...uploadedImages],
+        price: `HK$${price.trim()}`,
+        condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
+        location: tradeLocation.trim(),
+        expiresAt: deadline!.toISOString(),
+        expired: initialData?.expired ?? false,
+        createdAt: initialData?.createdAt ?? new Date().toISOString(),
+      };
+
+      const onError = () => {
+        showSnackbar({ message: t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+      };
+
+      const onSettled = () => {
+        setIsPosting(false);
+      };
+
+      if (isEditMode && editId) {
+        editSecondhand.mutate(
+          { id: editId, item: payload },
+          {
+          onSuccess: (updated) => {
+            showSnackbar({ message: t('saveSuccess'), type: 'success' });
+            navigation.reset({
+              index: 1,
+              routes: [
+                { name: 'FunctionsHub' },
+                { name: 'MyPosts' },
+              ],
             });
           },
-          onError: () => {
-            showSnackbar({ message: t('postFailed'), type: 'error' });
-          },
-          onSettled: () => {
-            setIsPosting(false);
-          },
+          onError,
+          onSettled,
         },
-      );
+        );
+        return;
+      }
+
+      createSecondhand.mutate(payload, {
+        onSuccess: (created) => {
+          navigation.replace('SecondhandShare', {
+            itemName: title,
+            posterName: user.name,
+            functionId: created.id,
+          });
+        },
+        onError,
+        onSettled,
+      });
     } catch (error: any) {
-      showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
+      showSnackbar({ message: error?.message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
       setIsPosting(false);
     }
-  }, [canPost, navigation, title, user, category, description, price, condition, tradeLocation, deadline, t, images, isPosting, createSecondhand, showSnackbar]);
+  }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -191,7 +235,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <CloseIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('newSecondhandPost')}</Text>
+        <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newSecondhandPost')}</Text>
         <TouchableOpacity
           style={[styles.postBtn, !canPost && styles.postBtnDisabled]}
           onPress={handlePost}
@@ -200,7 +244,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           <Text
             style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
           >
-            {t('publishBtn')}
+            {t(isEditMode ? 'save' : 'publishBtn')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -234,7 +278,15 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
             <View style={styles.imageGrid}>
               {images.map((uri, i) => (
                 <View key={i} style={styles.imageThumb}>
-                  <Image source={{ uri }} style={styles.imageThumbImg} />
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setPreviewIndex(i);
+                      setPreviewVisible(true);
+                    }}
+                  >
+                    <Image source={{ uri }} style={styles.imageThumbImg} />
+                  </TouchableOpacity>
                   <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
                     <CloseIcon size={12} color={colors.white} />
                   </TouchableOpacity>
@@ -250,6 +302,12 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
               )}
             </View>
           </View>
+          <ImagePreviewModal
+            visible={previewVisible}
+            images={images}
+            initialIndex={previewIndex}
+            onClose={() => setPreviewVisible(false)}
+          />
 
           {/* ----- Title ----- */}
           <View style={styles.fieldGroup}>

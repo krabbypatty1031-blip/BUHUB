@@ -23,6 +23,7 @@ const mapErrand = (e: any): Errand => ({
   id: e.id,
   category: fromApiCategory(e.category),
   user: e.author?.nickname ?? e.author?.userName ?? e.user ?? '?',
+  userName: e.author?.userName ?? e.userName ?? undefined,
   avatar: normalizeAvatarUrl(e.author?.avatar ?? e.avatar) ?? '',
   gender: e.author?.gender ?? e.gender ?? 'other',
   bio: e.author?.bio ?? e.bio ?? '',

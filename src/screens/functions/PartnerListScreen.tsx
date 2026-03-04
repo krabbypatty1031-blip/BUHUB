@@ -29,6 +29,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -121,6 +122,7 @@ export default function PartnerListScreen({ navigation }: Props) {
           forwardedPosterName: item.user,
           forwardedId: functionId,
           forwardedNonce: `${Date.now()}-${functionId}-${contactId}`,
+          forwardedRequiresConfirm: true,
           ...(backTo ? { backTo } : {}),
         },
       });
@@ -132,6 +134,18 @@ export default function PartnerListScreen({ navigation }: Props) {
     () =>
       actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.post.authorId, actionItem.post.user) : false,
     [actionItem, currentUser]
+  );
+
+  const handleAvatarPress = useCallback(
+    (item: PartnerPost) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: item.userName,
+        displayName: item.user,
+      });
+    },
+    [navigation, currentUser]
   );
 
   const renderItem = useCallback(
@@ -151,7 +165,15 @@ export default function PartnerListScreen({ navigation }: Props) {
         >
           {/* Row 1: Avatar + Name · Time + Ellipsis */}
           <View style={styles.cardHeader}>
-            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleAvatarPress(item);
+              }}
+            >
+              <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+            </TouchableOpacity>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.userName}>{item.user}</Text>
@@ -218,7 +240,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [joinedActivities, navigation, t, lang]
+    [joinedActivities, navigation, t, lang, handleAvatarPress]
   );
 
   return (

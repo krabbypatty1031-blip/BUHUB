@@ -26,6 +26,8 @@ import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildPostMeta } from '../../utils/formatTime';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   RepostIcon,
@@ -114,6 +116,23 @@ export default function MyPostsScreen({ navigation }: Props) {
     [navigation]
   );
 
+  const handleEditPost = useCallback(
+    (item: CardItem) => {
+      switch (item.kind) {
+        case 'partner':
+          navigation.navigate('ComposePartner', { editId: item.id, initialData: item.data });
+          break;
+        case 'errand':
+          navigation.navigate('ComposeErrand', { editId: item.id, initialData: item.data });
+          break;
+        case 'secondhand':
+          navigation.navigate('ComposeSecondhand', { editId: item.id, initialData: item.data });
+          break;
+      }
+    },
+    [navigation]
+  );
+
   const isExpired = (card: CardItem): boolean => {
     return card.data.expired;
   };
@@ -172,6 +191,18 @@ export default function MyPostsScreen({ navigation }: Props) {
     ]
   );
 
+  const handleAvatarPress = useCallback(
+    (card: CardItem) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser,
+        userName: card.data.userName,
+        displayName: card.data.user,
+      });
+    },
+    [navigation, currentUser]
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: CardItem }) => {
       const expired = isExpired(item);
@@ -191,7 +222,15 @@ export default function MyPostsScreen({ navigation }: Props) {
           onPress={() => handlePress(item)}
         >
           <View style={styles.cardHeader}>
-            <Avatar text={d.user} uri={d.avatar} size="sm" gender={d.gender} />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleAvatarPress(item);
+              }}
+            >
+              <Avatar text={d.user} uri={d.avatar} size="sm" gender={d.gender} />
+            </TouchableOpacity>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.userName}>{d.user}</Text>
@@ -259,7 +298,7 @@ export default function MyPostsScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [handlePress, t, lang]
+    [handleAvatarPress, handlePress, t, lang]
   );
 
   return (
@@ -316,14 +355,27 @@ export default function MyPostsScreen({ navigation }: Props) {
                 const item = actionItem;
                 setActionItem(null);
                 if (item) {
-                  navigation.getParent()?.navigate('ForumTab', {
-                    screen: 'Compose',
-                    params: { functionType: item.kind, functionTitle: item.data.title, functionId: item.id },
+                  navigateToForumComposeSelection({
+                    navigation,
+                    functionType: item.kind,
+                    functionTitle: item.data.title,
+                    functionId: item.id,
                   });
                 }
               }}
             >
               <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionRowCenter}
+              onPress={() => {
+                const item = actionItem;
+                setActionItem(null);
+                if (item) handleEditPost(item);
+              }}
+            >
+              <Text style={styles.actionText}>{t('editPost')}</Text>
             </TouchableOpacity>
 
             {/* 仅未过期帖子显示关闭选项 */}

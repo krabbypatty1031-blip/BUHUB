@@ -12,6 +12,7 @@ export interface PartnerPost {
   time: string;
   location: string;
   user: string;
+  userName?: string;
   authorId?: string;
   avatar: string;
   gender: Gender;

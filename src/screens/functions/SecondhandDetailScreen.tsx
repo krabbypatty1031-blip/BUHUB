@@ -22,6 +22,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
@@ -29,6 +30,8 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildPostMeta } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -65,6 +68,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   const handleBack = useCallback(() => {
     if (backToChat) {
@@ -107,10 +111,38 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         forwardedPosterName: item.user,
         forwardedId: item.id,
         forwardedNonce: `${Date.now()}-${item.id}-${item.authorId}`,
+        forwardedRequiresConfirm: true,
         backTo,
       },
     });
   }, [isContactDisabled, item, navigation]);
+
+  const handleSellerAvatarPress = useCallback(() => {
+    if (!item) return;
+    handleAvatarPressNavigation({
+      navigation,
+      currentUser,
+      userName: item.userName,
+      displayName: item.user,
+    });
+  }, [navigation, currentUser, item]);
+
+  const handleEdit = useCallback(() => {
+    if (!item || !isOwnPost) return;
+    setPopoverVisible(false);
+    navigation.navigate('ComposeSecondhand', { editId: item.id, initialData: item });
+  }, [item, isOwnPost, navigation]);
+
+  const handleForwardToForum = useCallback(() => {
+    if (!item) return;
+    setPopoverVisible(false);
+    navigateToForumComposeSelection({
+      navigation,
+      functionType: 'secondhand',
+      functionTitle: item.title,
+      functionId: item.id,
+    });
+  }, [item, navigation]);
 
   const handleWant = useCallback(() => {
     wantMutation.mutate({ id, currentWanted: isWanted });
@@ -175,15 +207,26 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             >
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.popoverItem}
-              onPress={() => {
-                setPopoverVisible(false);
-                setReportVisible(true);
-              }}
-            >
-              <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
-            </TouchableOpacity>
+            {isOwnPost ? (
+              <>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
+                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
+                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.popoverItem}
+                onPress={() => {
+                  setPopoverVisible(false);
+                  setReportVisible(true);
+                }}
+              >
+                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       )}
@@ -192,10 +235,21 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         {/* ----- Hero Image ----- */}
         <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isListingInactive && styles.heroImageDimmed]}>
           {primaryImage ? (
-            <Image source={{ uri: primaryImage }} style={styles.heroImageAsset} resizeMode="cover" />
+            <TouchableOpacity
+              style={styles.heroImageTouch}
+              activeOpacity={0.9}
+              onPress={() => setPreviewVisible(true)}
+            >
+              <Image source={{ uri: primaryImage }} style={styles.heroImageAsset} resizeMode="cover" />
+            </TouchableOpacity>
           ) : (
             <ShoppingBagIcon size={56} color={colors.outlineVariant} />
           )}
+          {(item.images?.length ?? 0) > 1 ? (
+            <View style={styles.imageCountBadge}>
+              <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
+            </View>
+          ) : null}
 
           {/* Condition badge */}
           <View style={styles.conditionBadge}>
@@ -299,7 +353,9 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t('sellerLabel')}</Text>
           <View style={styles.sellerRow}>
-            <Avatar text={item.user} uri={item.avatar} size="lg" gender={item.gender} />
+            <TouchableOpacity activeOpacity={0.7} onPress={handleSellerAvatarPress}>
+              <Avatar text={item.user} uri={item.avatar} size="lg" gender={item.gender} />
+            </TouchableOpacity>
             <View style={styles.sellerInfo}>
               <View style={styles.sellerNameRow}>
                 <Text style={styles.sellerName}>{item.user}</Text>
@@ -377,6 +433,12 @@ onSubmit={async (reasonCategory, reason) => {
         functionId={item.id}
         navigation={navigation}
       />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={item.images ?? []}
+        initialIndex={0}
+        onClose={() => setPreviewVisible(false)}
+      />
       </SafeAreaView>
     </PageTranslationProvider>
   );
@@ -432,6 +494,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  heroImageTouch: {
+    width: '100%',
+    height: '100%',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
   },
   heroImageAsset: {
     ...StyleSheet.absoluteFillObject,

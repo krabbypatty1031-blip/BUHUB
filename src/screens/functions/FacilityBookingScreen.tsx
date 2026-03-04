@@ -1,10 +1,12 @@
 import React, { useCallback } from 'react';
 import {
+  ActionSheetIOS,
+  Platform,
+  Share,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,8 +16,12 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, MapPinIcon, ClockIcon, ChevronRightIcon } from '../../components/common/icons';
+import { openExternalBrowser } from '../../utils/openExternalBrowser';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FacilityBooking'>;
+
+const BOOKING_URL =
+  'https://library.hkbu.edu.hk/using-the-library/facilities/room-bookings/';
 
 export default function FacilityBookingScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -25,7 +31,23 @@ export default function FacilityBookingScreen({ navigation }: Props) {
   }, [navigation]);
 
   const handleBook = useCallback(() => {
-    Linking.openURL('https://library.hkbu.edu.hk/using-the-library/facilities/room-bookings/');
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showShareActionSheetWithOptions(
+        {
+          url: BOOKING_URL,
+          message: BOOKING_URL,
+        },
+        () => {
+          void Share.share({ url: BOOKING_URL, message: BOOKING_URL }).catch(() => {
+            void openExternalBrowser(BOOKING_URL, 'system');
+          });
+        },
+        () => undefined,
+      );
+      return;
+    }
+
+    void openExternalBrowser(BOOKING_URL, 'system');
   }, []);
 
   return (
@@ -78,6 +100,7 @@ export default function FacilityBookingScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       </View>
+
     </SafeAreaView>
   );
 }

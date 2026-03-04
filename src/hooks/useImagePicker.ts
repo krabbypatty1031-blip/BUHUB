@@ -1,22 +1,35 @@
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 interface UseImagePickerOptions {
   allowsMultiple?: boolean;
   maxImages?: number;
+  initialImages?: string[];
 }
 
 export function useImagePicker(options: UseImagePickerOptions = {}) {
   const { t } = useTranslation();
-  const { allowsMultiple = false, maxImages = 9 } = options;
-  const [images, setImages] = useState<string[]>([]);
+  const { allowsMultiple = false, maxImages = 9, initialImages = [] } = options;
+  const [images, setImages] = useState<string[]>(initialImages);
 
   const pickImages = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('permissionNeededTitle'), t('photoPermissionMessage'));
+      Alert.alert(
+        t('permissionNeededTitle'),
+        t('photoPermissionMessage'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('settings'),
+            onPress: () => {
+              void Linking.openSettings().catch(() => {});
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -45,5 +58,5 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
     setImages([]);
   }, []);
 
-  return { images, pickImages, removeImage, clearImages };
+  return { images, setImages, pickImages, removeImage, clearImages };
 }

@@ -17,6 +17,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import { BackIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
@@ -37,6 +38,9 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const votePostMutation = useVotePost();
   const currentUser = useAuthStore((s) => s.user);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const { data: circleFollow } = useCircleFollow(tag);
   const toggleCircleFollowMutation = useToggleCircleFollow(tag);
   const followed = circleFollow?.followed ?? false;
@@ -170,6 +174,11 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         onQuote={() => handleQuote(item)}
         onTagPress={(pressedTag) => handleTagPress(pressedTag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}
+        onImagePress={(images, index) => {
+          setPreviewImages(images);
+          setPreviewIndex(index);
+          setPreviewVisible(true);
+        }}
         onQuotedPostPress={(quotedId) => navigation.navigate('PostDetail', { postId: quotedId })}
         onVote={
           item.isPoll
@@ -213,6 +222,12 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         post={forwardPost}
         onClose={() => setForwardPost(null)}
         navigation={navigation}
+      />
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
       />
     </SafeAreaView>
   );

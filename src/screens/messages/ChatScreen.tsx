@@ -18,6 +18,7 @@ import {
   Pressable,
   BackHandler,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -45,6 +46,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { uploadService } from '../../api/services/upload.service';
 import { messageService } from '../../api/services/message.service';
 import {
@@ -97,6 +99,7 @@ type ChatListItem =
   | { kind: 'message'; message: ChatMessage; key: string };
 
 type VoiceReleaseAction = 'send' | 'cancel' | 'transcribe';
+type ImageSendMode = 'separate' | 'merged';
 
 /* ----- Date separator ----- */
 const DateSeparator = React.memo(function DateSeparator({
@@ -127,6 +130,104 @@ const CARD_THEME = {
 
 const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon, post: EditIcon };
 
+const SINGLE_MEDIA_MAX_WIDTH = 220;
+const SINGLE_MEDIA_MAX_HEIGHT = 280;
+const GRID_MEDIA_MAX_WIDTH = 110;
+const GRID_MEDIA_MAX_HEIGHT = 140;
+
+const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
+  uri,
+  totalCount,
+  onPress,
+}: {
+  uri: string;
+  totalCount: number;
+  onPress: () => void;
+}) {
+  const maxWidth = totalCount === 1 ? SINGLE_MEDIA_MAX_WIDTH : GRID_MEDIA_MAX_WIDTH;
+  const maxHeight = totalCount === 1 ? SINGLE_MEDIA_MAX_HEIGHT : GRID_MEDIA_MAX_HEIGHT;
+  const [size, setSize] = useState(() =>
+    getContainedMediaSize(
+      maxWidth,
+      maxHeight,
+      maxWidth,
+      maxHeight
+    )
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    Image.getSize(
+      uri,
+      (width, height) => {
+        if (cancelled || width <= 0 || height <= 0) return;
+        setSize(
+          getContainedMediaSize(
+            width,
+            height,
+            maxWidth,
+            maxHeight
+          )
+        );
+      },
+      () => {
+        if (cancelled) return;
+        setSize(
+          getContainedMediaSize(
+            maxWidth,
+            maxHeight,
+            maxWidth,
+            maxHeight
+          )
+        );
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [maxHeight, maxWidth, uri]);
+
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.mediaPressTarget}>
+      <Image source={{ uri }} style={[styles.mediaImage, size]} resizeMode="contain" />
+    </TouchableOpacity>
+  );
+});
+
+const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
+  images,
+  count,
+  isMine,
+  onPress,
+  t,
+}: {
+  images: string[];
+  count: number;
+  isMine: boolean;
+  onPress: () => void;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  const coverImage = images[0];
+  return (
+    <TouchableOpacity
+      style={[styles.albumBubble, isMine ? styles.albumBubbleMine : styles.albumBubbleTheirs]}
+      activeOpacity={0.85}
+      onPress={onPress}
+    >
+      {coverImage ? <Image source={{ uri: coverImage }} style={styles.albumCoverImage} resizeMode="cover" /> : null}
+      <View style={styles.albumBubbleContent}>
+        <Text style={[styles.albumBubbleTitle, isMine ? styles.albumBubbleTitleMine : styles.albumBubbleTitleTheirs]}>
+          {t('messageAlbumTitle')}
+        </Text>
+        <Text style={[styles.albumBubbleMeta, isMine ? styles.albumBubbleMetaMine : styles.albumBubbleMetaTheirs]}>
+          {t('messageAlbumPreview', { count })}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 /* ----- Chat bubble with avatar ----- */
 const ChatBubble = React.memo(function ChatBubble({
   message,
@@ -137,6 +238,7 @@ const ChatBubble = React.memo(function ChatBubble({
   onCardPress,
   onLongPressMessage,
   onPlayAudio,
+  onImagePress,
   onPressReaction,
   isAudioPlaying,
   t,
@@ -149,6 +251,7 @@ const ChatBubble = React.memo(function ChatBubble({
   onCardPress?: (card: NonNullable<ChatMessage['functionCard']>) => void;
   onLongPressMessage?: (message: ChatMessage) => void;
   onPlayAudio?: (message: ChatMessage) => void;
+  onImagePress?: (images: string[], index: number) => void;
   onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
   isAudioPlaying?: boolean;
   t: (key: string, options?: Record<string, unknown>) => string;
@@ -221,12 +324,7 @@ const ChatBubble = React.memo(function ChatBubble({
               </TouchableOpacity>
             );
           })() : hasImages ? (
-            <View
-              style={[
-                styles.mediaBubble,
-                isMine ? styles.bubbleMine : styles.bubbleTheirs,
-              ]}
-            >
+            <View style={styles.mediaBubble}>
               {message.replyTo ? (
                 <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
                   <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>{replyFromLabel}</Text>
@@ -245,11 +343,26 @@ const ChatBubble = React.memo(function ChatBubble({
                   {message.text}
                 </Text>
               ) : null}
-              <View style={styles.mediaGrid}>
-                {message.images?.slice(0, 4).map((uri, index) => (
-                  <Image key={`${uri}-${index}`} source={{ uri }} style={styles.mediaImage} />
-                ))}
-              </View>
+              {message.imageAlbum ? (
+                <ChatAlbumBubble
+                  images={message.images ?? []}
+                  count={message.imageAlbum.count}
+                  isMine={isMine}
+                  onPress={() => onImagePress?.(message.images ?? [], 0)}
+                  t={t}
+                />
+              ) : (
+                <View style={styles.mediaGrid}>
+                  {message.images?.slice(0, 4).map((uri, index) => (
+                    <ChatMediaThumbnail
+                      key={`${uri}-${index}`}
+                      uri={uri}
+                      totalCount={message.images?.length ?? 0}
+                      onPress={() => onImagePress?.(message.images ?? [], index)}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
           ) : hasAudio ? (
             <VoiceMessageBubble
@@ -385,6 +498,22 @@ function WaveformBars() {
   );
 }
 
+function getContainedMediaSize(
+  sourceWidth: number,
+  sourceHeight: number,
+  maxWidth: number,
+  maxHeight: number
+) {
+  const widthRatio = maxWidth / sourceWidth;
+  const heightRatio = maxHeight / sourceHeight;
+  const scale = Math.min(widthRatio, heightRatio, 1);
+
+  return {
+    width: Math.max(48, Math.round(sourceWidth * scale)),
+    height: Math.max(48, Math.round(sourceHeight * scale)),
+  };
+}
+
 export default function ChatScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -400,6 +529,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedPostId,
     forwardedMessage,
     forwardedNonce,
+    forwardedRequiresConfirm,
     backTo,
   } = route.params;
   const { data: chatHistory, isLoading } = useChatHistory(contactId);
@@ -507,6 +637,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const cardSentRef = useRef<string | null>(null);
   const cardSendingRef = useRef<string | null>(null);
+  const forwardedTextSentRef = useRef<string | null>(null);
+  const forwardedTextSendingRef = useRef<string | null>(null);
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingSentRef = useRef(false);
   const audioSoundRef = useRef<Audio.Sound | null>(null);
@@ -516,6 +648,14 @@ export default function ChatScreen({ navigation, route }: Props) {
   const recordingOverlayRef = useRef<RecordingOverlayRef>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const [recordingDurationMs, setRecordingDurationMs] = useState<number>(0);
+  const [pendingForwardConfirmKey, setPendingForwardConfirmKey] = useState<string | null>(null);
+  const [pendingForwardSendingKey, setPendingForwardSendingKey] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [pendingImageAssets, setPendingImageAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [imageSendModeVisible, setImageSendModeVisible] = useState(false);
+  const [isSendingSelectedImages, setIsSendingSelectedImages] = useState(false);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -545,73 +685,135 @@ export default function ChatScreen({ navigation, route }: Props) {
     queryClient.invalidateQueries({ queryKey: ['contacts'] });
   }, [contactId, isLoading, queryClient]);
 
-  // Auto-send forwarded text/card once when entering from "share to DM"
-  useEffect(() => {
-    if (isLoading) return;
-    if (!forwardedType || !forwardedPosterName) return;
-    if (canSendMessage === false) return;
-    if (!['partner', 'errand', 'secondhand', 'post'].includes(forwardedType)) return;
+  const forwardedCardDraft = useMemo(() => {
+    if (!forwardedType || !forwardedPosterName) return null;
+    if (!['partner', 'errand', 'secondhand', 'post'].includes(forwardedType)) return null;
     const normalizedType = forwardedType as 'partner' | 'errand' | 'secondhand' | 'post';
     const resolvedId =
       forwardedId ??
       (typeof forwardedIndex === 'number' ? String(forwardedIndex) : undefined);
-    const cardTitle = (forwardedTitle ?? '').trim() || (normalizedType === 'post' ? t('messageImagePreview') : '-');
+    const cardTitle =
+      (forwardedTitle ?? '').trim() || (normalizedType === 'post' ? t('messageImagePreview') : '-');
     const posterName = forwardedPosterName.trim() || t('themLabel');
-    const dedupeKey = forwardedNonce?.trim()
-      || `${normalizedType}:${resolvedId ?? ''}:${cardTitle}:${forwardedPostId ?? ''}:${forwardedMessage?.trim() ?? ''}`;
-    if (cardSentRef.current === dedupeKey || cardSendingRef.current === dedupeKey) return;
-    cardSendingRef.current = dedupeKey;
+    const dedupeKey =
+      forwardedNonce?.trim() ||
+      `${normalizedType}:${resolvedId ?? ''}:${cardTitle}:${forwardedPostId ?? ''}:${forwardedMessage?.trim() ?? ''}`;
+    return {
+      normalizedType,
+      resolvedId,
+      cardTitle,
+      posterName,
+      dedupeKey,
+      messageDedupeKey: forwardedMessage?.trim() ? `${dedupeKey}:message` : null,
+      forwardedPostId,
+      forwardedMessage,
+      requiresConfirm: forwardedRequiresConfirm === true,
+    };
+  }, [
+    forwardedId,
+    forwardedIndex,
+    forwardedMessage,
+    forwardedNonce,
+    forwardedPosterName,
+    forwardedPostId,
+    forwardedRequiresConfirm,
+    forwardedTitle,
+    forwardedType,
+    t,
+  ]);
 
-    let cancelled = false;
-    const sendForwarded = async () => {
+  const sendForwardedText = useCallback(
+    async (draft: NonNullable<typeof forwardedCardDraft>) => {
+      const text = draft.forwardedMessage?.trim();
+      if (!text || !draft.messageDedupeKey) return true;
+      if (
+        forwardedTextSentRef.current === draft.messageDedupeKey ||
+        forwardedTextSendingRef.current === draft.messageDedupeKey
+      ) {
+        return true;
+      }
+      forwardedTextSendingRef.current = draft.messageDedupeKey;
       try {
-        if (forwardedMessage?.trim()) {
-          await sendMessage({ payload: { text: forwardedMessage.trim() } });
+        await sendMessage({ payload: { text } });
+        forwardedTextSentRef.current = draft.messageDedupeKey;
+        return true;
+      } catch {
+        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        return false;
+      } finally {
+        if (forwardedTextSendingRef.current === draft.messageDedupeKey) {
+          forwardedTextSendingRef.current = null;
         }
+      }
+    },
+    [sendMessage, showSnackbar, t]
+  );
+
+  const sendForwardedCard = useCallback(
+    async (draft: NonNullable<typeof forwardedCardDraft>) => {
+      if (cardSentRef.current === draft.dedupeKey || cardSendingRef.current === draft.dedupeKey) {
+        return true;
+      }
+      cardSendingRef.current = draft.dedupeKey;
+      setPendingForwardSendingKey(draft.dedupeKey);
+      try {
         await sendMessage({
           payload: {
             functionCard: {
-              type: normalizedType,
-              ...(resolvedId ? { id: resolvedId } : {}),
-              title: cardTitle,
-              posterName,
-              ...(forwardedPostId ? { postId: forwardedPostId } : {}),
+              type: draft.normalizedType,
+              ...(draft.resolvedId ? { id: draft.resolvedId } : {}),
+              title: draft.cardTitle,
+              posterName: draft.posterName,
+              ...(draft.forwardedPostId ? { postId: draft.forwardedPostId } : {}),
             },
           },
         });
-        if (!cancelled) {
-          cardSentRef.current = dedupeKey;
-        }
+        cardSentRef.current = draft.dedupeKey;
+        return true;
       } catch {
-        if (!cancelled) {
-          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-        }
+        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        return false;
       } finally {
-        if (cardSendingRef.current === dedupeKey) {
+        if (cardSendingRef.current === draft.dedupeKey) {
           cardSendingRef.current = null;
         }
+        setPendingForwardSendingKey((current) => (current === draft.dedupeKey ? null : current));
       }
-    };
-    void sendForwarded();
+    },
+    [sendMessage, showSnackbar, t]
+  );
 
-    return () => {
-      cancelled = true;
+  useEffect(() => {
+    if (isLoading || canSendMessage === false || !forwardedCardDraft) return;
+    void sendForwardedText(forwardedCardDraft);
+    if (cardSentRef.current === forwardedCardDraft.dedupeKey) {
+      setPendingForwardConfirmKey(null);
+      return;
+    }
+    if (forwardedCardDraft.requiresConfirm) {
+      setPendingForwardConfirmKey(forwardedCardDraft.dedupeKey);
+      return;
+    }
+    void sendForwardedCard(forwardedCardDraft);
+  }, [canSendMessage, forwardedCardDraft, isLoading, sendForwardedCard, sendForwardedText]);
+
+  const handleConfirmForwardedSend = useCallback(async () => {
+    if (!forwardedCardDraft) return;
+    const sent = await sendForwardedCard(forwardedCardDraft);
+    if (sent) {
+      setPendingForwardConfirmKey(null);
+    }
+  }, [forwardedCardDraft, sendForwardedCard]);
+
+  const pendingForwardPreview = useMemo(() => {
+    if (!forwardedCardDraft || pendingForwardConfirmKey !== forwardedCardDraft.dedupeKey) return null;
+    return {
+      type: forwardedCardDraft.normalizedType,
+      title: forwardedCardDraft.cardTitle,
+      typeLabel: t(TYPE_LABEL_KEYS[forwardedCardDraft.normalizedType]) || forwardedCardDraft.normalizedType,
+      isSending: pendingForwardSendingKey === forwardedCardDraft.dedupeKey,
     };
-  }, [
-    isLoading,
-    forwardedType,
-    forwardedTitle,
-    forwardedPosterName,
-    canSendMessage,
-    forwardedId,
-    forwardedIndex,
-    forwardedPostId,
-    forwardedMessage,
-    forwardedNonce,
-    showSnackbar,
-    sendMessage,
-    t,
-  ]);
+  }, [forwardedCardDraft, pendingForwardConfirmKey, pendingForwardSendingKey, t]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const flatListRef = useRef<FlatList<ChatListItem>>(null);
@@ -644,6 +846,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     },
     [t]
   );
+  const buildReplyPayload = useCallback(() => {
+    if (!replyTarget) return undefined;
+    return {
+      text: buildReplyPreview(replyTarget),
+      from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+    };
+  }, [buildReplyPreview, replyTarget]);
 
   /* ----- Chat trigger: disable input if last message is 'sent' (waiting for reply) ----- */
   const waitingForReplyByHistory = useMemo(() => {
@@ -934,12 +1143,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
     sendTypingState(false);
     hapticLight();
-    const replyPayload = replyTarget
-      ? {
-          text: buildReplyPreview(replyTarget),
-          from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
-        }
-      : undefined;
+    const replyPayload = buildReplyPayload();
     sendMessageMutation.mutate(
       { payload: { text, ...(replyPayload ? { replyTo: replyPayload } : {}) } },
       {
@@ -953,7 +1157,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         },
       }
     );
-  }, [buildReplyPreview, inputText, queryClient, replyTarget, sendMessageMutation, sendTypingState, showSnackbar, t]);
+  }, [buildReplyPayload, inputText, queryClient, sendMessageMutation, sendTypingState, showSnackbar, t]);
 
   /* ----- Camera: open device camera ----- */
   const handleCamera = useCallback(async () => {
@@ -961,7 +1165,16 @@ export default function ChatScreen({ navigation, route }: Props) {
       if (status !== 'granted') {
         Alert.alert(
           t('permissionNeededTitle'),
-          t('cameraPermissionMessage')
+          t('cameraPermissionMessage'),
+          [
+            { text: t('cancel'), style: 'cancel' },
+            {
+              text: t('settings'),
+              onPress: () => {
+                void Linking.openSettings().catch(() => {});
+              },
+            },
+          ]
         );
         return;
       }
@@ -979,12 +1192,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             name: asset.fileName || `camera-${Date.now()}-${index}.jpg`,
           }))
         );
-        const replyPayload = replyTarget
-          ? {
-              text: buildReplyPreview(replyTarget),
-              from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
-            }
-          : undefined;
+        const replyPayload = buildReplyPayload();
         sendMessageMutation.mutate(
           { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
           {
@@ -1000,7 +1208,65 @@ export default function ChatScreen({ navigation, route }: Props) {
         showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
       }
     }
-  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
+  }, [buildReplyPayload, sendMessageMutation, showSnackbar, t]);
+
+  const clearPendingImageSelection = useCallback(() => {
+    if (isSendingSelectedImages) return;
+    setPendingImageAssets([]);
+    setImageSendModeVisible(false);
+  }, [isSendingSelectedImages]);
+
+  const sendSelectedImages = useCallback(async (mode: ImageSendMode) => {
+    if (pendingImageAssets.length === 0 || isSendingSelectedImages) return;
+    setIsSendingSelectedImages(true);
+    try {
+      const uploaded = await uploadService.uploadImages(
+        pendingImageAssets.map((asset, index) => ({
+          uri: asset.uri,
+          type: asset.mimeType || 'image/jpeg',
+          name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
+        }))
+      );
+
+      const replyPayload = buildReplyPayload();
+
+      if (mode === 'merged') {
+        await sendMessage({
+          payload: {
+            imageAlbum: { count: uploaded.urls.length },
+            ...(replyPayload ? { replyTo: replyPayload } : {}),
+          },
+          images: uploaded.urls,
+        });
+      } else {
+        for (let index = 0; index < uploaded.urls.length; index += 1) {
+          const imageUrl = uploaded.urls[index];
+          await sendMessage({
+            payload: {
+              text: '',
+              ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
+            },
+            images: [imageUrl],
+          });
+        }
+      }
+
+      setReplyTarget(null);
+      setPendingImageAssets([]);
+      setImageSendModeVisible(false);
+      setIsSendingSelectedImages(false);
+    } catch {
+      setIsSendingSelectedImages(false);
+      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+    }
+  }, [
+    buildReplyPayload,
+    isSendingSelectedImages,
+    pendingImageAssets,
+    sendMessage,
+    showSnackbar,
+    t,
+  ]);
 
   /* ----- Image: open photo library ----- */
   const handlePickImage = useCallback(async () => {
@@ -1009,46 +1275,31 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (status !== 'granted') {
       Alert.alert(
         t('permissionNeededTitle'),
-        t('photoPermissionMessage')
+        t('photoPermissionMessage'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('settings'),
+            onPress: () => {
+              void Linking.openSettings().catch(() => {});
+            },
+          },
+        ]
       );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 9,
       quality: 0.8,
     });
     if (!result.canceled && result.assets.length > 0) {
       hapticLight();
-      try {
-        const uploaded = await uploadService.uploadImages(
-          result.assets.map((asset, index) => ({
-            uri: asset.uri,
-            type: asset.mimeType || 'image/jpeg',
-            name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
-          }))
-        );
-        const replyPayload = replyTarget
-          ? {
-              text: buildReplyPreview(replyTarget),
-              from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
-            }
-          : undefined;
-        sendMessageMutation.mutate(
-          { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
-          {
-            onSuccess: () => {
-              setReplyTarget(null);
-            },
-            onError: () => {
-              showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-            },
-          }
-        );
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-      }
+      setPendingImageAssets(result.assets.slice(0, 9));
+      setImageSendModeVisible(true);
     }
-  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
+  }, [t]);
 
   const startRecordingSession = useCallback(async () => {
     try {
@@ -1310,6 +1561,11 @@ export default function ChatScreen({ navigation, route }: Props) {
           onCardPress={handleCardPress}
           onLongPressMessage={handleMessageActions}
           onPlayAudio={handlePlayAudio}
+          onImagePress={(images, index) => {
+            setPreviewImages(images);
+            setPreviewIndex(index);
+            setPreviewVisible(true);
+          }}
           onPressReaction={handlePressReaction}
           isAudioPlaying={Boolean(item.message.id && playingAudioMessageId === item.message.id)}
           t={t}
@@ -1412,6 +1668,44 @@ export default function ChatScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             ) : null}
+            {pendingForwardPreview ? (
+              <View style={styles.pendingForwardComposer}>
+                <View style={styles.pendingForwardCard}>
+                  <View style={styles.pendingForwardCardTopRow}>
+                    <View style={styles.pendingForwardIconCircle}>
+                      {(() => {
+                        const IconComp = TYPE_ICONS[pendingForwardPreview.type];
+                        return <IconComp size={16} color={CARD_THEME.iconColor} />;
+                      })()}
+                    </View>
+                    <Text style={styles.pendingForwardLabel}>{pendingForwardPreview.typeLabel}</Text>
+                    <TouchableOpacity
+                      style={styles.replyComposerClose}
+                      onPress={() => setPendingForwardConfirmKey(null)}
+                      activeOpacity={0.7}
+                    >
+                      <CloseIcon size={18} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text numberOfLines={2} style={styles.pendingForwardText}>
+                    {pendingForwardPreview.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.pendingForwardSendBtn,
+                    pendingForwardPreview.isSending ? styles.pendingForwardSendBtnDisabled : undefined,
+                  ]}
+                  onPress={() => {
+                    void handleConfirmForwardedSend();
+                  }}
+                  activeOpacity={0.7}
+                  disabled={pendingForwardPreview.isSending}
+                >
+                  <Text style={styles.pendingForwardSendText}>{t('send')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
           <View style={[styles.inputBar, { paddingBottom: composerBottomInset }]}>
             {isVoiceMode ? (
               <>
@@ -1504,6 +1798,57 @@ export default function ChatScreen({ navigation, route }: Props) {
           void handleHoldToTalkReleaseRef.current?.();
         }}
       />
+
+      <ImagePreviewModal
+        visible={previewVisible}
+        images={previewImages}
+        initialIndex={previewIndex}
+        onClose={() => setPreviewVisible(false)}
+      />
+
+      <Modal
+        visible={imageSendModeVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={clearPendingImageSelection}
+      >
+        <Pressable
+          style={styles.imageSendModeOverlay}
+          onPress={clearPendingImageSelection}
+        >
+          <Pressable style={styles.imageSendModeSheet} onPress={() => {}}>
+            <Text style={styles.imageSendModeTitle}>
+              {t('imageSendModeTitle', { count: pendingImageAssets.length })}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.imageSendModeOption,
+                isSendingSelectedImages ? styles.imageSendModeOptionDisabled : undefined,
+              ]}
+              activeOpacity={0.7}
+              disabled={isSendingSelectedImages}
+              onPress={() => {
+                void sendSelectedImages('separate');
+              }}
+            >
+              <Text style={styles.imageSendModeOptionText}>{t('sendImagesSeparately')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.imageSendModeOption,
+                isSendingSelectedImages ? styles.imageSendModeOptionDisabled : undefined,
+              ]}
+              activeOpacity={0.7}
+              disabled={isSendingSelectedImages}
+              onPress={() => {
+                void sendSelectedImages('merged');
+              }}
+            >
+              <Text style={styles.imageSendModeOptionText}>{t('sendImagesMerged')}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={!!actionTarget}
@@ -1726,22 +2071,63 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   mediaBubble: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
     gap: spacing.xs,
+    alignItems: 'flex-start',
+  },
+  albumBubble: {
+    width: SINGLE_MEDIA_MAX_WIDTH,
+    minHeight: 88,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  albumBubbleMine: {
+    backgroundColor: '#D9FDD3',
+  },
+  albumBubbleTheirs: {
+    backgroundColor: colors.surface2,
+  },
+  albumCoverImage: {
+    width: 88,
+    height: 88,
+  },
+  albumBubbleContent: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.xxs,
+  },
+  albumBubbleTitle: {
+    ...typography.titleSmall,
+    fontWeight: '700',
+  },
+  albumBubbleTitleMine: {
+    color: colors.onSurface,
+  },
+  albumBubbleTitleTheirs: {
+    color: colors.onSurface,
+  },
+  albumBubbleMeta: {
+    ...typography.bodySmall,
+  },
+  albumBubbleMetaMine: {
+    color: colors.onSurfaceVariant,
+  },
+  albumBubbleMetaTheirs: {
+    color: colors.onSurfaceVariant,
   },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    maxWidth: 240,
+    maxWidth: SINGLE_MEDIA_MAX_WIDTH,
+  },
+  mediaPressTarget: {
+    alignSelf: 'flex-start',
   },
   mediaImage: {
-    width: 110,
-    height: 110,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surface3,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -1947,6 +2333,114 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pendingForwardComposer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant,
+    backgroundColor: colors.surface1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  pendingForwardCard: {
+    flex: 1,
+    borderRadius: 16,
+    backgroundColor: CARD_THEME.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  pendingForwardCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pendingForwardIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: CARD_THEME.iconBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingForwardLabel: {
+    ...typography.labelSmall,
+    color: CARD_THEME.accent,
+    fontWeight: '700',
+    flex: 1,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  pendingForwardText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+    lineHeight: 20,
+  },
+  pendingForwardSendBtn: {
+    minWidth: 72,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PURE_BLACK,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  pendingForwardSendBtnDisabled: {
+    opacity: 0.6,
+  },
+  pendingForwardSendText: {
+    ...typography.labelMedium,
+    color: '#FFFFFF',
+  },
+  imageSendModeOverlay: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    justifyContent: 'flex-end',
+  },
+  imageSendModeSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  imageSendModeTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  imageSendModeOption: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: PURE_BLACK,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+  },
+  imageSendModeOptionDisabled: {
+    opacity: 0.6,
+  },
+  imageSendModeOptionText: {
+    ...typography.titleSmall,
+    color: PURE_BLACK,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 
   /* ----- Input bar ----- */

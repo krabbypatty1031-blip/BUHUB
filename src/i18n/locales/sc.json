@@ -2,13 +2,13 @@
   "appName": "UHUB",
   "appSlogan": "浸大人的社交平台",
   "selectLanguage": "选择你的语言",
-  "traditionalChinese": "繁體中文",
+  "traditionalChinese": "繁体中文",
   "simplifiedChinese": "简体中文",
   "cantonese": "粤语",
   "cantoneseEn": "Cantonese",
   "mandarin": "普通话",
   "mandarinEn": "Mandarin",
-  "english": "English",
+  "english": "英语",
   "englishEn": "English",
   "continue": "继续",
   "emailInputTitle": "验证你的学校邮箱",
@@ -96,7 +96,7 @@
   "item": "物品",
   "condition": "成色",
   "message": "私信",
-  "disclaimer": "平台仅提供信息撮合，线下交易请注意安全",
+  "disclaimer": "平台仅提供信息沟通，线下交易请注意安全",
   "rate": "评分",
   "teacher": "老师",
   "canteen": "餐饮",
@@ -130,6 +130,7 @@
   "copyLink": "复制链接",
   "linkCopied": "已复制链接",
   "save": "保存",
+  "editPost": "编辑发布",
   "changeAvatar": "更换头像",
   "labelNickname": "昵称",
   "labelBio": "个性签名",
@@ -276,8 +277,6 @@
   "booksTextbooks": "书籍",
   "furnitureLiving": "家具生活",
   "searchSecondhand": "搜索二手物品...",
-  "searchErrands": "搜索跑腿任务...",
-  "searchPartner": "搜索搭子...",
   "noRelatedItems": "暂时没有相关物品",
   "soldStatus": "已售出",
   "forSale": "出售中",
@@ -510,7 +509,7 @@
   "dndModeDesc": "特定时间段内屏蔽所有非紧急通知",
   "aboutLegal": "法律与关于",
   "legalDisclaimer": "法律免责声明",
-  "legalDisclaimerContent": "本平台仅提供信息撮合服务。「跑腿」及「二手」功能不提供支付环节，所有线下交易请注意人身及财产安全，平台不承担任何交易相关责任。",
+  "legalDisclaimerContent": "本平台仅提供信息沟通服务。平台不提供「跑腿」及「二手」功能的支付环境，所有线下互动请注意人身及财产安全，平台不承担任何交易相关的责任。",
   "userAgreement": "用户协议",
   "userAgreementContent": "用户须遵守社区规范，合理使用「马甲」功能，匿名发布须遵守相关守则，不得发布违法、侮辱性或虚假内容。违规者将被永久封禁。",
   "versionInfo": "版本信息",
@@ -603,6 +602,7 @@
   "anonymousUser": "匿名用户",
   "genderLocked": "性别一经设定不可更改",
   "reportAction": "举报",
+  "cannotReportOwnContent": "不能举报自己的内容",
   "forwardAction": "转发",
   "forwardDestination": "选择转发方式",
   "forwardToForum": "转发到论坛",
@@ -702,7 +702,6 @@
   "sendCodeFailed": "发送验证码失败",
   "emailAlreadyRegistered": "该邮箱已注册，请使用密码登录",
   "captchaNotConfigured": "验证码未配置，请设置 EXPO_PUBLIC_HCAPTCHA_SITE_KEY",
-  "captchaFailed": "验证失败，请重试",
   "verifyFailed": "验证失败",
   "postFailed": "发布失败",
   "commentFailed": "发送评论失败",
@@ -711,5 +710,16 @@
   "likeFailed": "点赞失败",
   "followFailed": "操作失败，请重试",
   "networkError": "网络错误",
-  "errorTitle": "错误"
+  "errorTitle": "错误",
+  "errandDisclaimer": "平台仅提供信息沟通，线下互动请注意安全"
+  ,"messageAlbumTitle": "\u804a\u5929\u76f8\u518c"
+  ,"messageAlbumPreview": "{{count}}\u5f20\u56fe\u7247"
+  ,"imageSendModeTitle": "\u53d1\u9001{{count}}\u5f20\u9009\u4e2d\u56fe\u7247\u65b9\u5f0f"
+  ,"sendImagesSeparately": "\u9010\u5f20\u53d1\u9001"
+  ,"sendImagesMerged": "\u5408\u5e76\u53d1\u9001"
+  ,"openInBrowser": "\u9009\u62e9\u6d4f\u89c8\u5668"
+  ,"systemDefaultBrowser": "\u7cfb\u7edf\u9ed8\u8ba4\u6d4f\u89c8\u5668"
+  ,"googleChrome": "Google Chrome"
+  ,"microsoftEdge": "Microsoft Edge"
+  ,"mozillaFirefox": "Mozilla Firefox"
 }

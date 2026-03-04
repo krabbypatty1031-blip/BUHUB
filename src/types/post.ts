@@ -57,6 +57,7 @@ export interface ForumPost {
 export interface Comment {
   id: string;
   name: string;
+  userName?: string;
   avatar: string;
   defaultAvatar?: string;
   gender?: Gender;
@@ -76,6 +77,7 @@ export interface Comment {
 export interface Reply {
   id: string;
   name: string;
+  userName?: string;
   avatar: string;
   defaultAvatar?: string;
   gender?: Gender;
@@ -89,6 +91,7 @@ export interface Reply {
   likes: number;
   liked?: boolean;
   bookmarked?: boolean;
+  isAnonymous?: boolean;
   replies?: Reply[];
 }
 

@@ -17,6 +17,9 @@ export interface ChatMessage {
     text: string;
     from: 'me' | 'them';
   };
+  imageAlbum?: {
+    count: number;
+  };
   time: string;
   isRecalled?: boolean;
   status?: 'read' | 'delivered' | 'sent';

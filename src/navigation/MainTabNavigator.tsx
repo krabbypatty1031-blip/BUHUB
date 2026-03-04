@@ -9,9 +9,7 @@ import { TabHomeIcon, TabCompassIcon, TabChatIcon, TabProfileIcon } from '../com
 import { TabBarAnimationProvider, hideTabBar, showTabBar } from '../hooks/TabBarAnimationContext';
 import AnimatedTabBar from '../components/common/AnimatedTabBar';
 import { useUnreadCount } from '../hooks/useNotifications';
-import { useContacts } from '../hooks/useMessages';
 import { useNotificationStore } from '../store/notificationStore';
-import { useMessageStore } from '../store/messageStore';
 import { useMessageRealtime } from '../hooks/useMessageRealtime';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat';
 
@@ -40,42 +38,19 @@ export default function MainTabNavigator() {
   useMessageRealtime();
   usePresenceHeartbeat();
   const { data: unreadData } = useUnreadCount();
-  const { data: contacts } = useContacts();
   const unreadMessages = useNotificationStore((s) => s.unreadMessages);
   const setUnreadLikes = useNotificationStore((s) => s.setUnreadLikes);
   const setUnreadFollowers = useNotificationStore((s) => s.setUnreadFollowers);
   const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
   const setUnreadMessages = useNotificationStore((s) => s.setUnreadMessages);
-  const getEffectiveTabUnread = useMessageStore((s) => s.getEffectiveTabUnread);
-  const markedUnreadContacts = useMessageStore((s) => s.markedUnreadContacts);
-  const readContacts = useMessageStore((s) => s.readContacts);
-  const inboxSeenContacts = useMessageStore((s) => s.inboxSeenContacts);
 
   useEffect(() => {
     if (!unreadData) return;
     setUnreadLikes(unreadData.likes ?? 0);
     setUnreadFollowers(unreadData.followers ?? 0);
     setUnreadComments(unreadData.comments ?? 0);
-  }, [unreadData, setUnreadLikes, setUnreadFollowers, setUnreadComments]);
-
-  useEffect(() => {
-    if (!contacts) {
-      setUnreadMessages(0);
-      return;
-    }
-    const unreadMessageCount = contacts.reduce(
-      (count, contact) => count + getEffectiveTabUnread(contact.id, contact.unread),
-      0
-    );
-    setUnreadMessages(unreadMessageCount);
-  }, [
-    contacts,
-    getEffectiveTabUnread,
-    markedUnreadContacts,
-    readContacts,
-    inboxSeenContacts,
-    setUnreadMessages,
-  ]);
+    setUnreadMessages(unreadData.messages ?? 0);
+  }, [unreadData, setUnreadLikes, setUnreadFollowers, setUnreadComments, setUnreadMessages]);
 
   return (
     <TabBarAnimationProvider>

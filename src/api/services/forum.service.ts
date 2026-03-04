@@ -1,7 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary } from '../../types';
-import { generateAnonymousIdentity } from '../../lib/anonymous';
 import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
@@ -68,6 +67,127 @@ function resolveAvatarValue(avatar: string | null | undefined): string {
   return normalizeAvatarUrl(avatar) ?? (avatar ?? '');
 }
 
+function resolveAnonymousNameValue(name: unknown): string | undefined {
+  if (typeof name !== 'string') return undefined;
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { tc?: string; sc?: string; en?: string };
+      return parsed.tc ?? parsed.sc ?? parsed.en;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return trimmed;
+}
+
+function mapPollOptions(
+  pollOpts: { id?: string; text: string; voteCount?: number }[] | undefined
+) {
+  const totalVotes = pollOpts?.reduce((sum: number, option: any) => sum + (option.voteCount ?? 0), 0) ?? 0;
+  return pollOpts?.map((option: any) => ({
+    ...option,
+    percent: totalVotes > 0 ? Math.round(((option.voteCount ?? 0) / totalVotes) * 100) : 0,
+  }));
+}
+
+function mapPostRecord(p: any): ForumPost {
+  const author = p.author ?? {};
+  const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
+  const pollOptions = mapPollOptions(pollOpts);
+  const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
+  const functionRef = parseFunctionRef(p.content ?? '');
+  const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
+  const normalizedImages = rawImages
+    .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
+    .filter((img: string | null): img is string => !!img);
+  const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
+  const primaryImage = normalizedImages[0] ?? fallbackImage;
+  const avatarSource = p.isAnonymous ? (p.avatar ?? p.anonymousAvatar) : (p.avatar ?? author.avatar);
+  const resolvedAnonymousName = resolveAnonymousNameValue(p.anonymousName);
+
+  return {
+    ...p,
+    ...functionRef,
+    lang: p.sourceLanguage ?? p.lang ?? 'tc',
+    sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
+    name: p.isAnonymous ? (p.name ?? resolvedAnonymousName ?? '?') : (p.name ?? author.nickname ?? '?'),
+    avatar: resolveAvatarValue(avatarSource),
+    defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
+    userName: p.isAnonymous ? undefined : (p.userName ?? author.userName ?? author.nickname),
+    gender: p.isAnonymous ? 'other' : (author.gender ?? p.gender ?? 'other'),
+    gradeKey: p.isAnonymous ? undefined : (p.gradeKey ?? author.grade),
+    majorKey: p.isAnonymous ? undefined : (p.majorKey ?? author.major),
+    meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' 路 '),
+    likes: p.likeCount ?? p.likes ?? 0,
+    comments: p.commentCount ?? p.comments ?? 0,
+    pollOptions,
+    isPoll,
+    images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
+    hasImage: !!primaryImage,
+    image: primaryImage,
+  };
+}
+
+function mapReplyRecord(r: any, parentName: string): Reply {
+  const isAnonymous = !!r.isAnonymous;
+  const replyName = r.name ?? resolveAnonymousNameValue(r.anonymousName) ?? r.author?.nickname ?? '?';
+  const nestedReplies: Reply[] | undefined = r.replies?.length
+    ? r.replies.map((nested: any) => mapReplyRecord(nested, replyName))
+    : undefined;
+
+  return {
+    id: r.id,
+    name: replyName,
+    userName: isAnonymous ? undefined : (r.userName ?? r.author?.userName ?? r.author?.nickname ?? undefined),
+    avatar: resolveAvatarValue(r.avatar ?? r.anonymousAvatar ?? r.author?.avatar),
+    defaultAvatar: isAnonymous ? undefined : r.author?.avatar,
+    gender: isAnonymous ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
+    gradeKey: isAnonymous ? undefined : (r.author?.grade ?? undefined),
+    majorKey: isAnonymous ? undefined : (r.author?.major ?? undefined),
+    sourceLanguage: r.sourceLanguage ?? 'tc',
+    replyTo: parentName,
+    content: r.content,
+    time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+    likes: r.likeCount ?? 0,
+    liked: r.liked ?? false,
+    bookmarked: r.bookmarked ?? false,
+    isAnonymous,
+    replies: nestedReplies,
+  };
+}
+
+function mapCommentRecord(c: any): Comment {
+  const isAnonymous = !!c.isAnonymous;
+  const commentName = c.name ?? resolveAnonymousNameValue(c.anonymousName) ?? c.author?.nickname ?? '?';
+  const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
+  const replies: Reply[] | undefined = c.replies?.length
+    ? c.replies.map((reply: any) => mapReplyRecord(reply, commentName))
+    : undefined;
+
+  return {
+    id: c.id,
+    name: commentName,
+    userName: isAnonymous ? undefined : (c.userName ?? c.author?.userName ?? c.author?.nickname ?? undefined),
+    avatar: resolveAvatarValue(c.avatar ?? c.anonymousAvatar ?? c.author?.avatar),
+    defaultAvatar: isAnonymous ? undefined : c.author?.avatar,
+    gender: isAnonymous ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
+    gradeKey: isAnonymous ? undefined : (c.author?.grade ?? undefined),
+    majorKey: isAnonymous ? undefined : (c.author?.major ?? undefined),
+    sourceLanguage: c.sourceLanguage ?? 'tc',
+    content: c.content,
+    time,
+    likes: c.likeCount ?? 0,
+    liked: c.liked ?? false,
+    bookmarked: c.bookmarked ?? false,
+    isAnonymous,
+    replies,
+  };
+}
+
 export const forumService = {
   async getCircles(params?: { followedOnly?: boolean }): Promise<ForumCircleSummary[]> {
     const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLES, {
@@ -105,41 +225,7 @@ export const forumService = {
       return mockPosts;
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POSTS, { params });
-    return (Array.isArray(data) ? data : []).map((p: any) => {
-      const author = p.author ?? {};
-      const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
-      const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
-      const pollOptions = pollOpts?.map((o: any) => ({
-        ...o,
-        percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
-      }));
-      const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
-      const functionRef = parseFunctionRef(p.content ?? '');
-      const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
-      const normalizedImages = rawImages
-        .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
-        .filter((img: string | null): img is string => !!img);
-      const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
-      const primaryImage = normalizedImages[0] ?? fallbackImage;
-      const avatarSource = p.avatar ?? author.avatar;
-
-      return {
-        ...p,
-        ...functionRef,
-        lang: p.sourceLanguage ?? p.lang ?? 'tc',
-        sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
-        name: p.name ?? author.nickname ?? '?',
-        avatar: resolveAvatarValue(avatarSource),
-        userName: p.userName ?? author.userName ?? author.nickname,
-        gradeKey: p.gradeKey ?? author.grade,
-        majorKey: p.majorKey ?? author.major,
-        pollOptions,
-        isPoll,
-        images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
-        hasImage: !!primaryImage,
-        image: primaryImage,
-      };
-    });
+    return (Array.isArray(data) ? data : []).map((post: any) => mapPostRecord(post));
   },
 
   async getPostDetail(postId: string): Promise<ForumPost> {
@@ -148,49 +234,7 @@ export const forumService = {
       return mockPosts.find((p) => p.id === postId) || mockPosts[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POST_DETAIL(postId));
-    const p = data as any;
-    const author = p.author ?? {};
-    const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
-    const totalVotes = pollOpts?.reduce((s, o) => s + (o.voteCount ?? 0), 0) ?? 0;
-    const pollOptions = pollOpts?.map((o) => ({
-      id: o.id,
-      text: o.text,
-      voteCount: o.voteCount ?? 0,
-      percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
-    })) ?? undefined;
-    const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
-    const functionRef = parseFunctionRef(p.content ?? '');
-    // Generate consistent anonymous identity based on author ID
-    const anonIdentity = p.isAnonymous && author.id ? generateAnonymousIdentity(author.id) : null;
-    const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
-    const normalizedImages = rawImages
-      .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
-      .filter((img: string | null): img is string => !!img);
-    const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
-    const primaryImage = normalizedImages[0] ?? fallbackImage;
-    const avatarSource = anonIdentity?.avatar ?? author.avatar ?? p.avatar;
-    const resolvedAvatar = resolveAvatarValue(avatarSource);
-    return {
-      ...p,
-      ...functionRef,
-      lang: p.sourceLanguage ?? p.lang ?? 'tc',
-      sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
-      name: anonIdentity ? anonIdentity.name : (author.nickname ?? p.name ?? '?'),
-      avatar: resolvedAvatar,
-      defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
-      gender: p.isAnonymous ? 'other' : (author.gender ?? 'other'),
-      gradeKey: author.grade ?? p.gradeKey,
-      majorKey: author.major ?? p.majorKey,
-      meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' · '),
-      likes: p.likeCount ?? p.likes ?? 0,
-      comments: p.commentCount ?? p.comments ?? 0,
-      userName: author.userName ?? p.userName ?? author.nickname,
-      pollOptions,
-      isPoll,
-      images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
-      hasImage: !!primaryImage,
-      image: primaryImage,
-    };
+    return mapPostRecord(data as any);
   },
 
   async getComments(postId: string): Promise<CommentsData> {
@@ -199,67 +243,7 @@ export const forumService = {
       return { [postId]: mockCommentsData[postId] || [] };
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.COMMENTS(postId));
-    // Backend returns nested array; map to frontend Comment shape
-
-    // Recursively map replies (supports unlimited nesting levels)
-    const mapReply = (r: any, parentName: string): Reply => {
-      const rAnon = !!r.isAnonymous;
-      const rAnonIdentity = rAnon && r.authorId ? generateAnonymousIdentity(r.authorId) : null;
-      const replyToName = rAnonIdentity ? rAnonIdentity.name : (r.author?.nickname ?? '?');
-
-      // Recursively map nested replies (level 3+)
-      const nestedReplies: Reply[] | undefined = r.replies?.length
-        ? r.replies.map((nr: any) => mapReply(nr, replyToName))
-        : undefined;
-
-      return {
-        id: r.id,
-        name: rAnonIdentity ? rAnonIdentity.name : (r.author?.nickname ?? '?'),
-        avatar: resolveAvatarValue(rAnonIdentity ? rAnonIdentity.avatar : r.author?.avatar),
-        gender: rAnon ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
-        gradeKey: rAnon ? undefined : (r.author?.grade ?? undefined),
-        majorKey: rAnon ? undefined : (r.author?.major ?? undefined),
-        sourceLanguage: r.sourceLanguage ?? 'tc',
-        replyTo: parentName,
-        content: r.content,
-        time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
-        likes: r.likeCount ?? 0,
-        liked: r.liked ?? false,
-        bookmarked: r.bookmarked ?? false,
-        replies: nestedReplies,
-      };
-    };
-
-    const mapComment = (c: any): Comment => {
-      const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
-      const isAnon = !!c.isAnonymous;
-      // Generate consistent anonymous identity based on author ID
-      const anonIdentity = isAnon && c.authorId ? generateAnonymousIdentity(c.authorId) : null;
-      const parentName = anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?');
-
-      // Map direct replies (level 2)
-      const replies: Reply[] | undefined = c.replies?.length
-        ? c.replies.map((r: any) => mapReply(r, parentName))
-        : undefined;
-
-      return {
-        id: c.id,
-        name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
-        avatar: resolveAvatarValue(anonIdentity ? anonIdentity.avatar : c.author?.avatar),
-        gender: isAnon ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
-        gradeKey: isAnon ? undefined : (c.author?.grade ?? undefined),
-        majorKey: isAnon ? undefined : (c.author?.major ?? undefined),
-        sourceLanguage: c.sourceLanguage ?? 'tc',
-        content: c.content,
-        time,
-        likes: c.likeCount ?? 0,
-        liked: c.liked ?? false,
-        bookmarked: c.bookmarked ?? false,
-        isAnonymous: isAnon,
-        replies,
-      };
-    };
-    const comments: Comment[] = Array.isArray(data) ? data.map(mapComment) : [];
+    const comments: Comment[] = Array.isArray(data) ? data.map((comment: any) => mapCommentRecord(comment)) : [];
     return { [postId]: comments };
   },
 
@@ -278,9 +262,9 @@ export const forumService = {
       const { mockPosts } = await import('../../data/mock/forum');
       const newPost: ForumPost = {
         id: 'new-' + Date.now(),
-        avatar: '我',
-        name: '我',
-        gender: 'male',
+        avatar: '',
+        name: post.isAnonymous ? '匿名用户' : 'Me',
+        gender: post.isAnonymous ? 'other' : 'male',
         meta: '',
         createdAt: new Date().toISOString(),
         lang: 'tc',
@@ -308,7 +292,7 @@ export const forumService = {
       pollOptions: post.pollOptions,
       quotedPostId: post.quotedPostId,
     });
-    return data;
+    return mapPostRecord(data as any);
   },
 
   async editPost(postId: string, post: { content: string; tags?: string[] }): Promise<ForumPost> {
@@ -318,7 +302,7 @@ export const forumService = {
       return { ...original, ...post };
     }
     const { data } = await apiClient.put(ENDPOINTS.FORUM.EDIT_POST(postId), post);
-    return data;
+    return mapPostRecord(data as any);
   },
 
   async deletePost(postId: string): Promise<{ success: boolean }> {
@@ -333,10 +317,10 @@ export const forumService = {
     if (USE_MOCK) {
       return {
         id: 'comment-new-' + Date.now(),
-        name: '我',
-        avatar: '我',
+        name: isAnonymous ? '匿名用户' : 'Me',
+        avatar: '',
         content,
-        time: '剛剛',
+        time: new Date().toISOString(),
         likes: 0,
         isAnonymous,
       };
@@ -344,34 +328,19 @@ export const forumService = {
     const { data } = await apiClient.post(ENDPOINTS.FORUM.CREATE_COMMENT(postId), {
       content,
       isAnonymous: isAnonymous ?? false,
-      ...(parentId && { parentId }), // Only include parentId if it's defined
+      ...(parentId && { parentId }),
     });
-    const c = data as any;
-    const isAnon = !!c.isAnonymous;
-    // Generate consistent anonymous identity based on author ID
-    // Backend returns author in nested object, so use c.author?.id
-    const authorId = c.author?.id ?? c.authorId;
-    const anonIdentity = isAnon && authorId ? generateAnonymousIdentity(authorId) : null;
-    return {
-      id: c.id,
-      name: anonIdentity ? anonIdentity.name : (c.author?.nickname ?? '?'),
-      avatar: resolveAvatarValue(anonIdentity ? anonIdentity.avatar : c.author?.avatar),
-      content: c.content,
-      time: typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString(),
-      likes: c.likeCount ?? 0,
-      liked: false,
-      isAnonymous: isAnon,
-    };
+    return mapCommentRecord(data as any);
   },
 
   async editComment(postId: string, commentId: string, content: string): Promise<Comment> {
     if (USE_MOCK) {
       return {
         id: commentId,
-        name: '我',
-        avatar: '我',
+        name: 'Me',
+        avatar: '',
         content,
-        time: '剛剛',
+        time: new Date().toISOString(),
         likes: 0,
       };
     }
@@ -430,42 +399,9 @@ export const forumService = {
   async search(query: string): Promise<ForumPost[]> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
-      return mockPosts.filter((p) => p.content.includes(query));
+      return mockPosts.filter((post) => post.content.includes(query));
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.SEARCH, { params: { q: query } });
-    return (Array.isArray(data) ? data : []).map((p: any) => {
-      const author = p.author ?? {};
-      const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
-      const totalVotes = pollOpts?.reduce((s: number, o: any) => s + (o.voteCount ?? 0), 0) ?? 0;
-      const pollOptions = pollOpts?.map((o: any) => ({
-        ...o,
-        percent: totalVotes > 0 ? Math.round(((o.voteCount ?? 0) / totalVotes) * 100) : 0,
-      }));
-      const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
-      const functionRef = parseFunctionRef(p.content ?? '');
-      const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
-      const normalizedImages = rawImages
-        .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
-        .filter((img: string | null): img is string => !!img);
-      const fallbackImage = normalizeImageUrl(typeof p.image === 'string' ? p.image : undefined) ?? '';
-      const primaryImage = normalizedImages[0] ?? fallbackImage;
-      const avatarSource = p.avatar ?? author.avatar;
-      return {
-        ...p,
-        ...functionRef,
-        lang: p.sourceLanguage ?? p.lang ?? 'tc',
-        sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
-        name: p.name ?? author.nickname ?? '?',
-        avatar: resolveAvatarValue(avatarSource),
-        userName: p.userName ?? author.userName ?? author.nickname,
-        gradeKey: p.gradeKey ?? author.grade,
-        majorKey: p.majorKey ?? author.major,
-        pollOptions,
-        isPoll,
-        images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
-        hasImage: !!primaryImage,
-        image: primaryImage,
-      };
-    });
+    return (Array.isArray(data) ? data : []).map((post: any) => mapPostRecord(post));
   },
 };

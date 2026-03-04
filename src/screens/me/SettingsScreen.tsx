@@ -36,8 +36,8 @@ type Visibility = 'public' | 'mutual' | 'hidden';
 type PickerType = 'visibility' | 'language';
 
 const LANGUAGE_OPTIONS = [
-  { value: 'tc' as const, labelKey: 'cantonese', englishUiLabelKey: 'cantoneseEn' },
-  { value: 'sc' as const, labelKey: 'mandarin', englishUiLabelKey: 'mandarinEn' },
+  { value: 'tc' as const, labelKey: 'traditionalChinese' },
+  { value: 'sc' as const, labelKey: 'simplifiedChinese' },
   { value: 'en' as const, labelKey: 'english' },
 ];
 
@@ -101,14 +101,9 @@ export default function SettingsScreen({ navigation }: Props) {
     (langValue: (typeof LANGUAGE_OPTIONS)[number]['value']) => {
       const option = LANGUAGE_OPTIONS.find((l) => l.value === langValue);
       if (!option) return '';
-
-      const isEnglishUi = language === 'en';
-      if (isEnglishUi && option.englishUiLabelKey) {
-        return t(option.englishUiLabelKey);
-      }
       return t(option.labelKey);
     },
-    [language, t]
+    [t]
   );
 
   // Visibility options
@@ -474,11 +469,15 @@ export default function SettingsScreen({ navigation }: Props) {
         >
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
-              <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerTitle}>{getPickerTitle()}</Text>
-              <View style={{ width: 60 }} />
+              <View style={styles.pickerHeaderSide}>
+                <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                  <Text style={styles.pickerCancel}>{t('cancel')}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.pickerHeaderCenter}>
+                <Text style={styles.pickerTitle}>{getPickerTitle()}</Text>
+              </View>
+              <View style={styles.pickerHeaderSide} />
             </View>
             <FlatList
               data={getPickerData()}
@@ -662,11 +661,19 @@ const styles = StyleSheet.create({
   pickerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
+  },
+  pickerHeaderSide: {
+    width: 72,
+    justifyContent: 'center',
+  },
+  pickerHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pickerCancel: {
     ...typography.labelLarge,

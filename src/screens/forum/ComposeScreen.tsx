@@ -16,6 +16,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useCreatePost, usePostDetail } from '../../hooks/usePosts';
 import { uploadService } from '../../api/services/upload.service';
+import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -58,9 +59,12 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const functionType = route.params?.functionType;
   const functionTitle = route.params?.functionTitle;
   const functionId = route.params?.functionId ?? (route.params?.functionIndex != null ? String(route.params.functionIndex) : undefined);
+  const hasFunctionRef = !!(functionType && functionTitle && functionId);
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -130,9 +134,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
           pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
           images: type === 'poll' ? [] : imageUrls,
           quotedPostId: quotePostId,
-          functionType,
-          functionId,
-          functionTitle,
+          functionType: hasFunctionRef ? functionType : undefined,
+          functionId: hasFunctionRef ? functionId : undefined,
+          functionTitle: hasFunctionRef ? functionTitle : undefined,
         },
         {
           onSuccess: () => {
@@ -151,7 +155,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
       showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
       setIsPosting(false);
     }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId]);
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -203,7 +207,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         )}
 
         {/* Function Reference Card */}
-        {functionType && functionTitle && (
+        {hasFunctionRef && (
           <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
             <Text style={styles.functionRefType}>
               {functionType === 'partner' ? t('findPartner') :
@@ -230,7 +234,15 @@ export default function ComposeScreen({ navigation, route }: Props) {
           <View style={styles.mediaRow}>
             {images.map((uri, i) => (
               <View key={i} style={styles.mediaThumb}>
-                <Image source={{ uri }} style={styles.mediaImage} />
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setPreviewIndex(i);
+                    setPreviewVisible(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.mediaImage} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.mediaRemove} onPress={() => removeImage(i)}>
                   <CloseIcon size={14} color={colors.onPrimary} />
                 </TouchableOpacity>
@@ -244,6 +256,12 @@ export default function ComposeScreen({ navigation, route }: Props) {
             )}
           </View>
         )}
+        <ImagePreviewModal
+          visible={previewVisible}
+          images={images}
+          initialIndex={previewIndex}
+          onClose={() => setPreviewVisible(false)}
+        />
 
         {/* Poll Form */}
         {type === 'poll' && (
