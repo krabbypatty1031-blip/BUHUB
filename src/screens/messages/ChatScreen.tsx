@@ -1267,6 +1267,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         return;
       }
 
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
       const { sound } = await Audio.Sound.createAsync(
         { uri: message.audio.url },
         { shouldPlay: true }

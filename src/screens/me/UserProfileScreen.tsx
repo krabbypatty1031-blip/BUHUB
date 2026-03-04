@@ -418,6 +418,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         data={userPosts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        estimatedItemSize={160}
         extraData={listExtraData}
         refreshing={loading}
         onRefresh={handleRefresh}

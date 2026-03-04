@@ -2,7 +2,7 @@
   "expo": {
     "name": "UHUB",
     "slug": "buhub-rn",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "2",
+      "buildNumber": "3",
       "bundleIdentifier": "com.buhub.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -39,6 +39,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
     },
     "plugins": [
       "expo-font"

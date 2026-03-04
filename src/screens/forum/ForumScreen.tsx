@@ -225,6 +225,7 @@ export default function ForumScreen({ navigation }: Props) {
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        estimatedItemSize={160}
         extraData={listExtraData}
         refreshing={isLoading}
         onRefresh={refetch}
