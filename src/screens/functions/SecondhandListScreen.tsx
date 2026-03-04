@@ -32,6 +32,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import {
   BackIcon,
   PlusIcon,
@@ -113,7 +114,7 @@ const ItemCard = React.memo(function ItemCard({
 
         {/* Condition tag - top left */}
         <View style={styles.conditionBadge}>
-          <Text style={styles.conditionBadgeText}>{item.condition}</Text>
+          <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
         </View>
 
         {/* Status overlay - sold / expired */}

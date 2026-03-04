@@ -40,6 +40,12 @@ import {
   getContentCountLabel,
 } from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
+import {
+  getLocalizedSecondhandCondition,
+  normalizeSecondhandCondition,
+  SECONDHAND_CONDITION_LABEL_KEYS,
+  type SecondhandConditionKey,
+} from '../../utils/secondhandCondition';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeSecondhand'>;
 
@@ -50,11 +56,11 @@ const CATEGORIES: Array<{ key: SecondhandCategory; labelKey: string }> = [
   { key: 'other', labelKey: 'other' },
 ];
 
-const CONDITIONS: Array<{ key: string; labelKey: string }> = [
-  { key: 'new', labelKey: 'conditionNew' },
-  { key: 'likeNew', labelKey: 'conditionLikeNew' },
-  { key: 'good', labelKey: 'conditionGood' },
-  { key: 'fair', labelKey: 'conditionFair' },
+const CONDITIONS: Array<{ key: SecondhandConditionKey; labelKey: string }> = [
+  { key: 'new', labelKey: SECONDHAND_CONDITION_LABEL_KEYS.new },
+  { key: 'likeNew', labelKey: SECONDHAND_CONDITION_LABEL_KEYS.likeNew },
+  { key: 'good', labelKey: SECONDHAND_CONDITION_LABEL_KEYS.good },
+  { key: 'fair', labelKey: SECONDHAND_CONDITION_LABEL_KEYS.fair },
 ];
 
 const normalizePriceInput = (value: string): string => {
@@ -92,8 +98,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const [price, setPrice] = useState(extractNumericPrice(initialData?.price));
   const defaultCategory = initialData?.category ?? route.params?.category ?? 'electronics';
   const [category, setCategory] = useState<SecondhandCategory>(defaultCategory);
-  const [condition, setCondition] = useState<string | null>(
-    CONDITIONS.find((item) => t(item.labelKey) === initialData?.condition)?.key ?? null
+  const [condition, setCondition] = useState<SecondhandConditionKey | null>(
+    normalizeSecondhandCondition(initialData?.condition)
   );
   const [conditionPickerVisible, setConditionPickerVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -124,9 +130,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     [t],
   );
 
-  const selectedConditionLabel = condition
-    ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '')
-    : null;
+  const selectedConditionLabel = condition ? getLocalizedSecondhandCondition(condition, t) : null;
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
@@ -175,7 +179,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         desc: description.trim(),
         images: [...remoteImages, ...uploadedImages],
         price: `HK$${price.trim()}`,
-        condition: condition ? t(CONDITIONS.find((c) => c.key === condition)?.labelKey ?? '') : '',
+        condition: condition ?? '',
         location: tradeLocation.trim(),
         expiresAt: deadline!.toISOString(),
         expired: initialData?.expired ?? false,
@@ -448,7 +452,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           visible={conditionPickerVisible}
           onClose={() => setConditionPickerVisible(false)}
           onConfirm={(value) => {
-            setCondition(value);
+            setCondition(normalizeSecondhandCondition(value));
             setConditionPickerVisible(false);
           }}
           options={conditionPickerOptions}

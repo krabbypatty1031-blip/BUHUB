@@ -32,6 +32,7 @@ import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -253,7 +254,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
           {/* Condition badge */}
           <View style={styles.conditionBadge}>
-            <Text style={styles.conditionBadgeText}>{item.condition}</Text>
+            <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
           </View>
 
           {/* Status overlay */}
