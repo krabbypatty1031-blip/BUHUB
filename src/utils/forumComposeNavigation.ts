@@ -16,13 +16,12 @@ export function navigateToForumComposeSelection({
   functionId,
 }: NavigateToForumComposeSelectionParams) {
   navigation.getParent()?.navigate('ForumTab', {
-    screen: 'ForumHome',
+    screen: 'Compose',
     params: {
-      pendingComposeSelection: {
-        functionType,
-        functionTitle,
-        functionId,
-      },
+      type: 'text',
+      functionType,
+      functionTitle,
+      functionId,
     },
   });
 }

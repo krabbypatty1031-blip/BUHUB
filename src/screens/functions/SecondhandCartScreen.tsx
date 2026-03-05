@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Image,
   Modal,
   SectionList,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -82,7 +82,14 @@ function CartItemCard({
               onImagePress(item.images ?? [primaryImage], 0);
             }}
           >
-            <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+            <ExpoImage
+              source={primaryImage}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              recyclingKey={primaryImage}
+            />
           </TouchableOpacity>
         ) : (
           <View style={styles.cardImageFallback}>
@@ -325,21 +332,20 @@ export default function SecondhandCartScreen({ navigation }: Props) {
           <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.actionHandle} />
 
-            <TouchableOpacity
-              style={styles.actionRow}
-              onPress={() => {
-                const current = actionItem;
-                setActionItem(null);
-                if (current) {
-                  handleDmSeller(current.item, current.id);
-                }
-              }}
-              disabled={isActionItemOwnPost}
-            >
-              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
-                {isActionItemOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
-              </Text>
-            </TouchableOpacity>
+            {!isActionItemOwnPost ? (
+              <TouchableOpacity
+                style={styles.actionRow}
+                onPress={() => {
+                  const current = actionItem;
+                  setActionItem(null);
+                  if (current) {
+                    handleDmSeller(current.item, current.id);
+                  }
+                }}
+              >
+                <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
+              </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity
               style={styles.actionRow}
@@ -598,9 +604,6 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-  },
-  actionTextDisabled: {
-    color: colors.onSurfaceVariant,
   },
   actionTextDanger: {
     ...typography.bodyLarge,

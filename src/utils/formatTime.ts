@@ -87,3 +87,19 @@ export function buildPostMeta(
   parts.push(time);
   return parts.join(' · ');
 }
+
+export function buildGradeMajorMeta(
+  t: (key: string) => string,
+  options: {
+    gradeKey?: string;
+    majorKey?: string;
+    isAnonymous?: boolean;
+  },
+): string {
+  if (options.isAnonymous) return '';
+  const parts: string[] = [];
+  if (options.gradeKey) parts.push(t(options.gradeKey));
+  if (options.majorKey) parts.push(t(options.majorKey));
+  return parts.join(' · ');
+}
+

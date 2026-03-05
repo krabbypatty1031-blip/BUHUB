@@ -142,7 +142,8 @@ const ContactRow = React.memo(function ContactRow({
 export default function MessagesScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: contacts, isLoading, isFetching, refetch } = useContacts();
+  const isFocused = useIsFocused();
+  const { data: contacts, isLoading, isFetching, refetch } = useContacts({ polling: isFocused });
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
   const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
   const unreadComments = useNotificationStore((s) => s.unreadComments);
@@ -170,7 +171,6 @@ export default function MessagesScreen({ navigation }: Props) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
-  const isFocused = useIsFocused();
   const shouldSnapshotInboxSeenRef = useRef(false);
 
   useEffect(() => {
@@ -234,7 +234,7 @@ export default function MessagesScreen({ navigation }: Props) {
         return visible.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
-            c.message.toLowerCase().includes(q)
+            (c.userName ?? '').toLowerCase().includes(q)
         );
       }
       return visible;

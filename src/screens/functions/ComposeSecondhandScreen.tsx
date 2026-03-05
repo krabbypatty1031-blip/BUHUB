@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -289,7 +289,14 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
                       setPreviewVisible(true);
                     }}
                   >
-                    <Image source={{ uri }} style={styles.imageThumbImg} />
+                    <ExpoImage
+                      source={uri}
+                      style={styles.imageThumbImg}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={0}
+                      recyclingKey={uri}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(i)}>
                     <CloseIcon size={12} color={colors.white} />

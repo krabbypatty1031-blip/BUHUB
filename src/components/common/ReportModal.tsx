@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, elevation } from '../../theme';
 
 export const REPORT_CATEGORIES = [
   'spam',
@@ -26,16 +26,23 @@ interface ReportModalProps {
   title: string;
   onClose: () => void;
   onSubmit: (reasonCategory: string, reason?: string) => void;
+  overlayTransparent?: boolean;
 }
 
-export default function ReportModal({ visible, title, onClose, onSubmit }: ReportModalProps) {
+export default function ReportModal({
+  visible,
+  title,
+  onClose,
+  onSubmit,
+  overlayTransparent = false,
+}: ReportModalProps) {
   const { t } = useTranslation();
   const [category, setCategory] = useState<string>('');
   const [reason, setReason] = useState('');
 
   const handleSubmit = () => {
     if (!category) return;
-    onSubmit(category, category === 'other' ? reason.trim() || undefined : undefined);
+    onSubmit(category, reason.trim() || undefined);
     setCategory('');
     setReason('');
   };
@@ -46,12 +53,15 @@ export default function ReportModal({ visible, title, onClose, onSubmit }: Repor
     onClose();
   };
 
-  const canSubmit = category && (category !== 'other' || reason.trim().length > 0);
+  const canSubmit = !!category;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable
+        style={[styles.overlay, overlayTransparent && styles.overlayTransparent]}
+        onPress={handleClose}
+      >
+        <Pressable style={[styles.card, overlayTransparent && styles.cardOnTransparent]} onPress={() => {}}>
           <Text style={styles.title}>{title}</Text>
 
           <Text style={styles.label}>{t('reportCategory')}</Text>
@@ -69,21 +79,17 @@ export default function ReportModal({ visible, title, onClose, onSubmit }: Repor
             ))}
           </ScrollView>
 
-          {category === 'other' && (
-            <>
-              <Text style={styles.label}>{t('reportReasonPlaceholder')}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t('reportReasonDetailPlaceholder')}
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={reason}
-                onChangeText={setReason}
-                multiline
-                numberOfLines={2}
-                textAlignVertical="top"
-              />
-            </>
-          )}
+          <Text style={styles.label}>{t('reportReasonPlaceholder')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('reportReasonDetailPlaceholder')}
+            placeholderTextColor={colors.onSurfaceVariant}
+            value={reason}
+            onChangeText={setReason}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
 
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
@@ -112,12 +118,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  overlayTransparent: {
+    backgroundColor: 'transparent',
+  },
   card: {
     width: '90%',
     maxWidth: 400,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
+    ...elevation[4],
+  },
+  cardOnTransparent: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
   },
   title: {
     ...typography.titleMedium,

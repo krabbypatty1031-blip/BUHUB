@@ -2,8 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
-  FlatList,
-  Image,
+  InteractionManager,
   GestureResponderEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -20,8 +19,9 @@ import {
   Keyboard,
   Linking,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
@@ -33,7 +33,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { ChatMessage, ChatHistory } from '../../types';
@@ -71,6 +71,9 @@ import {
 } from '../../components/common/icons';
 import { showTabBar, useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
+import { transcribeAudioFileWithNativeSpeech } from '../../utils/nativeSpeechToText';
+import { getSpeechRecognitionModule } from '../../utils/speechRecognition';
+import { normalizeImageUrl as normalizeMediaUrl } from '../../utils/imageUrl';
 
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
@@ -91,6 +94,52 @@ const REACTION_OPTIONS = [
   '\u{1F44F}',
 ];
 
+function resolveSpeechRecognitionLocale(language: string): string {
+  const normalized = language.toLowerCase();
+  if (normalized.startsWith('en')) return 'en-US';
+  if (normalized.startsWith('sc') || normalized.includes('hans') || normalized.includes('zh-cn')) {
+    return 'zh-CN';
+  }
+  if (normalized.startsWith('tc') || normalized.includes('hant') || normalized.includes('zh-hk')) {
+    return 'zh-HK';
+  }
+  return 'zh-HK';
+}
+
+function getAudioUploadMetaFromUri(uri: string): { type: string; name: string } {
+  const cleanUri = (uri || '').split('?')[0].toLowerCase();
+  const extMatch = cleanUri.match(/\.([a-z0-9]+)$/);
+  const ext = extMatch?.[1] ?? 'm4a';
+
+  if (ext === 'mp4') {
+    return { type: 'audio/mp4', name: `voice-${Date.now()}.mp4` };
+  }
+  if (ext === 'caf') {
+    return { type: 'audio/x-caf', name: `voice-${Date.now()}.caf` };
+  }
+  if (ext === 'wav' || ext === 'wave') {
+    return { type: 'audio/wav', name: `voice-${Date.now()}.wav` };
+  }
+  if (ext === 'aac') {
+    return { type: 'audio/aac', name: `voice-${Date.now()}.aac` };
+  }
+  if (ext === 'm4a') {
+    return { type: 'audio/x-m4a', name: `voice-${Date.now()}.m4a` };
+  }
+
+  return { type: 'audio/m4a', name: `voice-${Date.now()}.m4a` };
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 
 /* ----- Union type for FlatList data ----- */
@@ -100,6 +149,20 @@ type ChatListItem =
 
 type VoiceReleaseAction = 'send' | 'cancel' | 'transcribe';
 type ImageSendMode = 'separate' | 'merged';
+type ChatBubbleProps = {
+  message: ChatMessage;
+  myAvatarText: string;
+  myAvatarUri?: string | null;
+  theirAvatarText: string;
+  theirAvatarUri?: string | null;
+  onCardPress?: (card: NonNullable<ChatMessage['functionCard']>) => void;
+  onLongPressMessage?: (message: ChatMessage) => void;
+  onPlayAudio?: (message: ChatMessage) => void;
+  onImagePress?: (images: string[], index: number) => void;
+  onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
+  isAudioPlaying?: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+};
 
 /* ----- Date separator ----- */
 const DateSeparator = React.memo(function DateSeparator({
@@ -134,19 +197,26 @@ const SINGLE_MEDIA_MAX_WIDTH = 220;
 const SINGLE_MEDIA_MAX_HEIGHT = 280;
 const GRID_MEDIA_MAX_WIDTH = 110;
 const GRID_MEDIA_MAX_HEIGHT = 140;
+const CHAT_MEDIA_SIZE_CACHE_MAX = 800;
+const chatMediaSizeCache = new Map<string, { width: number; height: number }>();
 
 const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
   uri,
   totalCount,
   onPress,
+  onLongPress,
 }: {
   uri: string;
   totalCount: number;
   onPress: () => void;
+  onLongPress?: () => void;
 }) {
   const maxWidth = totalCount === 1 ? SINGLE_MEDIA_MAX_WIDTH : GRID_MEDIA_MAX_WIDTH;
   const maxHeight = totalCount === 1 ? SINGLE_MEDIA_MAX_HEIGHT : GRID_MEDIA_MAX_HEIGHT;
+  const cacheKey = `${uri}|${maxWidth}|${maxHeight}`;
+  const cachedSize = chatMediaSizeCache.get(cacheKey);
   const [size, setSize] = useState(() =>
+    cachedSize ??
     getContainedMediaSize(
       maxWidth,
       maxHeight,
@@ -156,41 +226,68 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
   );
 
   useEffect(() => {
-    let cancelled = false;
-    Image.getSize(
-      uri,
-      (width, height) => {
-        if (cancelled || width <= 0 || height <= 0) return;
-        setSize(
-          getContainedMediaSize(
-            width,
-            height,
-            maxWidth,
-            maxHeight
-          )
-        );
-      },
-      () => {
-        if (cancelled) return;
-        setSize(
-          getContainedMediaSize(
-            maxWidth,
-            maxHeight,
-            maxWidth,
-            maxHeight
-          )
-        );
-      }
+    if (cachedSize) {
+      setSize((prev) =>
+        prev.width === cachedSize.width && prev.height === cachedSize.height ? prev : cachedSize
+      );
+      return;
+    }
+    const fallbackSize = getContainedMediaSize(
+      maxWidth,
+      maxHeight,
+      maxWidth,
+      maxHeight
     );
+    setSize((prev) =>
+      prev.width === fallbackSize.width && prev.height === fallbackSize.height ? prev : fallbackSize
+    );
+  }, [cacheKey, cachedSize, maxHeight, maxWidth, uri]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [maxHeight, maxWidth, uri]);
+  const handleImageLoad = useCallback((event: any) => {
+    const width = Number(event?.source?.width);
+    const height = Number(event?.source?.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+    const nextSize = getContainedMediaSize(width, height, maxWidth, maxHeight);
+    if (!chatMediaSizeCache.has(cacheKey) && chatMediaSizeCache.size >= CHAT_MEDIA_SIZE_CACHE_MAX) {
+      const oldestKey = chatMediaSizeCache.keys().next().value as string | undefined;
+      if (oldestKey) chatMediaSizeCache.delete(oldestKey);
+    }
+    chatMediaSizeCache.set(cacheKey, nextSize);
+    setSize((prev) =>
+      prev.width === nextSize.width && prev.height === nextSize.height ? prev : nextSize
+    );
+  }, [cacheKey, maxHeight, maxWidth]);
+
+  const longPressTriggeredRef = useRef(false);
+  const handleLongPress = useCallback(() => {
+    longPressTriggeredRef.current = true;
+    onLongPress?.();
+  }, [onLongPress]);
+  const handlePress = useCallback(() => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+    onPress();
+  }, [onPress]);
 
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.mediaPressTarget}>
-      <Image source={{ uri }} style={[styles.mediaImage, size]} resizeMode="contain" />
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={300}
+      style={styles.mediaPressTarget}
+    >
+      <ExpoImage
+        source={uri}
+        style={[styles.mediaImage, size]}
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        transition={0}
+        recyclingKey={uri}
+        onLoad={handleImageLoad}
+      />
     </TouchableOpacity>
   );
 });
@@ -200,22 +297,48 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
   count,
   isMine,
   onPress,
+  onLongPress,
   t,
 }: {
   images: string[];
   count: number;
   isMine: boolean;
   onPress: () => void;
+  onLongPress?: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const coverImage = images[0];
+  const longPressTriggeredRef = useRef(false);
+  const handleLongPress = useCallback(() => {
+    longPressTriggeredRef.current = true;
+    onLongPress?.();
+  }, [onLongPress]);
+  const handlePress = useCallback(() => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+    onPress();
+  }, [onPress]);
+
   return (
     <TouchableOpacity
       style={[styles.albumBubble, isMine ? styles.albumBubbleMine : styles.albumBubbleTheirs]}
       activeOpacity={0.85}
-      onPress={onPress}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={300}
     >
-      {coverImage ? <Image source={{ uri: coverImage }} style={styles.albumCoverImage} resizeMode="cover" /> : null}
+      {coverImage ? (
+        <ExpoImage
+          source={coverImage}
+          style={styles.albumCoverImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
+          recyclingKey={coverImage}
+        />
+      ) : null}
       <View style={styles.albumBubbleContent}>
         <Text style={[styles.albumBubbleTitle, isMine ? styles.albumBubbleTitleMine : styles.albumBubbleTitleTheirs]}>
           {t('messageAlbumTitle')}
@@ -225,6 +348,250 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
         </Text>
       </View>
     </TouchableOpacity>
+  );
+});
+
+function isSameStringArray(a?: string[], b?: string[]) {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function isSameReplyTo(a?: ChatMessage['replyTo'], b?: ChatMessage['replyTo']) {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return a.text === b.text && a.from === b.from;
+}
+
+function isSameFunctionCard(a?: ChatMessage['functionCard'], b?: ChatMessage['functionCard']) {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.type === b.type &&
+    a.id === b.id &&
+    a.index === b.index &&
+    a.title === b.title &&
+    a.posterName === b.posterName &&
+    a.postId === b.postId
+  );
+}
+
+function isSameReactions(a?: ChatMessage['reactions'], b?: ChatMessage['reactions']) {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const ra = a[i];
+    const rb = b[i];
+    if (
+      ra.emoji !== rb.emoji ||
+      ra.count !== rb.count ||
+      Boolean(ra.reactedByMe) !== Boolean(rb.reactedByMe)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areChatMessagesEquivalent(a: ChatMessage, b: ChatMessage) {
+  if (a === b) return true;
+  return (
+    a.id === b.id &&
+    a.createdAt === b.createdAt &&
+    a.type === b.type &&
+    a.text === b.text &&
+    a.time === b.time &&
+    a.isRecalled === b.isRecalled &&
+    a.status === b.status &&
+    a.audio?.url === b.audio?.url &&
+    a.audio?.durationMs === b.audio?.durationMs &&
+    a.imageAlbum?.count === b.imageAlbum?.count &&
+    isSameReplyTo(a.replyTo, b.replyTo) &&
+    isSameFunctionCard(a.functionCard, b.functionCard) &&
+    isSameStringArray(a.images, b.images) &&
+    isSameReactions(a.reactions, b.reactions)
+  );
+}
+
+type MessageReplyBlockProps = {
+  replyTo?: ChatMessage['replyTo'];
+  isMine: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+};
+
+const MessageReplyBlock = React.memo(function MessageReplyBlock({
+  replyTo,
+  isMine,
+  t,
+}: MessageReplyBlockProps) {
+  if (!replyTo) return null;
+  const replyFromLabel = replyTo.from === 'me' ? t('youLabel') : t('themLabel');
+
+  return (
+    <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
+      <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>
+        {replyFromLabel}
+      </Text>
+      <Text style={[styles.replyText, isMine ? styles.replyTextMine : styles.replyTextTheirs]} numberOfLines={2}>
+        {replyTo.text}
+      </Text>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isMine === nextProps.isMine &&
+    prevProps.t === nextProps.t &&
+    isSameReplyTo(prevProps.replyTo, nextProps.replyTo)
+  );
+});
+
+type TextMessageContentProps = {
+  message: ChatMessage;
+  isMine: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+};
+
+const TextMessageContent = React.memo(function TextMessageContent({
+  message,
+  isMine,
+  t,
+}: TextMessageContentProps) {
+  return (
+    <View
+      style={[
+        styles.bubble,
+        isMine ? styles.bubbleMine : styles.bubbleTheirs,
+      ]}
+    >
+      <MessageReplyBlock replyTo={message.replyTo} isMine={isMine} t={t} />
+      <Text
+        style={[
+          styles.bubbleText,
+          isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+          message.isRecalled ? styles.bubbleTextRecalled : undefined,
+        ]}
+      >
+        {message.text}
+      </Text>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isMine === nextProps.isMine &&
+    prevProps.t === nextProps.t &&
+    prevProps.message.text === nextProps.message.text &&
+    prevProps.message.isRecalled === nextProps.message.isRecalled &&
+    isSameReplyTo(prevProps.message.replyTo, nextProps.message.replyTo)
+  );
+});
+
+type ImageMessageContentProps = {
+  message: ChatMessage;
+  isMine: boolean;
+  onImagePress?: (images: string[], index: number) => void;
+  onLongPressMessage?: (message: ChatMessage) => void;
+  t: (key: string, options?: Record<string, unknown>) => string;
+};
+
+const ImageMessageContent = React.memo(function ImageMessageContent({
+  message,
+  isMine,
+  onImagePress,
+  onLongPressMessage,
+  t,
+}: ImageMessageContentProps) {
+  const images = message.images ?? [];
+
+  return (
+    <View style={styles.mediaBubble}>
+      <MessageReplyBlock replyTo={message.replyTo} isMine={isMine} t={t} />
+      {message.text ? (
+        <Text
+          style={[
+            styles.bubbleText,
+            isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+          ]}
+        >
+          {message.text}
+        </Text>
+      ) : null}
+      {message.imageAlbum ? (
+        <ChatAlbumBubble
+          images={images}
+          count={message.imageAlbum.count}
+          isMine={isMine}
+          onPress={() => onImagePress?.(images, 0)}
+          onLongPress={() => onLongPressMessage?.(message)}
+          t={t}
+        />
+      ) : (
+        <View style={styles.mediaGrid}>
+          {images.slice(0, 4).map((uri, index) => (
+            <ChatMediaThumbnail
+              key={`${uri}-${index}`}
+              uri={uri}
+              totalCount={images.length}
+              onPress={() => onImagePress?.(images, index)}
+              onLongPress={() => onLongPressMessage?.(message)}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isMine === nextProps.isMine &&
+    prevProps.t === nextProps.t &&
+    prevProps.onImagePress === nextProps.onImagePress &&
+    prevProps.onLongPressMessage === nextProps.onLongPressMessage &&
+    prevProps.message.text === nextProps.message.text &&
+    prevProps.message.imageAlbum?.count === nextProps.message.imageAlbum?.count &&
+    isSameReplyTo(prevProps.message.replyTo, nextProps.message.replyTo) &&
+    isSameStringArray(prevProps.message.images, nextProps.message.images)
+  );
+});
+
+type AudioMessageContentProps = {
+  message: ChatMessage;
+  isMine: boolean;
+  isAudioPlaying?: boolean;
+  onPlayAudio?: (message: ChatMessage) => void;
+  onLongPressMessage?: (message: ChatMessage) => void;
+};
+
+const AudioMessageContent = React.memo(function AudioMessageContent({
+  message,
+  isMine,
+  isAudioPlaying,
+  onPlayAudio,
+  onLongPressMessage,
+}: AudioMessageContentProps) {
+  return (
+    <VoiceMessageBubble
+      isMine={isMine}
+      durationMs={message.audio?.durationMs || 0}
+      isPlaying={isAudioPlaying}
+      isRead={message.status === 'read' || !isMine}
+      onPress={() => onPlayAudio?.(message)}
+      onLongPress={() => onLongPressMessage?.(message)}
+    />
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isMine === nextProps.isMine &&
+    Boolean(prevProps.isAudioPlaying) === Boolean(nextProps.isAudioPlaying) &&
+    prevProps.onPlayAudio === nextProps.onPlayAudio &&
+    prevProps.onLongPressMessage === nextProps.onLongPressMessage &&
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.status === nextProps.message.status &&
+    prevProps.message.audio?.url === nextProps.message.audio?.url &&
+    prevProps.message.audio?.durationMs === nextProps.message.audio?.durationMs
   );
 });
 
@@ -242,29 +609,13 @@ const ChatBubble = React.memo(function ChatBubble({
   onPressReaction,
   isAudioPlaying,
   t,
-}: {
-  message: ChatMessage;
-  myAvatarText: string;
-  myAvatarUri?: string | null;
-  theirAvatarText: string;
-  theirAvatarUri?: string | null;
-  onCardPress?: (card: NonNullable<ChatMessage['functionCard']>) => void;
-  onLongPressMessage?: (message: ChatMessage) => void;
-  onPlayAudio?: (message: ChatMessage) => void;
-  onImagePress?: (images: string[], index: number) => void;
-  onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
-  isAudioPlaying?: boolean;
-  t: (key: string, options?: Record<string, unknown>) => string;
-}) {
+}: ChatBubbleProps) {
   const isMine = message.type === 'sent';
   const card = message.functionCard;
   const isRecalled = Boolean(message.isRecalled);
   const hasImages = Array.isArray(message.images) && message.images.length > 0;
   const hasAudio = Boolean(message.audio?.url);
   const hasReactions = Array.isArray(message.reactions) && message.reactions.length > 0;
-  const replyFromLabel = message.replyTo?.from === 'me'
-    ? t('youLabel')
-    : t('themLabel');
 
   if (isRecalled) {
     const recalledText = isMine
@@ -324,80 +675,23 @@ const ChatBubble = React.memo(function ChatBubble({
               </TouchableOpacity>
             );
           })() : hasImages ? (
-            <View style={styles.mediaBubble}>
-              {message.replyTo ? (
-                <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
-                  <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>{replyFromLabel}</Text>
-                  <Text style={[styles.replyText, isMine ? styles.replyTextMine : styles.replyTextTheirs]} numberOfLines={2}>
-                    {message.replyTo.text}
-                  </Text>
-                </View>
-              ) : null}
-              {message.text ? (
-                <Text
-                  style={[
-                    styles.bubbleText,
-                    isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
-                  ]}
-                >
-                  {message.text}
-                </Text>
-              ) : null}
-              {message.imageAlbum ? (
-                <ChatAlbumBubble
-                  images={message.images ?? []}
-                  count={message.imageAlbum.count}
-                  isMine={isMine}
-                  onPress={() => onImagePress?.(message.images ?? [], 0)}
-                  t={t}
-                />
-              ) : (
-                <View style={styles.mediaGrid}>
-                  {message.images?.slice(0, 4).map((uri, index) => (
-                    <ChatMediaThumbnail
-                      key={`${uri}-${index}`}
-                      uri={uri}
-                      totalCount={message.images?.length ?? 0}
-                      onPress={() => onImagePress?.(message.images ?? [], index)}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          ) : hasAudio ? (
-            <VoiceMessageBubble
+            <ImageMessageContent
+              message={message}
               isMine={isMine}
-              durationMs={message.audio?.durationMs || 0}
-              isPlaying={isAudioPlaying}
-              isRead={message.status === 'read' || !isMine}
-              onPress={() => onPlayAudio?.(message)}
-              onLongPress={() => onLongPressMessage?.(message)}
+              onImagePress={onImagePress}
+              onLongPressMessage={onLongPressMessage}
+              t={t}
+            />
+          ) : hasAudio ? (
+            <AudioMessageContent
+              message={message}
+              isMine={isMine}
+              isAudioPlaying={isAudioPlaying}
+              onPlayAudio={onPlayAudio}
+              onLongPressMessage={onLongPressMessage}
             />
           ) : (
-            <View
-              style={[
-                styles.bubble,
-                isMine ? styles.bubbleMine : styles.bubbleTheirs,
-              ]}
-            >
-              {message.replyTo ? (
-                <View style={[styles.replyBlock, isMine ? styles.replyBlockMine : styles.replyBlockTheirs]}>
-                  <Text style={[styles.replyAuthor, isMine ? styles.replyAuthorMine : styles.replyAuthorTheirs]}>{replyFromLabel}</Text>
-                  <Text style={[styles.replyText, isMine ? styles.replyTextMine : styles.replyTextTheirs]} numberOfLines={2}>
-                    {message.replyTo.text}
-                  </Text>
-                </View>
-              ) : null}
-              <Text
-                style={[
-                  styles.bubbleText,
-                  isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
-                  isRecalled ? styles.bubbleTextRecalled : undefined,
-                ]}
-              >
-                {message.text}
-              </Text>
-            </View>
+            <TextMessageContent message={message} isMine={isMine} t={t} />
           )}
         </View>
         <View style={styles.bubbleFooterRow}>
@@ -442,6 +736,16 @@ const ChatBubble = React.memo(function ChatBubble({
   }
 
   return bubbleNode;
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.myAvatarText === nextProps.myAvatarText &&
+    prevProps.myAvatarUri === nextProps.myAvatarUri &&
+    prevProps.theirAvatarText === nextProps.theirAvatarText &&
+    prevProps.theirAvatarUri === nextProps.theirAvatarUri &&
+    Boolean(prevProps.isAudioPlaying) === Boolean(nextProps.isAudioPlaying) &&
+    prevProps.t === nextProps.t &&
+    areChatMessagesEquivalent(prevProps.message, nextProps.message)
+  );
 });
 
 /* ----- Waveform color palette ----- */
@@ -515,7 +819,7 @@ function getContainedMediaSize(
 }
 
 export default function ChatScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     contactId,
@@ -532,13 +836,16 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedRequiresConfirm,
     backTo,
   } = route.params;
-  const { data: chatHistory, isLoading } = useChatHistory(contactId);
+  const isScreenFocused = useIsFocused();
+  const { data: chatHistory, isLoading } = useChatHistory(contactId, {
+    enabled: isScreenFocused,
+    polling: isScreenFocused,
+  });
   const { data: canSendMessage } = useCanSendMessage(contactId);
   const { data: presence } = usePresence(contactId);
   const sendMessageMutation = useSendMessage(contactId);
   const sendMessage = sendMessageMutation.mutateAsync;
   const recallMessageMutation = useRecallMessage(contactId);
-  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const clearUnread = useMessageStore((s) => s.clearUnread);
   const setActiveChatContact = useMessageStore((s) => s.setActiveChatContact);
@@ -547,6 +854,13 @@ export default function ChatScreen({ navigation, route }: Props) {
   const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
   const { tabBarTranslateY } = useTabBarAnimation();
   const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
+  const shouldForceLatestOnReadyRef = useRef(true);
+  const scrollRetryTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const flatListRef = useRef<FlashListRef<ChatListItem>>(null);
+  const isNearBottomRef = useRef(true);
+  const anchorToLatestRef = useRef(true);
+  const hasUserDraggedRef = useRef(false);
+  const lastKnownListLengthRef = useRef(0);
 
   const handleBack = useCallback(() => {
     if (backTo?.tab === 'MessagesTab') {
@@ -612,19 +926,27 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      shouldForceLatestOnReadyRef.current = true;
+      scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
+      scrollRetryTimersRef.current = [];
+      isNearBottomRef.current = true;
+      anchorToLatestRef.current = true;
+      hasUserDraggedRef.current = false;
+      lastKnownListLengthRef.current = 0;
+      setFocusVersion((prev) => prev + 1);
       setActiveChatContact(contactId);
       clearUnread(contactId);
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         handleBack();
         return true;
       });
       return () => {
+        scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
+        scrollRetryTimersRef.current = [];
         setActiveChatContact(null);
         sub.remove();
       };
-    }, [clearUnread, contactId, handleBack, queryClient, setActiveChatContact])
+    }, [clearUnread, contactId, handleBack, setActiveChatContact])
   );
 
   const [inputText, setInputText] = useState('');
@@ -653,11 +975,18 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [focusVersion, setFocusVersion] = useState(0);
   const [pendingImageAssets, setPendingImageAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [imageSendModeVisible, setImageSendModeVisible] = useState(false);
   const [isSendingSelectedImages, setIsSendingSelectedImages] = useState(false);
+  const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
+  const [liveTranscriptionText, setLiveTranscriptionText] = useState('');
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
+  const liveTranscriptionTextRef = useRef('');
+  const liveTranscriptionFinalRef = useRef('');
+  const liveSpeechActiveRef = useRef(false);
+  const speechUnavailableNoticeShownRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -675,15 +1004,94 @@ export default function ChatScreen({ navigation, route }: Props) {
     setVoiceReleaseActionState(action);
   }, []);
 
+  useEffect(() => {
+    liveTranscriptionTextRef.current = liveTranscriptionText;
+  }, [liveTranscriptionText]);
+
+  useEffect(() => {
+    const speechRecognitionModule = getSpeechRecognitionModule();
+    if (!speechRecognitionModule) return;
+
+    const resultSub = speechRecognitionModule.addListener('result', (event) => {
+      const transcript = event?.results?.[0]?.transcript?.trim() ?? '';
+      if (!transcript) return;
+      liveTranscriptionTextRef.current = transcript;
+      setLiveTranscriptionText(transcript);
+      if (event.isFinal) {
+        liveTranscriptionFinalRef.current = transcript;
+      }
+    });
+    const errorSub = speechRecognitionModule.addListener('error', () => {
+      liveSpeechActiveRef.current = false;
+    });
+    const endSub = speechRecognitionModule.addListener('end', () => {
+      liveSpeechActiveRef.current = false;
+    });
+    return () => {
+      resultSub.remove();
+      errorSub.remove();
+      endSub.remove();
+      try {
+        speechRecognitionModule.abort();
+      } catch {
+        // Ignore cleanup failures from speech recognizer.
+      }
+      liveSpeechActiveRef.current = false;
+    };
+  }, []);
+
   const composerBottomInset = isKeyboardVisible
     ? spacing.sm
     : Math.max(insets.bottom, spacing.sm);
 
-  useEffect(() => {
-    if (isLoading) return;
-    queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
-    queryClient.invalidateQueries({ queryKey: ['contacts'] });
-  }, [contactId, isLoading, queryClient]);
+  const clearLiveTranscription = useCallback(() => {
+    liveTranscriptionTextRef.current = '';
+    liveTranscriptionFinalRef.current = '';
+    setLiveTranscriptionText('');
+  }, []);
+
+  const stopLiveSpeechRecognition = useCallback((abort = false) => {
+    const speechRecognitionModule = getSpeechRecognitionModule();
+    if (!speechRecognitionModule) return;
+    if (!liveSpeechActiveRef.current) return;
+    try {
+      if (abort) {
+        speechRecognitionModule.abort();
+      } else {
+        speechRecognitionModule.stop();
+      }
+    } catch {
+      // Ignore stop/abort failures from speech recognizer.
+    }
+    liveSpeechActiveRef.current = false;
+  }, []);
+
+  const startLiveSpeechRecognition = useCallback(async () => {
+    if (liveSpeechActiveRef.current) return;
+    const speechRecognitionModule = getSpeechRecognitionModule();
+    if (!speechRecognitionModule) {
+      if (!speechUnavailableNoticeShownRef.current) {
+        speechUnavailableNoticeShownRef.current = true;
+        showSnackbar({ message: t('voiceNotSupported'), type: 'error' });
+      }
+      return;
+    }
+    try {
+      if (!speechRecognitionModule.isRecognitionAvailable()) return;
+      const permission = await speechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) return;
+      speechRecognitionModule.start({
+        lang: resolveSpeechRecognitionLocale(i18n.language),
+        interimResults: true,
+        continuous: true,
+        addsPunctuation: true,
+        maxAlternatives: 1,
+      });
+      liveSpeechActiveRef.current = true;
+    } catch {
+      liveSpeechActiveRef.current = false;
+    }
+  }, [i18n.language, showSnackbar, t]);
 
   const forwardedCardDraft = useMemo(() => {
     if (!forwardedType || !forwardedPosterName) return null;
@@ -785,7 +1193,6 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     if (isLoading || canSendMessage === false || !forwardedCardDraft) return;
-    void sendForwardedText(forwardedCardDraft);
     if (cardSentRef.current === forwardedCardDraft.dedupeKey) {
       setPendingForwardConfirmKey(null);
       return;
@@ -794,16 +1201,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       setPendingForwardConfirmKey(forwardedCardDraft.dedupeKey);
       return;
     }
-    void sendForwardedCard(forwardedCardDraft);
+    void (async () => {
+      const textSent = await sendForwardedText(forwardedCardDraft);
+      if (!textSent) return;
+      await sendForwardedCard(forwardedCardDraft);
+    })();
   }, [canSendMessage, forwardedCardDraft, isLoading, sendForwardedCard, sendForwardedText]);
-
-  const handleConfirmForwardedSend = useCallback(async () => {
-    if (!forwardedCardDraft) return;
-    const sent = await sendForwardedCard(forwardedCardDraft);
-    if (sent) {
-      setPendingForwardConfirmKey(null);
-    }
-  }, [forwardedCardDraft, sendForwardedCard]);
 
   const pendingForwardPreview = useMemo(() => {
     if (!forwardedCardDraft || pendingForwardConfirmKey !== forwardedCardDraft.dedupeKey) return null;
@@ -811,14 +1214,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       type: forwardedCardDraft.normalizedType,
       title: forwardedCardDraft.cardTitle,
       typeLabel: t(TYPE_LABEL_KEYS[forwardedCardDraft.normalizedType]) || forwardedCardDraft.normalizedType,
-      isSending: pendingForwardSendingKey === forwardedCardDraft.dedupeKey,
+      dedupeKey: forwardedCardDraft.dedupeKey,
     };
-  }, [forwardedCardDraft, pendingForwardConfirmKey, pendingForwardSendingKey, t]);
+  }, [forwardedCardDraft, pendingForwardConfirmKey, t]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const flatListRef = useRef<FlatList<ChatListItem>>(null);
-  const isNearBottomRef = useRef(true);
-  const hasInitialAutoScrollRef = useRef(false);
+  const playingAudioMessageIdRef = useRef<string | null>(null);
 
   const myAvatarText = user?.nickname || user?.name || t('meLabel');
   const myAvatarUri = user?.avatar || null;
@@ -878,10 +1279,25 @@ export default function ChatScreen({ navigation, route }: Props) {
   const isOnlineStatus = isContactTyping || Boolean(presence?.isOnline);
 
   useEffect(() => {
+    playingAudioMessageIdRef.current = playingAudioMessageId;
+  }, [playingAudioMessageId]);
+
+  useEffect(() => {
     if (waitingForReply && isVoiceMode) {
       setIsVoiceMode(false);
     }
   }, [isVoiceMode, waitingForReply]);
+
+  // Ensure playback works on first entry (especially iOS silent mode).
+  useEffect(() => {
+    void Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      playThroughEarpieceAndroid: false,
+    }).catch(() => {
+      // Ignore initial audio mode setup failures.
+    });
+  }, []);
 
   useEffect(() => {
     if (!typingState?.isTyping || typeof typingState.updatedAt !== 'number') return;
@@ -917,28 +1333,95 @@ export default function ChatScreen({ navigation, route }: Props) {
   /* ----- Auto-scroll to bottom when data changes ----- */
   const scrollToBottom = useCallback((force = false) => {
     if (listData.length === 0) return;
-    if (!force && !isNearBottomRef.current) return;
-    setTimeout(() => {
+    const shouldAutoScroll = force || isNearBottomRef.current || anchorToLatestRef.current;
+    if (!shouldAutoScroll) return;
+    requestAnimationFrame(() => {
       flatListRef.current?.scrollToEnd({ animated: false });
-    }, 80);
+    });
   }, [listData.length]);
+
+  const clearScrollRetryTimers = useCallback(() => {
+    scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
+    scrollRetryTimersRef.current = [];
+  }, []);
+
+  const forceScrollToLatest = useCallback(() => {
+    if (listData.length === 0) return;
+    clearScrollRetryTimers();
+    const retryDelays = [0, 120, 280, 520];
+
+    retryDelays.forEach((delay) => {
+      const timer = setTimeout(() => {
+        InteractionManager.runAfterInteractions(() => {
+          scrollToBottom(true);
+        });
+      }, delay);
+      scrollRetryTimersRef.current.push(timer);
+    });
+  }, [clearScrollRetryTimers, listData.length, scrollToBottom]);
 
   const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-    isNearBottomRef.current = distanceFromBottom <= 80;
+    const nearBottom = distanceFromBottom <= 96;
+    isNearBottomRef.current = nearBottom;
+    if (nearBottom) {
+      anchorToLatestRef.current = true;
+    } else if (hasUserDraggedRef.current) {
+      anchorToLatestRef.current = false;
+    }
+  }, []);
+
+  const handleListScrollBeginDrag = useCallback(() => {
+    hasUserDraggedRef.current = true;
   }, []);
 
   useEffect(() => {
-    hasInitialAutoScrollRef.current = false;
     isNearBottomRef.current = true;
-  }, [contactId]);
+    anchorToLatestRef.current = true;
+    hasUserDraggedRef.current = false;
+    lastKnownListLengthRef.current = 0;
+    shouldForceLatestOnReadyRef.current = true;
+    clearScrollRetryTimers();
+  }, [clearScrollRetryTimers, contactId]);
 
   useEffect(() => {
-    if (isLoading || listData.length === 0 || hasInitialAutoScrollRef.current) return;
-    scrollToBottom(true);
-    hasInitialAutoScrollRef.current = true;
-  }, [isLoading, listData.length, scrollToBottom]);
+    if (!isScreenFocused || isLoading || listData.length === 0 || !shouldForceLatestOnReadyRef.current) return;
+    forceScrollToLatest();
+    shouldForceLatestOnReadyRef.current = false;
+    lastKnownListLengthRef.current = listData.length;
+  }, [forceScrollToLatest, focusVersion, isLoading, isScreenFocused, listData.length]);
+
+  useEffect(
+    () => () => {
+      clearScrollRetryTimers();
+    },
+    [clearScrollRetryTimers]
+  );
+
+  const handleContentSizeChange = useCallback(() => {
+    if (listData.length === 0) return;
+    const hasNewItems = listData.length > lastKnownListLengthRef.current;
+    if (hasNewItems) {
+      lastKnownListLengthRef.current = listData.length;
+    }
+    if (hasNewItems || anchorToLatestRef.current || shouldForceLatestOnReadyRef.current) {
+      scrollToBottom(true);
+    }
+  }, [listData.length, scrollToBottom]);
+
+  useEffect(() => {
+    if (!isScreenFocused || listData.length === 0) return;
+    const imageUris = listData
+      .filter((item): item is Extract<ChatListItem, { kind: 'message' }> => item.kind === 'message')
+      .flatMap((item) => item.message.images ?? [])
+      .filter((uri) => typeof uri === 'string' && uri.length > 0);
+    if (imageUris.length === 0) return;
+    const prefetchTargets = Array.from(new Set(imageUris)).slice(-24);
+    void ExpoImage.prefetch(prefetchTargets).catch(() => {
+      // Ignore prefetch failures to avoid interrupting chat interactions.
+    });
+  }, [isScreenFocused, listData]);
 
   /* ----- Handle card press: navigate to detail ----- */
   const handleCardPress = useCallback(
@@ -1002,6 +1485,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const handleMessageActions = useCallback(
     (message: ChatMessage) => {
       if (message.isRecalled) return;
+      hapticLight();
       setActionTarget(message);
     },
     []
@@ -1128,36 +1612,62 @@ export default function ChatScreen({ navigation, route }: Props) {
           // Ignore recording cleanup failures.
         });
       }
+      stopLiveSpeechRecognition(true);
       recordingRef.current = null;
       isRecordingRef.current = false;
     },
-    []
+    [stopLiveSpeechRecognition]
   );
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text) return;
+    if (sendMessageMutation.isPending) return;
     if (typingStopTimerRef.current) {
       clearTimeout(typingStopTimerRef.current);
       typingStopTimerRef.current = null;
     }
     sendTypingState(false);
     hapticLight();
+    anchorToLatestRef.current = true;
     const replyPayload = buildReplyPayload();
-    sendMessageMutation.mutate(
-      { payload: { text, ...(replyPayload ? { replyTo: replyPayload } : {}) } },
-      {
-        onSuccess: () => {
-          setInputText('');
-          setReplyTarget(null);
-          queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
-        },
-        onError: () => {
-          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-        },
+    const previousReplyTarget = replyTarget;
+    const pendingForwardDraft =
+      forwardedCardDraft && pendingForwardPreview?.dedupeKey === forwardedCardDraft.dedupeKey
+        ? forwardedCardDraft
+        : null;
+    setInputText('');
+    setReplyTarget(null);
+    try {
+      await sendMessage({
+        payload: { text, ...(replyPayload ? { replyTo: replyPayload } : {}) },
+      });
+      if (pendingForwardDraft) {
+        const cardSent = await sendForwardedCard(pendingForwardDraft);
+        if (cardSent) {
+          setPendingForwardConfirmKey((current) =>
+            current === pendingForwardDraft.dedupeKey ? null : current
+          );
+        }
       }
-    );
-  }, [buildReplyPayload, inputText, queryClient, sendMessageMutation, sendTypingState, showSnackbar, t]);
+    } catch {
+      setInputText(text);
+      setReplyTarget(previousReplyTarget);
+      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+    }
+  }, [
+    buildReplyPayload,
+    forwardedCardDraft,
+    inputText,
+    pendingForwardPreview?.dedupeKey,
+    replyTarget,
+    sendForwardedCard,
+    sendMessage,
+    sendMessageMutation.isPending,
+    sendTypingState,
+    showSnackbar,
+    t,
+  ]);
 
   /* ----- Camera: open device camera ----- */
   const handleCamera = useCallback(async () => {
@@ -1193,6 +1703,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           }))
         );
         const replyPayload = buildReplyPayload();
+        anchorToLatestRef.current = true;
         sendMessageMutation.mutate(
           { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
           {
@@ -1219,6 +1730,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const sendSelectedImages = useCallback(async (mode: ImageSendMode) => {
     if (pendingImageAssets.length === 0 || isSendingSelectedImages) return;
     setIsSendingSelectedImages(true);
+    anchorToLatestRef.current = true;
     try {
       const uploaded = await uploadService.uploadImages(
         pendingImageAssets.map((asset, index) => ({
@@ -1345,10 +1857,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       recordingRef.current = recording;
       isRecordingRef.current = true;
       recordingStartTimeRef.current = Date.now();
+      clearLiveTranscription();
       setIsRecording(true);
       setVoiceReleaseAction('send');
       setRecordingDurationMs(0);
       hapticLight();
+      void startLiveSpeechRecognition();
 
       recordingDurationIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - recordingStartTimeRef.current;
@@ -1368,13 +1882,14 @@ export default function ChatScreen({ navigation, route }: Props) {
 
       return true;
     } catch {
+      stopLiveSpeechRecognition(true);
       Alert.alert(
         t('errorTitle'),
         t('recordingStartFailed')
       );
       return false;
     }
-  }, [setVoiceReleaseAction, t]);
+  }, [clearLiveTranscription, setVoiceReleaseAction, startLiveSpeechRecognition, stopLiveSpeechRecognition, t]);
 
   const stopRecordingSession = useCallback(async () => {
     let recordedUri: string | null = null;
@@ -1422,10 +1937,11 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const sendRecordedAudio = useCallback(async (uri: string, durationMs?: number) => {
     try {
+      const uploadMeta = getAudioUploadMetaFromUri(uri);
       const uploaded = await uploadService.uploadFile({
         uri,
-        type: 'audio/m4a',
-        name: `voice-${Date.now()}.m4a`,
+        type: uploadMeta.type,
+        name: uploadMeta.name,
       });
       const replyPayload = replyTarget
         ? {
@@ -1433,26 +1949,42 @@ export default function ChatScreen({ navigation, route }: Props) {
             from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
           }
         : undefined;
-      sendMessageMutation.mutate(
-        {
-          payload: {
-            ...(replyPayload ? { replyTo: replyPayload } : {}),
-            audio: { url: uploaded.url, ...(typeof durationMs === 'number' ? { durationMs } : {}) },
-          },
+      await sendMessage({
+        payload: {
+          ...(replyPayload ? { replyTo: replyPayload } : {}),
+          audio: { url: uploaded.url, ...(typeof durationMs === 'number' ? { durationMs } : {}) },
         },
-        {
-          onSuccess: () => {
-            setReplyTarget(null);
-          },
-          onError: () => {
-            showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-          },
-        }
-      );
-    } catch {
-      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      });
+      setReplyTarget(null);
+    } catch (error) {
+      if (__DEV__) {
+        console.log('[Voice] sendRecordedAudio failed:', extractErrorMessage(error, 'unknown error'));
+      }
+      showSnackbar({ message: extractErrorMessage(error, t('dataLoadFailed')), type: 'error' });
     }
-  }, [buildReplyPreview, replyTarget, sendMessageMutation, showSnackbar, t]);
+  }, [buildReplyPreview, replyTarget, sendMessage, showSnackbar, t]);
+
+  const transcribeRecordedAudioToText = useCallback(async (uri: string, durationMs: number) => {
+    const seconds = Math.max(1, Math.round(durationMs / 1000));
+    const fallbackText = t('voiceTranscribeFallback', { seconds });
+    setIsTranscribingVoice(true);
+    try {
+      const recognizedText = await transcribeAudioFileWithNativeSpeech({
+        uri,
+        languageHint: i18n.language,
+        timeoutMs: Math.max(6000, Math.min(18000, durationMs + 4000)),
+      });
+      const normalizedText = recognizedText.trim();
+      const finalText = normalizedText.length > 0 ? normalizedText : fallbackText;
+      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${finalText}` : finalText));
+      setIsVoiceMode(false);
+    } catch {
+      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${fallbackText}` : fallbackText));
+      setIsVoiceMode(false);
+    } finally {
+      setIsTranscribingVoice(false);
+    }
+  }, [i18n.language, t]);
 
   const handleToggleVoiceMode = useCallback(() => {
     if (isRecordingRef.current) return;
@@ -1460,9 +1992,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, []);
 
   const handleHoldToTalkPressIn = useCallback(async () => {
-    if (waitingForReply) return;
+    if (waitingForReply || isTranscribingVoice) return;
     await startRecordingSession();
-  }, [startRecordingSession, waitingForReply]);
+  }, [isTranscribingVoice, startRecordingSession, waitingForReply]);
 
   const handleHoldToTalkMove = useCallback((event: GestureResponderEvent) => {
     if (!isRecordingRef.current) return;
@@ -1482,24 +2014,41 @@ export default function ChatScreen({ navigation, route }: Props) {
     const effectiveDurationMs = Math.min(MAX_RECORD_DURATION_MS, result.durationMs ?? 0);
 
     if (releaseAction === 'cancel') {
+      stopLiveSpeechRecognition(true);
+      clearLiveTranscription();
       return;
     }
 
     if (effectiveDurationMs < MIN_RECORD_DURATION_MS) {
+      stopLiveSpeechRecognition(true);
+      clearLiveTranscription();
       showSnackbar({ message: t('voiceTooShort'), type: 'error' });
       return;
     }
 
     if (releaseAction === 'transcribe') {
-      const seconds = Math.max(1, Math.round(effectiveDurationMs / 1000));
-      const fallbackText = t('voiceTranscribeFallback', { seconds });
-      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${fallbackText}` : fallbackText));
-      setIsVoiceMode(false);
+      stopLiveSpeechRecognition(false);
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const realtimeTranscript = (
+        liveTranscriptionFinalRef.current || liveTranscriptionTextRef.current
+      ).trim();
+      if (realtimeTranscript) {
+        setInputText((prev) =>
+          prev.trim().length > 0 ? `${prev} ${realtimeTranscript}` : realtimeTranscript
+        );
+        clearLiveTranscription();
+        setIsVoiceMode(false);
+        return;
+      }
+      await transcribeRecordedAudioToText(result.uri, effectiveDurationMs);
+      clearLiveTranscription();
       return;
     }
 
+    stopLiveSpeechRecognition(true);
+    clearLiveTranscription();
     await sendRecordedAudio(result.uri, effectiveDurationMs);
-  }, [sendRecordedAudio, setVoiceReleaseAction, showSnackbar, stopRecordingSession, t]);
+  }, [clearLiveTranscription, sendRecordedAudio, setVoiceReleaseAction, showSnackbar, stopLiveSpeechRecognition, stopRecordingSession, t, transcribeRecordedAudioToText]);
 
   useEffect(() => {
     handleHoldToTalkReleaseRef.current = handleHoldToTalkRelease;
@@ -1507,19 +2056,27 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const handlePlayAudio = useCallback(async (message: ChatMessage) => {
     if (!message.audio?.url) return;
+    const resolvedAudioUrl = normalizeMediaUrl(message.audio.url) ?? message.audio.url;
     try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+      });
+
       if (audioSoundRef.current) {
         await audioSoundRef.current.unloadAsync();
         audioSoundRef.current = null;
       }
 
-      if (playingAudioMessageId && message.id && playingAudioMessageId === message.id) {
+      const currentPlayingId = playingAudioMessageIdRef.current;
+      if (currentPlayingId && message.id && currentPlayingId === message.id) {
         setPlayingAudioMessageId(null);
         return;
       }
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: message.audio.url },
+        { uri: resolvedAudioUrl },
         { shouldPlay: true }
       );
       audioSoundRef.current = sound;
@@ -1538,7 +2095,13 @@ export default function ChatScreen({ navigation, route }: Props) {
       showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
       setPlayingAudioMessageId(null);
     }
-  }, [playingAudioMessageId, showSnackbar, t]);
+  }, [showSnackbar, t]);
+
+  const handleOpenImagePreview = useCallback((images: string[], index: number) => {
+    setPreviewImages(images);
+    setPreviewIndex(index);
+    setPreviewVisible(true);
+  }, []);
 
   /* ----- Render list item ----- */
   const renderItem = useCallback(
@@ -1556,11 +2119,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           onCardPress={handleCardPress}
           onLongPressMessage={handleMessageActions}
           onPlayAudio={handlePlayAudio}
-          onImagePress={(images, index) => {
-            setPreviewImages(images);
-            setPreviewIndex(index);
-            setPreviewVisible(true);
-          }}
+          onImagePress={handleOpenImagePreview}
           onPressReaction={handlePressReaction}
           isAudioPlaying={Boolean(item.message.id && playingAudioMessageId === item.message.id)}
           t={t}
@@ -1575,6 +2134,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       handleCardPress,
       handleMessageActions,
       handlePlayAudio,
+      handleOpenImagePreview,
       handlePressReaction,
       playingAudioMessageId,
       t,
@@ -1622,17 +2182,26 @@ export default function ChatScreen({ navigation, route }: Props) {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
-          <FlatList
+          <FlashList
             ref={flatListRef}
             data={listData}
             renderItem={renderItem}
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.listContent}
-            onContentSizeChange={() => scrollToBottom(false)}
+            onContentSizeChange={handleContentSizeChange}
             onScroll={handleListScroll}
+            onScrollBeginDrag={handleListScrollBeginDrag}
             scrollEventThrottle={16}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            drawDistance={700}
+            removeClippedSubviews={Platform.OS === 'android'}
+            getItemType={(item) => item.kind}
+            maintainVisibleContentPosition={{
+              startRenderingFromBottom: true,
+              autoscrollToBottomThreshold: 0.02,
+              animateAutoScrollToBottom: false,
+            }}
           />
         )}
 
@@ -1686,19 +2255,6 @@ export default function ChatScreen({ navigation, route }: Props) {
                     {pendingForwardPreview.title}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.pendingForwardSendBtn,
-                    pendingForwardPreview.isSending ? styles.pendingForwardSendBtnDisabled : undefined,
-                  ]}
-                  onPress={() => {
-                    void handleConfirmForwardedSend();
-                  }}
-                  activeOpacity={0.7}
-                  disabled={pendingForwardPreview.isSending}
-                >
-                  <Text style={styles.pendingForwardSendText}>{t('send')}</Text>
-                </TouchableOpacity>
               </View>
             ) : null}
           <View style={[styles.inputBar, { paddingBottom: composerBottomInset }]}>
@@ -1716,7 +2272,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                   onPressIn={handleHoldToTalkPressIn}
                   onPressOut={handleHoldToTalkRelease}
                   onTouchMove={handleHoldToTalkMove}
-                  disabled={waitingForReply}
+                  disabled={waitingForReply || isTranscribingVoice}
                   showIcon={false}
                 />
                 <TouchableOpacity
@@ -1788,6 +2344,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         currentAction={voiceReleaseAction}
         onActionChange={setVoiceReleaseAction}
         durationMs={recordingDurationMs}
+        transcriptText={liveTranscriptionText}
         onRelease={(action) => {
           pendingReleaseActionRef.current = action;
           void handleHoldToTalkReleaseRef.current?.();

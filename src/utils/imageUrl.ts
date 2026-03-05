@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 /**
@@ -9,6 +11,8 @@ const getImageBaseUrl = (): string => {
   if (appUrl) return normalizePublicBaseUrl(appUrl);
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return normalizePublicBaseUrl(apiUrl);
+  const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
+  if (extraApiUrl) return normalizePublicBaseUrl(extraApiUrl);
   const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
   if (__DEV__ && devUrl) return normalizePublicBaseUrl(devUrl);
   return '';

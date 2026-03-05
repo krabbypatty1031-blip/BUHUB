@@ -17,7 +17,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { ForumPost } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
 import { colors } from '../../theme/colors';
@@ -44,6 +45,7 @@ import {
 } from '../../components/common/icons';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
 
@@ -62,8 +64,10 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
   const votePostMutation = useVotePost();
+  const deletePostMutation = useDeletePost();
   const votedPolls = useForumStore((s) => s.votedPolls);
   const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
+  const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const [popoverVisible, setPopoverVisible] = React.useState(false);
@@ -189,6 +193,29 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const handleRefresh = useCallback(() => {
     void Promise.all([refetchProfile(), refetchPosts()]);
   }, [refetchProfile, refetchPosts]);
+
+  const handleDeletePost = useCallback(
+    (postId: string) => {
+      Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('confirmBtn'),
+          style: 'destructive',
+          onPress: () => {
+            deletePostMutation.mutate(postId, {
+              onSuccess: () => {
+                showSnackbar({ message: t('postDeleted'), type: 'success' });
+              },
+              onError: () => {
+                showSnackbar({ message: t('deleteFailed'), type: 'error' });
+              },
+            });
+          },
+        },
+      ]);
+    },
+    [deletePostMutation, showSnackbar, t]
+  );
 
   const selectComposeType = useCallback((type: 'text' | 'image' | 'poll') => {
     setComposeSheetVisible(false);
@@ -340,6 +367,11 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       const post = detailPost?.myVote
         ? { ...item, myVote: detailPost.myVote, pollOptions: detailPost.pollOptions ?? item.pollOptions }
         : item;
+      const isOwnPost = isCurrentUserContentOwner(currentUser, {
+        userName: post.userName,
+        displayName: post.name,
+        isAnonymous: post.isAnonymous,
+      });
       return (
         <PostCard
           post={post}
@@ -365,6 +397,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           isLiked={post.liked ?? false}
           isBookmarked={post.bookmarked ?? false}
           votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
+          onDelete={isOwnPost ? () => handleDeletePost(post.id) : undefined}
         />
       );
     },
@@ -381,6 +414,8 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       navigation,
       votePostMutation,
       votedPolls,
+      currentUser,
+      handleDeletePost,
     ]
   );
 

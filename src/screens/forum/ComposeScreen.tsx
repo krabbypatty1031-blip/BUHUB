@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,10 +20,9 @@ import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import GradientCard from '../../components/common/GradientCard';
-import TranslatableText from '../../components/common/TranslatableText';
-import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { CloseIcon, PlusIcon, CameraIcon, UserIcon, QuoteIcon } from '../../components/common/icons';
+import QuoteCard from '../../components/common/QuoteCard';
+import FunctionRefCard from '../../components/common/FunctionRefCard';
+import { CloseIcon, PlusIcon, CameraIcon, UserIcon } from '../../components/common/icons';
 import { buildPostMeta } from '../../utils/formatTime';
 import type { Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
@@ -44,7 +43,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const lang = i18n.language as Language;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const createPost = useCreatePost();
-  const type = route.params?.type || 'text';
+  const requestedType = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
   const { data: quotedPostData } = usePostDetail(quotePostId || '');
   const quotedPost = quotePostId ? quotedPostData : undefined;
@@ -60,6 +59,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const functionTitle = route.params?.functionTitle;
   const functionId = route.params?.functionId ?? (route.params?.functionIndex != null ? String(route.params.functionIndex) : undefined);
   const hasFunctionRef = !!(functionType && functionTitle && functionId);
+  const type = hasFunctionRef ? 'text' : requestedType;
 
   const { images, pickImages, removeImage } = useImagePicker({ allowsMultiple: true, maxImages: 9 });
   const [content, setContent] = useState('');
@@ -140,7 +140,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         },
         {
           onSuccess: () => {
-            showSnackbar({ message: t('post') + ' ✓', type: 'success' });
+            showSnackbar({ message: t('postSuccess'), type: 'success' });
             navigation.goBack();
           },
           onError: () => {
@@ -185,37 +185,27 @@ export default function ComposeScreen({ navigation, route }: Props) {
       >
         {/* Quoted Post */}
         {quotedPost && (
-          <PageTranslationProvider>
-            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
-            <View style={styles.quoteHeader}>
-              <QuoteIcon size={12} color="#999999" />
-              <Text style={styles.quoteLabel}>{t('quotePost')}</Text>
-              <PageTranslationToggle style={styles.quoteTranslationToggle} />
-            </View>
-            <TranslatableText
-              entityType="post"
-              entityId={quotedPost.id}
-              fieldName="content"
-              sourceText={quotedPost.content}
+          <View style={styles.quoteCardWrap}>
+            <QuoteCard
+              postId={quotedPost.id}
+              content={quotedPost.content}
               sourceLanguage={quotedPost.sourceLanguage}
-              textStyle={styles.quoteContent}
-              numberOfLines={3}
+              author={quotedPost.name}
+              timeLabel={quotedMeta}
+              onPress={() => navigation.navigate('PostDetail', { postId: quotedPost.id })}
             />
-            <Text style={styles.quoteMeta}>{quotedPost.name} · {quotedMeta}</Text>
-          </GradientCard>
-          </PageTranslationProvider>
+          </View>
         )}
+
 
         {/* Function Reference Card */}
         {hasFunctionRef && (
-          <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quoteCard}>
-            <Text style={styles.functionRefType}>
-              {functionType === 'partner' ? t('findPartner') :
-               functionType === 'errand' ? t('errands') :
-               functionType === 'secondhand' ? t('secondhand') : ''}
-            </Text>
-            <Text style={styles.functionRefTitle} numberOfLines={1}>{functionTitle}</Text>
-          </GradientCard>
+          <View style={styles.quoteCardWrap}>
+            <FunctionRefCard
+              functionType={functionType!}
+              title={functionTitle}
+            />
+          </View>
         )}
 
         {/* Content */}
@@ -521,52 +511,9 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.onSurface,
   },
-  quoteCard: {
+  quoteCardWrap: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: borderRadius.md,
-  },
-  quoteTranslationToggle: {
-    marginLeft: 'auto',
-    alignSelf: 'center',
-  },
-  quoteHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  quoteLabel: {
-    ...typography.labelSmall,
-    color: '#999999',
-    fontWeight: '500',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  quoteContent: {
-    ...typography.bodySmall,
-    color: '#000000',
-    fontWeight: '600',
-    lineHeight: 18,
-    marginBottom: spacing.xs,
-  },
-  quoteMeta: {
-    ...typography.labelSmall,
-    color: '#999999',
-    fontWeight: '400',
-  },
-  functionRefType: {
-    ...typography.labelSmall,
-    color: '#999999',
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
-  },
-  functionRefTitle: {
-    ...typography.bodyMedium,
-    color: '#000000',
-    fontWeight: '500',
   },
 });
+

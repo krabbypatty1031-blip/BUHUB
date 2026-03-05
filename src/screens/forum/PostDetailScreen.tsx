@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,12 +14,13 @@ import {
   UIManager,
   findNodeHandle,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost } from '../../hooks/usePosts';
+import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost, useDeletePost, useDeleteComment } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
@@ -31,6 +31,7 @@ import { spacing, borderRadius, elevation, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
+import PostImageGallery from '../../components/common/PostImageGallery';
 import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
@@ -38,6 +39,8 @@ import IOSSwitch from '../../components/common/IOSSwitch';
 import PressScaleButton from '../../components/common/PressScaleButton';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
+import QuoteCard from '../../components/common/QuoteCard';
+import FunctionRefCard from '../../components/common/FunctionRefCard';
 import {
   BackIcon,
   HeartIcon,
@@ -48,16 +51,13 @@ import {
   QuoteIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ChevronRightIcon,
   MoreHorizontalIcon,
+  TrashIcon,
   MaleIcon,
   FemaleIcon,
-  UsersIcon,
-  TruckIcon,
-  ShoppingBagIcon,
 } from '../../components/common/icons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
-import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
+import { buildPostMeta, buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { hapticLight } from '../../utils/haptics';
@@ -148,19 +148,21 @@ function countDescendantReplies(replies?: Reply[]): number {
 
 function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: boolean }) {
   const width = useRef(new Animated.Value(0)).current;
+  const targetPercent = Math.max(0, Math.min(percent, 100));
 
   useEffect(() => {
     Animated.timing(width, {
-      toValue: percent,
+      toValue: targetPercent,
       duration: 600,
       useNativeDriver: false,
     }).start();
-  }, [percent, width]);
+  }, [targetPercent, width]);
 
   const barStyle = {
     width: width.interpolate({
       inputRange: [0, 100],
       outputRange: ['0%', '100%'],
+      extrapolate: 'clamp',
     }),
   };
 
@@ -236,7 +238,7 @@ function ItemActions({
   );
 }
 
-/* ── Reply item (二级评论 + 三级评论) ── */
+/* 鈹€鈹€ Reply item (浜岀骇璇勮 + 涓夌骇璇勮) 鈹€鈹€ */
 function ReplyItem({
   reply,
   lang,
@@ -267,14 +269,19 @@ function ReplyItem({
   onAvatarPress?: (reply: Reply) => void;
 }) {
 
-  const replyMeta = useMemo(
+  const replyTime = useMemo(
+    () => getRelativeTime(reply.createdAt || reply.time, lang),
+    [reply.createdAt, reply.time, lang],
+  );
+
+  const replyAcademicMeta = useMemo(
     () =>
-      buildPostMeta(t, lang, {
+      buildGradeMajorMeta(t, {
         gradeKey: reply.gradeKey,
         majorKey: reply.majorKey,
-        createdAt: reply.createdAt || reply.time,
+        isAnonymous: false,
       }),
-    [t, lang, reply.gradeKey, reply.majorKey, reply.createdAt, reply.time],
+    [t, reply.gradeKey, reply.majorKey],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -371,11 +378,14 @@ function ReplyItem({
           )}
           <View style={styles.commentUserInfo}>
             <View style={styles.replyNameRow}>
-              <Text style={styles.replyName}>{reply.name}</Text>
-              {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
-              {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
-              <Text style={styles.replyTime}> ·{replyMeta}</Text>
+              <View style={styles.replyNameLeft}>
+                <Text style={styles.replyName}>{reply.name}</Text>
+                {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
+                {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
+              </View>
+              <Text style={styles.replyTimeText}>路 {replyTime}</Text>
             </View>
+            {replyAcademicMeta ? <Text style={styles.replyAcademicMeta}>{replyAcademicMeta}</Text> : null}
           </View>
         </View>
         <View style={styles.replyBodyContainer}>
@@ -532,15 +542,21 @@ function CommentItem({
     setVisibleRepliesCount((prev) => Math.min(prev + REPLY_BATCH_SIZE, directReplies.length));
   }, [visibleRepliesCount, directReplies.length]);
 
-  const commentMeta = useMemo(
+  const commentTime = useMemo(
+    () => getRelativeTime(comment.createdAt || comment.time, lang),
+    [comment.createdAt, comment.time, lang],
+  );
+
+  const commentAcademicMeta = useMemo(
     () =>
-      buildPostMeta(t, lang, {
-        gradeKey: comment.isAnonymous ? undefined : comment.gradeKey,
-        majorKey: comment.isAnonymous ? undefined : comment.majorKey,
-        createdAt: comment.createdAt || comment.time,
-        isAnonymous: comment.isAnonymous,
-      }),
-    [t, lang, comment.gradeKey, comment.majorKey, comment.createdAt, comment.time, comment.isAnonymous],
+      comment.isAnonymous
+        ? ''
+        : buildGradeMajorMeta(t, {
+            gradeKey: comment.gradeKey,
+            majorKey: comment.majorKey,
+            isAnonymous: false,
+          }),
+    [t, comment.gradeKey, comment.majorKey, comment.isAnonymous],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -603,16 +619,18 @@ function CommentItem({
           )}
           <View style={styles.commentUserInfo}>
             <View style={styles.commentNameRow}>
-              <Text style={styles.commentName}>{comment.name}</Text>
-              {!comment.isAnonymous && comment.gender === 'male' && (
-                <MaleIcon size={12} color={colors.genderMale} />
-              )}
-              {!comment.isAnonymous && comment.gender === 'female' && (
-                <FemaleIcon size={12} color={colors.genderFemale} />
-              )}
-              <Text style={styles.commentDot}> ·</Text>
-              <Text style={styles.commentMeta} numberOfLines={1}>{commentMeta}</Text>
+              <View style={styles.commentNameLeft}>
+                <Text style={styles.commentName}>{comment.name}</Text>
+                {!comment.isAnonymous && comment.gender === 'male' && (
+                  <MaleIcon size={12} color={colors.genderMale} />
+                )}
+                {!comment.isAnonymous && comment.gender === 'female' && (
+                  <FemaleIcon size={12} color={colors.genderFemale} />
+                )}
+              </View>
+              <Text style={styles.commentTimeText}>路 {commentTime}</Text>
             </View>
+            {commentAcademicMeta ? <Text style={styles.commentMeta}>{commentAcademicMeta}</Text> : null}
           </View>
         </View>
         <TranslatableText
@@ -696,7 +714,7 @@ function CommentItem({
   );
 }
 
-/* ── Main screen ── */
+/* 鈹€鈹€ Main screen 鈹€鈹€ */
 export default function PostDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -712,6 +730,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const votePostMutation = useVotePost();
   const likeCommentMutation = useLikeComment(postId);
   const bookmarkCommentMutation = useBookmarkComment(postId);
+  const deletePostMutation = useDeletePost();
+  const deleteCommentMutation = useDeleteComment(postId);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const { data: contacts } = useContacts();
   const [commentText, setCommentText] = useState('');
@@ -759,15 +779,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
-  /* ── Refs ── */
+  /* 鈹€鈹€ Refs 鈹€鈹€ */
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
   const postImages = useMemo(
-    () =>
-      (post?.images ?? [])
-        .map((image) => normalizeImageUrl(image))
-        .filter((image): image is string => Boolean(image)),
-    [post?.images]
+    () => {
+      if (post?.images && post.images.length > 0) return post.images;
+      const fallback = normalizeImageUrl(post?.image);
+      return fallback ? [fallback] : [];
+    },
+    [post?.images, post?.image]
   );
   const registerItemRef = useCallback((id: string, node: View | null) => {
     if (node) {
@@ -880,7 +901,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     }
   }, [replyTo]);
 
-  /* ── @ Mention detection ── */
+  /* 鈹€鈹€ @ Mention detection 鈹€鈹€ */
   const mentionQuery = useMemo(() => {
     if (!commentText) return null;
     const lastAtIndex = commentText.lastIndexOf('@');
@@ -916,17 +937,21 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [commentText]
   );
 
-  const displayMeta = useMemo(
+  const displayTime = useMemo(
+    () => (post ? getRelativeTime(post.createdAt, lang) : ''),
+    [post?.createdAt, lang],
+  );
+
+  const displayAcademicMeta = useMemo(
     () =>
       post
-        ? buildPostMeta(t, lang, {
+        ? buildGradeMajorMeta(t, {
             gradeKey: post.gradeKey,
             majorKey: post.majorKey,
-            createdAt: post.createdAt,
             isAnonymous: post.isAnonymous,
           })
         : '',
-    [post, t, lang],
+    [post?.gradeKey, post?.majorKey, post?.isAnonymous, t],
   );
 
   const isLiked = post?.liked ?? false;
@@ -1077,22 +1102,34 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [bookmarkPostMutation, postId]);
 
   const handleReportPost = useCallback(() => {
-    if (isOwnPost) {
-      showSnackbar({ message: t('cannotReportOwnContent'), type: 'info' });
-      return;
-    }
     setPopoverVisible(true);
-  }, [isOwnPost, showSnackbar, t]);
+  }, []);
 
-  const handleReportComment = useCallback((commentId: string) => {
-    const targetComment = findCommentById(commentsData, commentId);
-    if (isOwnCommentContent(targetComment)) {
-      showSnackbar({ message: t('cannotReportOwnContent'), type: 'info' });
-      return;
-    }
+  const handleDeletePost = useCallback(() => {
+    Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          deletePostMutation.mutate(postId, {
+            onSuccess: () => {
+              showSnackbar({ message: t('postDeleted'), type: 'success' });
+              navigation.goBack();
+            },
+            onError: () => {
+              showSnackbar({ message: t('deleteFailed'), type: 'error' });
+            },
+          });
+        },
+      },
+    ]);
+  }, [deletePostMutation, navigation, postId, showSnackbar, t]);
+
+  const handleCommentLongPress = useCallback((commentId: string) => {
     setReportTargetCommentId(commentId);
     setCommentActionVisible(true);
-  }, [commentsData, isOwnCommentContent, showSnackbar, t]);
+  }, []);
 
   // Keep FlatList props stable so input-only state updates (e.g. isAnonymous)
   // do not trigger full list/header re-render that can cause image flicker.
@@ -1105,14 +1142,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         onLike={handleLikeComment}
         onBookmark={handleBookmarkComment}
         onForward={handleForward}
-        onReport={handleReportComment}
+        onReport={handleCommentLongPress}
         highlightId={commentId}
         expandedReplies={expandedReplies}
         registerItemRef={registerItemRef}
         onAvatarPress={handleCommentAvatarPress}
       />
     ),
-    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleReportComment, commentId, expandedReplies, registerItemRef, handleCommentAvatarPress]
+    [lang, handleReply, handleLikeComment, handleBookmarkComment, handleForward, handleCommentLongPress, commentId, expandedReplies, registerItemRef, handleCommentAvatarPress]
   );
 
   const handleReportSubmit = useCallback(
@@ -1142,9 +1179,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [commentsData, isOwnCommentContent, isOwnPost, postId, reportTargetCommentId, showSnackbar, t]
   );
 
+  const selectedCommentForAction = useMemo(
+    () => (reportTargetCommentId ? findCommentById(commentsData, reportTargetCommentId) : null),
+    [commentsData, reportTargetCommentId]
+  );
+  const selectedCommentIsOwn = useMemo(
+    () => isOwnCommentContent(selectedCommentForAction),
+    [isOwnCommentContent, selectedCommentForAction]
+  );
+
   const renderHeader = useCallback(() => {
     if (!post) return null;
-    const headerImage = postImages[0] ?? normalizeImageUrl(post.images?.[0] ?? post.image);
     return (
       <View>
         {/* Post Content */}
@@ -1153,7 +1198,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           <View style={styles.postHeader}>
             {post.isAnonymous ? (
               <Avatar
-                text="匿"
+                text="匿名"
                 uri={post.avatar}
                 size="md"
                 gender="other"
@@ -1175,16 +1220,24 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             )}
             <View style={styles.postUserInfo}>
               <View style={styles.postNameRow}>
-                {!post.isAnonymous ? (
-                  <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.7} style={styles.postNameTouch}>
+                <View style={styles.postNameLeft}>
+                  {!post.isAnonymous ? (
+                    <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.7} style={styles.postNameTouch}>
+                      <Text style={styles.postName}>{post.name}</Text>
+                    </TouchableOpacity>
+                  ) : (
                     <Text style={styles.postName}>{post.name}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={styles.postName}>{post.name}</Text>
-                )}
-                <Text style={styles.postDot}> ·</Text>
-                <Text style={styles.postMeta} numberOfLines={1}>{displayMeta}</Text>
+                  )}
+                  {!post.isAnonymous && post.gender === 'male' && (
+                    <MaleIcon size={14} color={colors.genderMale} />
+                  )}
+                  {!post.isAnonymous && post.gender === 'female' && (
+                    <FemaleIcon size={14} color={colors.genderFemale} />
+                  )}
+                </View>
+                <Text style={styles.postTimeText}>路 {displayTime}</Text>
               </View>
+              {displayAcademicMeta ? <Text style={styles.postMeta}>{displayAcademicMeta}</Text> : null}
             </View>
             <PageTranslationToggle style={styles.postTranslationToggle} />
           </View>
@@ -1199,60 +1252,22 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           />
 
           {post.isFunction && post.functionType && (
-            <TouchableOpacity
-              style={styles.functionCard}
-              activeOpacity={0.7}
+            <FunctionRefCard
+              functionType={post.functionType}
+              title={post.functionTitle}
               onPress={handleFunctionPress}
-            >
-              <View style={styles.functionCardHeader}>
-                <View style={styles.functionCardIconWrap}>
-                  {post.functionType === 'partner' && <UsersIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'errand' && <TruckIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'secondhand' && <ShoppingBagIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'rating' && <QuoteIcon size={12} color={colors.onSurface} />}
-                </View>
-                <Text style={styles.functionCardType}>
-                  {post.functionType === 'partner'
-                    ? t('findPartner')
-                    : post.functionType === 'errand'
-                      ? t('errands')
-                      : post.functionType === 'secondhand'
-                        ? t('secondhand')
-                        : t('forum')}
-                </Text>
-                <ChevronRightIcon size={12} color={colors.onSurfaceVariant} />
-              </View>
-              {!!post.functionTitle && (
-                <Text style={styles.functionCardTitle} numberOfLines={2}>
-                  {post.functionTitle}
-                </Text>
-              )}
-            </TouchableOpacity>
+            />
           )}
 
           {post.quotedPost && post.quotedPost.id && (
-            <TouchableOpacity
-              style={styles.quotedPostCard}
-              activeOpacity={0.7}
+            <QuoteCard
+              postId={post.quotedPost.id}
+              content={post.quotedPost.content}
+              sourceLanguage={post.quotedPost.sourceLanguage}
+              author={post.quotedPost.name}
+              timeLabel={getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
               onPress={() => navigation.navigate('PostDetail', { postId: post.quotedPost!.id })}
-            >
-              <View style={styles.quotedHeader}>
-                <QuoteIcon size={12} color="#999999" />
-                <Text style={styles.quotedLabel}>引用帖子</Text>
-              </View>
-              <TranslatableText
-                entityType="post"
-                entityId={post.quotedPost.id}
-                fieldName="content"
-                sourceText={post.quotedPost.content}
-                sourceLanguage={post.quotedPost.sourceLanguage}
-                textStyle={styles.quotedContent}
-                numberOfLines={3}
-              />
-              <Text style={styles.quotedMeta}>
-                {post.quotedPost?.name} ·{getRelativeTime(post.quotedPost?.createdAt ?? '', lang)}
-              </Text>
-            </TouchableOpacity>
+            />
           )}
 
           {post.tags && post.tags.length > 0 && (
@@ -1265,23 +1280,18 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {headerImage && (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => {
-                setPreviewIndex(0);
-                setPreviewVisible(true);
-              }}
-            >
-              <View style={styles.postImageWrap}>
-                <Image source={{ uri: headerImage }} style={styles.postImage} />
-                {postImages.length > 1 ? (
-                  <View style={styles.imageCountBadge}>
-                    <Text style={styles.imageCountBadgeText}>{`1/${postImages.length}`}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </TouchableOpacity>
+          {postImages.length > 0 && (
+            <View style={styles.postImageWrap}>
+              <PostImageGallery
+                images={postImages}
+                onImagePress={(index) => {
+                  setPreviewIndex(index);
+                  setPreviewVisible(true);
+                }}
+                borderRadiusValue={borderRadius.md}
+                backgroundColor={colors.surface2}
+              />
+            </View>
           )}
 
           {post.isPoll && post.pollOptions && (
@@ -1295,12 +1305,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                     disabled
                   >
                     <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
-                    <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
-                      {opt.text}
-                    </Text>
-                    <Text style={[styles.pollPercent, votedOptionIndex === i && styles.pollPercentVoted]}>
-                      {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
-                    </Text>
+                    <View style={styles.pollOptionContent}>
+                      <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
+                        {opt.text}
+                      </Text>
+                      <Text style={[styles.pollPercent, votedOptionIndex === i && styles.pollPercentVoted]}>
+                        {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -1328,7 +1340,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {/* 5 action buttons, evenly distributed */}
+          {/* Post actions */}
           <View style={styles.postActions}>
             <PressScaleButton
               style={styles.postActionBtn}
@@ -1376,6 +1388,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             >
               <QuoteIcon size={20} color={colors.onSurface} />
             </TouchableOpacity>
+
+            {isOwnPost && (
+              <TouchableOpacity
+                style={styles.postActionBtn}
+                onPress={handleDeletePost}
+              >
+                <TrashIcon size={20} color="#000000" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         </PageTranslationProvider>
@@ -1389,7 +1410,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
     );
-  }, [post, postImages, isLiked, isBookmarked, votedOptionIndex, votePostMutation, handleLikePostPress, handleBookmarkPostPress, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayMeta, navigation]);
+  }, [post, postImages, isLiked, isBookmarked, votedOptionIndex, votePostMutation, handleLikePostPress, handleBookmarkPostPress, handleComment, handleForward, handleQuote, handleAvatarPress, t, displayAcademicMeta, navigation, isOwnPost, handleDeletePost]);
 
   const headerComponent = useMemo(() => renderHeader(), [renderHeader]);
 
@@ -1561,29 +1582,77 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         visible={commentActionVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setCommentActionVisible(false)}
+        onRequestClose={() => {
+          setCommentActionVisible(false);
+          setReportTargetCommentId(null);
+        }}
       >
         <TouchableOpacity
           style={styles.actionSheetOverlay}
           activeOpacity={1}
-          onPress={() => setCommentActionVisible(false)}
+          onPress={() => {
+            setCommentActionVisible(false);
+            setReportTargetCommentId(null);
+          }}
         >
           <View style={styles.actionSheet}>
             <View style={styles.actionSheetHandle} />
+            {selectedCommentIsOwn ? (
+              <TouchableOpacity
+                style={styles.actionSheetItem}
+                onPress={() => {
+                  if (!reportTargetCommentId) return;
+                  setCommentActionVisible(false);
+                  Alert.alert(t('deleteCommentTitle'), t('deleteCommentMessage'), [
+                    {
+                      text: t('cancel'),
+                      style: 'cancel',
+                      onPress: () => setReportTargetCommentId(null),
+                    },
+                    {
+                      text: t('confirmBtn'),
+                      style: 'destructive',
+                      onPress: () => {
+                        deleteCommentMutation.mutate(reportTargetCommentId, {
+                          onSuccess: () => {
+                            setReportTargetCommentId(null);
+                            showSnackbar({ message: t('commentDeleted'), type: 'success' });
+                          },
+                          onError: () => {
+                            setReportTargetCommentId(null);
+                            showSnackbar({ message: t('deleteCommentFailed'), type: 'error' });
+                          },
+                        });
+                      },
+                    },
+                  ]);
+                }}
+              >
+                <Text style={styles.actionSheetItemTextDestructive}>{t('deleteCommentTitle')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionSheetItem}
+                onPress={() => {
+                  if (!reportTargetCommentId) {
+                    setCommentActionVisible(false);
+                    return;
+                  }
+                  setCommentActionVisible(false);
+                  setReportTitle(t('reportComment'));
+                  setReportVisible(true);
+                }}
+              >
+                <Text style={styles.actionSheetItemTextDestructive}>{t('reportComment')}</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.actionSheetDivider} />
             <TouchableOpacity
               style={styles.actionSheetItem}
               onPress={() => {
                 setCommentActionVisible(false);
-                setReportTitle(t('reportComment'));
-                setReportVisible(true);
+                setReportTargetCommentId(null);
               }}
-            >
-              <Text style={styles.actionSheetItemTextDestructive}>{t('reportComment')}</Text>
-            </TouchableOpacity>
-            <View style={styles.actionSheetDivider} />
-            <TouchableOpacity
-              style={styles.actionSheetItem}
-              onPress={() => setCommentActionVisible(false)}
             >
               <Text style={styles.actionSheetItemText}>{t('cancel')}</Text>
             </TouchableOpacity>
@@ -1595,12 +1664,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       <ReportModal
         visible={reportVisible}
         title={reportTitle}
-        onClose={() => setReportVisible(false)}
+        overlayTransparent={!reportTargetCommentId}
+        onClose={() => {
+          setReportVisible(false);
+          setReportTargetCommentId(null);
+        }}
         onSubmit={handleReportSubmit}
       />
       <ImagePreviewModal
         visible={previewVisible}
-        images={postImages.length > 0 ? postImages : post?.image ? [normalizeImageUrl(post.image) ?? post.image] : []}
+        images={postImages}
         initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
@@ -1658,7 +1731,18 @@ const styles = StyleSheet.create({
   postNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  postNameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
+  },
+  postTimeText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   postName: {
     ...typography.titleSmall,
@@ -1672,6 +1756,7 @@ const styles = StyleSheet.create({
   postMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginTop: 2,
     flexShrink: 1,
   },
   postContent: {
@@ -1699,82 +1784,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     marginBottom: spacing.md,
   },
-  functionCard: {
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  functionCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-    gap: spacing.xs,
-  },
-  functionCardIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  functionCardType: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    flex: 1,
-  },
-  functionCardTitle: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  quotedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  quotedLabel: {
-    fontSize: 12,
-    color: '#999999',
-    marginLeft: spacing.xs,
-  },
-  quotedContent: {
-    fontSize: 14,
-    color: colors.onSurface,
-    lineHeight: 20,
-  },
-  quotedMeta: {
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-    marginTop: spacing.xs,
-  },
-  postImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface2,
-  },
   postImageWrap: {
     marginBottom: spacing.md,
-    position: 'relative',
-  },
-  imageCountBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: borderRadius.full,
-  },
-  imageCountBadgeText: {
-    ...typography.labelSmall,
-    color: colors.white,
-    fontWeight: '700',
   },
   pollContainer: {
     marginBottom: spacing.md,
@@ -1786,6 +1797,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '12',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
@@ -1796,7 +1809,8 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     backgroundColor: colors.primary + '30',
-    borderRadius: borderRadius.sm,
+    borderTopLeftRadius: borderRadius.sm,
+    borderBottomLeftRadius: borderRadius.sm,
   },
   pollBarVoted: {
     backgroundColor: colors.primary + '50',
@@ -1901,7 +1915,19 @@ const styles = StyleSheet.create({
   commentNameRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    columnGap: 6,
+  },
+  commentNameLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 3,
+    flexShrink: 1,
+  },
+  commentTimeText: {
+    ...typography.bodySmall,
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    marginLeft: 2,
   },
   commentName: {
     ...typography.titleSmall,
@@ -1917,6 +1943,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     fontSize: 11,
     color: colors.onSurfaceVariant,
+    marginTop: 1,
     flexShrink: 1,
   },
   commentBody: {
@@ -1956,7 +1983,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
 
-  /* ── Replies (二级评论) ── */
+  /* 鈹€鈹€ Replies (浜岀骇璇勮) 鈹€鈹€ */
   toggleReplies: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1985,11 +2012,28 @@ const styles = StyleSheet.create({
   replyNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 4,
+  },
+  replyNameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 1,
   },
   replyName: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.onSurface,
+  },
+  replyTimeText: {
+    fontSize: 10,
+    color: colors.onSurfaceVariant,
+    marginLeft: 2,
+  },
+  replyAcademicMeta: {
+    fontSize: 10,
+    color: colors.onSurfaceVariant,
+    marginTop: 1,
   },
   replyTranslationToggle: {
     marginLeft: 'auto',
@@ -2027,7 +2071,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  /* ── Mention Suggestions ── */
+  /* 鈹€鈹€ Mention Suggestions 鈹€鈹€ */
   mentionOverlay: {
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -2058,24 +2102,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  /* ── Popover ── */
+  /* 鈹€鈹€ Popover 鈹€鈹€ */
   popoverOverlay: {
-    position: 'absolute',
-    top: 0,
+    position: 'absolute' as const,
+    top: 56,
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'transparent',
   },
   popoverBubble: {
-    position: 'absolute',
-    top: 52,
+    position: 'absolute' as const,
+    top: spacing.sm,
     right: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
     minWidth: 140,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
     ...elevation[3],
     zIndex: 101,
   },
@@ -2087,8 +2133,17 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.error,
   },
+  popoverItemTextNeutral: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
+  popoverDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.outlineVariant,
+    marginHorizontal: spacing.sm,
+  },
 
-  /* ── Comment Action Sheet ── */
+  /* 鈹€鈹€ Comment Action Sheet 鈹€鈹€ */
   actionSheetOverlay: {
     flex: 1,
     backgroundColor: colors.scrim,
@@ -2128,7 +2183,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
   },
 
-  /* ── Comment Input Bar ── */
+  /* 鈹€鈹€ Comment Input Bar 鈹€鈹€ */
   anonToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2172,3 +2227,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceVariant,
   },
 });
+

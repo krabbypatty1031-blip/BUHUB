@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,9 +7,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, typography } from '../../theme';
-import GradientCard from './GradientCard';
 import { hapticLight } from '../../utils/haptics';
-import { buildPostMeta, getRelativeTime } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import type { ForumPost } from '../../types';
 import type { Language } from '../../types';
 import Avatar from './Avatar';
@@ -17,6 +16,9 @@ import Tag from './Tag';
 import PressScaleButton from './PressScaleButton';
 import { PageTranslationProvider, PageTranslationToggle } from './PageTranslation';
 import TranslatableText from './TranslatableText';
+import PostImageGallery from './PostImageGallery';
+import QuoteCard from './QuoteCard';
+import FunctionRefCard from './FunctionRefCard';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import {
   HeartIcon,
@@ -27,10 +29,6 @@ import {
   TrashIcon,
   MaleIcon,
   FemaleIcon,
-  ChevronRightIcon,
-  UsersIcon,
-  TruckIcon,
-  ShoppingBagIcon,
 } from './icons';
 
 interface PostCardProps {
@@ -55,13 +53,14 @@ interface PostCardProps {
 
 function AnimatedPollBar({ percent, isVoted }: { percent: number; isVoted?: boolean }) {
   const width = useSharedValue(0);
+  const targetPercent = Math.max(0, Math.min(percent, 100));
 
   useEffect(() => {
-    width.value = withTiming(percent, { duration: 600 });
-  }, [percent]);
+    width.value = withTiming(targetPercent, { duration: 600 });
+  }, [targetPercent, width]);
 
   const barStyle = useAnimatedStyle(() => ({
-    width: `${Math.round(width.value)}%`,
+    width: `${Math.min(Math.max(width.value, 0), 100)}%`,
   }));
 
   return <Animated.View style={[styles.pollBar, isVoted && styles.pollBarVoted, barStyle]} />;
@@ -110,15 +109,19 @@ function PostCard({
     };
   }, []);
 
-  const displayMeta = useMemo(
+  const displayTime = useMemo(
+    () => getRelativeTime(post.createdAt, lang),
+    [post.createdAt, lang, minuteTick],
+  );
+
+  const displayAcademicMeta = useMemo(
     () =>
-      buildPostMeta(t, lang, {
+      buildGradeMajorMeta(t, {
         gradeKey: post.gradeKey,
         majorKey: post.majorKey,
-        createdAt: post.createdAt,
         isAnonymous: post.isAnonymous,
       }),
-    [t, lang, post.gradeKey, post.majorKey, post.createdAt, post.isAnonymous, minuteTick],
+    [t, post.gradeKey, post.majorKey, post.isAnonymous],
   );
 
   const quotedTime = useMemo(
@@ -128,10 +131,11 @@ function PostCard({
         : '',
     [post.quotedPost, lang, minuteTick],
   );
-  const displayImage = useMemo(
-    () => normalizeImageUrl(post.image ?? post.images?.[0]),
-    [post.image, post.images],
-  );
+  const displayImages = useMemo(() => {
+    if (post.images && post.images.length > 0) return post.images;
+    const fallback = normalizeImageUrl(post.image);
+    return fallback ? [fallback] : [];
+  }, [post.image, post.images]);
 
   const handleLike = useCallback(() => {
     hapticLight();
@@ -174,16 +178,18 @@ function PostCard({
         )}
         <View style={styles.headerInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{post.name}</Text>
-            {!post.isAnonymous && post.gender === 'male' && (
-              <MaleIcon size={14} color={colors.genderMale} />
-            )}
-            {!post.isAnonymous && post.gender === 'female' && (
-              <FemaleIcon size={14} color={colors.genderFemale} />
-            )}
-            <Text style={styles.timeDot}> · </Text>
-            <Text style={styles.meta}>{displayMeta}</Text>
+            <View style={styles.nameLeft}>
+              <Text style={styles.name}>{post.name}</Text>
+              {!post.isAnonymous && post.gender === 'male' && (
+                <MaleIcon size={14} color={colors.genderMale} />
+              )}
+              {!post.isAnonymous && post.gender === 'female' && (
+                <FemaleIcon size={14} color={colors.genderFemale} />
+              )}
+            </View>
+            <Text style={styles.timeText}>· {displayTime}</Text>
           </View>
+          {displayAcademicMeta ? <Text style={styles.meta}>{displayAcademicMeta}</Text> : null}
         </View>
       </View>
 
@@ -210,20 +216,15 @@ function PostCard({
         )}
 
         {/* Image */}
-        {post.hasImage && displayImage && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => onImagePress?.(post.images?.length ? post.images : [displayImage], 0)}
-          >
-            <View style={styles.imageWrap}>
-              <Image source={{ uri: displayImage }} style={styles.image} />
-              {(post.images?.length ?? 0) > 1 ? (
-                <View style={styles.imageCountBadge}>
-                  <Text style={styles.imageCountBadgeText}>{`1/${post.images!.length}`}</Text>
-                </View>
-              ) : null}
-            </View>
-          </TouchableOpacity>
+        {post.hasImage && displayImages.length > 0 && (
+          <View style={styles.imageWrap}>
+            <PostImageGallery
+              images={displayImages}
+              onImagePress={(index) => onImagePress?.(displayImages, index)}
+              borderRadiusValue={borderRadius.sm}
+              backgroundColor={colors.surface2}
+            />
+          </View>
         )}
 
         {/* Poll */}
@@ -238,16 +239,18 @@ function PostCard({
                   disabled
                 >
                   <AnimatedPollBar percent={opt.percent ?? 0} isVoted={i === votedOptionIndex} />
-                  <Text
-                    style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
-                  </Text>
-                  <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>
-                    {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
-                  </Text>
+                  <View style={styles.pollOptionContent}>
+                    <Text
+                      style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
+                    </Text>
+                    <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>
+                      {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
@@ -270,61 +273,23 @@ function PostCard({
 
         {/* Forwarded Function Card */}
         {post.isFunction && post.functionType && (
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <FunctionRefCard
+            functionType={post.functionType}
+            title={post.functionTitle}
             onPress={onFunctionPress}
-          >
-            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.functionCard}>
-              <View style={styles.functionCardHeader}>
-                <View style={styles.functionCardIconWrap}>
-                  {post.functionType === 'partner' && <UsersIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'errand' && <TruckIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'secondhand' && <ShoppingBagIcon size={12} color={colors.onSurface} />}
-                  {post.functionType === 'rating' && <QuoteIcon size={12} color={colors.onSurface} />}
-                </View>
-                <Text style={styles.functionCardType}>
-                  {post.functionType === 'partner'
-                    ? t('findPartner')
-                    : post.functionType === 'errand'
-                      ? t('errands')
-                      : post.functionType === 'secondhand'
-                        ? t('secondhand')
-                        : t('forum')}
-                </Text>
-                <ChevronRightIcon size={14} color="#999999" />
-              </View>
-              {post.functionTitle && (
-                <Text style={styles.functionCardTitle} numberOfLines={2}>
-                  {post.functionTitle}
-                </Text>
-              )}
-            </GradientCard>
-          </TouchableOpacity>
+          />
         )}
 
         {/* Quoted Post */}
         {post.quotedPost && (
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <QuoteCard
+            postId={post.quotedPost.id}
+            content={post.quotedPost.content}
+            sourceLanguage={post.quotedPost.sourceLanguage}
+            author={post.quotedPost.name}
+            timeLabel={quotedTime}
             onPress={() => onQuotedPostPress?.(post.quotedPost!.id)}
-          >
-            <GradientCard colors={['#EEEEEE', '#F7F7F7']} style={styles.quotedCard}>
-              <View style={styles.quotedHeader}>
-                <QuoteIcon size={12} color="#999999" />
-                <Text style={styles.quotedLabel}>引用帖子</Text>
-              </View>
-              <TranslatableText
-                entityType="post"
-                entityId={post.quotedPost.id}
-                fieldName="content"
-                sourceText={post.quotedPost.content}
-                sourceLanguage={post.quotedPost.sourceLanguage}
-                textStyle={styles.quotedContent}
-                numberOfLines={3}
-              />
-              <Text style={styles.quotedMeta}>{post.quotedPost.name} · {quotedTime}</Text>
-            </GradientCard>
-          </TouchableOpacity>
+          />
         )}
 
         {/* Actions */}
@@ -403,20 +368,29 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  nameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   name: {
     ...typography.titleSmall,
     fontWeight: '700',
     color: colors.onSurface,
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginTop: 2,
+    flexShrink: 1,
   },
   content: {
     ...typography.bodyLarge,
@@ -430,29 +404,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: spacing.sm,
   },
-  image: {
-    width: '100%',
-    height: 200,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.surface2,
-  },
   imageWrap: {
     marginBottom: spacing.sm,
-    position: 'relative',
-  },
-  imageCountBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: borderRadius.full,
-  },
-  imageCountBadgeText: {
-    ...typography.labelSmall,
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   pollContainer: {
     marginBottom: spacing.sm,
@@ -464,6 +417,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '12',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
@@ -474,7 +429,8 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     backgroundColor: colors.primary + '30',
-    borderRadius: borderRadius.sm,
+    borderTopLeftRadius: borderRadius.sm,
+    borderBottomLeftRadius: borderRadius.sm,
   },
   pollBarVoted: {
     backgroundColor: colors.primary + '50',
@@ -522,70 +478,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
     textAlign: 'right',
   },
-  functionCard: {
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
-  functionCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  functionCardIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  functionCardType: {
-    ...typography.labelSmall,
-    fontWeight: '600',
-    color: '#999999',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    flex: 1,
-  },
-  functionCardTitle: {
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: '#000000',
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  quotedCard: {
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  quotedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  quotedLabel: {
-    ...typography.labelSmall,
-    color: '#999999',
-    fontWeight: '500',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  quotedContent: {
-    ...typography.bodySmall,
-    color: '#000000',
-    fontWeight: '600',
-    lineHeight: 18,
-    marginBottom: spacing.xs,
-  },
-  quotedMeta: {
-    ...typography.labelSmall,
-    color: '#999999',
-    fontWeight: '400',
-  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -603,3 +495,5 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
 });
+
+

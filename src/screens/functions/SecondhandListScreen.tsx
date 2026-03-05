@@ -8,14 +8,14 @@ import {
   StyleSheet,
   useWindowDimensions,
   Modal,
-  Image,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandItem, SecondhandCategory } from '../../types';
-import { useSecondhand, useWantedSecondhand } from '../../hooks/useSecondhand';
+import { useSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -33,6 +33,7 @@ import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -101,7 +102,14 @@ const ItemCard = React.memo(function ItemCard({
               onImagePress(item.images ?? [primaryImage], 0);
             }}
           >
-            <Image source={{ uri: primaryImage }} style={styles.cardImage} resizeMode="cover" />
+            <ExpoImage
+              source={primaryImage}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              recyclingKey={primaryImage}
+            />
           </TouchableOpacity>
         ) : (
           <ShoppingBagIcon size={32} color={colors.outlineVariant} />
@@ -199,7 +207,6 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data: items, isLoading, refetch } = useSecondhand(selectedCategory || undefined);
-  const { data: wantedItems } = useWantedSecondhand();
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -345,11 +352,6 @@ export default function SecondhandListScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('SecondhandCart')}
           >
             <ShoppingCartIcon size={24} color={colors.onSurface} />
-            {(wantedItems?.length ?? 0) > 0 ? (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{(wantedItems?.length ?? 0) > 99 ? '99+' : wantedItems?.length ?? 0}</Text>
-              </View>
-            ) : null}
           </TouchableOpacity>
         </View>
       </View>
@@ -443,19 +445,37 @@ export default function SecondhandListScreen({ navigation }: Props) {
               <Text style={styles.actionText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionRowCenter}
-              onPress={() => {
-                const a = actionItem;
-                setActionItem(null);
-                if (a) handleDmSeller(a.item, a.id);
-              }}
-              disabled={isActionItemOwnPost}
-            >
-              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
-                {isActionItemOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
-              </Text>
-            </TouchableOpacity>
+            {isActionItemOwnPost ? (
+              <TouchableOpacity
+                style={styles.actionRowCenter}
+                onPress={() => {
+                  const a = actionItem;
+                  setActionItem(null);
+                  if (!a) return;
+                  navigateToForumComposeSelection({
+                    navigation,
+                    functionType: 'secondhand',
+                    functionTitle: a.item.title,
+                    functionId: a.id,
+                  });
+                }}
+              >
+                <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {!isActionItemOwnPost ? (
+              <TouchableOpacity
+                style={styles.actionRowCenter}
+                onPress={() => {
+                  const a = actionItem;
+                  setActionItem(null);
+                  if (a) handleDmSeller(a.item, a.id);
+                }}
+              >
+                <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -516,24 +536,6 @@ const styles = StyleSheet.create({
     width: 96,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 6,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cartBadgeText: {
-    ...typography.labelSmall,
-    color: colors.onError,
-    fontWeight: '700',
-    fontSize: 10,
   },
 
   /* Search */
@@ -786,9 +788,6 @@ const styles = StyleSheet.create({
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-  },
-  actionTextDisabled: {
-    color: colors.onSurfaceVariant,
   },
   actionRowCenter: {
     alignItems: 'center',

@@ -102,6 +102,8 @@ export function useMessageRealtime() {
       }
 
       if (messageEvents.length > 0) {
+        const activeChatContactId = useMessageStore.getState().activeChatContactId;
+        const currentUserId = useAuthStore.getState().user?.id;
         messageEvents.forEach((event) => {
           if (event.type === 'message:new' && event.conversationUserId) {
             handleIncomingMessage(event.conversationUserId);
@@ -114,11 +116,22 @@ export function useMessageRealtime() {
             .filter((id): id is string => typeof id === 'string' && id.length > 0)
         );
         conversationIds.forEach((id) => {
-          queryClient.invalidateQueries({ queryKey: ['chat', id] });
-          const hasIncomingMessage = messageEvents.some(
-            (event) => event.type === 'message:new' && event.conversationUserId === id
+          const eventsForConversation = messageEvents.filter((event) => event.conversationUserId === id);
+          const hasIncomingPeerMessage = eventsForConversation.some(
+            (event) =>
+              event.type === 'message:new' &&
+              (!event.fromUserId || !currentUserId || event.fromUserId !== currentUserId)
           );
-          if (hasIncomingMessage) {
+          const shouldRefetchActive = (
+            id !== activeChatContactId ||
+            hasIncomingPeerMessage ||
+            eventsForConversation.some((event) => event.type !== 'message:new')
+          );
+          queryClient.invalidateQueries({
+            queryKey: ['chat', id],
+            refetchType: shouldRefetchActive ? 'active' : 'inactive',
+          });
+          if (hasIncomingPeerMessage) {
             setTyping(id, false);
           }
         });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import Avatar from '../../components/common/Avatar';
 import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import {
@@ -50,7 +50,7 @@ export default function MyPostsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const currentUser = useAuthStore((s) => s.user);
-  const nickname = currentUser?.nickname || currentUser?.name || '浸大小明';
+  const nickname = currentUser?.nickname || currentUser?.name || '娴稿ぇ灏忔槑';
   const { data: partners } = useMyPartners();
   const { data: errands } = useMyErrands();
   const { data: secondhandItems } = useMySecondhand();
@@ -207,11 +207,11 @@ export default function MyPostsScreen({ navigation }: Props) {
     ({ item }: { item: CardItem }) => {
       const expired = isExpired(item);
       const d = item.data;
-      const displayMeta = buildPostMeta(t, lang, {
+      const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: d.gradeKey,
         majorKey: d.majorKey,
-        createdAt: d.createdAt,
       });
+      const displayTime = getRelativeTime(d.createdAt, lang);
       const entityType = item.kind === 'partner' ? 'partner' : item.kind === 'errand' ? 'errand' : 'secondhand';
 
       return (
@@ -233,14 +233,18 @@ export default function MyPostsScreen({ navigation }: Props) {
             </TouchableOpacity>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{d.user}</Text>
-                {d.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                {d.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {displayMeta}
-                </Text>
+                <View style={styles.nameLeft}>
+                  <Text style={styles.userName}>{d.user}</Text>
+                  {d.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                  {d.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                </View>
+                <Text style={styles.timeText}>· {displayTime}</Text>
               </View>
+              {displayAcademicMeta ? (
+                <Text style={styles.meta} numberOfLines={1}>
+                  {displayAcademicMeta}
+                </Text>
+              ) : null}
             </View>
             <TouchableOpacity
               style={styles.moreBtn}
@@ -378,7 +382,7 @@ export default function MyPostsScreen({ navigation }: Props) {
               <Text style={styles.actionText}>{t('editPost')}</Text>
             </TouchableOpacity>
 
-            {/* 仅未过期帖子显示关闭选项 */}
+            {/* 浠呮湭杩囨湡甯栧瓙鏄剧ず鍏抽棴閫夐」 */}
             {!actionItem?.data.expired && (
               <TouchableOpacity
                 style={styles.actionRowCenter}
@@ -505,21 +509,29 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  nameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   userName: {
     ...typography.titleSmall,
     color: colors.onSurface,
     fontWeight: '700',
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     flexShrink: 1,
+    marginTop: 2,
   },
   moreBtn: {
     width: 32,
@@ -637,3 +649,4 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
 });
+

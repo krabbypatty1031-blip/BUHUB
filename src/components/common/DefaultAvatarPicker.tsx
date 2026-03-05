@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Image, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -67,12 +68,17 @@ interface DefaultAvatarSvgProps {
 export function DefaultAvatarSvg({ id, size }: DefaultAvatarSvgProps) {
   const def = getAvatarDef(id);
   if (!def) return null;
+  const avatarUrl = getDiceBearUrl(id, Math.ceil(size * 2), def.bg);
 
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: def.bg, overflow: 'hidden' }}>
-      <Image
-        source={{ uri: getDiceBearUrl(id, Math.ceil(size * 2), def.bg) }}
+      <ExpoImage
+        source={avatarUrl}
         style={{ width: size, height: size }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={0}
+        recyclingKey={avatarUrl}
       />
     </View>
   );

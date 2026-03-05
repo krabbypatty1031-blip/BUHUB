@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -151,10 +151,10 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const posterMeta = buildPostMeta(t, lang, {
+  const posterTime = getRelativeTime(errand.createdAt, lang);
+  const posterMeta = buildGradeMajorMeta(t, {
     gradeKey: errand.gradeKey,
     majorKey: errand.majorKey,
-    createdAt: errand.createdAt,
   });
 
   return (
@@ -368,12 +368,14 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             <View style={styles.posterInfo}>
               <View style={styles.posterNameRow}>
-                <Text style={styles.posterName}>{errand.user}</Text>
-                {errand.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                {errand.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.meta} numberOfLines={1}>{posterMeta}</Text>
+                <View style={styles.posterNameLeft}>
+                  <Text style={styles.posterName}>{errand.user}</Text>
+                  {errand.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                  {errand.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                </View>
+                <Text style={styles.timeText}>· {posterTime}</Text>
               </View>
+              {posterMeta ? <Text style={styles.meta} numberOfLines={1}>{posterMeta}</Text> : null}
             </View>
           </View>
         </View>
@@ -387,19 +389,19 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         </View>
 
         {/* ----- Action Bar ----- */}
-        <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
-          <TouchableOpacity
-            style={[styles.dmButton, isOwnPost && styles.dmButtonDisabled]}
-            activeOpacity={0.7}
-            onPress={handleDmPoster}
-            disabled={errand.expired || isOwnPost}
-          >
-            <MessageIcon size={18} color={isOwnPost ? colors.onSurfaceVariant : colors.onPrimary} />
-            <Text style={[styles.dmButtonText, isOwnPost && styles.dmButtonTextDisabled]}>
-              {isOwnPost ? t('cannotDmSelf') : t('errandDmPoster')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {!isOwnPost && (
+          <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
+            <TouchableOpacity
+              style={styles.dmButton}
+              activeOpacity={0.7}
+              onPress={handleDmPoster}
+              disabled={errand.expired}
+            >
+              <MessageIcon size={18} color={colors.onPrimary} />
+              <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Report Modal */}
@@ -407,9 +409,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-onSubmit={async (reasonCategory, reason) => {
-            try {
-            await reportService.submit({ targetType: 'function', targetId: errand.id, reasonCategory, reason });
+        overlayTransparent
+        onSubmit={async (reasonCategory, reason) => {
+          try {
+            await reportService.submit({
+              targetType: 'function',
+              targetId: errand.id,
+              reasonCategory,
+              reason,
+            });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -661,20 +669,28 @@ const styles = StyleSheet.create({
   posterNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  posterNameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   posterName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     flexShrink: 1,
+    marginTop: 2,
   },
 
   /* ----- Disclaimer ----- */
@@ -732,7 +748,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'transparent',
   },
   popoverBubble: {
     position: 'absolute' as const,
@@ -760,4 +776,5 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+
 

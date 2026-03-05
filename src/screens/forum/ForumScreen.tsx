@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -14,9 +15,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
+import { usePosts, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
+import { useUIStore } from '../../store/uiStore';
 import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
 import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { colors } from '../../theme/colors';
@@ -39,13 +41,14 @@ import {
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
 export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: allPosts, isLoading, refetch } = usePosts();
+  const { data: allPosts, isLoading, isFetching, refetch } = usePosts();
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
@@ -54,6 +57,8 @@ export default function ForumScreen({ navigation, route }: Props) {
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
   const votePostMutation = useVotePost();
+  const deletePostMutation = useDeletePost();
+  const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { onScroll, show } = useScrollTabBarAnimation();
   const { tabBarTranslateY } = useTabBarAnimation();
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
@@ -79,14 +84,18 @@ export default function ForumScreen({ navigation, route }: Props) {
     const pendingSelection = route.params?.pendingComposeSelection;
     if (!pendingSelection) return;
 
-    setQuotePostId(pendingSelection.quotePostId);
     if (pendingSelection.functionType && pendingSelection.functionTitle && pendingSelection.functionId) {
-      setFunctionRef({
+      navigation.navigate('Compose', {
+        type: 'text',
+        quotePostId: pendingSelection.quotePostId,
         functionType: pendingSelection.functionType,
         functionTitle: pendingSelection.functionTitle,
         functionId: pendingSelection.functionId,
       });
+      navigation.setParams({ pendingComposeSelection: undefined });
+      return;
     } else {
+      setQuotePostId(pendingSelection.quotePostId);
       setFunctionRef(undefined);
     }
     setComposeSheetVisible(true);
@@ -119,6 +128,28 @@ export default function ForumScreen({ navigation, route }: Props) {
   );
 
   const currentUser = useAuthStore((s) => s.user);
+  const handleDeletePost = useCallback(
+    (postId: string) => {
+      Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('confirmBtn'),
+          style: 'destructive',
+          onPress: () => {
+            deletePostMutation.mutate(postId, {
+              onSuccess: () => {
+                showSnackbar({ message: t('postDeleted'), type: 'success' });
+              },
+              onError: () => {
+                showSnackbar({ message: t('deleteFailed'), type: 'error' });
+              },
+            });
+          },
+        },
+      ]);
+    },
+    [deletePostMutation, showSnackbar, t]
+  );
   const handleAvatarPress = useCallback(
     (post: ForumPost) => {
       handleAvatarPressNavigation({
@@ -201,6 +232,11 @@ export default function ForumScreen({ navigation, route }: Props) {
       const post = detailPost?.myVote
         ? { ...item, myVote: detailPost.myVote, pollOptions: detailPost.pollOptions ?? item.pollOptions }
         : item;
+      const isOwnPost = isCurrentUserContentOwner(currentUser, {
+        userName: post.userName,
+        displayName: post.name,
+        isAnonymous: post.isAnonymous,
+      });
       const votedOptionIndex = getVotedOptionIndex(post, votedPolls);
       return (
         <PostCard
@@ -233,10 +269,11 @@ export default function ForumScreen({ navigation, route }: Props) {
           isLiked={post.liked ?? false}
           isBookmarked={post.bookmarked ?? false}
           votedOptionIndex={votedOptionIndex}
+          onDelete={isOwnPost ? () => handleDeletePost(post.id) : undefined}
         />
       );
     },
-    [posts, votedPolls, pollListRefreshKey, queryClient, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation]
+    [votedPolls, queryClient, currentUser, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation, handleDeletePost]
   );
 
   const listExtraData = useMemo(
@@ -247,6 +284,7 @@ export default function ForumScreen({ navigation, route }: Props) {
     }),
     [votedPolls, pollListRefreshKey, posts]
   );
+  const isPullRefreshing = isFetching && !isLoading;
 
   return (
       <SafeAreaView style={styles.container}>
@@ -267,12 +305,15 @@ export default function ForumScreen({ navigation, route }: Props) {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         extraData={listExtraData}
-        refreshing={isLoading}
-        onRefresh={refetch}
+        refreshing={isPullRefreshing}
+        onRefresh={() => {
+          void refetch();
+        }}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        removeClippedSubviews={false}
         contentContainerStyle={styles.listContent}
-        drawDistance={250}
+        drawDistance={700}
         ListEmptyComponent={
           isLoading ? (
             <ForumListSkeleton />
