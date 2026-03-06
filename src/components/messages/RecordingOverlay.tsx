@@ -28,7 +28,6 @@ interface RecordingOverlayProps {
 
 const ACTION_PILL_WIDTH = 112;
 const ACTION_ZONE_BOTTOM = 96;
-const ACTION_ZONE_HEIGHT = 84;
 const WAVE_BAR_COUNT = 9;
 
 function WaveBars({ active }: { active: boolean }) {
@@ -85,34 +84,31 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
     const { t } = useTranslation();
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-    const actionZoneTop = screenHeight - ACTION_ZONE_BOTTOM - ACTION_ZONE_HEIGHT;
     const actionLeft = spacing.xl;
     const actionRight = screenWidth - spacing.xl - ACTION_PILL_WIDTH;
-    const actionBottom = screenHeight - ACTION_ZONE_BOTTOM;
+
+    const ZONE_PAD_X = 40;
+    const ZONE_TOP_RATIO = 0.38;
 
     const handleTouchMove = useCallback(
       (pageX: number, pageY: number) => {
-        if (pageY < actionZoneTop) {
-          onActionChange('send');
-          return;
-        }
-        if (pageY > actionBottom) {
+        if (pageY < screenHeight * ZONE_TOP_RATIO) {
           onActionChange('send');
           return;
         }
 
-        const inTranscribeZone = pageX >= actionLeft && pageX <= actionLeft + ACTION_PILL_WIDTH;
-        const inCancelZone = pageX >= actionRight && pageX <= actionRight + ACTION_PILL_WIDTH;
+        const transcribeRight = actionLeft + ACTION_PILL_WIDTH + ZONE_PAD_X;
+        const cancelLeft = actionRight - ZONE_PAD_X;
 
-        if (inCancelZone) {
-          onActionChange('cancel');
-        } else if (inTranscribeZone) {
+        if (pageX <= transcribeRight) {
           onActionChange('transcribe');
+        } else if (pageX >= cancelLeft) {
+          onActionChange('cancel');
         } else {
           onActionChange('send');
         }
       },
-      [actionBottom, actionLeft, actionRight, actionZoneTop, onActionChange]
+      [actionLeft, actionRight, screenHeight, onActionChange]
     );
 
     useImperativeHandle(ref, () => ({

@@ -3,7 +3,7 @@
     "name": "UHUB",
     "slug": "buhub-rn",
     "scheme": "buhub",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "3",
+      "buildNumber": "4",
       "bundleIdentifier": "com.buhub.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -48,18 +48,20 @@
       "url": "https://u.expo.dev/86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
     },
     "plugins": [
-      "expo-font"
-    ],
-    "extra": {
-      "apiUrl": "https://www.uhub.help/api",
-      "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
-      "termsUrl": "https://www.uhub.help/terms",
-      "privacyUrl": "https://www.uhub.help/privacy",
-      "eas": {
-        "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
-      }
-    },
-    "plugins": [
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "UHUB needs camera access to scan QR codes and take photos."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "UHUB needs photo library access to save QR code images.",
+          "savePhotosPermission": "UHUB needs permission to save QR code images to your photo library."
+        }
+      ],
       [
         "expo-speech-recognition",
         {
@@ -70,6 +72,15 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "apiUrl": "https://www.uhub.help/api",
+      "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
+      "termsUrl": "https://www.uhub.help/terms",
+      "privacyUrl": "https://www.uhub.help/privacy",
+      "eas": {
+        "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
+      }
+    }
   }
 }

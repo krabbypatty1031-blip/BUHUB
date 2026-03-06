@@ -17,7 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { ForumPost } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
+import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
@@ -58,7 +58,8 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const { userName } = route.params;
   const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
-  const { data: allPosts, isLoading: postsLoading, refetch: refetchPosts } = usePosts();
+  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts } = usePosts();
+  const allPosts = useMemo(() => flattenPostPages(postsData), [postsData]);
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
   const likePostMutation = useLikePost();
@@ -97,7 +98,6 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   );
 
   const userPosts = useMemo(() => {
-    if (!allPosts) return [];
     return allPosts.filter((post) => {
       const postUserName = normalizeHandle(post.userName);
       const postDisplayName = normalizeHandle(post.name);

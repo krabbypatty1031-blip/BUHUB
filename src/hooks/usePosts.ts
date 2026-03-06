@@ -1,7 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
 import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
+
+export type PostsPage = { posts: ForumPost[]; hasMore: boolean; page: number };
+type PostsInfiniteData = InfiniteData<PostsPage>;
+
+const POSTS_LIMIT = 20;
+
+function mapPostsPages(
+  data: PostsInfiniteData | undefined,
+  fn: (post: ForumPost) => ForumPost,
+): PostsInfiniteData | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({ ...page, posts: page.posts.map(fn) })),
+  };
+}
 
 function updateCommentTreeById(
   comments: Comment[] | undefined,
@@ -96,10 +112,19 @@ function updateMyContentCommentById(
 }
 
 export function usePosts() {
-  return useQuery({
+  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
     queryKey: ['posts'],
-    queryFn: () => forumService.getPosts(),
+    queryFn: ({ pageParam }) =>
+      forumService.getPosts({ page: pageParam, limit: POSTS_LIMIT }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
   });
+}
+
+export function flattenPostPages(data: PostsInfiniteData | undefined): ForumPost[] {
+  if (!data) return [];
+  return data.pages.flatMap((p) => p.posts);
 }
 
 export function useFollowedCircles() {
@@ -255,7 +280,7 @@ export function useLikePost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previousList = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousList = queryClient.getQueryData<PostsInfiniteData>(['posts']);
       const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({
@@ -271,8 +296,8 @@ export function useLikePost() {
               likes: p.liked ? Math.max(0, p.likes - 1) : p.likes + 1,
             }
           : p;
-      queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
-        old?.map((p) => (p.id === postId ? toggle(p) : p))
+      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
@@ -293,7 +318,9 @@ export function useLikePost() {
         const update = (p: ForumPost) => (p.id === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p);
         const updateUserPost = (p: UserPost) =>
           p.postId === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p;
-        queryClient.setQueryData<ForumPost[]>(['posts'], (old) => old?.map(update));
+        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+          mapPostsPages(old, update)
+        );
         const detail = queryClient.getQueryData<ForumPost>(['post', postId]);
         if (detail) {
           queryClient.setQueryData<ForumPost>(['post', postId], { ...detail, liked: res.liked, likes: res.likeCount });
@@ -317,7 +344,6 @@ export function useLikePost() {
     onSettled: (res, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
-      // Skip invalidating post detail when we have likeCount - avoid refetch overwriting our onSuccess update
       if (typeof res?.likeCount !== 'number') {
         queryClient.invalidateQueries({ queryKey: ['post', postId] });
       }
@@ -392,7 +418,7 @@ export function useVotePost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
 
-      const previousPosts = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousPosts = queryClient.getQueryData<PostsInfiniteData>(['posts']);
       const previousPostDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousOptionIndex = useForumStore.getState().votedPolls.get(postId);
       setVotedPoll(postId, optionIndex);
@@ -422,11 +448,13 @@ export function useVotePost() {
         };
       };
 
-      const listPost = previousPosts?.find((p) => p.id === postId);
+      const listPost = flattenPostPages(previousPosts).find((p) => p.id === postId);
       const optimisticPost = listPost ? applyVote(listPost) : null;
 
       if (previousPosts != null) {
-        queryClient.setQueryData<ForumPost[]>(['posts'], (old) => (old ? old.map(applyVote) : old));
+        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+          mapPostsPages(old, applyVote)
+        );
       }
       if (optimisticPost) {
         queryClient.setQueryData<ForumPost>(['post', postId], optimisticPost);
@@ -460,8 +488,8 @@ export function useVotePost() {
       }
 
       if (freshPost) {
-        queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
-          old?.map((p) => {
+        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+          mapPostsPages(old, (p) => {
             if (p.id !== postId) return p;
             return {
               ...p,
@@ -530,7 +558,7 @@ export function useBookmarkPost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previousList = queryClient.getQueryData<ForumPost[]>(['posts']);
+      const previousList = queryClient.getQueryData<PostsInfiniteData>(['posts']);
       const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({ ...p, bookmarked: !p.bookmarked });
@@ -541,8 +569,8 @@ export function useBookmarkPost() {
               bookmarked: !p.bookmarked,
             }
           : p;
-      queryClient.setQueryData<ForumPost[]>(['posts'], (old) =>
-        old?.map((p) => (p.id === postId ? toggle(p) : p))
+      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));

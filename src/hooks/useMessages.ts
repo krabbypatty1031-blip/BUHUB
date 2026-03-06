@@ -236,12 +236,8 @@ export function useSendMessage(receiverId: string) {
         queryClient.setQueryData(queryKey, data);
       });
     },
-    onSuccess: (_data, _variables, context) => {
-      if (context?.isReaction) {
-        queryClient.invalidateQueries({ queryKey: ['chat', receiverId] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },
