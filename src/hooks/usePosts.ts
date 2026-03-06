@@ -171,7 +171,7 @@ export function useSearch(query: string) {
   return useQuery({
     queryKey: ['search', normalizedQuery],
     queryFn: () => forumService.search(normalizedQuery),
-    enabled: normalizedQuery.length >= 2,
+    enabled: normalizedQuery.length >= 1,
   });
 }
 
