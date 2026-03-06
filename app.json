@@ -2,6 +2,7 @@
   "expo": {
     "name": "UHUB",
     "slug": "buhub-rn",
+    "scheme": "buhub",
     "version": "0.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -57,6 +58,18 @@
       "eas": {
         "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "UHUB needs microphone access for voice-to-text.",
+          "speechRecognitionPermission": "UHUB needs speech recognition access to convert voice to text.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
+    ]
   }
 }

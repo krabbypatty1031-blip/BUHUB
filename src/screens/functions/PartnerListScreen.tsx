@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -26,10 +26,11 @@ import Avatar from '../../components/common/Avatar';
 import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import {
   BackIcon,
   PlusIcon,
@@ -151,11 +152,11 @@ export default function PartnerListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
       const isJoined = joinedActivities.has(item.id);
-      const displayMeta = buildPostMeta(t, lang, {
+      const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
-        createdAt: item.createdAt,
       });
+      const displayTime = getRelativeTime(item.createdAt, lang);
       return (
         <PageTranslationProvider>
         <TouchableOpacity
@@ -163,7 +164,7 @@ export default function PartnerListScreen({ navigation }: Props) {
           activeOpacity={0.7}
           onPress={() => navigation.navigate('PartnerDetail', { id: item.id })}
         >
-          {/* Row 1: Avatar + Name · Time + Ellipsis */}
+          {/* Row 1: Avatar + Name 路 Time + Ellipsis */}
           <View style={styles.cardHeader}>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -176,14 +177,18 @@ export default function PartnerListScreen({ navigation }: Props) {
             </TouchableOpacity>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{item.user}</Text>
-                {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {displayMeta}
-                </Text>
+                <View style={styles.nameLeft}>
+                  <Text style={styles.userName}>{item.user}</Text>
+                  {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                  {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                </View>
+                <Text style={styles.timeText}>· {displayTime}</Text>
               </View>
+              {displayAcademicMeta ? (
+                <Text style={styles.meta} numberOfLines={1}>
+                  {displayAcademicMeta}
+                </Text>
+              ) : null}
             </View>
             {!item.expired && (
               <TouchableOpacity
@@ -341,19 +346,37 @@ export default function PartnerListScreen({ navigation }: Props) {
               <Text style={styles.actionText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionRowCenter}
-              onPress={() => {
-                const a = actionItem;
-                setActionItem(null);
-                if (a) handleDmOrganizer(a.post, a.id);
-              }}
-              disabled={isActionItemOwnPost}
-            >
-              <Text style={[styles.actionText, isActionItemOwnPost && styles.actionTextDisabled]}>
-                {isActionItemOwnPost ? t('cannotDmSelf') : t('partnerDmOrganizer')}
-              </Text>
-            </TouchableOpacity>
+            {isActionItemOwnPost ? (
+              <TouchableOpacity
+                style={styles.actionRowCenter}
+                onPress={() => {
+                  const a = actionItem;
+                  setActionItem(null);
+                  if (!a) return;
+                  navigateToForumComposeSelection({
+                    navigation,
+                    functionType: 'partner',
+                    functionTitle: a.post.title,
+                    functionId: a.id,
+                  });
+                }}
+              >
+                <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {!isActionItemOwnPost ? (
+              <TouchableOpacity
+                style={styles.actionRowCenter}
+                onPress={() => {
+                  const a = actionItem;
+                  setActionItem(null);
+                  if (a) handleDmOrganizer(a.post, a.id);
+                }}
+              >
+                <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -455,21 +478,29 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  nameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   userName: {
     ...typography.titleSmall,
     color: colors.onSurface,
     fontWeight: '700',
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     flexShrink: 1,
+    marginTop: 2,
   },
   moreBtn: {
     width: 32,
@@ -479,7 +510,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
-  /* Card body — aligned with name */
+  /* Card body 鈥?aligned with name */
   cardBody: {
     marginLeft: AVATAR_SIZE + AVATAR_GAP,
     marginTop: spacing.xs,
@@ -578,9 +609,6 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.onSurface,
   },
-  actionTextDisabled: {
-    color: colors.onSurfaceVariant,
-  },
   actionRowCenter: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -588,3 +616,4 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 });
+

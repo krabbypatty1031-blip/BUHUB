@@ -23,6 +23,7 @@ interface RecordingOverlayProps {
   currentAction: ActionType;
   onActionChange: (action: ActionType) => void;
   durationMs?: number;
+  transcriptText?: string;
 }
 
 const ACTION_PILL_WIDTH = 112;
@@ -77,6 +78,7 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
       currentAction,
       onActionChange,
       durationMs = 0,
+      transcriptText = '',
     },
     ref
   ) {
@@ -141,6 +143,11 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
               {hintText}
             </Text>
           ) : null}
+          {transcriptText ? (
+            <Text style={styles.transcriptText} numberOfLines={3}>
+              {transcriptText}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.actionZoneContainer}>
@@ -175,8 +182,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   centerCard: {
-    width: 188,
-    height: 132,
+    width: 232,
+    minHeight: 146,
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
@@ -185,6 +192,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   waveRow: {
     flexDirection: 'row',
@@ -202,6 +210,13 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: 'rgba(255,255,255,0.88)',
     textAlign: 'center',
+  },
+  transcriptText: {
+    ...typography.bodySmall,
+    color: 'rgba(255,255,255,0.96)',
+    textAlign: 'center',
+    width: '100%',
+    lineHeight: 18,
   },
   hintCancel: {
     color: '#FF7A7A',

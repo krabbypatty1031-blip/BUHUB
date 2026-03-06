@@ -211,15 +211,6 @@ export default function SearchScreen({ navigation }: Props) {
           </View>
         </View>
         </TouchableWithoutFeedback>
-      ) : normalizedQuery.length < 2 ? (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.emptyState}>
-          <View style={styles.hintSection}>
-            <SearchIcon size={48} color={colors.outlineVariant} />
-            <Text style={styles.hintText}>{t('searchHint')}</Text>
-          </View>
-        </View>
-        </TouchableWithoutFeedback>
       ) : (
         <FlatList
           data={results}

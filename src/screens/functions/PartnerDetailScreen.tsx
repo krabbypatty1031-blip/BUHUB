@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -148,10 +148,10 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const organizerMeta = buildPostMeta(t, lang, {
+  const organizerTime = getRelativeTime(partner.createdAt, lang);
+  const organizerMeta = buildGradeMajorMeta(t, {
     gradeKey: partner.gradeKey,
     majorKey: partner.majorKey,
-    createdAt: partner.createdAt,
   });
 
   return (
@@ -307,30 +307,32 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             <View style={styles.organizerInfo}>
               <View style={styles.organizerNameRow}>
-                <Text style={styles.organizerName}>{partner.user}</Text>
-                {partner.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                {partner.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.meta} numberOfLines={1}>{organizerMeta}</Text>
+                <View style={styles.organizerNameLeft}>
+                  <Text style={styles.organizerName}>{partner.user}</Text>
+                  {partner.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                  {partner.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                </View>
+                <Text style={styles.timeText}>· {organizerTime}</Text>
               </View>
+              {organizerMeta ? <Text style={styles.meta} numberOfLines={1}>{organizerMeta}</Text> : null}
             </View>
           </View>
         </View>
 
         {/* ----- Action Bar ----- */}
-        <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
-          <TouchableOpacity
-            style={[styles.dmButton, isOwnPost && styles.dmButtonDisabled]}
-            activeOpacity={0.7}
-            onPress={handleDmOrganizer}
-            disabled={partner.expired || isOwnPost}
-          >
-            <MessageIcon size={18} color={isOwnPost ? colors.onSurfaceVariant : colors.onPrimary} />
-            <Text style={[styles.dmButtonText, isOwnPost && styles.dmButtonTextDisabled]}>
-              {isOwnPost ? t('cannotDmSelf') : t('partnerDmOrganizer')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {!isOwnPost && (
+          <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
+            <TouchableOpacity
+              style={styles.dmButton}
+              activeOpacity={0.7}
+              onPress={handleDmOrganizer}
+              disabled={partner.expired}
+            >
+              <MessageIcon size={18} color={colors.onPrimary} />
+              <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Report Modal */}
@@ -338,9 +340,15 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-onSubmit={async (reasonCategory, reason) => {
-            try {
-            await reportService.submit({ targetType: 'function', targetId: partner.id, reasonCategory, reason });
+        overlayTransparent
+        onSubmit={async (reasonCategory, reason) => {
+          try {
+            await reportService.submit({
+              targetType: 'function',
+              targetId: partner.id,
+              reasonCategory,
+              reason,
+            });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -520,20 +528,28 @@ const styles = StyleSheet.create({
   organizerNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  organizerNameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   organizerName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     flexShrink: 1,
+    marginTop: 2,
   },
 
   /* ----- Action Bar ----- */
@@ -575,7 +591,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'transparent',
   },
   popoverBubble: {
     position: 'absolute' as const,
@@ -603,4 +619,5 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+
 

@@ -110,7 +110,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
             forwardedPostId: targetPostId,
             forwardedMessage: messageText.trim() || undefined,
             forwardedNonce: `${Date.now()}-${selectedContact.id}-${targetPostId}`,
-            forwardedRequiresConfirm: true,
+            forwardedRequiresConfirm: false,
             ...(backTo ? { backTo } : {}),
           },
         },

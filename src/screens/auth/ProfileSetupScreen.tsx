@@ -45,18 +45,19 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const [nickname, setNickname] = useState('');
   const [grade, setGrade] = useState('');
   const [major, setMajor] = useState('');
-  const [gender, setGender] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState<string | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('grade');
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
   const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
+  const GENDER_KEYS: Gender[] = ['male', 'female', 'other', 'secret'];
 
   const pickerData: Record<PickerType, string[]> = {
     grade: GRADE_KEYS,
     major: MAJOR_KEYS,
-    gender: [t('genderMale'), t('genderFemale'), t('genderOther'), t('genderSecret')],
+    gender: GENDER_KEYS,
   };
 
   const pickerTitles: Record<PickerType, string> = {
@@ -86,7 +87,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           setMajor(value);
           break;
         case 'gender':
-          setGender(value);
+          setGender(value as Gender);
           break;
       }
       setPickerVisible(false);
@@ -97,18 +98,23 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const hasAvatar = !!(avatarUri || selectedDefaultAvatar);
   const isFormComplete = !!(nickname.trim() && grade && major && gender && hasAvatar);
 
-  const mapGender = (genderLabel: string): Gender => {
-    const genderMap: Record<string, Gender> = {
-      [t('genderMale')]: 'male',
-      [t('genderFemale')]: 'female',
-      [t('genderOther')]: 'other',
-      [t('genderSecret')]: 'secret',
-    };
-    return genderMap[genderLabel] || 'other';
-  };
+  const getGenderLabel = useCallback((value: Gender | '') => {
+    switch (value) {
+      case 'male':
+        return t('genderMale');
+      case 'female':
+        return t('genderFemale');
+      case 'other':
+        return t('genderOther');
+      case 'secret':
+        return t('genderSecret');
+      default:
+        return '';
+    }
+  }, [t]);
 
   const handleDone = useCallback(async () => {
-    const resolvedGender = mapGender(gender) || 'male';
+    const resolvedGender: Gender = gender || 'other';
     setIsSaving(true);
     try {
       // Upload avatar if selected
@@ -227,7 +233,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
                 <InitialAvatar
                   text={nickname || 'U'}
                   size={96}
-                  gender={gender ? mapGender(gender) : undefined}
+                  gender={gender === 'male' || gender === 'female' ? gender : undefined}
                 />
               )}
             </View>
@@ -297,7 +303,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
             <Text style={styles.fieldLabel}>{t('gender')}</Text>
             <View style={styles.fieldSelect}>
               {gender ? (
-                <Text style={styles.fieldValue}>{gender}</Text>
+                <Text style={styles.fieldValue}>{getGenderLabel(gender)}</Text>
               ) : null}
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </View>
@@ -353,7 +359,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
                       currentValues[pickerType] === item && styles.pickerItemTextSelected,
                     ]}
                   >
-                    {pickerType === 'gender' ? item : t(item)}
+                    {pickerType === 'gender' ? getGenderLabel(item as Gender) : t(item)}
                   </Text>
                 </TouchableOpacity>
               )}

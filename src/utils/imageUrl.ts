@@ -13,7 +13,6 @@ const getImageBaseUrl = (): string => {
 
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return normalizePublicBaseUrl(apiUrl);
-
   const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
   if (extraApiUrl) return normalizePublicBaseUrl(extraApiUrl);
 

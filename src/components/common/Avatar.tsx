@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../../theme';
 import { DefaultAvatarSvg, InitialAvatar, getAvatarDef } from './DefaultAvatarPicker';
 import { normalizeAvatarUrl } from '../../utils/imageUrl';
@@ -56,9 +57,13 @@ function Avatar({ text, uri, defaultAvatar, size = 'md', gender }: AvatarProps) 
   const isImageUri = normalizedUri && (normalizedUri.startsWith('http') || normalizedUri.startsWith('file://') || normalizedUri.startsWith('data:'));
   if (isImageUri) {
     return (
-      <Image
-        source={{ uri: normalizedUri }}
+      <ExpoImage
+        source={normalizedUri}
         style={[styles.image, { width: s, height: s, borderRadius: s / 2 }]}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={0}
+        recyclingKey={normalizedUri}
       />
     );
   }

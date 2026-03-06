@@ -280,6 +280,9 @@ export default function MeScreen({ navigation }: Props) {
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
+  const [postPreviewVisible, setPostPreviewVisible] = useState(false);
+  const [postPreviewImages, setPostPreviewImages] = useState<string[]>([]);
+  const [postPreviewIndex, setPostPreviewIndex] = useState(0);
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
@@ -383,6 +386,13 @@ export default function MeScreen({ navigation }: Props) {
       params: { tag },
     });
   }, [navigation]);
+
+  const handlePostImagePress = useCallback((images: string[], index: number) => {
+    if (!Array.isArray(images) || images.length === 0) return;
+    setPostPreviewImages(images);
+    setPostPreviewIndex(index);
+    setPostPreviewVisible(true);
+  }, []);
 
   const handleFunctionPress = useCallback((post: ForumPost) => {
     const functionId =
@@ -492,6 +502,7 @@ export default function MeScreen({ navigation }: Props) {
               onQuote={() => handleQuote(post)}
               onTagPress={(tag) => handleTagPress(post, tag)}
               onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+              onImagePress={handlePostImagePress}
               onQuotedPostPress={(quotedId) => goToPost(quotedId)}
               onVote={(optIdx) => {
                 const optionId = post.pollOptions?.[optIdx]?.id;
@@ -617,6 +628,7 @@ export default function MeScreen({ navigation }: Props) {
               onQuote={() => handleQuote(post)}
               onTagPress={(tag) => handleTagPress(post, tag)}
               onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+              onImagePress={handlePostImagePress}
               onQuotedPostPress={(quotedId) => goToPost(quotedId)}
               onVote={(optIdx) => {
                 const optionId = post.pollOptions?.[optIdx]?.id;
@@ -764,6 +776,7 @@ export default function MeScreen({ navigation }: Props) {
         onQuote={() => handleQuote(post)}
         onTagPress={(tag) => handleTagPress(post, tag)}
         onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}
+        onImagePress={handlePostImagePress}
         onQuotedPostPress={(quotedId) => goToPost(quotedId)}
         onVote={(optIdx) => {
           const optionId = post.pollOptions?.[optIdx]?.id;
@@ -794,7 +807,7 @@ export default function MeScreen({ navigation }: Props) {
         votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
       />
     ));
-  }, [activeTab, myContent, emptyLabels, t, lang, goToPost, goToComment, handleForward, handleQuote, handleAvatarPress, handleTagPress, handleFunctionPress, mapUserPostToForumPost, displayUser, likePostMutation, bookmarkPostMutation, votePostMutation, deletePostMutation, queryClient, showSnackbar, showModal, votedPolls]);
+  }, [activeTab, myContent, emptyLabels, t, lang, goToPost, goToComment, handleForward, handleQuote, handleAvatarPress, handleTagPress, handleFunctionPress, handlePostImagePress, mapUserPostToForumPost, displayUser, likePostMutation, bookmarkPostMutation, votePostMutation, deletePostMutation, queryClient, showSnackbar, showModal, votedPolls]);
 
   if (isLoading && !displayUser) {
     return (
@@ -1052,6 +1065,13 @@ export default function MeScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <ImagePreviewModal
+        visible={postPreviewVisible}
+        images={postPreviewImages}
+        initialIndex={postPreviewIndex}
+        onClose={() => setPostPreviewVisible(false)}
+      />
 
       <ImagePreviewModal
         visible={avatarPreviewVisible}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Image,
+  Image as RNImage,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -10,6 +10,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -75,8 +76,15 @@ export default function ImagePreviewModal({
           data={images}
           horizontal
           pagingEnabled
+          directionalLockEnabled
+          decelerationRate="fast"
+          disableIntervalMomentum
           scrollEnabled={scrollEnabled}
           initialScrollIndex={safeIndex}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+          removeClippedSubviews
           keyExtractor={(item, index) => `${item}-${index}`}
           renderItem={({ item, index }) => (
             <View style={[styles.slide, { width, height: imageHeight }]}>
@@ -149,7 +157,7 @@ function ZoomableImage({
 
   useEffect(() => {
     let canceled = false;
-    Image.getSize(
+    RNImage.getSize(
       uri,
       (imageWidth, imageHeight) => {
         if (canceled || imageWidth <= 0 || imageHeight <= 0) return;
@@ -272,7 +280,14 @@ function ZoomableImage({
     <GestureDetector gesture={gesture}>
       <View style={[styles.zoomContainer, { width, height }]}>
         <Animated.View style={[animatedStyle, contentSize]}>
-          <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+          <ExpoImage
+            source={uri}
+            style={styles.image}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={0}
+            recyclingKey={uri}
+          />
         </Animated.View>
       </View>
     </GestureDetector>

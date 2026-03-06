@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   useWindowDimensions,
   BackHandler,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -23,15 +22,17 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
+import PostImageGallery from '../../components/common/PostImageGallery';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildPostMeta } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -61,14 +62,15 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const isSold = item?.sold ?? false;
   const isExpired = item ? item.expired && !item.sold : false;
   const isListingInactive = isSold || isExpired;
-  const isWantDisabled = isListingInactive || isOwnPost;
-  const isContactDisabled = isListingInactive || isOwnPost;
-  const primaryImage = item?.images?.[0];
+  const isContactDisabled = isOwnPost || isListingInactive;
+  const isWantDisabled = isListingInactive;
+  const previewImages = useMemo(() => item?.images ?? [], [item?.images]);
 
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   const handleBack = useCallback(() => {
     if (backToChat) {
@@ -173,8 +175,10 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const sellerMeta = buildPostMeta(t, lang, {
-    createdAt: item.createdAt,
+  const sellerTime = getRelativeTime(item.createdAt, lang);
+  const sellerMeta = buildGradeMajorMeta(t, {
+    gradeKey: item.gradeKey,
+    majorKey: item.majorKey,
   });
 
   return (
@@ -234,26 +238,25 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ----- Hero Image ----- */}
         <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isListingInactive && styles.heroImageDimmed]}>
-          {primaryImage ? (
-            <TouchableOpacity
-              style={styles.heroImageTouch}
-              activeOpacity={0.9}
-              onPress={() => setPreviewVisible(true)}
-            >
-              <Image source={{ uri: primaryImage }} style={styles.heroImageAsset} resizeMode="cover" />
-            </TouchableOpacity>
+                    {previewImages.length > 0 ? (
+            <PostImageGallery
+              images={previewImages}
+              onImagePress={(index) => {
+                setPreviewIndex(index);
+                setPreviewVisible(true);
+              }}
+              borderRadiusValue={0}
+              backgroundColor={colors.surface2}
+              minHeight={screenWidth * 0.65}
+              maxHeight={screenWidth * 0.65}
+              resizeMode="cover"
+            />
           ) : (
             <ShoppingBagIcon size={56} color={colors.outlineVariant} />
           )}
-          {(item.images?.length ?? 0) > 1 ? (
-            <View style={styles.imageCountBadge}>
-              <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
-            </View>
-          ) : null}
-
           {/* Condition badge */}
           <View style={styles.conditionBadge}>
-            <Text style={styles.conditionBadgeText}>{item.condition}</Text>
+            <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
           </View>
 
           {/* Status overlay */}
@@ -358,12 +361,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             <View style={styles.sellerInfo}>
               <View style={styles.sellerNameRow}>
-                <Text style={styles.sellerName}>{item.user}</Text>
-                {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                <Text style={styles.timeDot}> · </Text>
-                <Text style={styles.meta} numberOfLines={1}>{sellerMeta}</Text>
+                <View style={styles.sellerNameLeft}>
+                  <Text style={styles.sellerName}>{item.user}</Text>
+                  {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
+                  {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                </View>
+                <Text style={styles.timeText}>�� {sellerTime}</Text>
               </View>
+              {sellerMeta ? <Text style={styles.meta} numberOfLines={1}>{sellerMeta}</Text> : null}
             </View>
           </View>
         </View>
@@ -377,34 +382,36 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         </View>
 
         {/* ----- Action Bar ----- */}
-        <View style={[styles.actionBar, isListingInactive && styles.actionBarDisabled]}>
-          <TouchableOpacity
-            style={[styles.wantButton, isWanted && styles.wantedButton]}
-            activeOpacity={0.7}
-            onPress={handleWant}
-            disabled={isWantDisabled}
-          >
-            <HeartIcon
-              size={18}
-              color={isWanted ? colors.error : colors.onSurface}
-              fill={isWanted ? colors.error : undefined}
-            />
-            <Text style={[styles.wantButtonText, isWanted && styles.wantedButtonText]}>
-              {isWanted ? t('wanted') : t('iWant')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.contactButton, isContactDisabled && styles.contactButtonDisabled]}
-            activeOpacity={0.7}
-            onPress={handleContact}
-            disabled={isContactDisabled}
-          >
-            <MessageIcon size={18} color={isContactDisabled ? colors.onSurfaceVariant : colors.onPrimary} />
-            <Text style={[styles.contactButtonText, isContactDisabled && styles.contactButtonTextDisabled]}>
-              {isOwnPost ? t('cannotDmSelf') : t('secondhandDmSeller')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {!isOwnPost && (
+          <View style={[styles.actionBar, isListingInactive && styles.actionBarDisabled]}>
+            <TouchableOpacity
+              style={[styles.wantButton, isWanted && styles.wantedButton]}
+              activeOpacity={0.7}
+              onPress={handleWant}
+              disabled={isWantDisabled}
+            >
+              <HeartIcon
+                size={18}
+                color={isWanted ? colors.error : colors.onSurface}
+                fill={isWanted ? colors.error : undefined}
+              />
+              <Text style={[styles.wantButtonText, isWanted && styles.wantedButtonText]}>
+                {isWanted ? t('wanted') : t('iWant')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactButton}
+              activeOpacity={0.7}
+              onPress={handleContact}
+              disabled={isListingInactive}
+            >
+              <MessageIcon size={18} color={colors.onPrimary} />
+              <Text style={styles.contactButtonText}>
+                {t('secondhandDmSeller')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Report Modal */}
@@ -412,9 +419,15 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         visible={reportVisible}
         title={t('reportPost')}
         onClose={() => setReportVisible(false)}
-onSubmit={async (reasonCategory, reason) => {
-            try {
-            await reportService.submit({ targetType: 'function', targetId: item.id, reasonCategory, reason });
+        overlayTransparent
+        onSubmit={async (reasonCategory, reason) => {
+          try {
+            await reportService.submit({
+              targetType: 'function',
+              targetId: item.id,
+              reasonCategory,
+              reason,
+            });
             setReportVisible(false);
             showSnackbar({ message: t('reportSubmitted'), type: 'success' });
           } catch {
@@ -435,8 +448,8 @@ onSubmit={async (reasonCategory, reason) => {
       />
       <ImagePreviewModal
         visible={previewVisible}
-        images={item.images ?? []}
-        initialIndex={0}
+        images={previewImages}
+        initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
       </SafeAreaView>
@@ -679,20 +692,28 @@ const styles = StyleSheet.create({
   sellerNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    columnGap: 8,
+  },
+  sellerNameLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    flexShrink: 1,
   },
   sellerName: {
     ...typography.titleSmall,
     color: colors.onSurface,
   },
-  timeDot: {
+  timeText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     flexShrink: 1,
+    marginTop: 2,
   },
 
   /* ----- Disclaimer ----- */
@@ -773,7 +794,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'transparent',
   },
   popoverBubble: {
     position: 'absolute' as const,
@@ -801,3 +822,5 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+
+

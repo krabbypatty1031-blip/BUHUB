@@ -94,6 +94,17 @@ function mapPollOptions(
   }));
 }
 
+function normalizeGenderValue(value: unknown): 'male' | 'female' | 'other' {
+  if (typeof value !== 'string') return 'other';
+  const normalized = value.trim().toLowerCase();
+  const compact = normalized.replace(/[^a-z]/g, '');
+
+  if (compact.startsWith('female')) return 'female';
+  if (compact.startsWith('male')) return 'male';
+  if (compact === 'secret') return 'other';
+  return 'other';
+}
+
 function mapPostRecord(p: any): ForumPost {
   const author = p.author ?? {};
   const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
@@ -118,7 +129,7 @@ function mapPostRecord(p: any): ForumPost {
     avatar: resolveAvatarValue(avatarSource),
     defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
     userName: p.isAnonymous ? undefined : (p.userName ?? author.userName ?? author.nickname),
-    gender: p.isAnonymous ? 'other' : (author.gender ?? p.gender ?? 'other'),
+    gender: p.isAnonymous ? 'other' : normalizeGenderValue(author.gender ?? p.gender),
     gradeKey: p.isAnonymous ? undefined : (p.gradeKey ?? author.grade),
     majorKey: p.isAnonymous ? undefined : (p.majorKey ?? author.major),
     meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' 路 '),
@@ -145,7 +156,7 @@ function mapReplyRecord(r: any, parentName: string): Reply {
     userName: isAnonymous ? undefined : (r.userName ?? r.author?.userName ?? r.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(r.avatar ?? r.anonymousAvatar ?? r.author?.avatar),
     defaultAvatar: isAnonymous ? undefined : r.author?.avatar,
-    gender: isAnonymous ? undefined : (r.author?.gender as 'male' | 'female' | 'other'),
+    gender: isAnonymous ? undefined : normalizeGenderValue(r.author?.gender),
     gradeKey: isAnonymous ? undefined : (r.author?.grade ?? undefined),
     majorKey: isAnonymous ? undefined : (r.author?.major ?? undefined),
     sourceLanguage: r.sourceLanguage ?? 'tc',
@@ -174,7 +185,7 @@ function mapCommentRecord(c: any): Comment {
     userName: isAnonymous ? undefined : (c.userName ?? c.author?.userName ?? c.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(c.avatar ?? c.anonymousAvatar ?? c.author?.avatar),
     defaultAvatar: isAnonymous ? undefined : c.author?.avatar,
-    gender: isAnonymous ? undefined : (c.author?.gender as 'male' | 'female' | 'other'),
+    gender: isAnonymous ? undefined : normalizeGenderValue(c.author?.gender),
     gradeKey: isAnonymous ? undefined : (c.author?.grade ?? undefined),
     majorKey: isAnonymous ? undefined : (c.author?.major ?? undefined),
     sourceLanguage: c.sourceLanguage ?? 'tc',

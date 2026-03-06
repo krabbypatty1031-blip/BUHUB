@@ -6,14 +6,14 @@ import ENDPOINTS from '../endpoints';
 
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
 
-const getMockBaseUrl = (): string => {
-  const u = process.env.EXPO_PUBLIC_MOCK_BASE_URL || process.env.EXPO_PUBLIC_APP_URL;
-  if (u) return u.replace(/\/$/, '');
-  const api = process.env.EXPO_PUBLIC_API_URL;
-  if (api) return api.replace(/\/api\/?$/, '');
-  return '';
-};
 const TOKEN_KEY = 'buhub-token';
+const MAX_IMAGE_EDGE = 1600;
+const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+const AVATAR_MAX_EDGE = 320;
+const AVATAR_TARGET_MAX_SIZE = 120 * 1024; // 120KB
+const MAX_BATCH_IMAGE_UPLOAD_COUNT = 12;
+const IMAGE_UPLOAD_CONCURRENCY = 3;
+
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -22,11 +22,21 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/m4a',
   'audio/mp4',
   'audio/x-m4a',
+  'audio/x-caf',
+  'audio/wav',
+  'audio/aac',
 ]);
-const MAX_IMAGE_EDGE = 1600;
-const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 
 type UploadInput = { uri: string; type: string; name: string };
+type ImageCompressionMode = 'general' | 'avatar';
+
+const getMockBaseUrl = (): string => {
+  const u = process.env.EXPO_PUBLIC_MOCK_BASE_URL || process.env.EXPO_PUBLIC_APP_URL;
+  if (u) return u.replace(/\/$/, '');
+  const api = process.env.EXPO_PUBLIC_API_URL;
+  if (api) return api.replace(/\/api\/?$/, '');
+  return '';
+};
 
 function getApiOrigin(): string {
   if (API_BASE) return API_BASE.replace(/\/api\/?$/i, '');
@@ -55,68 +65,13 @@ function ensureJpegName(name: string): string {
 }
 
 function ensureAudioName(name: string): string {
-  return name.replace(/\.[a-z0-9]+$/i, '') + '.m4a';
+  const trimmed = (name || '').trim();
+  const hasExt = /\.[a-z0-9]+$/i.test(trimmed);
+  return hasExt ? trimmed : `${trimmed || `voice-${Date.now()}`}.m4a`;
 }
 
 function isImageMimeType(type: string): boolean {
   return type.startsWith('image/');
-}
-
-async function compressImage(file: UploadInput): Promise<UploadInput> {
-  const normalizedType = normalizeMimeType(file.type);
-  if (!normalizedType.startsWith('image/')) {
-    throw new Error('仅支持图片上传');
-  }
-
-  if (normalizedType === 'image/gif') {
-    // Keep GIF as-is to avoid losing animation frames.
-    return { ...file, type: normalizedType };
-  }
-
-  let originalSize = 0;
-  try {
-    const originalBlob = await readLocalFileBlob(file.uri);
-    originalSize = originalBlob.size;
-  } catch {
-    // Some Android content:// URIs are not directly fetchable; keep going.
-  }
-
-  const width = originalSize > 4 * 1024 * 1024 ? 1080 : originalSize > TARGET_MAX_IMAGE_SIZE ? 1280 : 1600;
-  const qualityEstimate = originalSize > 0
-    ? Math.max(0.45, Math.min(0.82, (TARGET_MAX_IMAGE_SIZE / originalSize) * 0.95))
-    : 0.72;
-
-  let manipulated;
-  try {
-    manipulated = await manipulateAsync(
-      file.uri,
-      [{ resize: { width: Math.min(width, MAX_IMAGE_EDGE) } }],
-      {
-        compress: qualityEstimate,
-        format: SaveFormat.JPEG,
-      }
-    );
-  } catch (error) {
-    throw new Error(`图片压缩失败: ${error instanceof Error ? error.message : 'unknown error'}`);
-  }
-
-  const compressedBlob = await readLocalFileBlob(manipulated.uri);
-  const compressedSize = compressedBlob.size;
-  if (__DEV__) {
-    console.log('[Upload] Compression summary:', {
-      originalSize,
-      compressedSize,
-      targetSize: TARGET_MAX_IMAGE_SIZE,
-      width,
-      quality: Number(qualityEstimate.toFixed(3)),
-    });
-  }
-
-  return {
-    uri: manipulated.uri,
-    type: 'image/jpeg',
-    name: ensureJpegName(file.name),
-  };
 }
 
 async function readLocalFileBlob(uri: string): Promise<Blob> {
@@ -141,41 +96,122 @@ async function readLocalFileBlob(uri: string): Promise<Blob> {
   throw lastError instanceof Error ? lastError : new Error('Failed to read local file');
 }
 
+async function compressImage(
+  file: UploadInput,
+  mode: ImageCompressionMode = 'general'
+): Promise<UploadInput> {
+  const normalizedType = normalizeMimeType(file.type);
+  if (!normalizedType.startsWith('image/')) {
+    throw new Error('Only image files are supported for image compression.');
+  }
+
+  // Keep GIF as-is to avoid dropping animation frames.
+  if (normalizedType === 'image/gif') {
+    return { ...file, type: normalizedType };
+  }
+
+  let originalSize = 0;
+  try {
+    const originalBlob = await readLocalFileBlob(file.uri);
+    originalSize = originalBlob.size;
+  } catch {
+    // Some Android content:// URIs are not directly fetchable.
+  }
+
+  const targetMaxSize = mode === 'avatar' ? AVATAR_TARGET_MAX_SIZE : TARGET_MAX_IMAGE_SIZE;
+  const maxEdge = mode === 'avatar' ? AVATAR_MAX_EDGE : MAX_IMAGE_EDGE;
+  const width =
+    mode === 'avatar'
+      ? (originalSize > targetMaxSize ? 280 : 320)
+      : (originalSize > 4 * 1024 * 1024 ? 1080 : originalSize > targetMaxSize ? 1280 : 1600);
+  const qualityEstimate =
+    originalSize > 0
+      ? mode === 'avatar'
+        ? Math.max(0.4, Math.min(0.75, (targetMaxSize / originalSize) * 0.95))
+        : Math.max(0.45, Math.min(0.82, (targetMaxSize / originalSize) * 0.95))
+      : mode === 'avatar'
+        ? 0.65
+        : 0.72;
+
+  const manipulated = await manipulateAsync(
+    file.uri,
+    [{ resize: { width: Math.min(width, maxEdge) } }],
+    {
+      compress: qualityEstimate,
+      format: SaveFormat.JPEG,
+    }
+  );
+
+  if (__DEV__) {
+    const compressedBlob = await readLocalFileBlob(manipulated.uri);
+    console.log('[Upload] Compression summary:', {
+      mode,
+      originalSize,
+      compressedSize: compressedBlob.size,
+      targetSize: targetMaxSize,
+      width,
+      quality: Number(qualityEstimate.toFixed(3)),
+    });
+  }
+
+  return {
+    uri: manipulated.uri,
+    type: 'image/jpeg',
+    name: ensureJpegName(file.name),
+  };
+}
+
+async function uploadBinary(
+  targetUrl: string,
+  headers: Record<string, string>,
+  blob: Blob,
+  retries = 2
+): Promise<Response> {
+  let lastError: unknown;
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(targetUrl, {
+        method: 'PUT',
+        headers,
+        body: blob,
+      });
+      if (response.ok) return response;
+      lastResponse = response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastResponse) return lastResponse;
+  throw lastError instanceof Error ? lastError : new Error('Upload request failed.');
+}
+
 async function uploadViaPresigned(
-  file: UploadInput
+  file: UploadInput,
+  options?: { imageMode?: ImageCompressionMode }
 ): Promise<{ url: string }> {
   const normalizedType = normalizeMimeType(file.type);
   const preparedFile = isImageMimeType(normalizedType)
-    ? await compressImage(file)
+    ? await compressImage(file, options?.imageMode ?? 'general')
     : {
         ...file,
         type: normalizedType,
         name: ensureAudioName(file.name),
       };
 
-  let fileBlob: Blob;
-  try {
-    fileBlob = await readLocalFileBlob(preparedFile.uri);
-  } catch (fetchError) {
-    throw new Error(`读取图片文件失败: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`);
-  }
-
+  const fileBlob = await readLocalFileBlob(preparedFile.uri);
   const fileSize = fileBlob.size ?? 0;
   if (fileSize <= 0) {
-    throw new Error('Could not determine file size');
+    throw new Error('Could not determine file size.');
   }
 
-  let presignedData;
-  try {
-    const { data } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
-      fileName: preparedFile.name,
-      fileSize,
-      mimeType: normalizedType,
-    });
-    presignedData = data;
-  } catch (apiError) {
-    throw new Error(`获取上传链接失败: ${apiError instanceof Error ? apiError.message : '未知错误'}`);
-  }
+  const { data: presignedData } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
+    fileName: preparedFile.name,
+    fileSize,
+    mimeType: normalizedType,
+  });
 
   const { uploadUrl, fileUrl, fileKey } = presignedData;
   const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
@@ -186,30 +222,55 @@ async function uploadViaPresigned(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  let uploadResponse;
-  try {
-    uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers,
-      body: fileBlob,
-    });
-    if (!uploadResponse.ok && finalUploadUrl !== uploadUrl) {
-      uploadResponse = await fetch(finalUploadUrl, {
-        method: 'PUT',
-        headers,
-        body: fileBlob,
-      });
+  const targets = finalUploadUrl !== uploadUrl ? [uploadUrl, finalUploadUrl] : [uploadUrl];
+  let uploadResponse: Response | null = null;
+  let lastUploadError: unknown = null;
+
+  for (const target of targets) {
+    try {
+      uploadResponse = await uploadBinary(target, headers, fileBlob, 2);
+      if (uploadResponse.ok) break;
+    } catch (error) {
+      lastUploadError = error;
     }
-  } catch (uploadError) {
-    throw new Error(`上传文件失败: ${uploadError instanceof Error ? uploadError.message : '网络错误，请检查网络连接'}`);
   }
 
+  if (!uploadResponse) {
+    throw new Error(
+      `Upload failed: ${
+        lastUploadError instanceof Error ? lastUploadError.message : 'network error'
+      }`
+    );
+  }
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
-    throw new Error(`上传失败(${uploadResponse.status}): ${errorText || 'unknown error'}`);
+    throw new Error(`Upload failed (${uploadResponse.status}): ${errorText || 'unknown error'}`);
   }
 
   return { url: fileUrl };
+}
+
+async function uploadImagesWithConcurrency(files: UploadInput[]): Promise<string[]> {
+  if (files.length === 0) return [];
+
+  const results: string[] = new Array(files.length);
+  let cursor = 0;
+
+  const workers = Array.from(
+    { length: Math.min(IMAGE_UPLOAD_CONCURRENCY, files.length) },
+    async () => {
+      while (true) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= files.length) break;
+        const uploaded = await uploadViaPresigned(files[index], { imageMode: 'general' });
+        results[index] = uploaded.url;
+      }
+    }
+  );
+
+  await Promise.all(workers);
+  return results;
 }
 
 export const uploadService = {
@@ -218,7 +279,7 @@ export const uploadService = {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/files/${file.name}` };
     }
-    return uploadViaPresigned(file);
+    return uploadViaPresigned(file, { imageMode: 'general' });
   },
 
   async uploadImage(file: UploadInput): Promise<{ url: string }> {
@@ -226,7 +287,7 @@ export const uploadService = {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/images/${file.name}` };
     }
-    return uploadViaPresigned(file);
+    return uploadViaPresigned(file, { imageMode: 'general' });
   },
 
   async uploadAvatar(file: UploadInput): Promise<{ url: string }> {
@@ -234,15 +295,20 @@ export const uploadService = {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/avatars/${file.name}` };
     }
-    return uploadViaPresigned(file);
+    return uploadViaPresigned(file, { imageMode: 'avatar' });
   },
 
   async uploadImages(files: UploadInput[]): Promise<{ urls: string[] }> {
+    if (files.length > MAX_BATCH_IMAGE_UPLOAD_COUNT) {
+      throw new Error(`Too many images. Maximum allowed is ${MAX_BATCH_IMAGE_UPLOAD_COUNT}.`);
+    }
+
     if (USE_MOCK) {
       const base = getMockBaseUrl();
       return { urls: files.map((f) => `${base}/mock/images/${f.name}`) };
     }
-    const urls = await Promise.all(files.map((f) => uploadViaPresigned(f)));
-    return { urls: urls.map((u) => u.url) };
+
+    const urls = await uploadImagesWithConcurrency(files);
+    return { urls };
   },
 };

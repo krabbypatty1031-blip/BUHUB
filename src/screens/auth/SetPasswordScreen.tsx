@@ -163,9 +163,9 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
                 activeOpacity={0.7}
               >
                 {isPasswordVisible ? (
-                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
-                ) : (
                   <EyeIcon size={20} color={colors.onSurfaceVariant} />
+                ) : (
+                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
                 )}
               </TouchableOpacity>
             </View>
@@ -191,9 +191,9 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
                 activeOpacity={0.7}
               >
                 {isConfirmVisible ? (
-                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
-                ) : (
                   <EyeIcon size={20} color={colors.onSurfaceVariant} />
+                ) : (
+                  <EyeOffIcon size={20} color={colors.onSurfaceVariant} />
                 )}
               </TouchableOpacity>
             </View>
