@@ -140,6 +140,24 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function getApiErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const anyErr = error as any;
+  return anyErr.errorCode || anyErr?.error?.code || anyErr.code;
+}
+
+function looksLikeContentViolation(error: unknown): boolean {
+  const code = getApiErrorCode(error);
+  if (code === 'CONTENT_VIOLATION') return true;
+  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  return typeof msg === 'string' && (msg.includes('CONTENT_VIOLATION') || msg.includes('violates community guidelines'));
+}
+
+function looksLikeImageViolation(error: unknown): boolean {
+  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  return typeof msg === 'string' && (msg.includes('"code":"CONTENT_VIOLATION"') || msg.includes('Image contains content'));
+}
+
 type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 
 /* ----- Union type for FlatList data ----- */
@@ -1138,8 +1156,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         await sendMessage({ payload: { text } });
         forwardedTextSentRef.current = draft.messageDedupeKey;
         return true;
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
         return false;
       } finally {
         if (forwardedTextSendingRef.current === draft.messageDedupeKey) {
@@ -1171,8 +1192,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         });
         cardSentRef.current = draft.dedupeKey;
         return true;
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
         return false;
       } finally {
         if (cardSendingRef.current === draft.dedupeKey) {
@@ -1705,13 +1729,23 @@ export default function ChatScreen({ navigation, route }: Props) {
             onSuccess: () => {
               setReplyTarget(null);
             },
-            onError: () => {
-              showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+            onError: (error: unknown) => {
+              const msg = looksLikeImageViolation(error)
+                ? t('imageViolation')
+                : looksLikeContentViolation(error)
+                  ? t('contentViolation')
+                  : extractErrorMessage(error, t('dataLoadFailed'));
+              showSnackbar({ message: msg, type: 'error' });
             },
           }
         );
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeImageViolation(error)
+          ? t('imageViolation')
+          : looksLikeContentViolation(error)
+            ? t('contentViolation')
+            : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
       }
     }
   }, [buildReplyPayload, sendMessageMutation, showSnackbar, t]);
@@ -1762,9 +1796,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       setPendingImageAssets([]);
       setImageSendModeVisible(false);
       setIsSendingSelectedImages(false);
-    } catch {
+    } catch (error) {
       setIsSendingSelectedImages(false);
-      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      const msg = looksLikeImageViolation(error)
+        ? t('imageViolation')
+        : looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+      showSnackbar({ message: msg, type: 'error' });
     }
   }, [
     buildReplyPayload,
