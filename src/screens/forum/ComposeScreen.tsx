@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -143,8 +143,10 @@ export default function ComposeScreen({ navigation, route }: Props) {
             showSnackbar({ message: t('postSuccess'), type: 'success' });
             navigation.goBack();
           },
-          onError: () => {
-            showSnackbar({ message: t('postFailed'), type: 'error' });
+          onError: (err: any) => {
+            const code = err?.errorCode || err?.code;
+            const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('postFailed');
+            showSnackbar({ message: msg, type: 'error' });
           },
           onSettled: () => {
             setIsPosting(false);
@@ -152,7 +154,11 @@ export default function ComposeScreen({ navigation, route }: Props) {
         }
       );
     } catch (error: any) {
-      showSnackbar({ message: error?.message || t('postFailed'), type: 'error' });
+      const code = error?.errorCode || error?.code;
+      let msg = t('postFailed');
+      if (code === 'CONTENT_VIOLATION') msg = error?.message?.includes('Image') ? t('imageViolation') : t('contentViolation');
+      else if (error?.message) msg = error.message;
+      showSnackbar({ message: msg, type: 'error' });
       setIsPosting(false);
     }
   }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef]);

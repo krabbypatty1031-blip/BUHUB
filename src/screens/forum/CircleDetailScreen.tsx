@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
+import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -29,7 +29,8 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'CircleDetail'>;
 export default function CircleDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { tag } = route.params;
-  const { data: allPosts } = usePosts();
+  const { data } = usePosts();
+  const allPosts = useMemo(() => flattenPostPages(data), [data]);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const votedPolls = useForumStore((s) => s.votedPolls);
@@ -51,7 +52,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
 
   // Filter posts by tag and exclude blocked users
   const posts = useMemo(
-    () => allPosts?.filter((p) => p.tags?.includes(tag) && !isBlocked(p.name)) ?? [],
+    () => allPosts.filter((p) => p.tags?.includes(tag) && !isBlocked(p.name)),
     [allPosts, tag, blockedUsers, isBlocked]
   );
   const followerCount = circleFollow?.followerCount ?? 0;

@@ -140,6 +140,24 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function getApiErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const anyErr = error as any;
+  return anyErr.errorCode || anyErr?.error?.code || anyErr.code;
+}
+
+function looksLikeContentViolation(error: unknown): boolean {
+  const code = getApiErrorCode(error);
+  if (code === 'CONTENT_VIOLATION') return true;
+  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  return typeof msg === 'string' && (msg.includes('CONTENT_VIOLATION') || msg.includes('violates community guidelines'));
+}
+
+function looksLikeImageViolation(error: unknown): boolean {
+  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  return typeof msg === 'string' && (msg.includes('"code":"CONTENT_VIOLATION"') || msg.includes('Image contains content'));
+}
+
 type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 
 /* ----- Union type for FlatList data ----- */
@@ -833,9 +851,11 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedPostId,
     forwardedMessage,
     forwardedNonce,
-    forwardedRequiresConfirm,
     backTo,
   } = route.params;
+  const forwardedRequiresConfirm = (route.params as any)?.forwardedRequiresConfirm as
+    | boolean
+    | undefined;
   const isScreenFocused = useIsFocused();
   const { data: chatHistory, isLoading } = useChatHistory(contactId, {
     enabled: isScreenFocused,
@@ -986,7 +1006,6 @@ export default function ChatScreen({ navigation, route }: Props) {
   const liveTranscriptionTextRef = useRef('');
   const liveTranscriptionFinalRef = useRef('');
   const liveSpeechActiveRef = useRef(false);
-  const speechUnavailableNoticeShownRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -1069,13 +1088,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const startLiveSpeechRecognition = useCallback(async () => {
     if (liveSpeechActiveRef.current) return;
     const speechRecognitionModule = getSpeechRecognitionModule();
-    if (!speechRecognitionModule) {
-      if (!speechUnavailableNoticeShownRef.current) {
-        speechUnavailableNoticeShownRef.current = true;
-        showSnackbar({ message: t('voiceNotSupported'), type: 'error' });
-      }
-      return;
-    }
+    if (!speechRecognitionModule) return;
     try {
       if (!speechRecognitionModule.isRecognitionAvailable()) return;
       const permission = await speechRecognitionModule.requestPermissionsAsync();
@@ -1091,7 +1104,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     } catch {
       liveSpeechActiveRef.current = false;
     }
-  }, [i18n.language, showSnackbar, t]);
+  }, [i18n.language]);
 
   const forwardedCardDraft = useMemo(() => {
     if (!forwardedType || !forwardedPosterName) return null;
@@ -1145,8 +1158,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         await sendMessage({ payload: { text } });
         forwardedTextSentRef.current = draft.messageDedupeKey;
         return true;
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
         return false;
       } finally {
         if (forwardedTextSendingRef.current === draft.messageDedupeKey) {
@@ -1178,8 +1194,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         });
         cardSentRef.current = draft.dedupeKey;
         return true;
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
         return false;
       } finally {
         if (cardSendingRef.current === draft.dedupeKey) {
@@ -1650,10 +1669,12 @@ export default function ChatScreen({ navigation, route }: Props) {
           );
         }
       }
-    } catch {
+    } catch (err: any) {
       setInputText(text);
       setReplyTarget(previousReplyTarget);
-      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      const code = err?.errorCode || err?.code;
+      const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('dataLoadFailed');
+      showSnackbar({ message: msg, type: 'error' });
     }
   }, [
     buildReplyPayload,
@@ -1710,13 +1731,23 @@ export default function ChatScreen({ navigation, route }: Props) {
             onSuccess: () => {
               setReplyTarget(null);
             },
-            onError: () => {
-              showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+            onError: (error: unknown) => {
+              const msg = looksLikeImageViolation(error)
+                ? t('imageViolation')
+                : looksLikeContentViolation(error)
+                  ? t('contentViolation')
+                  : extractErrorMessage(error, t('dataLoadFailed'));
+              showSnackbar({ message: msg, type: 'error' });
             },
           }
         );
-      } catch {
-        showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      } catch (error) {
+        const msg = looksLikeImageViolation(error)
+          ? t('imageViolation')
+          : looksLikeContentViolation(error)
+            ? t('contentViolation')
+            : extractErrorMessage(error, t('dataLoadFailed'));
+        showSnackbar({ message: msg, type: 'error' });
       }
     }
   }, [buildReplyPayload, sendMessageMutation, showSnackbar, t]);
@@ -1767,9 +1798,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       setPendingImageAssets([]);
       setImageSendModeVisible(false);
       setIsSendingSelectedImages(false);
-    } catch {
+    } catch (error) {
       setIsSendingSelectedImages(false);
-      showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+      const msg = looksLikeImageViolation(error)
+        ? t('imageViolation')
+        : looksLikeContentViolation(error)
+          ? t('contentViolation')
+          : extractErrorMessage(error, t('dataLoadFailed'));
+      showSnackbar({ message: msg, type: 'error' });
     }
   }, [
     buildReplyPayload,
@@ -1965,8 +2001,6 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [buildReplyPreview, replyTarget, sendMessage, showSnackbar, t]);
 
   const transcribeRecordedAudioToText = useCallback(async (uri: string, durationMs: number) => {
-    const seconds = Math.max(1, Math.round(durationMs / 1000));
-    const fallbackText = t('voiceTranscribeFallback', { seconds });
     setIsTranscribingVoice(true);
     try {
       const recognizedText = await transcribeAudioFileWithNativeSpeech({
@@ -1975,16 +2009,18 @@ export default function ChatScreen({ navigation, route }: Props) {
         timeoutMs: Math.max(6000, Math.min(18000, durationMs + 4000)),
       });
       const normalizedText = recognizedText.trim();
-      const finalText = normalizedText.length > 0 ? normalizedText : fallbackText;
-      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${finalText}` : finalText));
-      setIsVoiceMode(false);
+      if (normalizedText.length > 0) {
+        setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${normalizedText}` : normalizedText));
+        setIsVoiceMode(false);
+      } else {
+        showSnackbar({ message: t('voiceTranscribeFailed'), type: 'error' });
+      }
     } catch {
-      setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${fallbackText}` : fallbackText));
-      setIsVoiceMode(false);
+      showSnackbar({ message: t('voiceTranscribeFailed'), type: 'error' });
     } finally {
       setIsTranscribingVoice(false);
     }
-  }, [i18n.language, t]);
+  }, [i18n.language, showSnackbar, t]);
 
   const handleToggleVoiceMode = useCallback(() => {
     if (isRecordingRef.current) return;
@@ -2074,6 +2110,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         setPlayingAudioMessageId(null);
         return;
       }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: resolvedAudioUrl },

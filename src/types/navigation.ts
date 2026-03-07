@@ -1,7 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import { PartnerCategory, PartnerPost } from './partner';
-import { ErrandCategory, Errand } from './errand';
-import { SecondhandCategory, SecondhandItem } from './secondhand';
+import { PartnerCategory } from './partner';
+import { ErrandCategory } from './errand';
+import { SecondhandCategory } from './secondhand';
 import { RatingCategory } from './rating';
 
 export type TabRouteName = 'ForumTab' | 'FunctionsTab' | 'MessagesTab' | 'MeTab';
@@ -10,13 +10,6 @@ export type ChatBackTarget = {
   tab: TabRouteName;
   screen?: string;
   params?: Record<string, unknown>;
-};
-
-export type ForumComposeSelectionParams = {
-  quotePostId?: string;
-  functionType?: 'partner' | 'errand' | 'secondhand';
-  functionTitle?: string;
-  functionId?: string;
 };
 
 type BackToChatParams = {
@@ -37,7 +30,7 @@ export type AuthStackParamList = {
 
 // Forum Stack
 export type ForumStackParamList = {
-  ForumHome: { pendingComposeSelection?: ForumComposeSelectionParams } | undefined;
+  ForumHome: undefined;
   PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
   Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionId?: string; functionIndex?: number };
   Search: undefined;
@@ -50,34 +43,16 @@ export type FunctionsStackParamList = {
   FunctionsHub: undefined;
   PartnerList: { category?: PartnerCategory };
   PartnerDetail: { id: string; backToChat?: BackToChatParams };
-  ComposePartner:
-    | {
-        category?: PartnerCategory;
-        editId?: string;
-        initialData?: PartnerPost;
-      }
-    | undefined;
+  ComposePartner: { category?: string } | undefined;
   PartnerShare: { activityName: string; posterName: string; functionId: string };
   ErrandList: { category?: ErrandCategory };
   ErrandDetail: { id: string; backToChat?: BackToChatParams };
-  ComposeErrand:
-    | {
-        category?: ErrandCategory;
-        editId?: string;
-        initialData?: Errand;
-      }
-    | undefined;
+  ComposeErrand: { category?: ErrandCategory } | undefined;
   ErrandShare: { taskName: string; posterName: string; functionId: string };
   SecondhandList: { category?: SecondhandCategory };
   SecondhandCart: undefined;
   SecondhandDetail: { id: string; backToChat?: BackToChatParams };
-  ComposeSecondhand:
-    | {
-        category?: SecondhandCategory;
-        editId?: string;
-        initialData?: SecondhandItem;
-      }
-    | undefined;
+  ComposeSecondhand: { category?: SecondhandCategory } | undefined;
   SecondhandShare: { itemName: string; posterName: string; functionId: string };
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; id: string };
@@ -85,7 +60,6 @@ export type FunctionsStackParamList = {
   MyPosts: undefined;
   FacilityBooking: undefined;
   LibraryDetail: undefined;
-  UserProfile: { userName: string };
 };
 
 // Messages Stack
@@ -104,6 +78,7 @@ export type MeStackParamList = {
   MeHome: undefined;
   EditProfile: undefined;
   ShareProfile: undefined;
+  ScanQR: undefined;
   FollowList: { type: 'following' | 'followers' };
   ForumList: undefined;
   UserProfile: { userName: string };

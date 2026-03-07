@@ -3,19 +3,23 @@ import Constants from 'expo-constants';
 const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 /**
- * Get the base URL for images (without /api path)
- * From .env: EXPO_PUBLIC_APP_URL, EXPO_PUBLIC_API_URL, or EXPO_PUBLIC_DEV_API_URL (local dev)
+ * Get the base URL for images (without /api path).
+ * Mirrors the fallback chain in client.ts so image URLs always resolve
+ * even when process.env vars are unavailable in production EAS builds.
  */
 const getImageBaseUrl = (): string => {
   const appUrl = process.env.EXPO_PUBLIC_APP_URL;
   if (appUrl) return normalizePublicBaseUrl(appUrl);
+
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return normalizePublicBaseUrl(apiUrl);
   const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
   if (extraApiUrl) return normalizePublicBaseUrl(extraApiUrl);
+
   const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
   if (__DEV__ && devUrl) return normalizePublicBaseUrl(devUrl);
-  return '';
+
+  return 'https://www.uhub.help';
 };
 
 const isIpv4Host = (hostname: string): boolean => {

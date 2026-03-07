@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
+import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -48,11 +48,12 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: allPosts, isLoading, isFetching, refetch } = usePosts();
+  const { data, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts();
+  const allPosts = useMemo(() => flattenPostPages(data), [data]);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
-  const posts = useMemo(() => allPosts?.filter((p) => !isBlocked(p.name)) ?? [], [allPosts, blockedUsers, isBlocked]);
+  const posts = useMemo(() => allPosts.filter((p) => !isBlocked(p.name)), [allPosts, blockedUsers, isBlocked]);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
@@ -284,7 +285,22 @@ export default function ForumScreen({ navigation, route }: Props) {
     }),
     [votedPolls, pollListRefreshKey, posts]
   );
-  const isPullRefreshing = isFetching && !isLoading;
+  const isPullRefreshing = isFetching && !isLoading && !isFetchingNextPage;
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <Text style={styles.loadingFooterText}>{t('loading')}...</Text>
+      </View>
+    );
+  }, [isFetchingNextPage, t]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -304,16 +320,20 @@ export default function ForumScreen({ navigation, route }: Props) {
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        estimatedItemSize={160}
         extraData={listExtraData}
         refreshing={isPullRefreshing}
         onRefresh={() => {
           void refetch();
         }}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         onScroll={onScroll}
         scrollEventThrottle={16}
         removeClippedSubviews={false}
         contentContainerStyle={styles.listContent}
         drawDistance={700}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           isLoading ? (
             <ForumListSkeleton />
@@ -453,6 +473,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 100,
+  },
+  loadingFooter: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  loadingFooterText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   fabWrapper: {
     position: 'absolute',

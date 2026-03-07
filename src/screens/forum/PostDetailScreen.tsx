@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -1040,8 +1040,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           setReplyTo(null);
           setIsAnonymous(false);
         },
-        onError: () => {
-          showSnackbar({ message: t('commentFailed'), type: 'error' });
+        onError: (err: any) => {
+          const code = err?.errorCode || err?.code;
+          const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
+          showSnackbar({ message: msg, type: 'error' });
         },
       }
     );

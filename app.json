@@ -3,19 +3,19 @@
     "name": "UHUB",
     "slug": "buhub-rn",
     "scheme": "buhub",
-    "version": "0.1.1",
+    "version": "0.1.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#6750A4"
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "2",
+      "buildNumber": "5",
       "bundleIdentifier": "com.buhub.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -29,7 +29,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#6750A4"
       },
       "versionCode": 1,
@@ -39,18 +39,29 @@
       "usesCleartextTraffic": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
-    "extra": {
-      "apiUrl": "https://www.uhub.help/api",
-      "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
-      "termsUrl": "https://www.uhub.help/terms",
-      "privacyUrl": "https://www.uhub.help/privacy",
-      "eas": {
-        "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
-      }
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
     },
     "plugins": [
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "UHUB needs camera access to scan QR codes and take photos."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "UHUB needs photo library access to save QR code images.",
+          "savePhotosPermission": "UHUB needs permission to save QR code images to your photo library."
+        }
+      ],
       [
         "expo-speech-recognition",
         {
@@ -61,6 +72,15 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "apiUrl": "https://www.uhub.help/api",
+      "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
+      "termsUrl": "https://www.uhub.help/terms",
+      "privacyUrl": "https://www.uhub.help/privacy",
+      "eas": {
+        "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
+      }
+    }
   }
 }
