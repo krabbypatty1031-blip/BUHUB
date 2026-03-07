@@ -851,9 +851,11 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedPostId,
     forwardedMessage,
     forwardedNonce,
-    forwardedRequiresConfirm,
     backTo,
   } = route.params;
+  const forwardedRequiresConfirm = (route.params as any)?.forwardedRequiresConfirm as
+    | boolean
+    | undefined;
   const isScreenFocused = useIsFocused();
   const { data: chatHistory, isLoading } = useChatHistory(contactId, {
     enabled: isScreenFocused,
