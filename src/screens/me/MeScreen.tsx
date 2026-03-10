@@ -57,6 +57,7 @@ import { getRelativeTime, buildPostMeta } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { hapticLight } from '../../utils/haptics';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -400,18 +401,40 @@ export default function MeScreen({ navigation }: Props) {
     if (!post.functionType || !functionId) return;
     const nav = navigation.getParent();
     if (!nav) return;
+
+    // Build a generic back target so function detail can return
+    // to the same profile screen the user came from.
+    const backTo =
+      buildChatBackTarget(navigation, 'MeTab') ??
+      ({
+        tab: 'MeTab' as const,
+        screen: 'MeHome',
+      } as const);
+
     switch (post.functionType) {
       case 'partner':
-        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'PartnerDetail',
+          params: { id: functionId },
+        });
         break;
       case 'errand':
-        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'ErrandDetail',
+          params: { id: functionId },
+        });
         break;
       case 'secondhand':
-        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'SecondhandDetail',
+          params: { id: functionId, backTo },
+        });
         break;
       case 'rating':
-        nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher', id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'RatingDetail',
+          params: { category: 'teacher', id: functionId },
+        });
         break;
     }
   }, [navigation]);

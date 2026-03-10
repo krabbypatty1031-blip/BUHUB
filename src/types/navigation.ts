@@ -51,7 +51,7 @@ export type FunctionsStackParamList = {
   ErrandShare: { taskName: string; posterName: string; functionId: string };
   SecondhandList: { category?: SecondhandCategory };
   SecondhandCart: undefined;
-  SecondhandDetail: { id: string; backToChat?: BackToChatParams };
+  SecondhandDetail: { id: string; backToChat?: BackToChatParams; backTo?: ChatBackTarget };
   ComposeSecondhand: { category?: SecondhandCategory } | undefined;
   SecondhandShare: { itemName: string; posterName: string; functionId: string };
   RatingList: { category?: RatingCategory };

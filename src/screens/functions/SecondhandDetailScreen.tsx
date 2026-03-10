@@ -52,7 +52,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { width: screenWidth } = useWindowDimensions();
-  const { id, backToChat } = route.params;
+  const { id, backToChat, backTo } = route.params;
   const { data: item } = useSecondhandDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
@@ -82,8 +82,20 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       });
       return;
     }
+
+    if (backTo) {
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        parentNav.navigate(backTo.tab, {
+          ...(backTo.screen ? { screen: backTo.screen } : {}),
+          ...(backTo.params ? { params: backTo.params } : {}),
+        });
+        return;
+      }
+    }
+
     navigation.goBack();
-  }, [navigation, backToChat]);
+  }, [navigation, backToChat, backTo]);
 
   useFocusEffect(
     useCallback(() => {

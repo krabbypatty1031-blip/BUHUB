@@ -60,6 +60,7 @@ import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { hapticLight } from '../../utils/haptics';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
@@ -1067,6 +1068,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     const nav = navigation.getParent();
     if (!nav) return;
 
+    // Build a back target so function detail can return to this post
+    const backTo =
+      buildChatBackTarget(navigation, 'ForumTab') ??
+      ({
+        tab: 'ForumTab' as const,
+        screen: 'PostDetail',
+        params: { postId: post.id },
+      } as const);
+
     switch (post.functionType) {
       case 'partner':
         nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
@@ -1075,10 +1085,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
         break;
       case 'secondhand':
-        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'SecondhandDetail',
+          params: { id: functionId, backTo },
+        });
         break;
       case 'rating':
-        nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'RatingDetail',
+          params: { category: 'teacher' as const, id: functionId },
+        });
         break;
     }
   }, [post, navigation]);
