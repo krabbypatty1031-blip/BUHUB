@@ -20,15 +20,36 @@ const fromApiCategory = (category?: string): SecondhandCategory => {
   return 'other';
 };
 
+const mapApiImagesToUrls = (rawImages: unknown): string[] => {
+  if (!Array.isArray(rawImages)) return [];
+
+  return rawImages
+    .map((img: any) => {
+      if (!img) return null;
+
+      if (typeof img === 'string') {
+        return normalizeImageUrl(img);
+      }
+
+      if (typeof img === 'object') {
+        if (typeof img.url === 'string') {
+          return normalizeImageUrl(img.url);
+        }
+        if (typeof img.path === 'string') {
+          return normalizeImageUrl(img.path);
+        }
+      }
+
+      return null;
+    })
+    .filter((image: string | null): image is string => Boolean(image));
+};
+
 const mapSecondhand = (i: any): SecondhandItem => ({
   ...i,
   id: i.id,
   category: fromApiCategory(i.category),
-  images: Array.isArray(i.images)
-    ? i.images
-        .map((image: string) => normalizeImageUrl(image))
-        .filter((image: string | null): image is string => Boolean(image))
-    : [],
+  images: mapApiImagesToUrls(i.images),
   user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
   userName: i.author?.userName ?? i.userName ?? undefined,
   avatar: normalizeAvatarUrl(i.author?.avatar ?? i.avatar) ?? '',
