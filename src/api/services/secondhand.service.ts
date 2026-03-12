@@ -6,6 +6,39 @@ import { normalizeAvatarUrl, normalizeImageUrl } from '../../utils/imageUrl';
 const USE_MOCK = false;
 
 type ApiSecondhandCategory = 'ELECTRONICS' | 'BOOKS' | 'FURNITURE' | 'OTHER';
+type ApiAuthor = {
+  nickname?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: SecondhandItem['gender'];
+  bio?: string;
+  grade?: string;
+  major?: string;
+  id?: string;
+};
+type ApiImageRecord = {
+  url?: string;
+  path?: string;
+};
+type ApiSecondhandRecord = {
+  id?: string;
+  category?: string;
+  images?: unknown;
+  author?: ApiAuthor;
+  user?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: SecondhandItem['gender'];
+  bio?: string;
+  gradeKey?: string;
+  majorKey?: string;
+  authorId?: string;
+  description?: string;
+  desc?: string;
+  isWanted?: boolean;
+  wants?: unknown[];
+  sourceLanguage?: SecondhandItem['sourceLanguage'];
+} & Record<string, unknown>;
 
 const toApiCategory = (category?: SecondhandCategory): ApiSecondhandCategory | undefined => {
   if (!category) return undefined;
@@ -24,7 +57,7 @@ const mapApiImagesToUrls = (rawImages: unknown): string[] => {
   if (!Array.isArray(rawImages)) return [];
 
   return rawImages
-    .map((img: any) => {
+    .map((img: string | ApiImageRecord | null | undefined) => {
       if (!img) return null;
 
       if (typeof img === 'string') {
@@ -45,11 +78,15 @@ const mapApiImagesToUrls = (rawImages: unknown): string[] => {
     .filter((image: string | null): image is string => Boolean(image));
 };
 
-const mapSecondhand = (i: any): SecondhandItem => ({
-  ...i,
-  id: i.id,
+const mapSecondhand = (i: ApiSecondhandRecord): SecondhandItem => ({
+  id: i.id ?? '',
   category: fromApiCategory(i.category),
+  type: typeof i.type === 'string' ? i.type : '',
+  title: typeof i.title === 'string' ? i.title : '',
   images: mapApiImagesToUrls(i.images),
+  price: typeof i.price === 'string' ? i.price : '',
+  condition: typeof i.condition === 'string' ? i.condition : '',
+  location: typeof i.location === 'string' ? i.location : '',
   user: i.author?.nickname ?? i.author?.userName ?? i.user ?? '?',
   userName: i.author?.userName ?? i.userName ?? undefined,
   avatar: normalizeAvatarUrl(i.author?.avatar ?? i.avatar) ?? '',
@@ -57,8 +94,12 @@ const mapSecondhand = (i: any): SecondhandItem => ({
   bio: i.author?.bio ?? i.bio ?? '',
   gradeKey: i.author?.grade ?? i.gradeKey ?? undefined,
   majorKey: i.author?.major ?? i.majorKey ?? undefined,
-  authorId: i.author?.id ?? i.authorId,
-  desc: i.description ?? i.desc,
+  authorId: i.author?.id ?? i.authorId ?? '',
+  desc: i.description ?? i.desc ?? '',
+  sold: Boolean(i.sold),
+  expiresAt: typeof i.expiresAt === 'string' ? i.expiresAt : '',
+  expired: Boolean(i.expired),
+  createdAt: typeof i.createdAt === 'string' ? i.createdAt : '',
   isWanted: Boolean(i.isWanted ?? (Array.isArray(i.wants) && i.wants.length > 0)),
   sourceLanguage: i.sourceLanguage ?? 'tc',
 });

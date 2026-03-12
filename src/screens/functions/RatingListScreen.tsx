@@ -227,7 +227,6 @@ export default function RatingListScreen({ navigation, route }: Props) {
           data={filteredRatings}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={120}
           contentContainerStyle={styles.listContent}
           refreshing={isLoading}
           onRefresh={refetch}

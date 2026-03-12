@@ -35,7 +35,7 @@ function SkeletonBox({ width = '100%', height = 16, borderRadius: br = borderRad
     <Animated.View
       style={[
         {
-          width: width as any,
+          width,
           height,
           borderRadius: br,
           backgroundColor: colors.surfaceVariant,

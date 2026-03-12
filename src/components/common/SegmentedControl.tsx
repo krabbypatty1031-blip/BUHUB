@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  LayoutChangeEvent,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,7 +27,7 @@ interface SegmentedControlProps<T extends string = string> {
   options: SegmentedControlOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 interface SegmentMeasurement {

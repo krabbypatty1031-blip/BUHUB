@@ -14,6 +14,105 @@ type FunctionRefPayload = {
   title: string;
 };
 
+type ApiAuthorRecord = {
+  avatar?: string | null;
+  defaultAvatar?: string;
+  userName?: string;
+  nickname?: string;
+  gender?: unknown;
+  grade?: string;
+  major?: string;
+};
+
+type ApiPollOptionRecord = {
+  id?: string;
+  text: string;
+  voteCount?: number;
+};
+
+type ApiVoteRecord = {
+  id?: string;
+  optionId?: string;
+  createdAt?: string;
+};
+
+type ApiQuotedPostRecord = {
+  id?: string;
+  name?: string;
+  avatar?: string;
+  gender?: unknown;
+  sourceLanguage?: ForumPost['sourceLanguage'];
+  content?: string;
+  createdAt?: string;
+  isAnonymous?: boolean;
+};
+
+type ApiPostRecord = {
+  id?: string;
+  author?: ApiAuthorRecord;
+  pollOptions?: ApiPollOptionRecord[];
+  postType?: string;
+  content?: string;
+  images?: unknown[];
+  image?: string;
+  isAnonymous?: boolean;
+  avatar?: string | null;
+  anonymousAvatar?: string | null;
+  anonymousName?: string;
+  name?: string;
+  userName?: string;
+  gender?: unknown;
+  gradeKey?: string;
+  majorKey?: string;
+  likeCount?: number;
+  likes?: number;
+  commentCount?: number;
+  comments?: number;
+  sourceLanguage?: ForumPost['sourceLanguage'];
+  lang?: string;
+  defaultAvatar?: string;
+  tags?: string[];
+  liked?: boolean;
+  bookmarked?: boolean;
+  myVote?: ApiVoteRecord;
+  functionIndex?: number;
+  createdAt?: string;
+  quotedPost?: ApiQuotedPostRecord;
+  sourcePostId?: string;
+  translated?: ForumPost['translated'];
+} & Record<string, unknown>;
+
+type ApiCommentRecord = {
+  id?: string;
+  name?: string;
+  userName?: string;
+  avatar?: string | null;
+  anonymousAvatar?: string | null;
+  anonymousName?: string;
+  author?: ApiAuthorRecord;
+  isAnonymous?: boolean;
+  sourceLanguage?: Comment['sourceLanguage'];
+  content?: string;
+  createdAt?: string | number | Date;
+  likeCount?: number;
+  liked?: boolean;
+  bookmarked?: boolean;
+  replies?: ApiCommentRecord[];
+} & Record<string, unknown>;
+
+type ApiCircleRecord = {
+  name?: string;
+  usageCount?: number;
+  followerCount?: number;
+  followed?: boolean;
+};
+
+type ApiPostsResponse = {
+  posts?: ApiPostRecord[];
+  hasMore?: boolean;
+  page?: number;
+};
+
 function encodeFunctionRef(
   content: string,
   ref?: { functionType?: string; functionId?: string; functionTitle?: string }
@@ -87,8 +186,8 @@ function resolveAnonymousNameValue(name: unknown): string | undefined {
 function mapPollOptions(
   pollOpts: { id?: string; text: string; voteCount?: number }[] | undefined
 ) {
-  const totalVotes = pollOpts?.reduce((sum: number, option: any) => sum + (option.voteCount ?? 0), 0) ?? 0;
-  return pollOpts?.map((option: any) => ({
+  const totalVotes = pollOpts?.reduce((sum, option) => sum + (option.voteCount ?? 0), 0) ?? 0;
+  return pollOpts?.map((option) => ({
     ...option,
     percent: totalVotes > 0 ? Math.round(((option.voteCount ?? 0) / totalVotes) * 100) : 0,
   }));
@@ -105,12 +204,28 @@ function normalizeGenderValue(value: unknown): 'male' | 'female' | 'other' {
   return 'other';
 }
 
-function mapPostRecord(p: any): ForumPost {
+function normalizeLanguageValue(value: unknown): ForumPost['sourceLanguage'] | undefined {
+  if (value !== 'tc' && value !== 'sc' && value !== 'en') {
+    return undefined;
+  }
+  return value;
+}
+
+function normalizeTimestamp(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || value instanceof Date) {
+    return new Date(value).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function mapPostRecord(p: ApiPostRecord): ForumPost {
   const author = p.author ?? {};
-  const pollOpts = p.pollOptions as { id?: string; text: string; voteCount?: number }[] | undefined;
+  const pollOpts = p.pollOptions;
   const pollOptions = mapPollOptions(pollOpts);
   const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
   const functionRef = parseFunctionRef(p.content ?? '');
+  const sourceLanguage = normalizeLanguageValue(p.sourceLanguage) ?? normalizeLanguageValue(p.lang) ?? 'tc';
   const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
   const normalizedImages = rawImages
     .map((img: unknown) => normalizeImageUrl(typeof img === 'string' ? img : undefined))
@@ -121,10 +236,10 @@ function mapPostRecord(p: any): ForumPost {
   const resolvedAnonymousName = resolveAnonymousNameValue(p.anonymousName);
 
   return {
-    ...p,
     ...functionRef,
-    lang: p.sourceLanguage ?? p.lang ?? 'tc',
-    sourceLanguage: p.sourceLanguage ?? p.lang ?? 'tc',
+    id: p.id ?? '',
+    lang: sourceLanguage,
+    sourceLanguage,
     name: p.isAnonymous ? (p.name ?? resolvedAnonymousName ?? '?') : (p.name ?? author.nickname ?? '?'),
     avatar: resolveAvatarValue(avatarSource),
     defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
@@ -135,6 +250,35 @@ function mapPostRecord(p: any): ForumPost {
     meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' 路 '),
     likes: p.likeCount ?? p.likes ?? 0,
     comments: p.commentCount ?? p.comments ?? 0,
+    createdAt: normalizeTimestamp(p.createdAt),
+    content: functionRef.content,
+    translated: p.translated,
+    tags: p.tags,
+    liked: p.liked ?? false,
+    bookmarked: p.bookmarked ?? false,
+    isAnonymous: Boolean(p.isAnonymous),
+    postType: p.postType,
+    myVote: p.myVote?.id && p.myVote.optionId && p.myVote.createdAt
+      ? {
+          id: p.myVote.id,
+          optionId: p.myVote.optionId,
+          createdAt: p.myVote.createdAt,
+        }
+      : undefined,
+    functionIndex: typeof p.functionIndex === 'number' ? p.functionIndex : undefined,
+    sourcePostId: typeof p.sourcePostId === 'string' ? p.sourcePostId : undefined,
+    quotedPost: p.quotedPost
+      ? {
+          id: p.quotedPost.id ?? '',
+          name: p.quotedPost.name ?? '?',
+          avatar: typeof p.quotedPost.avatar === 'string' ? p.quotedPost.avatar : undefined,
+          gender: normalizeGenderValue(p.quotedPost.gender),
+          sourceLanguage: normalizeLanguageValue(p.quotedPost.sourceLanguage),
+          content: p.quotedPost.content ?? '',
+          createdAt: p.quotedPost.createdAt,
+          isAnonymous: p.quotedPost.isAnonymous,
+        }
+      : undefined,
     pollOptions,
     isPoll,
     images: normalizedImages.length > 0 ? normalizedImages : (primaryImage ? [primaryImage] : []),
@@ -143,26 +287,26 @@ function mapPostRecord(p: any): ForumPost {
   };
 }
 
-function mapReplyRecord(r: any, parentName: string): Reply {
+function mapReplyRecord(r: ApiCommentRecord, parentName: string): Reply {
   const isAnonymous = !!r.isAnonymous;
   const replyName = r.name ?? resolveAnonymousNameValue(r.anonymousName) ?? r.author?.nickname ?? '?';
   const nestedReplies: Reply[] | undefined = r.replies?.length
-    ? r.replies.map((nested: any) => mapReplyRecord(nested, replyName))
+    ? r.replies.map((nested) => mapReplyRecord(nested, replyName))
     : undefined;
 
   return {
-    id: r.id,
+    id: r.id ?? '',
     name: replyName,
     userName: isAnonymous ? undefined : (r.userName ?? r.author?.userName ?? r.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(r.avatar ?? r.anonymousAvatar ?? r.author?.avatar),
-    defaultAvatar: isAnonymous ? undefined : r.author?.avatar,
+    defaultAvatar: isAnonymous ? undefined : (typeof r.author?.avatar === 'string' ? r.author.avatar : undefined),
     gender: isAnonymous ? undefined : normalizeGenderValue(r.author?.gender),
     gradeKey: isAnonymous ? undefined : (r.author?.grade ?? undefined),
     majorKey: isAnonymous ? undefined : (r.author?.major ?? undefined),
-    sourceLanguage: r.sourceLanguage ?? 'tc',
+    sourceLanguage: normalizeLanguageValue(r.sourceLanguage) ?? 'tc',
     replyTo: parentName,
-    content: r.content,
-    time: typeof r.createdAt === 'string' ? r.createdAt : new Date(r.createdAt).toISOString(),
+    content: r.content ?? '',
+    time: normalizeTimestamp(r.createdAt),
     likes: r.likeCount ?? 0,
     liked: r.liked ?? false,
     bookmarked: r.bookmarked ?? false,
@@ -171,25 +315,25 @@ function mapReplyRecord(r: any, parentName: string): Reply {
   };
 }
 
-function mapCommentRecord(c: any): Comment {
+function mapCommentRecord(c: ApiCommentRecord): Comment {
   const isAnonymous = !!c.isAnonymous;
   const commentName = c.name ?? resolveAnonymousNameValue(c.anonymousName) ?? c.author?.nickname ?? '?';
-  const time = typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString();
+  const time = normalizeTimestamp(c.createdAt);
   const replies: Reply[] | undefined = c.replies?.length
-    ? c.replies.map((reply: any) => mapReplyRecord(reply, commentName))
+    ? c.replies.map((reply) => mapReplyRecord(reply, commentName))
     : undefined;
 
   return {
-    id: c.id,
+    id: c.id ?? '',
     name: commentName,
     userName: isAnonymous ? undefined : (c.userName ?? c.author?.userName ?? c.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(c.avatar ?? c.anonymousAvatar ?? c.author?.avatar),
-    defaultAvatar: isAnonymous ? undefined : c.author?.avatar,
+    defaultAvatar: isAnonymous ? undefined : (typeof c.author?.avatar === 'string' ? c.author.avatar : undefined),
     gender: isAnonymous ? undefined : normalizeGenderValue(c.author?.gender),
     gradeKey: isAnonymous ? undefined : (c.author?.grade ?? undefined),
     majorKey: isAnonymous ? undefined : (c.author?.major ?? undefined),
-    sourceLanguage: c.sourceLanguage ?? 'tc',
-    content: c.content,
+    sourceLanguage: normalizeLanguageValue(c.sourceLanguage) ?? 'tc',
+    content: c.content ?? '',
     time,
     likes: c.likeCount ?? 0,
     liked: c.liked ?? false,
@@ -204,7 +348,7 @@ export const forumService = {
     const { data } = await apiClient.get(ENDPOINTS.FORUM.CIRCLES, {
       params: params?.followedOnly ? { followedOnly: 1 } : undefined,
     });
-    return (Array.isArray(data) ? data : []).map((item: any) => ({
+    return (Array.isArray(data) ? data : []).map((item: ApiCircleRecord) => ({
       name: String(item?.name ?? ''),
       usageCount: Number(item?.usageCount ?? 0),
       followerCount: Number(item?.followerCount ?? 0),
@@ -237,11 +381,11 @@ export const forumService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POSTS, { params });
     if (Array.isArray(data)) {
-      return { posts: data.map((post: any) => mapPostRecord(post)), hasMore: false, page: 1 };
+      return { posts: data.map((post: ApiPostRecord) => mapPostRecord(post)), hasMore: false, page: 1 };
     }
-    const { posts: rawPosts, hasMore, page } = data as { posts: any[]; hasMore: boolean; page: number };
+    const { posts: rawPosts, hasMore, page } = data as ApiPostsResponse;
     return {
-      posts: (Array.isArray(rawPosts) ? rawPosts : []).map((post: any) => mapPostRecord(post)),
+      posts: (Array.isArray(rawPosts) ? rawPosts : []).map((post: ApiPostRecord) => mapPostRecord(post)),
       hasMore: !!hasMore,
       page: page ?? 1,
     };
@@ -253,7 +397,7 @@ export const forumService = {
       return mockPosts.find((p) => p.id === postId) || mockPosts[0];
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.POST_DETAIL(postId));
-    return mapPostRecord(data as any);
+    return mapPostRecord(data as ApiPostRecord);
   },
 
   async getComments(postId: string): Promise<CommentsData> {
@@ -262,7 +406,7 @@ export const forumService = {
       return { [postId]: mockCommentsData[postId] || [] };
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.COMMENTS(postId));
-    const comments: Comment[] = Array.isArray(data) ? data.map((comment: any) => mapCommentRecord(comment)) : [];
+    const comments: Comment[] = Array.isArray(data) ? data.map((comment: ApiCommentRecord) => mapCommentRecord(comment)) : [];
     return { [postId]: comments };
   },
 
@@ -311,7 +455,7 @@ export const forumService = {
       pollOptions: post.pollOptions,
       quotedPostId: post.quotedPostId,
     });
-    return mapPostRecord(data as any);
+    return mapPostRecord(data as ApiPostRecord);
   },
 
   async editPost(postId: string, post: { content: string; tags?: string[] }): Promise<ForumPost> {
@@ -321,7 +465,7 @@ export const forumService = {
       return { ...original, ...post };
     }
     const { data } = await apiClient.put(ENDPOINTS.FORUM.EDIT_POST(postId), post);
-    return mapPostRecord(data as any);
+    return mapPostRecord(data as ApiPostRecord);
   },
 
   async deletePost(postId: string): Promise<{ success: boolean }> {
@@ -349,7 +493,7 @@ export const forumService = {
       isAnonymous: isAnonymous ?? false,
       ...(parentId && { parentId }),
     });
-    return mapCommentRecord(data as any);
+    return mapCommentRecord(data as ApiCommentRecord);
   },
 
   async editComment(postId: string, commentId: string, content: string): Promise<Comment> {
@@ -421,6 +565,6 @@ export const forumService = {
       return mockPosts.filter((post) => post.content.includes(query));
     }
     const { data } = await apiClient.get(ENDPOINTS.FORUM.SEARCH, { params: { q: query } });
-    return (Array.isArray(data) ? data : []).map((post: any) => mapPostRecord(post));
+    return (Array.isArray(data) ? data : []).map((post: ApiPostRecord) => mapPostRecord(post));
   },
 };

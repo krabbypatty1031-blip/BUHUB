@@ -6,6 +6,32 @@ import { normalizeAvatarUrl } from '../../utils/imageUrl';
 const USE_MOCK = false;
 
 type ApiErrandCategory = 'PICKUP' | 'BUY' | 'OTHER';
+type ApiAuthor = {
+  nickname?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: Errand['gender'];
+  bio?: string;
+  grade?: string;
+  major?: string;
+  id?: string;
+};
+type ApiErrandRecord = {
+  id?: string;
+  category?: string;
+  author?: ApiAuthor;
+  user?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: Errand['gender'];
+  bio?: string;
+  gradeKey?: string;
+  majorKey?: string;
+  authorId?: string;
+  description?: string;
+  desc?: string;
+  sourceLanguage?: Errand['sourceLanguage'];
+} & Record<string, unknown>;
 
 const toApiCategory = (category?: ErrandCategory): ApiErrandCategory | undefined => {
   if (!category) return undefined;
@@ -18,10 +44,16 @@ const fromApiCategory = (category?: string): ErrandCategory => {
   return 'other';
 };
 
-const mapErrand = (e: any): Errand => ({
-  ...e,
-  id: e.id,
+const mapErrand = (e: ApiErrandRecord): Errand => ({
+  id: e.id ?? '',
   category: fromApiCategory(e.category),
+  type: typeof e.type === 'string' ? e.type : '',
+  title: typeof e.title === 'string' ? e.title : '',
+  from: typeof e.from === 'string' ? e.from : '',
+  to: typeof e.to === 'string' ? e.to : '',
+  price: typeof e.price === 'string' ? e.price : '',
+  item: typeof e.item === 'string' ? e.item : '',
+  time: typeof e.time === 'string' ? e.time : '',
   user: e.author?.nickname ?? e.author?.userName ?? e.user ?? '?',
   userName: e.author?.userName ?? e.userName ?? undefined,
   avatar: normalizeAvatarUrl(e.author?.avatar ?? e.avatar) ?? '',
@@ -29,8 +61,11 @@ const mapErrand = (e: any): Errand => ({
   bio: e.author?.bio ?? e.bio ?? '',
   gradeKey: e.author?.grade ?? e.gradeKey ?? undefined,
   majorKey: e.author?.major ?? e.majorKey ?? undefined,
-  authorId: e.author?.id ?? e.authorId,
-  desc: e.description ?? e.desc,
+  authorId: e.author?.id ?? e.authorId ?? '',
+  desc: e.description ?? e.desc ?? '',
+  expired: Boolean(e.expired),
+  expiresAt: typeof e.expiresAt === 'string' ? e.expiresAt : '',
+  createdAt: typeof e.createdAt === 'string' ? e.createdAt : '',
   sourceLanguage: e.sourceLanguage ?? 'tc',
 });
 

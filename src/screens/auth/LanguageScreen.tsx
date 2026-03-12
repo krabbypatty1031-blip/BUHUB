@@ -18,24 +18,22 @@ import { CheckIcon } from '../../components/common/icons';
 
 type Language = 'tc' | 'sc' | 'en';
 
-const LANGUAGE_LABELS: Record<Language, Record<Language, string>> = {
-  tc: { tc: '繁體中文', sc: '简体中文', en: 'English' },
-  sc: { tc: '繁體中文', sc: '简体中文', en: 'English' },
-  en: { tc: 'Traditional Chinese', sc: 'Simplified Chinese', en: 'English' },
-};
-
-const SELECT_LANGUAGE_LABELS: Record<Language, string> = {
-  tc: '請選擇語言',
-  sc: '请选择语言',
-  en: 'Select Language',
-};
+const LANGUAGE_OPTIONS: Array<{
+  value: Language;
+  labelKey: 'traditionalChinese' | 'simplifiedChinese' | 'english';
+}> = [
+  { value: 'tc', labelKey: 'traditionalChinese' },
+  { value: 'sc', labelKey: 'simplifiedChinese' },
+  { value: 'en', labelKey: 'english' },
+];
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Language'>;
 
 export default function LanguageScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const setLanguage = useAuthStore((s) => s.setLanguage);
-  const [selected, setSelected] = useState<Language>('tc');
+  const currentLanguage = useAuthStore((s) => s.language);
+  const [selected, setSelected] = useState<Language>((currentLanguage as Language) || 'tc');
 
   const handleSelect = async (lang: Language) => {
     setSelected(lang);
@@ -48,21 +46,20 @@ export default function LanguageScreen({ navigation }: Props) {
       <View style={styles.content}>
         <View style={styles.logoSection}>
           <Text style={styles.logoText}>UHUB</Text>
-          <Text style={styles.subtitle}>{SELECT_LANGUAGE_LABELS[selected]}</Text>
+          <Text style={styles.subtitle}>{t('selectLanguage')}</Text>
         </View>
 
         <View style={styles.options}>
-          {(['tc', 'sc', 'en'] as Language[]).map((lang) => {
-            const isSelected = selected === lang;
-            const label = LANGUAGE_LABELS[selected][lang];
+          {LANGUAGE_OPTIONS.map((option) => {
+            const isSelected = selected === option.value;
             return (
               <TouchableOpacity
-                key={lang}
+                key={option.value}
                 style={[styles.option, isSelected && styles.optionSelected]}
                 activeOpacity={0.7}
-                onPress={() => handleSelect(lang)}
+                onPress={() => handleSelect(option.value)}
               >
-                <Text style={styles.namePrimary}>{label}</Text>
+                <Text style={styles.namePrimary}>{t(option.labelKey)}</Text>
                 {isSelected && (
                   <CheckIcon size={24} color={colors.primary} />
                 )}

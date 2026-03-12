@@ -1,14 +1,22 @@
+import type { NavigationState, PartialState, Route } from '@react-navigation/native';
 import type { ChatBackTarget, TabRouteName } from '../types/navigation';
 
 type NavigationLike = {
-  getParent?: () => { getState?: () => any } | undefined;
-  getState?: () => any;
+  getParent?: () => { getState?: () => NavigationStateLike } | undefined;
+  getState?: () => NavigationStateLike;
 };
+
+type NavigationStateLike = NavigationState | PartialState<NavigationState>;
+type RouteStateLike = Route<string> & { state?: NavigationStateLike };
 
 const TAB_NAMES: TabRouteName[] = ['ForumTab', 'FunctionsTab', 'MessagesTab', 'MeTab'];
 
 function asTabName(value: unknown): TabRouteName | undefined {
   return TAB_NAMES.find((tab) => tab === value);
+}
+
+function asBackScreenName(value: unknown): ChatBackTarget['screen'] {
+  return typeof value === 'string' ? (value as ChatBackTarget['screen']) : undefined;
 }
 
 export function buildChatBackTarget(
@@ -21,9 +29,9 @@ export function buildChatBackTarget(
   if (!tab) return undefined;
 
   const stackState = navigation.getState?.();
-  const currentRoute = stackState?.routes?.[stackState?.index ?? 0];
+  const currentRoute = stackState?.routes?.[stackState?.index ?? 0] as RouteStateLike | undefined;
   if (!currentRoute?.name) {
-    return { tab };
+    return { tab } as ChatBackTarget;
   }
 
   const params =
@@ -33,7 +41,7 @@ export function buildChatBackTarget(
 
   return {
     tab,
-    screen: String(currentRoute.name),
+    screen: asBackScreenName(currentRoute.name),
     ...(params ? { params } : {}),
-  };
+  } as ChatBackTarget;
 }

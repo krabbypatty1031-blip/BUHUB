@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
+import type { User } from '../../types';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { uploadService } from '../../api/services/upload.service';
@@ -86,7 +87,7 @@ export default function EditProfileScreen({ navigation }: Props) {
         }
       }
 
-      const updates: Record<string, any> = { nickname, bio, grade, major };
+      const updates: Partial<User> = { nickname, bio, grade, major };
       if (finalAvatarUrl) {
         updates.avatar = finalAvatarUrl;
       }
@@ -250,13 +251,13 @@ export default function EditProfileScreen({ navigation }: Props) {
         >
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
-              <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
-              </TouchableOpacity>
+              <View style={styles.pickerHeaderSide} />
               <Text style={styles.pickerTitle}>
                 {pickerType === 'grade' ? t('labelGrade') : t('labelMajor')}
               </Text>
-              <View style={{ width: 60 }} />
+              <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
+              </TouchableOpacity>
             </View>
             <FlatList
               data={pickerType === 'grade' ? GRADE_KEYS : MAJOR_KEYS}
@@ -451,13 +452,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
+  pickerHeaderSide: {
+    width: 48,
+  },
   pickerCancel: {
     ...typography.labelLarge,
-    color: colors.onSurface,
+    color: colors.primary,
   },
   pickerTitle: {
     ...typography.titleMedium,
     color: colors.onSurface,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   pickerItem: {
     paddingVertical: 16,

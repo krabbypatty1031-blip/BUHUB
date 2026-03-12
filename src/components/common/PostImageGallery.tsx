@@ -147,6 +147,7 @@ export default React.memo(PostImageGallery, arePropsEqual);
 const styles = StyleSheet.create({
   wrap: {
     position: 'relative',
+    width: '100%',
   },
   imageCountBadge: {
     position: 'absolute',

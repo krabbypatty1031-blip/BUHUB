@@ -1,10 +1,11 @@
 import { CommonActions } from '@react-navigation/native';
 import type { User } from '../types';
 import { showTabBar } from '../hooks/TabBarAnimationContext';
+import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 
 type NavigationLike = {
-  dispatch?: (action: any) => void;
-  navigate: (...args: any[]) => void;
+  dispatch?: NavigationProp<ParamListBase>['dispatch'];
+  navigate: NavigationProp<ParamListBase>['navigate'];
 };
 
 type AvatarNavigationParams = {
@@ -21,7 +22,7 @@ function normalizeHandle(value?: string | null): string {
 
 function getCurrentUserHandles(currentUser: User | null | undefined): Set<string> {
   const handles = new Set<string>();
-  const currentUserName = normalizeHandle((currentUser as (User & { userName?: string }) | null | undefined)?.userName);
+  const currentUserName = normalizeHandle(currentUser?.userName);
   const currentName = normalizeHandle(currentUser?.name);
   const currentNickname = normalizeHandle(currentUser?.nickname);
   if (currentUserName) handles.add(currentUserName);

@@ -6,6 +6,32 @@ import { normalizeAvatarUrl } from '../../utils/imageUrl';
 const USE_MOCK = false;
 
 type ApiPartnerCategory = 'TRAVEL' | 'FOOD' | 'COURSE' | 'SPORTS' | 'OTHER';
+type ApiAuthor = {
+  nickname?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: PartnerPost['gender'];
+  bio?: string;
+  grade?: string;
+  major?: string;
+  id?: string;
+};
+type ApiPartnerRecord = {
+  id?: string;
+  category?: string;
+  author?: ApiAuthor;
+  user?: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: PartnerPost['gender'];
+  bio?: string;
+  gradeKey?: string;
+  majorKey?: string;
+  authorId?: string;
+  description?: string;
+  desc?: string;
+  sourceLanguage?: PartnerPost['sourceLanguage'];
+} & Record<string, unknown>;
 
 const toApiCategory = (category?: PartnerCategory): ApiPartnerCategory | undefined => {
   if (!category) return undefined;
@@ -20,10 +46,13 @@ const fromApiCategory = (category?: string): PartnerCategory => {
   return 'other';
 };
 
-const mapPartner = (p: any): PartnerPost => ({
-  ...p,
-  id: p.id,
+const mapPartner = (p: ApiPartnerRecord): PartnerPost => ({
+  id: p.id ?? '',
   category: fromApiCategory(p.category),
+  type: typeof p.type === 'string' ? p.type : '',
+  title: typeof p.title === 'string' ? p.title : '',
+  time: typeof p.time === 'string' ? p.time : '',
+  location: typeof p.location === 'string' ? p.location : '',
   user: p.author?.nickname ?? p.author?.userName ?? p.user ?? '?',
   userName: p.author?.userName ?? p.userName ?? undefined,
   avatar: normalizeAvatarUrl(p.author?.avatar ?? p.avatar) ?? '',
@@ -31,8 +60,11 @@ const mapPartner = (p: any): PartnerPost => ({
   bio: p.author?.bio ?? p.bio ?? '',
   gradeKey: p.author?.grade ?? p.gradeKey ?? undefined,
   majorKey: p.author?.major ?? p.majorKey ?? undefined,
-  authorId: p.author?.id ?? p.authorId,
-  desc: p.description ?? p.desc,
+  authorId: p.author?.id ?? p.authorId ?? '',
+  desc: p.description ?? p.desc ?? '',
+  expired: Boolean(p.expired),
+  expiresAt: typeof p.expiresAt === 'string' ? p.expiresAt : '',
+  createdAt: typeof p.createdAt === 'string' ? p.createdAt : '',
   sourceLanguage: p.sourceLanguage ?? 'tc',
 });
 

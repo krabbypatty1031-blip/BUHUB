@@ -1,6 +1,5 @@
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
-
-type FunctionRefType = 'partner' | 'errand' | 'secondhand';
+import type { FunctionRefType } from '../types/navigation';
 
 type NavigateToForumComposeSelectionParams = {
   navigation: NavigationProp<ParamListBase>;

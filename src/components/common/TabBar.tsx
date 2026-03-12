@@ -6,6 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   LayoutChangeEvent,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -26,7 +28,7 @@ interface TabBarProps<T extends string = string> {
   options: TabOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 interface TabMeasurement {

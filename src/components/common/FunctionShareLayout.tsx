@@ -17,9 +17,10 @@ import {
 } from './icons';
 import FunctionForwardSheet from './FunctionForwardSheet';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import type { FunctionRefType, FunctionShareNavigation } from '../../types';
 
 interface FunctionShareLayoutProps {
-  navigation: any;
+  navigation: FunctionShareNavigation;
   /** i18n key for success title */
   titleKey: string;
   /** i18n key for success description */
@@ -27,7 +28,7 @@ interface FunctionShareLayoutProps {
   /** interpolation params for descKey, e.g. { taskName: '...' } */
   descParams: Record<string, string>;
   /** 'partner' | 'errand' | 'secondhand' */
-  functionType: 'partner' | 'errand' | 'secondhand';
+  functionType: FunctionRefType;
   /** Display title forwarded to forum / DM */
   functionTitle: string;
   /** Poster name forwarded to DM */

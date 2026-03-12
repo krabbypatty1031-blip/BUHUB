@@ -188,6 +188,7 @@ export default function ScrollPickerSheet({
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
+            <View style={styles.headerSide} />
             <Text style={styles.title}>{title || t('select')}</Text>
             <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
               <Text style={styles.confirmBtnText}>{t('deadlineConfirm')}</Text>
@@ -235,6 +236,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
+  },
+  headerSide: {
+    width: 84,
   },
   title: {
     ...typography.titleMedium,

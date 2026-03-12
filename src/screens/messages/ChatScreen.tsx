@@ -20,12 +20,15 @@ import {
   Linking,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import type { ImageLoadEventData } from 'expo-image';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
+import { useQueryClient } from '@tanstack/react-query';
 import Animated, {
+  Easing,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -33,10 +36,19 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { CommonActions, useFocusEffect, useIsFocused } from '@react-navigation/native';
+import {
+  CommonActions,
+  useFocusEffect,
+  useIsFocused,
+  type NavigationProp,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MessagesStackParamList } from '../../types/navigation';
-import type { ChatMessage, ChatHistory } from '../../types';
+import type {
+  ForwardedChatType,
+  MainTabParamList,
+  MessagesStackParamList,
+} from '../../types/navigation';
+import type { ChatMessage, ChatHistory, ForwardedCardDraft } from '../../types';
 import { useCanSendMessage, useChatHistory, usePresence, useRecallMessage, useSendMessage } from '../../hooks/useMessages';
 import { useAuthStore } from '../../store/authStore';
 import { useMessageStore } from '../../store/messageStore';
@@ -74,6 +86,8 @@ import { hapticLight } from '../../utils/haptics';
 import { transcribeAudioFileWithNativeSpeech } from '../../utils/nativeSpeechToText';
 import { getSpeechRecognitionModule } from '../../utils/speechRecognition';
 import { normalizeImageUrl as normalizeMediaUrl } from '../../utils/imageUrl';
+import { recordMessageMetric, recordTimedMessageMetric } from '../../utils/messageMetrics';
+import type { SendMessagePayload } from '../../api/services/message.service';
 
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
@@ -93,6 +107,19 @@ const REACTION_OPTIONS = [
   '\u{1F622}',
   '\u{1F44F}',
 ];
+
+type ApiLikeError = {
+  errorCode?: unknown;
+  code?: unknown;
+  error?: {
+    code?: unknown;
+  };
+  message?: unknown;
+};
+
+type RecordingOptionsInput = NonNullable<
+  Parameters<Audio.Recording['prepareToRecordAsync']>[0]
+>;
 
 function resolveSpeechRecognitionLocale(language: string): string {
   const normalized = language.toLowerCase();
@@ -142,19 +169,20 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 function getApiErrorCode(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') return undefined;
-  const anyErr = error as any;
-  return anyErr.errorCode || anyErr?.error?.code || anyErr.code;
+  const apiError = error as ApiLikeError;
+  const code = apiError.errorCode ?? apiError.error?.code ?? apiError.code;
+  return typeof code === 'string' ? code : undefined;
 }
 
 function looksLikeContentViolation(error: unknown): boolean {
   const code = getApiErrorCode(error);
   if (code === 'CONTENT_VIOLATION') return true;
-  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  const msg = error && typeof error === 'object' ? (error as ApiLikeError).message : '';
   return typeof msg === 'string' && (msg.includes('CONTENT_VIOLATION') || msg.includes('violates community guidelines'));
 }
 
 function looksLikeImageViolation(error: unknown): boolean {
-  const msg = error && typeof error === 'object' && 'message' in (error as any) ? (error as any).message : '';
+  const msg = error && typeof error === 'object' ? (error as ApiLikeError).message : '';
   return typeof msg === 'string' && (msg.includes('"code":"CONTENT_VIOLATION"') || msg.includes('Image contains content'));
 }
 
@@ -178,9 +206,110 @@ type ChatBubbleProps = {
   onPlayAudio?: (message: ChatMessage) => void;
   onImagePress?: (images: string[], index: number) => void;
   onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
+  onRetryFailedMessage?: (message: ChatMessage) => void;
   isAudioPlaying?: boolean;
   t: (key: string, options?: Record<string, unknown>) => string;
 };
+
+type RetryUploadFile = {
+  uri: string;
+  type: string;
+  name: string;
+};
+
+type PendingSendRequest =
+  | {
+      kind: 'direct';
+      payload: SendMessagePayload;
+      images?: string[];
+    }
+  | {
+      kind: 'image-batch';
+      files: RetryUploadFile[];
+      mode: 'plain' | 'album';
+      replyTo?: ChatMessage['replyTo'];
+    }
+  | {
+      kind: 'image-single';
+      file: RetryUploadFile;
+      replyTo?: ChatMessage['replyTo'];
+    }
+  | {
+      kind: 'audio';
+      file: RetryUploadFile;
+      durationMs?: number;
+      replyTo?: ChatMessage['replyTo'];
+    };
+
+function formatLocalMessageTime(date: Date) {
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function createLocalMessageId() {
+  return `local-msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isLocalMessageId(id?: string) {
+  return typeof id === 'string' && id.startsWith('local-msg-');
+}
+
+function resolveMessageRenderKey(
+  message: ChatMessage,
+  renderKeyByServerId: Record<string, string>,
+  fallbackKey: string
+) {
+  if (typeof message.clientKey === 'string' && message.clientKey.length > 0) {
+    return message.clientKey;
+  }
+  if (typeof message.id === 'string' && message.id.length > 0) {
+    return renderKeyByServerId[message.id] ?? message.id;
+  }
+  return fallbackKey;
+}
+
+function sortMessagesByCreatedAt(messages: ChatMessage[]) {
+  return [...messages].sort((a, b) => {
+    const aTs = Date.parse(a.createdAt ?? '') || 0;
+    const bTs = Date.parse(b.createdAt ?? '') || 0;
+    return aTs - bTs;
+  });
+}
+
+function appendPendingMessagesToHistory(
+  history: ChatHistory[] | undefined,
+  pendingMessages: ChatMessage[],
+  todayLabel: string
+): ChatHistory[] {
+  const base = Array.isArray(history)
+    ? history.map((group) => ({ ...group, messages: [...group.messages] }))
+    : [];
+
+  if (pendingMessages.length === 0) return base;
+  const persistedIds = new Set(
+    base.flatMap((group) =>
+      group.messages
+        .map((message) => message.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    )
+  );
+  const visiblePendingMessages = pendingMessages.filter(
+    (message) => !message.id || !persistedIds.has(message.id)
+  );
+
+  if (visiblePendingMessages.length === 0) return base;
+
+  const lastGroup = base.length > 0 ? base[base.length - 1] : null;
+  if (lastGroup?.date === todayLabel) {
+    lastGroup.messages.push(...visiblePendingMessages);
+    return base;
+  }
+
+  base.push({
+    date: todayLabel,
+    messages: [...visiblePendingMessages],
+  });
+  return base;
+}
 
 /* ----- Date separator ----- */
 const DateSeparator = React.memo(function DateSeparator({
@@ -220,24 +349,31 @@ const chatMediaSizeCache = new Map<string, { width: number; height: number }>();
 
 const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
   uri,
+  mediaIdentity,
+  intrinsicWidth,
+  intrinsicHeight,
   totalCount,
   onPress,
   onLongPress,
 }: {
   uri: string;
+  mediaIdentity?: string;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
   totalCount: number;
   onPress: () => void;
   onLongPress?: () => void;
 }) {
   const maxWidth = totalCount === 1 ? SINGLE_MEDIA_MAX_WIDTH : GRID_MEDIA_MAX_WIDTH;
   const maxHeight = totalCount === 1 ? SINGLE_MEDIA_MAX_HEIGHT : GRID_MEDIA_MAX_HEIGHT;
-  const cacheKey = `${uri}|${maxWidth}|${maxHeight}`;
+  const stableIdentity = mediaIdentity || uri;
+  const cacheKey = `${stableIdentity}|${maxWidth}|${maxHeight}`;
   const cachedSize = chatMediaSizeCache.get(cacheKey);
   const [size, setSize] = useState(() =>
     cachedSize ??
     getContainedMediaSize(
-      maxWidth,
-      maxHeight,
+      intrinsicWidth && intrinsicWidth > 0 ? intrinsicWidth : maxWidth,
+      intrinsicHeight && intrinsicHeight > 0 ? intrinsicHeight : maxHeight,
       maxWidth,
       maxHeight
     )
@@ -251,17 +387,17 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
       return;
     }
     const fallbackSize = getContainedMediaSize(
-      maxWidth,
-      maxHeight,
+      intrinsicWidth && intrinsicWidth > 0 ? intrinsicWidth : maxWidth,
+      intrinsicHeight && intrinsicHeight > 0 ? intrinsicHeight : maxHeight,
       maxWidth,
       maxHeight
     );
     setSize((prev) =>
       prev.width === fallbackSize.width && prev.height === fallbackSize.height ? prev : fallbackSize
     );
-  }, [cacheKey, cachedSize, maxHeight, maxWidth, uri]);
+  }, [cacheKey, cachedSize, intrinsicHeight, intrinsicWidth, maxHeight, maxWidth, uri]);
 
-  const handleImageLoad = useCallback((event: any) => {
+  const handleImageLoad = useCallback((event: ImageLoadEventData) => {
     const width = Number(event?.source?.width);
     const height = Number(event?.source?.height);
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
@@ -303,7 +439,7 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
         contentFit="contain"
         cachePolicy="memory-disk"
         transition={0}
-        recyclingKey={uri}
+        recyclingKey={stableIdentity}
         onLoad={handleImageLoad}
       />
     </TouchableOpacity>
@@ -313,6 +449,7 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
 const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
   images,
   count,
+  mediaIdentity,
   isMine,
   onPress,
   onLongPress,
@@ -320,6 +457,7 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
 }: {
   images: string[];
   count: number;
+  mediaIdentity?: string;
   isMine: boolean;
   onPress: () => void;
   onLongPress?: () => void;
@@ -354,7 +492,7 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={0}
-          recyclingKey={coverImage}
+          recyclingKey={mediaIdentity || coverImage}
         />
       ) : null}
       <View style={styles.albumBubbleContent}>
@@ -375,6 +513,23 @@ function isSameStringArray(a?: string[], b?: string[]) {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
     if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function isSameMediaMetas(a?: ChatMessage['mediaMetas'], b?: ChatMessage['mediaMetas']) {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (
+      a[i]?.uri !== b[i]?.uri ||
+      a[i]?.width !== b[i]?.width ||
+      a[i]?.height !== b[i]?.height ||
+      a[i]?.localKey !== b[i]?.localKey
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -421,6 +576,7 @@ function areChatMessagesEquivalent(a: ChatMessage, b: ChatMessage) {
   return (
     a.id === b.id &&
     a.createdAt === b.createdAt &&
+    a.mediaGroupId === b.mediaGroupId &&
     a.type === b.type &&
     a.text === b.text &&
     a.time === b.time &&
@@ -432,6 +588,7 @@ function areChatMessagesEquivalent(a: ChatMessage, b: ChatMessage) {
     isSameReplyTo(a.replyTo, b.replyTo) &&
     isSameFunctionCard(a.functionCard, b.functionCard) &&
     isSameStringArray(a.images, b.images) &&
+    isSameMediaMetas(a.mediaMetas, b.mediaMetas) &&
     isSameReactions(a.reactions, b.reactions)
   );
 }
@@ -524,6 +681,8 @@ const ImageMessageContent = React.memo(function ImageMessageContent({
   t,
 }: ImageMessageContentProps) {
   const images = message.images ?? [];
+  const messageIdentity = message.clientKey || message.id || `message-${message.time}`;
+  const mediaMetas = message.mediaMetas ?? [];
 
   return (
     <View style={styles.mediaBubble}>
@@ -542,6 +701,7 @@ const ImageMessageContent = React.memo(function ImageMessageContent({
         <ChatAlbumBubble
           images={images}
           count={message.imageAlbum.count}
+          mediaIdentity={`${messageIdentity}-album`}
           isMine={isMine}
           onPress={() => onImagePress?.(images, 0)}
           onLongPress={() => onLongPressMessage?.(message)}
@@ -553,6 +713,9 @@ const ImageMessageContent = React.memo(function ImageMessageContent({
             <ChatMediaThumbnail
               key={`${uri}-${index}`}
               uri={uri}
+              mediaIdentity={`${messageIdentity}-${index}`}
+              intrinsicWidth={mediaMetas[index]?.width}
+              intrinsicHeight={mediaMetas[index]?.height}
               totalCount={images.length}
               onPress={() => onImagePress?.(images, index)}
               onLongPress={() => onLongPressMessage?.(message)}
@@ -613,6 +776,77 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
   );
 });
 
+type MessageDeliveryStatusProps = {
+  message: ChatMessage;
+  onRetryFailedMessage?: (message: ChatMessage) => void;
+};
+
+const SendingSpinner = React.memo(function SendingSpinner() {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(1, {
+        duration: 920,
+        easing: Easing.bezier(0.42, 0, 0.22, 1),
+      }),
+      -1,
+      false
+    );
+
+    return () => {
+      cancelAnimation(rotation);
+    };
+  }, [rotation]);
+
+  const spinnerStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value * 360}deg` }],
+  }));
+
+  return (
+    <View style={styles.messageSpinnerTrack}>
+      <Animated.View style={[styles.messageSpinnerArc, spinnerStyle]} />
+    </View>
+  );
+});
+
+const MessageDeliveryStatus = React.memo(function MessageDeliveryStatus({
+  message,
+  onRetryFailedMessage,
+}: MessageDeliveryStatusProps) {
+  if (message.type !== 'sent') return null;
+
+  if (message.status === 'sending') {
+    return (
+      <View style={styles.messageStatusWrap}>
+        <SendingSpinner />
+      </View>
+    );
+  }
+
+  if (message.status === 'failed') {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={styles.messageStatusWrap}
+        onPress={() => onRetryFailedMessage?.(message)}
+      >
+        <View style={styles.messageFailedBadge}>
+          <Text style={styles.messageFailedBadgeText}>!</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  return null;
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.onRetryFailedMessage === nextProps.onRetryFailedMessage &&
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.status === nextProps.message.status
+  );
+});
+
 /* ----- Chat bubble with avatar ----- */
 const ChatBubble = React.memo(function ChatBubble({
   message,
@@ -625,6 +859,7 @@ const ChatBubble = React.memo(function ChatBubble({
   onPlayAudio,
   onImagePress,
   onPressReaction,
+  onRetryFailedMessage,
   isAudioPlaying,
   t,
 }: ChatBubbleProps) {
@@ -730,7 +965,13 @@ const ChatBubble = React.memo(function ChatBubble({
           ) : (
             <View />
           )}
-          <Text style={styles.bubbleTime}>{message.time}</Text>
+          <View style={styles.bubbleMetaRight}>
+            <MessageDeliveryStatus
+              message={message}
+              onRetryFailedMessage={onRetryFailedMessage}
+            />
+            <Text style={styles.bubbleTime}>{message.time}</Text>
+          </View>
         </View>
       </View>
       {isMine && (
@@ -760,6 +1001,7 @@ const ChatBubble = React.memo(function ChatBubble({
     prevProps.myAvatarUri === nextProps.myAvatarUri &&
     prevProps.theirAvatarText === nextProps.theirAvatarText &&
     prevProps.theirAvatarUri === nextProps.theirAvatarUri &&
+    prevProps.onRetryFailedMessage === nextProps.onRetryFailedMessage &&
     Boolean(prevProps.isAudioPlaying) === Boolean(nextProps.isAudioPlaying) &&
     prevProps.t === nextProps.t &&
     areChatMessagesEquivalent(prevProps.message, nextProps.message)
@@ -839,6 +1081,7 @@ function getContainedMediaSize(
 export default function ChatScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const {
     contactId,
     contactName,
@@ -852,10 +1095,8 @@ export default function ChatScreen({ navigation, route }: Props) {
     forwardedMessage,
     forwardedNonce,
     backTo,
+    forwardedRequiresConfirm,
   } = route.params;
-  const forwardedRequiresConfirm = (route.params as any)?.forwardedRequiresConfirm as
-    | boolean
-    | undefined;
   const isScreenFocused = useIsFocused();
   const { data: chatHistory, isLoading } = useChatHistory(contactId, {
     enabled: isScreenFocused,
@@ -911,20 +1152,29 @@ export default function ChatScreen({ navigation, route }: Props) {
 
     if (backTo?.tab) {
       showTabBar();
-      const parent = navigation.getParent() as any;
+      const parent = navigation.getParent<NavigationProp<MainTabParamList>>();
       navigation.reset({
         index: 0,
         routes: [{ name: 'MessagesList' }],
       });
       if (!parent) return;
       if (backTo.screen) {
-        parent.navigate(backTo.tab, {
-          screen: backTo.screen,
-          params: backTo.params,
-        });
+        parent.dispatch(
+          CommonActions.navigate({
+            name: backTo.tab,
+            params: {
+              screen: backTo.screen,
+              params: backTo.params,
+            },
+          })
+        );
         return;
       }
-      parent.navigate(backTo.tab);
+      parent.dispatch(
+        CommonActions.navigate({
+          name: backTo.tab,
+        })
+      );
       return;
     }
     if (navigation.canGoBack()) {
@@ -1001,11 +1251,14 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [isSendingSelectedImages, setIsSendingSelectedImages] = useState(false);
   const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
   const [liveTranscriptionText, setLiveTranscriptionText] = useState('');
+  const [localPendingMessages, setLocalPendingMessages] = useState<ChatMessage[]>([]);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
   const liveTranscriptionTextRef = useRef('');
   const liveTranscriptionFinalRef = useRef('');
   const liveSpeechActiveRef = useRef(false);
+  const pendingRequestsRef = useRef<Record<string, PendingSendRequest>>({});
+  const renderKeyByServerIdRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -1017,6 +1270,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       hideSub.remove();
     };
   }, []);
+
+  useEffect(() => {
+    setLocalPendingMessages([]);
+    pendingRequestsRef.current = {};
+    renderKeyByServerIdRef.current = {};
+  }, [contactId]);
 
   const setVoiceReleaseAction = useCallback((action: VoiceReleaseAction) => {
     voiceReleaseActionRef.current = action;
@@ -1106,10 +1365,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
   }, [i18n.language]);
 
-  const forwardedCardDraft = useMemo(() => {
+  const forwardedCardDraft = useMemo<ForwardedCardDraft | null>(() => {
     if (!forwardedType || !forwardedPosterName) return null;
-    if (!['partner', 'errand', 'secondhand', 'post'].includes(forwardedType)) return null;
-    const normalizedType = forwardedType as 'partner' | 'errand' | 'secondhand' | 'post';
+    const normalizedType = forwardedType as ForwardedChatType;
     const resolvedId =
       forwardedId ??
       (typeof forwardedIndex === 'number' ? String(forwardedIndex) : undefined);
@@ -1274,16 +1532,285 @@ export default function ChatScreen({ navigation, route }: Props) {
     };
   }, [buildReplyPreview, replyTarget]);
 
+  const todayLabel = String(t('messageTimeToday'));
+  const buildLocalMediaMetas = useCallback(
+    (
+      items: Array<{
+        uri: string;
+        width?: number;
+        height?: number;
+        localKey?: string;
+      }>
+    ): NonNullable<ChatMessage['mediaMetas']> =>
+      items.map((item, index) => ({
+        uri: item.uri,
+        width: Number.isFinite(item.width) ? item.width : undefined,
+        height: Number.isFinite(item.height) ? item.height : undefined,
+        localKey: item.localKey ?? `${item.uri}-${index}`,
+      })),
+    []
+  );
+
+  const upsertLocalPendingMessage = useCallback((message: ChatMessage) => {
+    setLocalPendingMessages((current) => {
+      const next = [...current];
+      const index = next.findIndex((item) => item.id === message.id);
+      if (index >= 0) {
+        next[index] = message;
+      } else {
+        next.push(message);
+      }
+      return sortMessagesByCreatedAt(next);
+    });
+  }, []);
+
+  const removeLocalPendingMessage = useCallback((messageId: string) => {
+    delete pendingRequestsRef.current[messageId];
+    setLocalPendingMessages((current) => current.filter((item) => item.id !== messageId));
+  }, []);
+
+  const resolveLocalPendingMessage = useCallback((messageId: string, nextMessage: ChatMessage) => {
+    delete pendingRequestsRef.current[messageId];
+    setLocalPendingMessages((current) => {
+      const index = current.findIndex((item) => item.id === messageId);
+      if (index < 0) {
+        const resolvedMessage = {
+          ...nextMessage,
+          clientKey: nextMessage.clientKey ?? messageId,
+        };
+        if (resolvedMessage.id) {
+          renderKeyByServerIdRef.current[resolvedMessage.id] = resolvedMessage.clientKey!;
+        }
+        return sortMessagesByCreatedAt([...current, resolvedMessage]);
+      }
+      const existingMessage = current[index];
+      const clientKey = existingMessage.clientKey ?? messageId;
+      const resolvedMessage = {
+        ...nextMessage,
+        clientKey,
+        mediaMetas:
+          nextMessage.mediaMetas && nextMessage.mediaMetas.length > 0
+            ? nextMessage.mediaMetas
+            : existingMessage.mediaMetas,
+        mediaGroupId: nextMessage.mediaGroupId ?? existingMessage.mediaGroupId,
+      };
+      if (resolvedMessage.id) {
+        renderKeyByServerIdRef.current[resolvedMessage.id] = clientKey;
+      }
+      const next = [...current];
+      next[index] = resolvedMessage;
+      return sortMessagesByCreatedAt(next);
+    });
+  }, []);
+
+  const updateLocalPendingMessageStatus = useCallback((messageId: string, status: 'sending' | 'failed') => {
+    setLocalPendingMessages((current) =>
+      current.map((item) => (item.id === messageId ? { ...item, status } : item))
+    );
+  }, []);
+
+  const queueLocalPendingMessage = useCallback((message: ChatMessage, request: PendingSendRequest) => {
+    if (!message.id) return;
+    pendingRequestsRef.current[message.id] = request;
+    upsertLocalPendingMessage(message);
+  }, [upsertLocalPendingMessage]);
+
+  const buildLocalPendingMessage = useCallback((message: {
+    text?: string;
+    images?: string[];
+    mediaMetas?: ChatMessage['mediaMetas'];
+    mediaGroupId?: string;
+    audio?: ChatMessage['audio'];
+    replyTo?: ChatMessage['replyTo'];
+    imageAlbum?: ChatMessage['imageAlbum'];
+    functionCard?: ChatMessage['functionCard'];
+  }): ChatMessage => {
+    const now = new Date();
+    const localMessageId = createLocalMessageId();
+    return {
+      id: localMessageId,
+      clientKey: localMessageId,
+      createdAt: now.toISOString(),
+      type: 'sent',
+      text: message.text ?? '',
+      ...(message.images ? { images: message.images } : {}),
+      ...(message.mediaMetas ? { mediaMetas: message.mediaMetas } : {}),
+      ...(message.mediaGroupId ? { mediaGroupId: message.mediaGroupId } : {}),
+      ...(message.audio ? { audio: message.audio } : {}),
+      ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+      ...(message.imageAlbum ? { imageAlbum: message.imageAlbum } : {}),
+      ...(message.functionCard ? { functionCard: message.functionCard } : {}),
+      time: formatLocalMessageTime(now),
+      status: 'sending',
+    };
+  }, []);
+
+  const resolveSendErrorMessage = useCallback((error: unknown, mediaKind?: 'image' | 'audio') => {
+    if (mediaKind === 'image' && looksLikeImageViolation(error)) {
+      return t('imageViolation');
+    }
+    if (looksLikeContentViolation(error)) {
+      return t('contentViolation');
+    }
+    return extractErrorMessage(error, t('dataLoadFailed'));
+  }, [t]);
+
+  const refreshMessageQueries = useCallback(async () => {
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ['chat', contactId], refetchType: 'inactive' }),
+      queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] }),
+      queryClient.invalidateQueries({ queryKey: ['chat-can-send', contactId] }),
+    ]);
+  }, [contactId, queryClient]);
+
+  useEffect(() => {
+    const persistedIds = new Set(
+      (chatHistory ?? []).flatMap((group) =>
+        (group.messages ?? [])
+          .map((message) => message.id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      )
+    );
+    if (persistedIds.size === 0) return;
+    setLocalPendingMessages((current) => {
+      const next = current.filter((message) => !message.id || !persistedIds.has(message.id));
+      return next.length === current.length ? current : next;
+    });
+  }, [chatHistory]);
+
+  const executePendingSend = useCallback(async (messageId: string, request: PendingSendRequest) => {
+    updateLocalPendingMessageStatus(messageId, 'sending');
+    const sendStartedAt = Date.now();
+
+    try {
+      let sentMessage: ChatMessage | undefined;
+      if (request.kind === 'direct') {
+        const result = await messageService.sendMessage(contactId, request.payload, request.images);
+        sentMessage = result.message;
+      } else if (request.kind === 'image-batch') {
+        const uploadStartedAt = Date.now();
+        const uploaded = await uploadService.uploadImages(request.files);
+        recordTimedMessageMetric('image_upload_duration', uploadStartedAt, {
+          count: request.files.length,
+          mode: request.mode,
+        });
+        if (request.mode === 'album') {
+          const result = await messageService.sendMessage(
+            contactId,
+            {
+              imageAlbum: { count: uploaded.urls.length },
+              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+            },
+            uploaded.urls
+          );
+          sentMessage = result.message;
+        } else {
+          const result = await messageService.sendMessage(
+            contactId,
+            {
+              text: '',
+              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+            },
+            uploaded.urls
+          );
+          sentMessage = result.message;
+        }
+      } else if (request.kind === 'image-single') {
+        const uploadStartedAt = Date.now();
+        const uploaded = await uploadService.uploadImage(request.file);
+        recordTimedMessageMetric('image_upload_duration', uploadStartedAt, {
+          count: 1,
+          mode: 'single',
+        });
+        const result = await messageService.sendMessage(
+          contactId,
+          {
+            text: '',
+            ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+          },
+          [uploaded.url]
+        );
+        sentMessage = result.message;
+      } else {
+        const uploadStartedAt = Date.now();
+        const uploaded = await uploadService.uploadFile(request.file);
+        recordTimedMessageMetric('audio_upload_duration', uploadStartedAt, {
+          durationMs: request.durationMs ?? 0,
+        });
+        const result = await messageService.sendMessage(contactId, {
+          ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+          audio: {
+            url: uploaded.url,
+            ...(typeof request.durationMs === 'number' ? { durationMs: request.durationMs } : {}),
+          },
+        });
+        sentMessage = result.message;
+      }
+
+      if (sentMessage) {
+        resolveLocalPendingMessage(messageId, sentMessage);
+      } else {
+        removeLocalPendingMessage(messageId);
+      }
+      recordTimedMessageMetric('message_send_latency', sendStartedAt, {
+        kind: request.kind,
+        contactId,
+      });
+      void refreshMessageQueries();
+      return true;
+    } catch (error) {
+      updateLocalPendingMessageStatus(messageId, 'failed');
+      recordMessageMetric('message_send_failed', {
+        kind: request.kind,
+        contactId,
+      });
+      const mediaKind = request.kind === 'audio'
+        ? 'audio'
+        : request.kind === 'image-batch' || request.kind === 'image-single'
+          ? 'image'
+          : undefined;
+      showSnackbar({
+        message: resolveSendErrorMessage(error, mediaKind),
+        type: 'error',
+      });
+      return false;
+    }
+  }, [
+    contactId,
+    refreshMessageQueries,
+    removeLocalPendingMessage,
+    resolveSendErrorMessage,
+    resolveLocalPendingMessage,
+    showSnackbar,
+    updateLocalPendingMessageStatus,
+  ]);
+
+  const retryFailedMessage = useCallback((message: ChatMessage) => {
+    if (!message.id || message.status !== 'failed') return;
+    const request = pendingRequestsRef.current[message.id];
+    if (!request) return;
+    hapticLight();
+    anchorToLatestRef.current = true;
+    void executePendingSend(message.id, request);
+  }, [executePendingSend]);
+
+  const displayChatHistory = useMemo(() => {
+    return appendPendingMessagesToHistory(chatHistory, localPendingMessages, todayLabel);
+  }, [chatHistory, localPendingMessages, todayLabel]);
+
   /* ----- Chat trigger: disable input if last message is 'sent' (waiting for reply) ----- */
   const waitingForReplyByHistory = useMemo(() => {
-    if (!chatHistory) return false;
-    const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
+    if (!displayChatHistory) return false;
+    const histories = Array.isArray(displayChatHistory) ? displayChatHistory : [displayChatHistory];
     if (histories.length === 0) return false;
-    const allMessages = histories.flatMap((h) => h.messages ?? []);
+    const allMessages = histories
+      .flatMap((h) => h.messages ?? [])
+      .filter((message) => message.status !== 'sending' && message.status !== 'failed');
     const hasSent = allMessages.some((m) => m.type === 'sent');
     const hasReceived = allMessages.some((m) => m.type === 'received');
     return hasSent && !hasReceived;
-  }, [chatHistory]);
+  }, [displayChatHistory]);
   const waitingForReply = canSendMessage === false ? true : waitingForReplyByHistory;
   const isContactTyping = Boolean(
     typingState?.isTyping &&
@@ -1334,20 +1861,24 @@ export default function ChatScreen({ navigation, route }: Props) {
   /* ----- Build flat list data with date separators ----- */
   const listData = useMemo<ChatListItem[]>(() => {
     const items: ChatListItem[] = [];
-    if (chatHistory) {
-      const histories = Array.isArray(chatHistory) ? chatHistory : [chatHistory];
+    if (displayChatHistory) {
+      const histories = Array.isArray(displayChatHistory) ? displayChatHistory : [displayChatHistory];
       histories.forEach((h: ChatHistory, gi: number) => {
         if (h.date) {
           items.push({ kind: 'date', date: h.date, key: `date-${h.date}-${gi}` });
         }
         h.messages.forEach((m: ChatMessage, mi: number) => {
-          const messageKey = m.id ? `msg-${m.id}` : `msg-${gi}-${mi}-${m.time}`;
+          const messageKey = `msg-${resolveMessageRenderKey(
+            m,
+            renderKeyByServerIdRef.current,
+            `${gi}-${mi}-${m.time}`
+          )}`;
           items.push({ kind: 'message', message: m, key: messageKey });
         });
       });
     }
     return items;
-  }, [chatHistory]);
+  }, [displayChatHistory]);
 
   /* ----- Auto-scroll to bottom when data changes ----- */
   const scrollToBottom = useCallback((force = false) => {
@@ -1480,6 +2011,9 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const canRecallMessage = useCallback((message?: ChatMessage | null) => {
     if (!message || !message.id || message.type !== 'sent' || message.isRecalled) return false;
+    if (isLocalMessageId(message.id) || message.status === 'sending' || message.status === 'failed') {
+      return false;
+    }
     if (!message.createdAt) return false;
     const sentTs = Date.parse(message.createdAt);
     if (!Number.isFinite(sentTs)) return false;
@@ -1503,7 +2037,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const handleMessageActions = useCallback(
     (message: ChatMessage) => {
-      if (message.isRecalled) return;
+      if (message.isRecalled || message.status === 'sending' || message.status === 'failed') return;
       hapticLight();
       setActionTarget(message);
     },
@@ -1641,7 +2175,6 @@ export default function ChatScreen({ navigation, route }: Props) {
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text) return;
-    if (sendMessageMutation.isPending) return;
     if (typingStopTimerRef.current) {
       clearTimeout(typingStopTimerRef.current);
       typingStopTimerRef.current = null;
@@ -1650,44 +2183,49 @@ export default function ChatScreen({ navigation, route }: Props) {
     hapticLight();
     anchorToLatestRef.current = true;
     const replyPayload = buildReplyPayload();
-    const previousReplyTarget = replyTarget;
     const pendingForwardDraft =
       forwardedCardDraft && pendingForwardPreview?.dedupeKey === forwardedCardDraft.dedupeKey
         ? forwardedCardDraft
         : null;
+    const localMessage = buildLocalPendingMessage({
+      text,
+      ...(replyPayload ? { replyTo: replyPayload } : {}),
+    });
+    queueLocalPendingMessage(localMessage, {
+      kind: 'direct',
+      payload: {
+        text,
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      },
+    });
     setInputText('');
     setReplyTarget(null);
-    try {
-      await sendMessage({
-        payload: { text, ...(replyPayload ? { replyTo: replyPayload } : {}) },
-      });
-      if (pendingForwardDraft) {
-        const cardSent = await sendForwardedCard(pendingForwardDraft);
-        if (cardSent) {
-          setPendingForwardConfirmKey((current) =>
-            current === pendingForwardDraft.dedupeKey ? null : current
-          );
-        }
+    const sent = await executePendingSend(localMessage.id!, {
+      kind: 'direct',
+      payload: {
+        text,
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      },
+    });
+    if (!sent) return;
+    if (pendingForwardDraft) {
+      const cardSent = await sendForwardedCard(pendingForwardDraft);
+      if (cardSent) {
+        setPendingForwardConfirmKey((current) =>
+          current === pendingForwardDraft.dedupeKey ? null : current
+        );
       }
-    } catch (err: any) {
-      setInputText(text);
-      setReplyTarget(previousReplyTarget);
-      const code = err?.errorCode || err?.code;
-      const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('dataLoadFailed');
-      showSnackbar({ message: msg, type: 'error' });
     }
   }, [
+    buildLocalPendingMessage,
     buildReplyPayload,
+    executePendingSend,
     forwardedCardDraft,
     inputText,
     pendingForwardPreview?.dedupeKey,
-    replyTarget,
+    queueLocalPendingMessage,
     sendForwardedCard,
-    sendMessage,
-    sendMessageMutation.isPending,
     sendTypingState,
-    showSnackbar,
-    t,
   ]);
 
   /* ----- Camera: open device camera ----- */
@@ -1715,42 +2253,42 @@ export default function ChatScreen({ navigation, route }: Props) {
     });
     if (!result.canceled && result.assets.length > 0) {
       hapticLight();
-      try {
-        const uploaded = await uploadService.uploadImages(
+      const mediaGroupId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const files = result.assets.map((asset, index) => ({
+        uri: asset.uri,
+        type: asset.mimeType || 'image/jpeg',
+        name: asset.fileName || `camera-${Date.now()}-${index}.jpg`,
+      }));
+      const replyPayload = buildReplyPayload();
+      const localMessage = buildLocalPendingMessage({
+        images: files.map((file) => file.uri),
+        mediaMetas: buildLocalMediaMetas(
           result.assets.map((asset, index) => ({
             uri: asset.uri,
-            type: asset.mimeType || 'image/jpeg',
-            name: asset.fileName || `camera-${Date.now()}-${index}.jpg`,
+            width: asset.width,
+            height: asset.height,
+            localKey: files[index]?.name,
           }))
-        );
-        const replyPayload = buildReplyPayload();
-        anchorToLatestRef.current = true;
-        sendMessageMutation.mutate(
-          { payload: { text: '', ...(replyPayload ? { replyTo: replyPayload } : {}) }, images: uploaded.urls },
-          {
-            onSuccess: () => {
-              setReplyTarget(null);
-            },
-            onError: (error: unknown) => {
-              const msg = looksLikeImageViolation(error)
-                ? t('imageViolation')
-                : looksLikeContentViolation(error)
-                  ? t('contentViolation')
-                  : extractErrorMessage(error, t('dataLoadFailed'));
-              showSnackbar({ message: msg, type: 'error' });
-            },
-          }
-        );
-      } catch (error) {
-        const msg = looksLikeImageViolation(error)
-          ? t('imageViolation')
-          : looksLikeContentViolation(error)
-            ? t('contentViolation')
-            : extractErrorMessage(error, t('dataLoadFailed'));
-        showSnackbar({ message: msg, type: 'error' });
-      }
+        ),
+        mediaGroupId,
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      });
+      queueLocalPendingMessage(localMessage, {
+        kind: 'image-batch',
+        files,
+        mode: 'plain',
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      });
+      anchorToLatestRef.current = true;
+      setReplyTarget(null);
+      void executePendingSend(localMessage.id!, {
+        kind: 'image-batch',
+        files,
+        mode: 'plain',
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      });
     }
-  }, [buildReplyPayload, sendMessageMutation, showSnackbar, t]);
+  }, [buildLocalMediaMetas, buildLocalPendingMessage, buildReplyPayload, executePendingSend, queueLocalPendingMessage, t]);
 
   const clearPendingImageSelection = useCallback(() => {
     if (isSendingSelectedImages) return;
@@ -1762,58 +2300,74 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (pendingImageAssets.length === 0 || isSendingSelectedImages) return;
     setIsSendingSelectedImages(true);
     anchorToLatestRef.current = true;
-    try {
-      const uploaded = await uploadService.uploadImages(
-        pendingImageAssets.map((asset, index) => ({
-          uri: asset.uri,
-          type: asset.mimeType || 'image/jpeg',
-          name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
-        }))
-      );
+    const files = pendingImageAssets.map((asset, index) => ({
+      uri: asset.uri,
+      type: asset.mimeType || 'image/jpeg',
+      name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
+    }));
+    const replyPayload = buildReplyPayload();
 
-      const replyPayload = buildReplyPayload();
-
-      if (mode === 'merged') {
-        await sendMessage({
-          payload: {
-            imageAlbum: { count: uploaded.urls.length },
-            ...(replyPayload ? { replyTo: replyPayload } : {}),
-          },
-          images: uploaded.urls,
-        });
-      } else {
-        for (let index = 0; index < uploaded.urls.length; index += 1) {
-          const imageUrl = uploaded.urls[index];
-          await sendMessage({
-            payload: {
-              text: '',
-              ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
+    if (mode === 'merged') {
+      const mediaGroupId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const localMessage = buildLocalPendingMessage({
+        images: files.map((file) => file.uri),
+        mediaMetas: buildLocalMediaMetas(
+          pendingImageAssets.map((asset, index) => ({
+            uri: asset.uri,
+            width: asset.width,
+            height: asset.height,
+            localKey: files[index]?.name,
+          }))
+        ),
+        mediaGroupId,
+        imageAlbum: { count: files.length },
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      });
+      const request: PendingSendRequest = {
+        kind: 'image-batch',
+        files,
+        mode: 'album',
+        ...(replyPayload ? { replyTo: replyPayload } : {}),
+      };
+      queueLocalPendingMessage(localMessage, request);
+      void executePendingSend(localMessage.id!, request);
+    } else {
+      files.forEach((file, index) => {
+        const localMessage = buildLocalPendingMessage({
+          images: [file.uri],
+          mediaMetas: buildLocalMediaMetas([
+            {
+              uri: pendingImageAssets[index]?.uri ?? file.uri,
+              width: pendingImageAssets[index]?.width,
+              height: pendingImageAssets[index]?.height,
+              localKey: file.name,
             },
-            images: [imageUrl],
-          });
-        }
-      }
-
-      setReplyTarget(null);
-      setPendingImageAssets([]);
-      setImageSendModeVisible(false);
-      setIsSendingSelectedImages(false);
-    } catch (error) {
-      setIsSendingSelectedImages(false);
-      const msg = looksLikeImageViolation(error)
-        ? t('imageViolation')
-        : looksLikeContentViolation(error)
-          ? t('contentViolation')
-          : extractErrorMessage(error, t('dataLoadFailed'));
-      showSnackbar({ message: msg, type: 'error' });
+          ]),
+          mediaGroupId: `media-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+          ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
+        });
+        const request: PendingSendRequest = {
+          kind: 'image-single',
+          file,
+          ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
+        };
+        queueLocalPendingMessage(localMessage, request);
+        void executePendingSend(localMessage.id!, request);
+      });
     }
+
+    setReplyTarget(null);
+    setPendingImageAssets([]);
+    setImageSendModeVisible(false);
+    setIsSendingSelectedImages(false);
   }, [
+    buildLocalMediaMetas,
+    buildLocalPendingMessage,
     buildReplyPayload,
+    executePendingSend,
     isSendingSelectedImages,
     pendingImageAssets,
-    sendMessage,
-    showSnackbar,
-    t,
+    queueLocalPendingMessage,
   ]);
 
   /* ----- Image: open photo library ----- */
@@ -1864,30 +2418,31 @@ export default function ChatScreen({ navigation, route }: Props) {
         playsInSilentModeIOS: true,
       });
       const recording = new Audio.Recording();
+      const fallbackRecordingOptions: RecordingOptionsInput = {
+        android: {
+          extension: '.m4a',
+          outputFormat: 4,
+          audioEncoder: 3,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          audioQuality: 127,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {},
+      };
       await recording.prepareToRecordAsync(
         Audio.RecordingOptionsPresets
           ? Audio.RecordingOptionsPresets.HIGH_QUALITY
-          : ({
-              android: {
-                extension: '.m4a',
-                outputFormat: 4,
-                audioEncoder: 3,
-                sampleRate: 44100,
-                numberOfChannels: 2,
-                bitRate: 128000,
-              },
-              ios: {
-                extension: '.m4a',
-                audioQuality: 127,
-                sampleRate: 44100,
-                numberOfChannels: 2,
-                bitRate: 128000,
-                linearPCMBitDepth: 16,
-                linearPCMIsBigEndian: false,
-                linearPCMIsFloat: false,
-              },
-              web: {},
-            } as any)
+          : fallbackRecordingOptions
       );
       await recording.startAsync();
       recordingRef.current = recording;
@@ -1972,33 +2527,31 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, []);
 
   const sendRecordedAudio = useCallback(async (uri: string, durationMs?: number) => {
-    try {
-      const uploadMeta = getAudioUploadMetaFromUri(uri);
-      const uploaded = await uploadService.uploadFile({
+    const uploadMeta = getAudioUploadMetaFromUri(uri);
+    const replyPayload = replyTarget
+      ? {
+          text: buildReplyPreview(replyTarget),
+          from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
+        }
+      : undefined;
+    const localMessage = buildLocalPendingMessage({
+      audio: { url: uri, ...(typeof durationMs === 'number' ? { durationMs } : {}) },
+      ...(replyPayload ? { replyTo: replyPayload } : {}),
+    });
+    const request: PendingSendRequest = {
+      kind: 'audio',
+      file: {
         uri,
         type: uploadMeta.type,
         name: uploadMeta.name,
-      });
-      const replyPayload = replyTarget
-        ? {
-            text: buildReplyPreview(replyTarget),
-            from: (replyTarget.type === 'sent' ? 'me' : 'them') as 'me' | 'them',
-          }
-        : undefined;
-      await sendMessage({
-        payload: {
-          ...(replyPayload ? { replyTo: replyPayload } : {}),
-          audio: { url: uploaded.url, ...(typeof durationMs === 'number' ? { durationMs } : {}) },
-        },
-      });
-      setReplyTarget(null);
-    } catch (error) {
-      if (__DEV__) {
-        console.log('[Voice] sendRecordedAudio failed:', extractErrorMessage(error, 'unknown error'));
-      }
-      showSnackbar({ message: extractErrorMessage(error, t('dataLoadFailed')), type: 'error' });
-    }
-  }, [buildReplyPreview, replyTarget, sendMessage, showSnackbar, t]);
+      },
+      ...(typeof durationMs === 'number' ? { durationMs } : {}),
+      ...(replyPayload ? { replyTo: replyPayload } : {}),
+    };
+    queueLocalPendingMessage(localMessage, request);
+    setReplyTarget(null);
+    await executePendingSend(localMessage.id!, request);
+  }, [buildLocalPendingMessage, buildReplyPreview, executePendingSend, queueLocalPendingMessage, replyTarget]);
 
   const transcribeRecordedAudioToText = useCallback(async (uri: string, durationMs: number) => {
     setIsTranscribingVoice(true);
@@ -2162,6 +2715,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           onPlayAudio={handlePlayAudio}
           onImagePress={handleOpenImagePreview}
           onPressReaction={handlePressReaction}
+          onRetryFailedMessage={retryFailedMessage}
           isAudioPlaying={Boolean(item.message.id && playingAudioMessageId === item.message.id)}
           t={t}
         />
@@ -2178,6 +2732,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       handleOpenImagePreview,
       handlePressReaction,
       playingAudioMessageId,
+      retryFailedMessage,
       t,
     ]
   );
@@ -2236,7 +2791,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             drawDistance={700}
-            removeClippedSubviews={Platform.OS === 'android'}
+            removeClippedSubviews={false}
             getItemType={(item) => item.kind}
             maintainVisibleContentPosition={{
               startRenderingFromBottom: true,
@@ -2658,6 +3213,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 2,
   },
+  bubbleMetaRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 16,
+  },
   bubble: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -2792,7 +3353,46 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     fontSize: 10,
     color: colors.onSurfaceVariant,
-    marginLeft: spacing.sm,
+  },
+  messageStatusWrap: {
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageSpinnerTrack: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 67, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageSpinnerArc: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderTopColor: '#8B95A3',
+    borderRightColor: 'rgba(139, 149, 163, 0.72)',
+  },
+  messageFailedBadge: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageFailedBadgeText: {
+    ...typography.labelSmall,
+    color: colors.onError,
+    fontWeight: '700',
+    fontSize: 9,
+    lineHeight: 10,
   },
 
   reactionList: {

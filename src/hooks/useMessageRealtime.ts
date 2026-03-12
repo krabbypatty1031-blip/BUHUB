@@ -2,9 +2,24 @@ import { useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE } from '../api/client';
+import {
+  buildChatMessageFromPersistedMessage,
+  mapConversationSummaryToContact,
+  type ConversationSummary,
+  type PersistedDirectMessage,
+} from '../api/services/message.service';
 import { useAuthStore } from '../store/authStore';
 import { useMessageStore } from '../store/messageStore';
 import { useMessageRealtimeStore } from '../store/messageRealtimeStore';
+import {
+  appendMessageToHistory,
+  markMessageAsReadInHistory,
+  markMessageAsRecalledInHistory,
+  patchChatQueries,
+  patchContactsQueries,
+  upsertContact,
+} from '../utils/messageCache';
+import { recordMessageMetric } from '../utils/messageMetrics';
 
 const TOKEN_KEY = 'buhub-token';
 const RECONNECT_BASE_DELAY_MS = 1000;
@@ -15,6 +30,10 @@ type RealtimeEvent = {
   fromUserId?: string;
   isTyping?: boolean;
   conversationUserId?: string;
+  messageId?: string;
+  readerUserId?: string;
+  message?: PersistedDirectMessage;
+  conversation?: ConversationSummary | null;
   notificationType?: 'like' | 'follow' | 'comment';
   createdAt?: number;
 };
@@ -74,12 +93,15 @@ export function useMessageRealtime() {
         RECONNECT_BASE_DELAY_MS * Math.max(1, 2 ** reconnectAttemptRef.current)
       );
       reconnectAttemptRef.current += 1;
+      recordMessageMetric('message_ws_reconnect_scheduled', { delayMs, attempt: reconnectAttemptRef.current });
       reconnectTimerRef.current = setTimeout(() => {
         void connectSocket();
       }, delayMs);
     };
 
     const applyEvents = (events: RealtimeEvent[], now?: number) => {
+      const currentUserId = useAuthStore.getState().user?.id;
+
       if (events.length > 0) {
         events.forEach((event) => {
           if (event.type !== 'typing:update') return;
@@ -103,13 +125,51 @@ export function useMessageRealtime() {
 
       if (messageEvents.length > 0) {
         const activeChatContactId = useMessageStore.getState().activeChatContactId;
-        const currentUserId = useAuthStore.getState().user?.id;
         messageEvents.forEach((event) => {
           if (event.type === 'message:new' && event.conversationUserId) {
             handleIncomingMessage(event.conversationUserId);
           }
         });
-        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+
+        messageEvents.forEach((event) => {
+          const contactId = event.conversationUserId;
+          if (!contactId) return;
+
+          if (event.conversation) {
+            patchContactsQueries(queryClient, currentUserId, (current) =>
+              upsertContact(current, mapConversationSummaryToContact(event.conversation!))
+            );
+          }
+
+          if (event.type === 'message:new') {
+            if (event.message && currentUserId) {
+              const nextMessage = buildChatMessageFromPersistedMessage(event.message, currentUserId);
+              if (nextMessage) {
+                patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
+                  appendMessageToHistory(current, nextMessage, language)
+                );
+              }
+            } else {
+              queryClient.invalidateQueries({
+                queryKey: ['chat', contactId],
+                refetchType: contactId === activeChatContactId ? 'active' : 'inactive',
+              });
+            }
+          }
+
+          if (event.type === 'message:read') {
+            patchChatQueries(queryClient, currentUserId, contactId, (current) =>
+              markMessageAsReadInHistory(current, event.messageId)
+            );
+          }
+
+          if (event.type === 'message:recalled' && event.messageId) {
+            patchChatQueries(queryClient, currentUserId, contactId, (current) =>
+              markMessageAsRecalledInHistory(current, event.messageId!)
+            );
+          }
+        });
+
         const conversationIds = new Set(
           messageEvents
             .map((event) => event.conversationUserId)
@@ -122,18 +182,24 @@ export function useMessageRealtime() {
               event.type === 'message:new' &&
               (!event.fromUserId || !currentUserId || event.fromUserId !== currentUserId)
           );
-          const shouldRefetchActive = (
-            id !== activeChatContactId ||
-            hasIncomingPeerMessage ||
-            eventsForConversation.some((event) => event.type !== 'message:new')
+          const shouldRefetchConversation = eventsForConversation.some(
+            (event) =>
+              (event.type === 'message:new' && !event.message) ||
+              (event.type === 'message:recalled' && !event.messageId)
           );
-          queryClient.invalidateQueries({
-            queryKey: ['chat', id],
-            refetchType: shouldRefetchActive ? 'active' : 'inactive',
-          });
+          if (shouldRefetchConversation) {
+            queryClient.invalidateQueries({
+              queryKey: ['chat', id],
+              refetchType: id === activeChatContactId || hasIncomingPeerMessage ? 'active' : 'inactive',
+            });
+          }
           if (hasIncomingPeerMessage) {
             setTyping(id, false);
           }
+        });
+        recordMessageMetric('message_realtime_events_applied', {
+          count: messageEvents.length,
+          conversations: conversationIds.size,
         });
       }
 
@@ -166,6 +232,7 @@ export function useMessageRealtime() {
         ws.onopen = () => {
           if (socketRef.current !== ws) return;
           reconnectAttemptRef.current = 0;
+          recordMessageMetric('message_ws_connected');
         };
 
         ws.onmessage = (event) => {
@@ -194,6 +261,7 @@ export function useMessageRealtime() {
           }
         };
       } catch {
+        recordMessageMetric('message_ws_connect_failed');
         scheduleReconnect();
       }
     };

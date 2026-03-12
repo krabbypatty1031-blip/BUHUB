@@ -320,7 +320,6 @@ export default function ForumScreen({ navigation, route }: Props) {
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={160}
         extraData={listExtraData}
         refreshing={isPullRefreshing}
         onRefresh={() => {

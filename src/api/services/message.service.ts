@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { Contact, ChatHistory } from '../../types';
+import type { Contact, ChatHistory, ChatFunctionCard, ChatMessage, FunctionCardType } from '../../types';
 import i18n, { normalizeLanguage } from '../../i18n';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeAvatarUrl, normalizeImageUrl as normalizeMediaUrl } from '../../utils/imageUrl';
@@ -14,15 +14,7 @@ const MESSAGE_ALBUM_PREFIX = '[BUHUB_ALBUM]';
 const CARD_TITLE_MAX_LEN = 240;
 const CARD_POSTER_MAX_LEN = 80;
 
-type FunctionCardType = 'partner' | 'errand' | 'secondhand' | 'post';
-
-type FunctionCardPayload = {
-  type: FunctionCardType;
-  id?: string;
-  title: string;
-  posterName: string;
-  postId?: string;
-};
+type FunctionCardPayload = Pick<ChatFunctionCard, 'type' | 'id' | 'title' | 'posterName' | 'postId'>;
 
 type ReplyPayload = {
   text: string;
@@ -67,10 +59,50 @@ export type SendMessagePayload =
       };
     };
 
+export type PersistedDirectMessage = {
+  id: string;
+  content?: string;
+  text?: string;
+  images?: string[];
+  isDeleted?: boolean;
+  isRead?: boolean;
+  createdAt?: string | Date;
+  time?: string | Date;
+  senderId?: string;
+  receiverId?: string;
+  isMine?: boolean;
+};
+
 type MessageLanguage = 'tc' | 'sc' | 'en';
 export type UserPresence = {
   isOnline: boolean;
   lastSeen: number | null;
+};
+
+export type SendMessageResult = {
+  success: boolean;
+  message?: ChatMessage;
+};
+
+export type ConversationSummary = {
+  userId: string;
+  user: {
+    userName?: string | null;
+    nickname: string;
+    avatar: string;
+    gender?: string;
+    grade?: string | null;
+    major?: string | null;
+  };
+  latestMessage: {
+    content: string;
+    images?: string[];
+    createdAt: string | Date;
+    isDeleted?: boolean;
+    isRead?: boolean;
+    senderId: string;
+  };
+  unreadCount: number;
 };
 
 const CARD_TYPE_LABEL_KEYS: Record<FunctionCardType, string> = {
@@ -123,12 +155,38 @@ function formatChatTime(iso: string): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
+export function buildMessagePreviewText(
+  content: string,
+  images?: string[],
+  isDeleted?: boolean
+): string {
+  if (isDeleted) {
+    return tMessage('messageRecalledPreview');
+  }
+  const parsed = parseMessageContent(content ?? '');
+  return parsed.functionCard
+    ? buildCardPreview(parsed.functionCard)
+    : parsed.audio
+      ? tMessage('messageAudioPreview')
+      : parsed.imageAlbum
+        ? tMessage('messageAlbumPreview', { count: parsed.imageAlbum.count })
+        : parsed.reaction
+          ? parsed.reaction.emoji
+            ? tMessage('messageReactionPreview', {
+                emoji: parsed.reaction.emoji,
+                defaultValue: `[Reacted] ${parsed.reaction.emoji}`,
+              })
+            : ''
+          : (parsed.text || ((images?.length ?? 0) > 0 ? tMessage('messageImagePreview') : ''));
+}
+
 function buildCardPreview(card: FunctionCardPayload): string {
   const typeLabel = String(i18n.t(CARD_TYPE_LABEL_KEYS[card.type]));
+  const fallbackPrefix = getCurrentLanguage() === 'en' ? 'Shared' : '分享';
   return tMessage('messageSharedCardPreview', {
     type: typeLabel,
     title: card.title,
-    defaultValue: `[分享${typeLabel}] ${card.title}`,
+    defaultValue: `[${fallbackPrefix}${typeLabel}] ${card.title}`,
   });
 }
 
@@ -281,6 +339,127 @@ function parseMessageContent(raw: string): {
   } catch {
     return { text: raw };
   }
+}
+
+function resolveMessageTimestamp(value?: string | Date): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.trim().length > 0) return value;
+  return new Date().toISOString();
+}
+
+export function buildSentChatMessage(message: PersistedDirectMessage): ChatMessage | null {
+  const timestamp = resolveMessageTimestamp(message.createdAt ?? message.time);
+
+  if (message.isDeleted) {
+    return {
+      id: message.id,
+      createdAt: timestamp,
+      type: 'sent',
+      text: tMessage('messageYouRecalled'),
+      images: [],
+      isRecalled: true,
+      time: formatChatTime(timestamp),
+      status: message.isRead ? 'read' : 'delivered',
+    };
+  }
+
+  const rawText = message.content ?? message.text ?? '';
+  const parsed = parseMessageContent(rawText);
+  if (parsed.reaction) return null;
+
+  return {
+    id: message.id,
+    createdAt: timestamp,
+    type: 'sent',
+    text: parsed.text,
+    images: Array.isArray(message.images)
+      ? message.images
+          .map((img) => normalizeMediaUrl(img))
+          .filter((img): img is string => typeof img === 'string' && img.length > 0)
+      : [],
+    ...(parsed.audio
+      ? (() => {
+          const audioUrl = normalizeMediaUrl(parsed.audio.url);
+          return audioUrl ? { audio: { ...parsed.audio, url: audioUrl } } : {};
+        })()
+      : {}),
+    ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
+    ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
+    time: formatChatTime(timestamp),
+    status: message.isRead ? 'read' : 'delivered',
+    ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
+  };
+}
+
+export function buildChatMessageFromPersistedMessage(
+  message: PersistedDirectMessage,
+  currentUserId?: string
+): ChatMessage | null {
+  const timestamp = resolveMessageTimestamp(message.createdAt ?? message.time);
+  const isMine =
+    typeof message.isMine === 'boolean'
+      ? message.isMine
+      : Boolean(currentUserId && message.senderId && message.senderId === currentUserId);
+
+  if (message.isDeleted) {
+    return {
+      id: message.id,
+      createdAt: timestamp,
+      type: isMine ? 'sent' : 'received',
+      text: isMine ? tMessage('messageYouRecalled') : tMessage('messagePeerRecalled'),
+      images: [],
+      isRecalled: true,
+      time: formatChatTime(timestamp),
+      ...(isMine ? { status: (message.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
+    };
+  }
+
+  const rawText = message.content ?? message.text ?? '';
+  const parsed = parseMessageContent(rawText);
+  if (parsed.reaction) return null;
+
+  return {
+    id: message.id,
+    createdAt: timestamp,
+    type: isMine ? 'sent' : 'received',
+    text: parsed.text,
+    images: Array.isArray(message.images)
+      ? message.images
+          .map((img) => normalizeMediaUrl(img))
+          .filter((img): img is string => typeof img === 'string' && img.length > 0)
+      : [],
+    ...(parsed.audio
+      ? (() => {
+          const audioUrl = normalizeMediaUrl(parsed.audio.url);
+          return audioUrl ? { audio: { ...parsed.audio, url: audioUrl } } : {};
+        })()
+      : {}),
+    ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
+    ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
+    time: formatChatTime(timestamp),
+    ...(isMine ? { status: (message.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
+    ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
+  };
+}
+
+export function mapConversationSummaryToContact(summary: ConversationSummary): Contact {
+  return {
+    id: summary.userId,
+    userName: summary.user?.userName ?? undefined,
+    name: summary.user?.nickname ?? '?',
+    avatar: normalizeAvatarUrl(summary.user?.avatar) ?? '',
+    grade: summary.user?.grade ?? undefined,
+    major: summary.user?.major ?? undefined,
+    message: buildMessagePreviewText(
+      summary.latestMessage?.content ?? '',
+      summary.latestMessage?.images,
+      summary.latestMessage?.isDeleted
+    ),
+    time: formatMessageTime(resolveMessageTimestamp(summary.latestMessage?.createdAt)),
+    unread: summary.unreadCount ?? 0,
+    pinned: false,
+    gender: (summary.user?.gender as Contact['gender']) ?? undefined,
+  };
 }
 
 function groupMessagesByDate(
@@ -445,52 +624,9 @@ export const messageService = {
       return mockContacts;
     }
     const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CONVERSATIONS);
-    return (Array.isArray(data) ? data : []).map((c: {
-      userId: string;
-      user: {
-        userName?: string | null;
-        nickname: string;
-        avatar: string;
-        gender?: string;
-        grade?: string | null;
-        major?: string | null;
-      };
-      latestMessage: { content: string; images?: string[]; createdAt: string; isDeleted?: boolean };
-      unreadCount: number;
-    }) => {
-      const preview = c.latestMessage?.isDeleted
-        ? tMessage('messageRecalledPreview')
-        : (() => {
-            const parsed = parseMessageContent(c.latestMessage?.content ?? '');
-            return parsed.functionCard
-              ? buildCardPreview(parsed.functionCard)
-              : parsed.audio
-                ? tMessage('messageAudioPreview')
-                : parsed.imageAlbum
-                  ? tMessage('messageAlbumPreview', { count: parsed.imageAlbum.count })
-                : parsed.reaction
-                  ? parsed.reaction.emoji
-                    ? tMessage('messageReactionPreview', {
-                        emoji: parsed.reaction.emoji,
-                        defaultValue: `[Reacted] ${parsed.reaction.emoji}`,
-                      })
-                    : ''
-                  : (parsed.text || ((c.latestMessage?.images?.length ?? 0) > 0 ? tMessage('messageImagePreview') : ''));
-          })();
-      return {
-        id: c.userId,
-        userName: c.user?.userName ?? undefined,
-        name: c.user?.nickname ?? '?',
-        avatar: normalizeAvatarUrl(c.user?.avatar) ?? '',
-        grade: c.user?.grade ?? undefined,
-        major: c.user?.major ?? undefined,
-        message: preview || '',
-        time: formatMessageTime(c.latestMessage?.createdAt ?? new Date().toISOString()),
-        unread: c.unreadCount ?? 0,
-        pinned: false,
-        gender: (c.user?.gender as 'male' | 'female' | 'other') ?? undefined,
-      };
-    });
+    return (Array.isArray(data) ? data : []).map((c) =>
+      mapConversationSummaryToContact(c as ConversationSummary)
+    );
   },
 
   async getChatHistory(userId: string): Promise<ChatHistory[]> {
@@ -544,23 +680,25 @@ export const messageService = {
     };
   },
 
-  async sendMessage(receiverId: string, payload: SendMessagePayload, images?: string[]): Promise<{ success: boolean }> {
+  async sendMessage(receiverId: string, payload: SendMessagePayload, images?: string[]): Promise<SendMessageResult> {
     const content = normalizeSendContent(payload);
     if (!content && (!images || images.length === 0)) return { success: false };
 
     if (USE_MOCK) {
       const { mockChatHistory } = await import('../../data/mock/messages');
       const now = new Date();
-      const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const parsed = parseMessageContent(content);
+      const createdAt = now.toISOString();
       const newMsg = {
+        id: `mock-msg-${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt,
         type: 'sent' as const,
         text: parsed.text,
         images: images ?? [],
         ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
         ...(parsed.audio ? { audio: parsed.audio } : {}),
         ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
-        time,
+        time: formatChatTime(createdAt),
         status: 'sent' as const,
         ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
       };
@@ -571,10 +709,11 @@ export const messageService = {
       } else {
         mockChatHistory[receiverId] = [{ date: tMessage('messageTimeToday'), messages: [newMsg] }];
       }
-      return { success: true };
+      return { success: true, message: newMsg };
     }
-    await apiClient.post(ENDPOINTS.MESSAGE.SEND, { receiverId, content, images: images ?? [] });
-    return { success: true };
+    const { data } = await apiClient.post(ENDPOINTS.MESSAGE.SEND, { receiverId, content, images: images ?? [] });
+    const message = buildSentChatMessage(data as PersistedDirectMessage) ?? undefined;
+    return { success: true, ...(message ? { message } : {}) };
   },
 
   async markMessageRead(messageId: string): Promise<{ success: boolean }> {

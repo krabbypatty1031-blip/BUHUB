@@ -29,6 +29,10 @@ import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/
 import { TERMS_URL, PRIVACY_URL } from '../../config/legal';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
+type AuthErrorLike = {
+  message?: string;
+  errorCode?: string;
+};
 
 const CODE_LENGTH = 6;
 const INITIAL_COUNTDOWN = 60;
@@ -109,10 +113,13 @@ export default function EmailInputScreen({ navigation }: Props) {
           setCode(Array(CODE_LENGTH).fill(''));
           inputRefs.current[0]?.focus();
         }
-      } catch (err: any) {
-        let msg = err?.message || t('sendCodeFailed');
-        if (err?.errorCode === 'EMAIL_ALREADY_REGISTERED') msg = t('emailAlreadyRegistered');
-        else if (err?.errorCode === 'CAPTCHA_FAILED') msg = t('captchaFailed');
+      } catch (error: unknown) {
+        const authError = (typeof error === 'object' && error
+          ? error as AuthErrorLike
+          : undefined);
+        let msg = authError?.message || t('sendCodeFailed');
+        if (authError?.errorCode === 'EMAIL_ALREADY_REGISTERED') msg = t('emailAlreadyRegistered');
+        else if (authError?.errorCode === 'CAPTCHA_FAILED') msg = t('captchaFailed');
         showSnackbar({ message: msg, type: 'error' });
       } finally {
         setIsSendingCode(false);

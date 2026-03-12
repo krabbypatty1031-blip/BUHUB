@@ -5,6 +5,12 @@ import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
 
 export type PostsPage = { posts: ForumPost[]; hasMore: boolean; page: number };
 type PostsInfiniteData = InfiniteData<PostsPage>;
+type MyContentCommentLike = {
+  commentId: string;
+  liked?: boolean;
+  likes: number;
+  bookmarked?: boolean;
+};
 
 const POSTS_LIMIT = 20;
 
@@ -87,13 +93,13 @@ function updateCommentTreeById(
 function updateMyContentCommentById(
   myContent: MyContent | undefined,
   targetId: string,
-  updater: (item: any) => any,
+  updater: <T extends MyContentCommentLike>(item: T) => T,
   options?: { includeReactionLists?: boolean }
 ): MyContent | undefined {
   if (!myContent) return myContent;
   const includeReactionLists = !!options?.includeReactionLists;
 
-  const updateArray = <T extends { commentId: string }>(arr: T[]) =>
+  const updateArray = <T extends MyContentCommentLike>(arr: T[]) =>
     arr.map((item) => (item.commentId === targetId ? updater(item) : item));
 
   return {

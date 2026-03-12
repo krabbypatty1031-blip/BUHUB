@@ -19,6 +19,14 @@ interface HCaptchaCaptchaProps {
   onError?: (error: string) => void;
 }
 
+type HCaptchaMessageEvent = {
+  nativeEvent?: {
+    data?: string;
+  };
+  success?: boolean;
+  markUsed?: () => void;
+};
+
 const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaRef, HCaptchaCaptchaProps>(
   function HCaptchaCaptcha({ siteKey, onSuccess, onError }, ref) {
     const { i18n } = useTranslation();
@@ -31,7 +39,7 @@ const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaRef, HCaptchaCaptchaProps>(
 
     const languageCode = HCAPTCHA_LANG_MAP[i18n.language] || 'en';
 
-    const handleMessage = (event: any) => {
+    const handleMessage = (event: HCaptchaMessageEvent) => {
       const data = event?.nativeEvent?.data;
       if (!data) return;
 

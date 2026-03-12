@@ -1,5 +1,6 @@
 import apiClient, { setToken, clearToken } from '../client';
 import ENDPOINTS from '../endpoints';
+import type { User } from '../../types';
 
 const USE_MOCK = false;
 
@@ -59,7 +60,7 @@ export const authService = {
     return data;
   },
 
-  async verifyToken(): Promise<{ valid: boolean; user?: any }> {
+  async verifyToken(): Promise<{ valid: boolean; user?: User }> {
     if (USE_MOCK) {
       return { valid: true };
     }

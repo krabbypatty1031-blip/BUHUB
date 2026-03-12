@@ -2,6 +2,7 @@ import { Gender, Language, PollOption } from './common';
 
 export interface User {
   id?: string;
+  userName?: string;
   name: string;
   nickname: string;
   email: string;

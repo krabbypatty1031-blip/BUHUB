@@ -25,6 +25,9 @@ import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { EyeIcon, EyeOffIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+type AuthErrorLike = {
+  message?: string;
+};
 
 export default function LoginScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -58,8 +61,11 @@ export default function LoginScreen({ navigation }: Props) {
       if (user) {
         setUser(user);
       }
-    } catch (error: any) {
-      const msg: string = error?.message || '';
+    } catch (error: unknown) {
+      const msg =
+        typeof error === 'object' && error
+          ? ((error as AuthErrorLike).message ?? '')
+          : '';
       if (msg.includes('verify your email') || msg.includes('EMAIL_NOT_VERIFIED')) {
         showSnackbar({ message: t('emailNotVerified'), type: 'error' });
       } else if (msg.includes('disabled') || msg.includes('ACCOUNT_DISABLED')) {

@@ -66,6 +66,17 @@ import { normalizeImageUrl } from '../../utils/imageUrl';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'PostDetail'>;
+type MutationErrorLike = {
+  errorCode?: string;
+  code?: string;
+};
+type NativeNodeHandleTarget = React.Component<unknown> | number | null | undefined;
+
+function resolveNodeHandle(target: NativeNodeHandleTarget): number | null {
+  if (typeof target === 'number') return target;
+  if (!target) return null;
+  return findNodeHandle(target);
+}
 
 /* Helper functions for infinite nested comments */
 
@@ -850,13 +861,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
       const targetNode = itemRefs.current.get(commentId);
       const scrollNode = flatListRef.current.getNativeScrollRef?.() ?? flatListRef.current.getScrollableNode?.();
-      const targetHandle = targetNode ? findNodeHandle(targetNode as any) : null;
-      const scrollHandle =
-        scrollNode == null
-            ? null
-          : typeof scrollNode === 'number'
-            ? scrollNode
-            : findNodeHandle(scrollNode as any);
+      const targetHandle = resolveNodeHandle(targetNode);
+      const scrollHandle = resolveNodeHandle(scrollNode);
 
       if (targetHandle != null && scrollHandle != null) {
         UIManager.measureLayout(
@@ -1041,8 +1047,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           setReplyTo(null);
           setIsAnonymous(false);
         },
-        onError: (err: any) => {
-          const code = err?.errorCode || err?.code;
+        onError: (err: unknown) => {
+          const error = typeof err === 'object' && err
+            ? err as MutationErrorLike
+            : undefined;
+          const code = error?.errorCode || error?.code;
           const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
           showSnackbar({ message: msg, type: 'error' });
         },

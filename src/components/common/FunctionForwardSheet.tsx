@@ -18,17 +18,18 @@ import { useContacts } from '../../hooks/useMessages';
 import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import { CloseIcon, SendIcon, CheckIcon } from './icons';
-import type { Contact } from '../../types';
+import type { Contact, ChatForwardNavigation, FunctionRefType } from '../../types';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { buildChatForwardParams } from '../../utils/chatForwarding';
 
 interface FunctionForwardSheetProps {
   visible: boolean;
   onClose: () => void;
-  functionType: 'partner' | 'errand' | 'secondhand';
+  functionType: FunctionRefType;
   functionTitle: string;
   functionPosterName: string;
   functionId: string;
-  navigation: any;
+  navigation: ChatForwardNavigation;
 }
 
 interface ContactRowProps {
@@ -106,7 +107,7 @@ export default function FunctionForwardSheet({
         name: 'MessagesTab',
         params: {
           screen: 'Chat',
-          params: {
+          params: buildChatForwardParams({
             contactId: selectedContact.id,
             contactName: selectedContact.name,
             contactAvatar: selectedContact.avatar || selectedContact.name,
@@ -118,7 +119,7 @@ export default function FunctionForwardSheet({
             forwardedNonce: `${Date.now()}-${selectedContact.id}-${functionId}`,
             forwardedRequiresConfirm: false,
             ...(backTo ? { backTo } : {}),
-          },
+          }),
         },
       })
     );

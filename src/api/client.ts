@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AxiosError } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -43,6 +44,20 @@ console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS, '| DEV:', _
 // Callback for handling unauthorized (401) responses
 // Set by authStore to avoid circular dependency
 let onUnauthorized: (() => void) | null = null;
+
+type ErrorResponseData = {
+  message?: string;
+  details?: unknown;
+  error?: {
+    code?: string;
+    message?: string;
+    details?: unknown;
+  };
+};
+
+function isAxiosError(error: unknown): error is AxiosError<ErrorResponseData> {
+  return axios.isAxiosError(error);
+}
 
 export const setOnUnauthorized = (callback: () => void) => {
   onUnauthorized = callback;
@@ -97,30 +112,35 @@ uploadClient.interceptors.request.use(
 );
 
 // Format error response into ApiError (backend uses { success: false, error: { code, message } })
-const formatError = (error: any): ApiError => {
-  if (error.response) {
+const formatError = (error: unknown): ApiError => {
+  if (isAxiosError(error) && error.response) {
     const data = error.response.data;
+    const details = data?.error?.details ?? data?.details;
     const message =
       data?.error?.message || data?.message || error.message || 'Unknown error';
     return {
       code: error.response.status,
       message,
       errorCode: data?.error?.code,
-      details: data?.error?.details ?? data?.details,
+      details: typeof details === 'string' ? details : undefined,
     };
   }
-  if (error.request) {
+  if (isAxiosError(error) && error.request) {
     return { code: 0, message: 'Network error: no response received' };
   }
-  return { code: -1, message: error.message || 'Unknown error' };
+  if (error instanceof Error) {
+    return { code: -1, message: error.message || 'Unknown error' };
+  }
+  return { code: -1, message: 'Unknown error' };
 };
 
 // Response interceptor: handle common errors
-const responseErrorHandler = async (error: any) => {
-  const status = error.response?.status;
+const responseErrorHandler = async (error: unknown) => {
+  const status = isAxiosError(error) ? error.response?.status : undefined;
   if (__DEV__) {
-    const url = error.config?.baseURL + error.config?.url;
-    console.log('[API] Error:', status ?? 'no response', url, error.response?.data ?? error.message);
+    const url = isAxiosError(error) ? `${error.config?.baseURL ?? ''}${error.config?.url ?? ''}` : undefined;
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.log('[API] Error:', status ?? 'no response', url, isAxiosError(error) ? error.response?.data ?? message : message);
   }
 
   if (status === 401) {

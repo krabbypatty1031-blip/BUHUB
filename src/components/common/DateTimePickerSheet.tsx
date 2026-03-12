@@ -322,6 +322,7 @@ export default function DateTimePickerSheet({
 
           {/* Header */}
           <View style={styles.header}>
+            <View style={styles.headerSide} />
             <Text style={styles.title}>
               {title || t('deadlineLabel')}
             </Text>
@@ -404,6 +405,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
+  },
+  headerSide: {
+    width: 84,
   },
   title: {
     ...typography.titleMedium,

@@ -25,12 +25,19 @@ import {
 import type { IconProps } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FunctionsHub'>;
+type FunctionsHubRouteName =
+  | 'PartnerList'
+  | 'ErrandList'
+  | 'SecondhandList'
+  | 'MyPosts'
+  | 'RatingList'
+  | 'FacilityBooking';
 
 interface FunctionEntry {
   key: string;
   labelKey: string;
   Icon: React.FC<IconProps>;
-  route: keyof FunctionsStackParamList;
+  route: FunctionsHubRouteName;
   iconBg: string;
   iconColor: string;
 }
@@ -58,8 +65,27 @@ export default function FunctionsHubScreen({ navigation }: Props) {
   const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
 
   const handlePress = useCallback(
-    (route: keyof FunctionsStackParamList) => {
-      navigation.navigate(route as any);
+    (targetRoute: FunctionsHubRouteName) => {
+      switch (targetRoute) {
+        case 'PartnerList':
+          navigation.navigate('PartnerList', {});
+          return;
+        case 'ErrandList':
+          navigation.navigate('ErrandList', {});
+          return;
+        case 'SecondhandList':
+          navigation.navigate('SecondhandList', {});
+          return;
+        case 'RatingList':
+          navigation.navigate('RatingList', { category: 'teacher' });
+          return;
+        case 'MyPosts':
+          navigation.navigate('MyPosts');
+          return;
+        case 'FacilityBooking':
+          navigation.navigate('FacilityBooking');
+          return;
+      }
     },
     [navigation]
   );

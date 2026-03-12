@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
+import type { NavigationState, PartialState, Route } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MainTabParamList } from './types';
 import { colors } from '../theme';
@@ -21,10 +22,13 @@ import MeStackNavigator from './MeStackNavigator';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MANUAL_TAB_BAR_ROUTES = new Set(['Chat', 'RatingForm']);
 
-function getFocusedLeafRouteName(route: { state?: any } | undefined): string | undefined {
+type NavigationStateLike = NavigationState | PartialState<NavigationState>;
+type RouteWithState = Route<string> & { state?: NavigationStateLike };
+
+function getFocusedLeafRouteName(route: { state?: NavigationStateLike } | undefined): string | undefined {
   let state = route?.state;
   while (state?.routes?.length) {
-    const current = state.routes[state.index ?? 0];
+    const current = state.routes[state.index ?? 0] as RouteWithState | undefined;
     if (!current) return undefined;
     if (!current.state) return current.name;
     state = current.state;
@@ -60,11 +64,11 @@ export default function MainTabNavigator() {
       screenListeners={({ navigation, route }) => ({
         state: () => {
           const state = navigation.getState();
-          const activeRouteName = state.routes[state.index]?.name;
-          if (activeRouteName !== route.name) {
+          const activeRoute = state.routes[state.index] as RouteWithState | undefined;
+          if (activeRoute?.name !== route.name) {
             return;
           }
-          const focusedLeafRouteName = getFocusedLeafRouteName(route as any);
+          const focusedLeafRouteName = getFocusedLeafRouteName(activeRoute);
           if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
             hideTabBar(hiddenTabBarOffset);
             return;
@@ -72,7 +76,10 @@ export default function MainTabNavigator() {
           showTabBar();
         },
         focus: () => {
-          const focusedLeafRouteName = getFocusedLeafRouteName(route as any);
+          const tabRoute = navigation
+            .getState()
+            .routes.find((stateRoute) => stateRoute.key === route.key) as RouteWithState | undefined;
+          const focusedLeafRouteName = getFocusedLeafRouteName(tabRoute);
           if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
             hideTabBar(hiddenTabBarOffset);
             return;

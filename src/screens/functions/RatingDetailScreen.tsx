@@ -22,6 +22,12 @@ import { BackIcon, StarIcon } from '../../components/common/icons';
 import Avatar from '../../components/common/Avatar';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingDetail'>;
+const RATE_LABEL_KEYS = {
+  course: 'rateCourse',
+  teacher: 'rateProfessor',
+  canteen: 'rateCanteen',
+  major: 'rateMajor',
+} as const;
 
 /* ── Dimension Bar ── */
 function DimensionBar({
@@ -47,6 +53,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { category, id } = route.params;
   const { data: item, isLoading, refetch } = useRatingDetail(category, id);
+  const rateLabelKey = RATE_LABEL_KEYS[category];
 
   useFocusEffect(
     React.useCallback(() => {
@@ -192,7 +199,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           >
             <StarIcon size={18} color={colors.onPrimary} />
             <Text style={styles.rateButtonText}>
-              {t(`rate${category.charAt(0).toUpperCase() + category.slice(1)}` as any) || t('rate')}
+              {t(rateLabelKey) || t('rate')}
             </Text>
           </TouchableOpacity>
         </View>

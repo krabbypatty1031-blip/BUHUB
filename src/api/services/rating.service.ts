@@ -3,6 +3,40 @@ import ENDPOINTS from '../endpoints';
 import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from '../../types';
 
 const USE_MOCK = false;
+type ApiScoreRecord = {
+  key?: string;
+  dimension?: string;
+  value?: number;
+  label?: string;
+};
+type ApiLocalizedLabel = {
+  tc?: string;
+  sc?: string;
+  en?: string;
+  left?: string;
+  right?: string;
+  min?: string;
+  max?: string;
+};
+type ApiDimensionRecord = {
+  name?: string;
+  label?: string | ApiLocalizedLabel;
+};
+type ApiRatingItemRecord = {
+  id?: string;
+  name?: string;
+  department?: string;
+  code?: string;
+  email?: string;
+  location?: string;
+  avatar?: string;
+  scores?: ApiScoreRecord[];
+  tags?: string[];
+  tagCounts?: Record<string, number>;
+  ratingCount?: number;
+  recentCount?: number;
+  scoreVariance?: number;
+} & Record<string, unknown>;
 
 const toApiCategory = (category: RatingCategory) => category.toUpperCase();
 
@@ -15,7 +49,7 @@ const normalizeScoreForSubmit = (value: number) => {
   return clampToFive(Number(value.toFixed(2)));
 };
 
-const mapScore = (score: any) => {
+const mapScore = (score: ApiScoreRecord) => {
   const key = score?.key ?? score?.dimension ?? '';
   const rawValue = typeof score?.value === 'number' ? score.value : 0;
   const value = rawValue <= 5 ? Math.round(rawValue * 20) : Math.round(rawValue);
@@ -27,9 +61,9 @@ const mapScore = (score: any) => {
   };
 };
 
-const mapRatingItem = (item: any): RatingItem => ({
+const mapRatingItem = (item: ApiRatingItemRecord): RatingItem => ({
   ...item,
-  id: item.id,
+  id: item.id ?? '',
   name: typeof item?.name === 'string' && item.name.trim()
     ? item.name.trim()
     : (typeof item?.code === 'string' && item.code.trim()
@@ -107,7 +141,7 @@ export const ratingService = {
       return mockScoreDimensions[category] || [];
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.DIMENSIONS(toApiCategory(category)));
-    return (Array.isArray(data) ? data : []).map((dimension: any) => {
+    return (Array.isArray(data) ? data : []).map((dimension: ApiDimensionRecord) => {
       const rawLabel = dimension?.label;
       const label = typeof rawLabel === 'string'
         ? rawLabel

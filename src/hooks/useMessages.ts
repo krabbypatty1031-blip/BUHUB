@@ -1,10 +1,30 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../api/services/message.service';
 import type { SendMessagePayload } from '../api/services/message.service';
-import i18n, { normalizeLanguage } from '../i18n';
+import { normalizeLanguage } from '../i18n';
 import type { ChatHistory, ChatMessage } from '../types';
 import { useAuthStore } from '../store/authStore';
 import { normalizeImageUrl as normalizeMediaUrl } from '../utils/imageUrl';
+import {
+  appendMessageToHistory,
+  buildPreviewFromChatMessage,
+  formatConversationTime,
+  getCurrentMessageLanguage,
+  hydrateChatCache,
+  hydrateContactsCache,
+  markMessageAsReadInHistory,
+  markMessageAsRecalledInHistory,
+  patchChatQueries,
+  patchContactsQueries,
+  persistChatCache,
+  persistContactsCache,
+  replaceMessageInHistory,
+  upsertContact,
+  writeChatSnapshot,
+  writeContactsSnapshot,
+} from '../utils/messageCache';
+import { recordMessageMetric, recordTimedMessageMetric } from '../utils/messageMetrics';
 
 type SendMessageRequest = {
   payload: SendMessagePayload;
@@ -22,6 +42,8 @@ type ContactsQueryOptions = {
 
 type SendMutationContext = {
   previousChats: Array<[readonly unknown[], ChatHistory[] | undefined]>;
+  optimisticMessageId?: string;
+  optimisticMessage?: ChatMessage | null;
   optimisticApplied: boolean;
   isReaction: boolean;
 };
@@ -30,19 +52,8 @@ type RecallMutationContext = {
   previousChats: Array<[readonly unknown[], ChatHistory[] | undefined]>;
 };
 
-function getCurrentMessageLanguage() {
-  const storeLang = normalizeLanguage(useAuthStore.getState().language);
-  if (storeLang) return storeLang;
-  return normalizeLanguage(i18n.language) ?? 'tc';
-}
-
 function formatMessageTime(date: Date) {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-}
-
-function getTodayLabel() {
-  const lang = getCurrentMessageLanguage();
-  return String(i18n.t('messageTimeToday', { lng: lang }));
 }
 
 function buildOptimisticMessage(
@@ -110,62 +121,45 @@ function buildOptimisticMessage(
   };
 }
 
-function appendOptimisticMessage(
-  history: ChatHistory[] | undefined,
-  message: ChatMessage
-): ChatHistory[] {
-  const next = Array.isArray(history)
-    ? history.map((group) => ({ ...group, messages: [...group.messages] }))
-    : [];
-
-  const todayLabel = getTodayLabel();
-  if (next.length === 0 || next[next.length - 1].date !== todayLabel) {
-    next.push({ date: todayLabel, messages: [message] });
-    return next;
-  }
-
-  next[next.length - 1].messages.push(message);
-  return next;
-}
-
-function markMessageAsRecalled(
-  history: ChatHistory[] | undefined,
-  messageId: string
-): ChatHistory[] | undefined {
-  if (!Array.isArray(history) || history.length === 0) return history;
-  const recalledText = String(i18n.t('messageYouRecalled', { lng: getCurrentMessageLanguage() }));
-  let changed = false;
-
-  const next = history.map((group) => {
-    let groupChanged = false;
-    const messages = group.messages.map((message) => {
-      if (message.id !== messageId) return message;
-      groupChanged = true;
-      changed = true;
-      return {
-        ...message,
-        text: recalledText,
-        images: [],
-        audio: undefined,
-        functionCard: undefined,
-        imageAlbum: undefined,
-        replyTo: undefined,
-        reactions: [],
-        isRecalled: true,
-      };
-    });
-    return groupChanged ? { ...group, messages } : group;
-  });
-
-  return changed ? next : history;
-}
 
 export function useContacts(options: ContactsQueryOptions = {}) {
   const { polling = false } = options;
   const language = useAuthStore((s) => s.language);
+  const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
+  const userId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void hydrateContactsCache(userId, normalizedLanguage).then((cached) => {
+      if (cancelled || !cached) return;
+      if (!queryClient.getQueryData(['contacts', normalizedLanguage])) {
+        writeContactsSnapshot(queryClient, userId, normalizedLanguage, cached);
+        recordMessageMetric('contacts_cache_hydrated', {
+          count: cached.length,
+          language: normalizedLanguage,
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizedLanguage, queryClient, userId]);
+
   return useQuery({
-    queryKey: ['contacts', language],
-    queryFn: () => messageService.getContacts(),
+    queryKey: ['contacts', normalizedLanguage],
+    queryFn: async () => {
+      const startedAt = Date.now();
+      const contacts = await messageService.getContacts();
+      if (userId) {
+        await persistContactsCache(userId, normalizedLanguage, contacts);
+      }
+      recordTimedMessageMetric('contacts_fetch_duration', startedAt, {
+        count: contacts.length,
+      });
+      return contacts;
+    },
     staleTime: polling ? 10 * 1000 : 60 * 1000,
     refetchInterval: polling ? 30 * 1000 : false,
     refetchOnWindowFocus: polling,
@@ -176,9 +170,43 @@ export function useContacts(options: ContactsQueryOptions = {}) {
 export function useChatHistory(userId: string, options: ChatHistoryQueryOptions = {}) {
   const { enabled = true, polling = true } = options;
   const language = useAuthStore((s) => s.language);
+  const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!currentUserId || !userId) return;
+    let cancelled = false;
+    void hydrateChatCache(currentUserId, normalizedLanguage, userId).then((cached) => {
+      if (cancelled || !cached) return;
+      if (!queryClient.getQueryData(['chat', userId, normalizedLanguage])) {
+        writeChatSnapshot(queryClient, currentUserId, normalizedLanguage, userId, cached);
+        recordMessageMetric('chat_cache_hydrated', {
+          contactId: userId,
+          groups: cached.length,
+          language: normalizedLanguage,
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, normalizedLanguage, queryClient, userId]);
+
   return useQuery({
-    queryKey: ['chat', userId, language],
-    queryFn: () => messageService.getChatHistory(userId),
+    queryKey: ['chat', userId, normalizedLanguage],
+    queryFn: async () => {
+      const startedAt = Date.now();
+      const history = await messageService.getChatHistory(userId);
+      if (currentUserId) {
+        await persistChatCache(currentUserId, normalizedLanguage, userId, history);
+      }
+      recordTimedMessageMetric('chat_fetch_duration', startedAt, {
+        contactId: userId,
+        groups: history.length,
+      });
+      return history;
+    },
     enabled: enabled && userId.length > 0,
     staleTime: polling ? 20 * 1000 : 60 * 1000,
     refetchInterval: polling ? 60 * 1000 : false,
@@ -211,6 +239,7 @@ export function usePresence(userId: string) {
 
 export function useSendMessage(receiverId: string) {
   const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   return useMutation({
     mutationFn: ({ payload, images }: SendMessageRequest) =>
       messageService.sendMessage(receiverId, payload, images),
@@ -223,22 +252,64 @@ export function useSendMessage(receiverId: string) {
       const optimisticApplied = !isReaction && Boolean(optimisticMessage);
 
       if (optimisticApplied && optimisticMessage) {
-        queryClient.setQueriesData<ChatHistory[]>(
-          { queryKey: ['chat', receiverId] },
-          (old) => appendOptimisticMessage(old, optimisticMessage)
+        patchChatQueries(queryClient, currentUserId, receiverId, (old, language) =>
+          appendMessageToHistory(old, optimisticMessage, language)
         );
+        patchContactsQueries(queryClient, currentUserId, (current) => {
+          if (!optimisticMessage) return current;
+          const existing = current?.find((contact) => contact.id === receiverId);
+          if (!existing) return current;
+          return upsertContact(current, {
+            ...existing,
+            message: buildPreviewFromChatMessage(optimisticMessage),
+            time: formatConversationTime(optimisticMessage.createdAt ?? new Date().toISOString()),
+            unread: 0,
+          });
+        });
       }
 
-      return { previousChats, optimisticApplied, isReaction };
+      return {
+        previousChats,
+        optimisticMessageId: optimisticMessage?.id,
+        optimisticMessage,
+        optimisticApplied,
+        isReaction,
+      };
     },
     onError: (_error, _variables, context) => {
       context?.previousChats.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat', receiverId] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    onSuccess: (result, _variables, context) => {
+      const sentMessage = result.message;
+      if (sentMessage && context?.optimisticMessageId) {
+        patchChatQueries(queryClient, currentUserId, receiverId, (old) =>
+          replaceMessageInHistory(old, context.optimisticMessageId!, sentMessage) ??
+          appendMessageToHistory(old, sentMessage)
+        );
+      } else if (sentMessage && !context?.isReaction) {
+        patchChatQueries(queryClient, currentUserId, receiverId, (old, language) =>
+          appendMessageToHistory(old, sentMessage, language)
+        );
+      } else if (!sentMessage && context?.optimisticApplied) {
+        queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
+      }
+
+      if (sentMessage) {
+        patchContactsQueries(queryClient, currentUserId, (current) => {
+          const existing = current?.find((contact) => contact.id === receiverId);
+          if (!existing) return current;
+          return upsertContact(current, {
+            ...existing,
+            message: buildPreviewFromChatMessage(sentMessage),
+            time: formatConversationTime(sentMessage.createdAt ?? new Date().toISOString()),
+            unread: 0,
+          });
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'inactive' });
+      }
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },
   });
@@ -246,15 +317,15 @@ export function useSendMessage(receiverId: string) {
 
 export function useRecallMessage(contactId: string) {
   const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   return useMutation({
     mutationFn: (messageId: string) => messageService.deleteMessage(messageId),
     onMutate: async (messageId): Promise<RecallMutationContext> => {
       const previousChats = queryClient.getQueriesData<ChatHistory[]>({
         queryKey: ['chat', contactId],
       });
-      queryClient.setQueriesData<ChatHistory[]>(
-        { queryKey: ['chat', contactId] },
-        (old) => markMessageAsRecalled(old, messageId)
+      patchChatQueries(queryClient, currentUserId, contactId, (old) =>
+        markMessageAsRecalledInHistory(old, messageId)
       );
       return { previousChats };
     },
@@ -265,7 +336,7 @@ export function useRecallMessage(contactId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat', contactId], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },
   });

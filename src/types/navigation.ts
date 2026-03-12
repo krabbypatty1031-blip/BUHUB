@@ -1,21 +1,128 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
-import { PartnerCategory } from './partner';
-import { ErrandCategory } from './errand';
-import { SecondhandCategory } from './secondhand';
-import { RatingCategory } from './rating';
+import type { NavigationProp, NavigatorScreenParams, ParamListBase } from '@react-navigation/native';
+import type { PartnerCategory, PartnerPost } from './partner';
+import type { ErrandCategory, Errand } from './errand';
+import type { SecondhandCategory, SecondhandItem } from './secondhand';
+import type { RatingCategory } from './rating';
+import type { FunctionCardType } from './message';
 
 export type TabRouteName = 'ForumTab' | 'FunctionsTab' | 'MessagesTab' | 'MeTab';
-
-export type ChatBackTarget = {
-  tab: TabRouteName;
-  screen?: string;
-  params?: Record<string, unknown>;
+export type FunctionRefType = Exclude<FunctionCardType, 'post'>;
+export type ForwardedChatType = FunctionCardType;
+export type UserProfileParams = { userName: string };
+export type PostDetailParams = {
+  postId: string;
+  commentId?: string;
+  shouldReply?: boolean;
 };
-
-type BackToChatParams = {
+export type ChatContactParams = {
   contactId: string;
   contactName: string;
   contactAvatar: string;
+};
+export type ForumComposeParams = {
+  type?: 'text' | 'image' | 'poll';
+  quotePostId?: string;
+  functionType?: FunctionRefType;
+  functionTitle?: string;
+  functionId?: string;
+  functionIndex?: number;
+};
+
+type TabBackTarget<TTab extends TabRouteName, TScreen extends string> =
+  | {
+      tab: TTab;
+      screen?: undefined;
+      params?: undefined;
+    }
+  | {
+      tab: TTab;
+      screen: TScreen;
+      params?: Record<string, unknown>;
+    };
+
+export type ChatBackTarget = TabBackTarget<'ForumTab', keyof ForumStackParamList & string>
+  | TabBackTarget<'FunctionsTab', keyof FunctionsStackParamList & string>
+  | TabBackTarget<'MessagesTab', Exclude<keyof MessagesStackParamList, 'Chat'> & string>
+  | TabBackTarget<'MeTab', keyof MeStackParamList & string>;
+
+export type PendingComposeSelection = {
+  quotePostId?: string;
+  functionType?: FunctionRefType;
+  functionTitle?: string;
+  functionId?: string;
+};
+
+export type ChatForwardParams = {
+  forwardedType: ForwardedChatType;
+  forwardedPosterName: string;
+  forwardedTitle?: string;
+  forwardedId?: string;
+  forwardedIndex?: number;
+  forwardedPostId?: string;
+  forwardedMessage?: string;
+  forwardedNonce?: string;
+  forwardedRequiresConfirm?: boolean;
+};
+
+export type ChatRouteParams = ChatContactParams &
+  {
+    backTo?: ChatBackTarget;
+  } &
+  (
+    | {
+        forwardedType?: undefined;
+        forwardedPosterName?: undefined;
+        forwardedTitle?: undefined;
+        forwardedId?: undefined;
+        forwardedIndex?: undefined;
+        forwardedPostId?: undefined;
+        forwardedMessage?: undefined;
+        forwardedNonce?: undefined;
+        forwardedRequiresConfirm?: undefined;
+      }
+    | ChatForwardParams
+  );
+
+type ComposeDraftParams<TCategory, TInitialData> = {
+  category?: TCategory;
+  editId?: string;
+  initialData?: TInitialData;
+};
+
+export type ComposePartnerParams = ComposeDraftParams<PartnerCategory, PartnerPost>;
+
+export type ComposeErrandParams = ComposeDraftParams<ErrandCategory, Errand>;
+
+export type ComposeSecondhandParams = ComposeDraftParams<SecondhandCategory, SecondhandItem>;
+
+type FunctionDetailParams = {
+  id: string;
+  backToChat?: ChatContactParams;
+};
+
+type FunctionShareParams = {
+  posterName: string;
+  functionId: string;
+};
+
+type PartnerShareParams = FunctionShareParams & {
+  activityName: string;
+};
+
+type ErrandShareParams = FunctionShareParams & {
+  taskName: string;
+};
+
+type SecondhandShareParams = FunctionShareParams & {
+  itemName: string;
+};
+
+type PartnerDetailParams = FunctionDetailParams;
+
+type ErrandDetailParams = FunctionDetailParams;
+
+type SecondhandDetailParams = FunctionDetailParams & {
+  backTo?: ChatBackTarget;
 };
 
 // Auth Stack
@@ -30,47 +137,48 @@ export type AuthStackParamList = {
 
 // Forum Stack
 export type ForumStackParamList = {
-  ForumHome: undefined;
-  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
-  Compose: { type?: 'text' | 'image' | 'poll'; quotePostId?: string; functionType?: string; functionTitle?: string; functionId?: string; functionIndex?: number };
+  ForumHome: { pendingComposeSelection?: PendingComposeSelection } | undefined;
+  PostDetail: PostDetailParams;
+  Compose: ForumComposeParams;
   Search: undefined;
   CircleDetail: { tag: string };
-  UserProfile: { userName: string };
+  UserProfile: UserProfileParams;
 };
 
 // Functions Stack
 export type FunctionsStackParamList = {
   FunctionsHub: undefined;
   PartnerList: { category?: PartnerCategory };
-  PartnerDetail: { id: string; backToChat?: BackToChatParams };
-  ComposePartner: { category?: string } | undefined;
-  PartnerShare: { activityName: string; posterName: string; functionId: string };
+  PartnerDetail: PartnerDetailParams;
+  ComposePartner: ComposePartnerParams | undefined;
+  PartnerShare: PartnerShareParams;
   ErrandList: { category?: ErrandCategory };
-  ErrandDetail: { id: string; backToChat?: BackToChatParams };
-  ComposeErrand: { category?: ErrandCategory } | undefined;
-  ErrandShare: { taskName: string; posterName: string; functionId: string };
+  ErrandDetail: ErrandDetailParams;
+  ComposeErrand: ComposeErrandParams | undefined;
+  ErrandShare: ErrandShareParams;
   SecondhandList: { category?: SecondhandCategory };
   SecondhandCart: undefined;
-  SecondhandDetail: { id: string; backToChat?: BackToChatParams; backTo?: ChatBackTarget };
-  ComposeSecondhand: { category?: SecondhandCategory } | undefined;
-  SecondhandShare: { itemName: string; posterName: string; functionId: string };
+  SecondhandDetail: SecondhandDetailParams;
+  ComposeSecondhand: ComposeSecondhandParams | undefined;
+  SecondhandShare: SecondhandShareParams;
   RatingList: { category?: RatingCategory };
   RatingDetail: { category: RatingCategory; id: string };
   RatingForm: { category: RatingCategory; id: string };
   MyPosts: undefined;
   FacilityBooking: undefined;
   LibraryDetail: undefined;
+  UserProfile: UserProfileParams;
 };
 
 // Messages Stack
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  Chat: { contactId: string; contactName: string; contactAvatar: string; forwardedType?: string; forwardedTitle?: string; forwardedPosterName?: string; forwardedId?: string; forwardedIndex?: number; forwardedPostId?: string; forwardedMessage?: string; forwardedNonce?: string; forwardedRequiresConfirm?: boolean; backTo?: ChatBackTarget };
+  Chat: ChatRouteParams;
   NotifyLikes: undefined;
   NotifyFollowers: undefined;
   NotifyComments: undefined;
-  UserProfile: { userName: string };
-  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
+  UserProfile: UserProfileParams;
+  PostDetail: PostDetailParams;
 };
 
 // Me Stack
@@ -81,8 +189,8 @@ export type MeStackParamList = {
   ScanQR: undefined;
   FollowList: { type: 'following' | 'followers' };
   ForumList: undefined;
-  UserProfile: { userName: string };
-  PostDetail: { postId: string; commentId?: string; shouldReply?: boolean };
+  UserProfile: UserProfileParams;
+  PostDetail: PostDetailParams;
   Settings: undefined;
   Blocklist: undefined;
 };
@@ -93,4 +201,13 @@ export type MainTabParamList = {
   FunctionsTab: NavigatorScreenParams<FunctionsStackParamList> | undefined;
   MessagesTab: NavigatorScreenParams<MessagesStackParamList> | undefined;
   MeTab: NavigatorScreenParams<MeStackParamList> | undefined;
+};
+
+export type ChatForwardNavigation = Pick<
+  NavigationProp<ParamListBase>,
+  'dispatch' | 'getParent' | 'getState'
+>;
+
+export type FunctionShareNavigation = NavigationProp<ParamListBase> & {
+  popToTop: () => void;
 };

@@ -18,14 +18,15 @@ import { useContacts } from '../../hooks';
 import Avatar from './Avatar';
 import SearchInput from './SearchInput';
 import { CloseIcon, SendIcon, CheckIcon } from './icons';
-import type { ForumPost, Contact } from '../../types';
+import type { ForumPost, Contact, ChatForwardNavigation } from '../../types';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { buildChatForwardParams } from '../../utils/chatForwarding';
 
 interface ForwardSheetProps {
   visible: boolean;
   post: ForumPost | null;
   onClose: () => void;
-  navigation: any;
+  navigation: ChatForwardNavigation;
 }
 
 /* ── Memoised contact row (per RN stack guideline) ── */
@@ -99,7 +100,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
         name: 'MessagesTab',
         params: {
           screen: 'Chat',
-          params: {
+          params: buildChatForwardParams({
             contactId: selectedContact.id,
             contactName: selectedContact.name,
             contactAvatar: selectedContact.avatar || selectedContact.name,
@@ -112,7 +113,7 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
             forwardedNonce: `${Date.now()}-${selectedContact.id}-${targetPostId}`,
             forwardedRequiresConfirm: false,
             ...(backTo ? { backTo } : {}),
-          },
+          }),
         },
       })
     );

@@ -82,6 +82,10 @@ const extractNumericPrice = (value: string | undefined): string =>
 
 const isRemoteImage = (uri: string): boolean => /^https?:\/\//i.test(uri);
 
+type ErrorWithMessage = {
+  message?: string;
+};
+
 export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const editId = route.params?.editId;
@@ -226,8 +230,12 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         onError,
         onSettled,
       });
-    } catch (error: any) {
-      showSnackbar({ message: error?.message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error
+          ? (error as ErrorWithMessage).message
+          : undefined;
+      showSnackbar({ message: message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
       setIsPosting(false);
     }
   }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar]);

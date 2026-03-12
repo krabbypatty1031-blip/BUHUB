@@ -14,7 +14,12 @@ import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MeStackParamList } from '../../types/navigation';
+import type {
+  MeStackParamList,
+  ForumStackParamList,
+  MessagesStackParamList,
+  FunctionsStackParamList,
+} from '../../types/navigation';
 import type { ForumPost } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
 import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
@@ -47,7 +52,13 @@ import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
-type Props = NativeStackScreenProps<MeStackParamList, 'UserProfile'>;
+type UserProfileParamList =
+  & MeStackParamList
+  & ForumStackParamList
+  & MessagesStackParamList
+  & FunctionsStackParamList;
+
+type Props = NativeStackScreenProps<UserProfileParamList, 'UserProfile'>;
 
 function normalizeHandle(value?: string | null): string {
   return (value ?? '').trim().toLowerCase();
@@ -463,7 +474,6 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         data={userPosts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={160}
         extraData={listExtraData}
         refreshing={loading}
         onRefresh={handleRefresh}

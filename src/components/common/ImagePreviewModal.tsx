@@ -115,10 +115,12 @@ export default function ImagePreviewModal({
   );
 }
 
-function useEffectEvent<T extends (...args: any[]) => any>(fn: T): T {
+function useEffectEvent<TArgs extends unknown[], TResult>(
+  fn: (...args: TArgs) => TResult
+): (...args: TArgs) => TResult {
   const ref = useRef(fn);
   ref.current = fn;
-  return React.useCallback(((...args: Parameters<T>) => ref.current(...args)) as T, []);
+  return React.useCallback((...args: TArgs) => ref.current(...args), []);
 }
 
 type ZoomableImageProps = {

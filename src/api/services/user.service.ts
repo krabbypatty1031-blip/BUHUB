@@ -6,6 +6,7 @@ import type {
   UserPublicProfile,
   MyContent,
   LikedComment,
+  UserPost,
   WantedItem,
   FollowListItem,
   Language,
@@ -237,7 +238,7 @@ export const userService = {
               likes: 56,
               comments: 8,
             },
-          ] as any,
+          ] as unknown as UserPost[],
           comments: [
             {
               postId: 'comp3015',

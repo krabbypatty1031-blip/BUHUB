@@ -27,6 +27,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
+import ScrollPickerSheet from '../../components/common/ScrollPickerSheet';
 import { PRIVACY_URL, TERMS_URL } from '../../config/legal';
 import type { MyInviteCode } from '../../types';
 
@@ -36,8 +37,8 @@ type Visibility = 'public' | 'mutual' | 'hidden';
 type PickerType = 'visibility' | 'language';
 
 const LANGUAGE_OPTIONS = [
-  { value: 'tc' as const, labelKey: 'cantonese', englishUiLabelKey: 'cantoneseEn' },
-  { value: 'sc' as const, labelKey: 'mandarin', englishUiLabelKey: 'mandarinEn' },
+  { value: 'tc' as const, labelKey: 'traditionalChinese' },
+  { value: 'sc' as const, labelKey: 'simplifiedChinese' },
   { value: 'en' as const, labelKey: 'english' },
 ];
 
@@ -101,15 +102,15 @@ export default function SettingsScreen({ navigation }: Props) {
     (langValue: (typeof LANGUAGE_OPTIONS)[number]['value']) => {
       const option = LANGUAGE_OPTIONS.find((l) => l.value === langValue);
       if (!option) return '';
-
-      const isEnglishUi = language === 'en';
-      if (isEnglishUi && option.englishUiLabelKey) {
-        return t(option.englishUiLabelKey);
-      }
       return t(option.labelKey);
     },
-    [language, t]
+    [t]
   );
+
+  const languagePickerOptions = LANGUAGE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }));
 
   // Visibility options
   const visibilityLabels: Record<Visibility, string> = {
@@ -119,32 +120,14 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   // Picker data
-  const getPickerData = useCallback((): string[] => {
-    switch (pickerType) {
-      case 'visibility':
-        return [t('visibilityPublic'), t('visibilityMutualOnly'), t('visibilityHidden')];
-      case 'language':
-        return LANGUAGE_OPTIONS.map((l) => getLanguageLabel(l.value));
-    }
-  }, [pickerType, t, getLanguageLabel]);
+  const getPickerData = useCallback(
+    (): string[] => [t('visibilityPublic'), t('visibilityMutualOnly'), t('visibilityHidden')],
+    [t]
+  );
 
-  const getPickerTitle = useCallback((): string => {
-    switch (pickerType) {
-      case 'visibility':
-        return t('profileVisibility');
-      case 'language':
-        return t('systemLanguage');
-    }
-  }, [pickerType, t]);
+  const getPickerTitle = useCallback((): string => t('profileVisibility'), [t]);
 
-  const getCurrentPickerValue = useCallback((): string => {
-    switch (pickerType) {
-      case 'visibility':
-        return visibilityLabels[visibility];
-      case 'language':
-        return getLanguageLabel(language);
-    }
-  }, [pickerType, visibility, language, visibilityLabels, getLanguageLabel]);
+  const getCurrentPickerValue = useCallback((): string => visibilityLabels[visibility], [visibility, visibilityLabels]);
 
   const showPicker = useCallback((type: PickerType) => {
     setPickerType(type);
@@ -153,31 +136,35 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const handlePickerSelect = useCallback(
     (value: string) => {
-      switch (pickerType) {
-        case 'visibility': {
-          const visibilityMap: Record<string, Visibility> = {
-            [t('visibilityPublic')]: 'public',
-            [t('visibilityMutualOnly')]: 'mutual',
-            [t('visibilityHidden')]: 'hidden',
-          };
-          setVisibility(visibilityMap[value] || 'public');
-          break;
-        }
-        case 'language': {
-          const langOption = LANGUAGE_OPTIONS.find((l) => getLanguageLabel(l.value) === value);
-          if (langOption) {
-            setLanguage(langOption.value);
-            changeLanguage(langOption.value);
-            userService.updateLanguage(langOption.value).catch(() => {
-              showSnackbar({ message: t('saveFailed'), type: 'error' });
-            });
-          }
-          break;
-        }
+      if (pickerType === 'visibility') {
+        const visibilityMap: Record<string, Visibility> = {
+          [t('visibilityPublic')]: 'public',
+          [t('visibilityMutualOnly')]: 'mutual',
+          [t('visibilityHidden')]: 'hidden',
+        };
+        setVisibility(visibilityMap[value] || 'public');
       }
       setPickerVisible(false);
     },
-    [pickerType, t, setLanguage, showSnackbar, getLanguageLabel]
+    [pickerType, t]
+  );
+
+  const handleLanguageSelect = useCallback(
+    (value: string) => {
+      const langOption = LANGUAGE_OPTIONS.find((option) => option.value === value);
+      if (!langOption) {
+        setPickerVisible(false);
+        return;
+      }
+
+      setLanguage(langOption.value);
+      changeLanguage(langOption.value);
+      userService.updateLanguage(langOption.value).catch(() => {
+        showSnackbar({ message: t('saveFailed'), type: 'error' });
+      });
+      setPickerVisible(false);
+    },
+    [setLanguage, showSnackbar, t]
   );
 
   const handleLogout = useCallback(() => {
@@ -246,7 +233,7 @@ export default function SettingsScreen({ navigation }: Props) {
         try {
           await Share.share({
             url: pollResult.downloadUrl,
-            title: 'UHUB Data Export',
+            title: t('exportMyData'),
             message: t('exportDataReady'),
           });
         } catch (_shareErr) {
@@ -259,8 +246,7 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   }, [t, showSnackbar]);
 
-  const currentLangLabel =
-    getLanguageLabel(language);
+  const currentLangLabel = getLanguageLabel(language);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -460,51 +446,61 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
       </ScrollView>
 
-      {/* Picker Modal */}
-      <Modal
-        visible={pickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPickerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setPickerVisible(false)}
+      {pickerType === 'visibility' ? (
+        <Modal
+          visible={pickerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPickerVisible(false)}
         >
-          <View style={styles.pickerSheet}>
-            <View style={styles.pickerHeader}>
-              <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerTitle}>{getPickerTitle()}</Text>
-              <View style={{ width: 60 }} />
-            </View>
-            <FlatList
-              data={getPickerData()}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    getCurrentPickerValue() === item && styles.pickerItemSelected,
-                  ]}
-                  onPress={() => handlePickerSelect(item)}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      getCurrentPickerValue() === item && styles.pickerItemTextSelected,
-                    ]}
-                  >
-                    {item}
-                  </Text>
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setPickerVisible(false)}
+          >
+            <View style={styles.pickerSheet}>
+              <View style={styles.pickerHeader}>
+                <View style={styles.pickerHeaderSide} />
+                <Text style={styles.pickerTitle}>{getPickerTitle()}</Text>
+                <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                  <Text style={styles.pickerCancel}>{t('cancel')}</Text>
                 </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              </View>
+              <FlatList
+                data={getPickerData()}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.pickerItem,
+                      getCurrentPickerValue() === item && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handlePickerSelect(item)}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        getCurrentPickerValue() === item && styles.pickerItemTextSelected,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      ) : (
+        <ScrollPickerSheet
+          visible={pickerVisible}
+          onClose={() => setPickerVisible(false)}
+          onConfirm={handleLanguageSelect}
+          options={languagePickerOptions}
+          initialValue={language}
+          title={t('systemLanguage')}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -668,6 +664,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
+  pickerHeaderSide: {
+    width: 48,
+  },
   pickerCancel: {
     ...typography.labelLarge,
     color: colors.primary,
@@ -675,6 +674,10 @@ const styles = StyleSheet.create({
   pickerTitle: {
     ...typography.titleMedium,
     color: colors.onSurface,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   pickerItem: {
     paddingVertical: 16,

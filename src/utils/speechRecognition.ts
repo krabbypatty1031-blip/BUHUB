@@ -4,10 +4,21 @@ type SpeechRecognitionSubscription = {
   remove: () => void;
 };
 
+type SpeechRecognitionResult = {
+  transcript?: string;
+};
+
+export type SpeechRecognitionEvent = {
+  results?: SpeechRecognitionResult[];
+  isFinal?: boolean;
+  error?: string;
+  message?: string;
+};
+
 export type SpeechRecognitionModuleLike = {
   addListener: (
     eventName: SpeechRecognitionListenerEvent,
-    listener: (event: any) => void
+    listener: (event: SpeechRecognitionEvent) => void
   ) => SpeechRecognitionSubscription;
   abort: () => void;
   stop: () => void;
@@ -43,4 +54,3 @@ export function getSpeechRecognitionModule(): SpeechRecognitionModuleLike | null
   return cachedSpeechRecognitionModule;
 }
 import Constants from 'expo-constants';
-

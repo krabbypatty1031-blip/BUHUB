@@ -28,6 +28,11 @@ import type { Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Compose'>;
+type ComposeErrorLike = {
+  errorCode?: string;
+  code?: string;
+  message?: string;
+};
 
 const TAGS = [
   'tagTreehole',
@@ -106,6 +111,14 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const [isPosting, setIsPosting] = useState(false);
 
+  const resolveComposeErrorMessage = useCallback((error: ComposeErrorLike | undefined) => {
+    const code = error?.errorCode || error?.code;
+    if (code === 'CONTENT_VIOLATION') {
+      return error?.message?.includes('Image') ? t('imageViolation') : t('contentViolation');
+    }
+    return error?.message || t('postFailed');
+  }, [t]);
+
   const handlePost = useCallback(async () => {
     if (!content.trim() || isPosting) return;
     if (type === 'poll') {
@@ -143,8 +156,11 @@ export default function ComposeScreen({ navigation, route }: Props) {
             showSnackbar({ message: t('postSuccess'), type: 'success' });
             navigation.goBack();
           },
-          onError: (err: any) => {
-            const code = err?.errorCode || err?.code;
+          onError: (error) => {
+            const composeError = typeof error === 'object' && error
+              ? error as ComposeErrorLike
+              : undefined;
+            const code = composeError?.errorCode || composeError?.code;
             const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('postFailed');
             showSnackbar({ message: msg, type: 'error' });
           },
@@ -153,15 +169,14 @@ export default function ComposeScreen({ navigation, route }: Props) {
           },
         }
       );
-    } catch (error: any) {
-      const code = error?.errorCode || error?.code;
-      let msg = t('postFailed');
-      if (code === 'CONTENT_VIOLATION') msg = error?.message?.includes('Image') ? t('imageViolation') : t('contentViolation');
-      else if (error?.message) msg = error.message;
-      showSnackbar({ message: msg, type: 'error' });
+    } catch (error: unknown) {
+      const composeError = typeof error === 'object' && error
+        ? error as ComposeErrorLike
+        : undefined;
+      showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
       setIsPosting(false);
     }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef]);
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef, resolveComposeErrorMessage]);
 
   return (
       <SafeAreaView style={styles.container}>
