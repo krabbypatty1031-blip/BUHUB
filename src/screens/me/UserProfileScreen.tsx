@@ -250,21 +250,34 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     if (!post.functionType || !functionId) return;
     const nav = navigation.getParent();
     if (!nav) return;
+    const backTo = buildChatBackTarget(navigation, 'MeTab')
+      ?? {
+        tab: 'MeTab' as const,
+        screen: 'UserProfile',
+        params: { userName },
+      };
     switch (post.functionType) {
       case 'partner':
-        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId, backTo } });
         break;
       case 'errand':
-        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId, backTo } });
         break;
       case 'secondhand':
-        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId, backTo } });
         break;
       case 'rating':
-        nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher', id: functionId } });
+        nav.navigate('FunctionsTab', {
+          screen: 'RatingDetail',
+          params: {
+            ...(post.ratingCategory ? { category: post.ratingCategory } : {}),
+            id: functionId,
+            backTo,
+          },
+        });
         break;
     }
-  }, [navigation]);
+  }, [navigation, userName]);
 
   const renderHeader = useMemo(() => (
     <View>

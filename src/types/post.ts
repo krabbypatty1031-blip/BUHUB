@@ -1,4 +1,5 @@
 import type { Gender, Language, Translated, PollOption } from './common';
+import type { RatingCategory } from './rating';
 
 export interface ForumCircleSummary {
   name: string;
@@ -41,6 +42,7 @@ export interface ForumPost {
   functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
+  ratingCategory?: RatingCategory;
   sourcePostId?: string;
   quotedPost?: {
     id: string;

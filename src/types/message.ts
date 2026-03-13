@@ -1,4 +1,6 @@
-export type FunctionCardType = 'partner' | 'errand' | 'secondhand' | 'post';
+import type { RatingCategory } from './rating';
+
+export type FunctionCardType = 'partner' | 'errand' | 'secondhand' | 'rating' | 'post';
 
 export interface ChatFunctionCard {
   type: FunctionCardType;
@@ -7,6 +9,7 @@ export interface ChatFunctionCard {
   title: string;
   posterName: string;
   postId?: string;
+  ratingCategory?: RatingCategory;
 }
 
 export interface ForwardedCardDraft {
@@ -19,7 +22,21 @@ export interface ForwardedCardDraft {
   forwardedPostId?: string;
   forwardedMessage?: string;
   requiresConfirm: boolean;
+  ratingCategory?: RatingCategory;
 }
+
+export type ChatReplyReference = {
+  text: string;
+  from: 'me' | 'them';
+  fromName?: string;
+  messageId?: string;
+  clientKey?: string;
+  type?: 'text' | 'image' | 'audio' | 'card' | 'album' | 'recalled' | 'deleted';
+  title?: string;
+  thumbnailUri?: string;
+  durationMs?: number;
+  cardType?: FunctionCardType;
+};
 
 export interface ChatMessage {
   id?: string;
@@ -44,10 +61,7 @@ export interface ChatMessage {
     count: number;
     reactedByMe?: boolean;
   }>;
-  replyTo?: {
-    text: string;
-    from: 'me' | 'them';
-  };
+  replyTo?: ChatReplyReference;
   imageAlbum?: {
     count: number;
   };

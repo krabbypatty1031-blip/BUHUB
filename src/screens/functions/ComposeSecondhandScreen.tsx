@@ -46,6 +46,7 @@ import {
   SECONDHAND_CONDITION_LABEL_KEYS,
   type SecondhandConditionKey,
 } from '../../utils/secondhandCondition';
+import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeSecondhand'>;
 
@@ -161,8 +162,22 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
 
+  const resolveSubmitErrorMessage = useCallback((error: unknown) => {
+    const submitError = typeof error === 'object' && error
+      ? error as { errorCode?: string; code?: string | number; message?: string }
+      : undefined;
+    if (isPublishPermissionError(submitError)) {
+      return t('hkbuEmailRequiredForPublish');
+    }
+    return submitError?.message || t(isEditMode ? 'saveFailed' : 'postFailed');
+  }, [isEditMode, t]);
+
   const handlePost = useCallback(async () => {
     if (!canPost || !user || isPosting) return;
+    if (!isEditMode && !canPublishCommunityContent(user)) {
+      showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
+      return;
+    }
     setIsPosting(true);
     try {
       const remoteImages = images.filter(isRemoteImage);
@@ -190,8 +205,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         createdAt: initialData?.createdAt ?? new Date().toISOString(),
       };
 
-      const onError = () => {
-        showSnackbar({ message: t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+      const onError = (error: unknown) => {
+        showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
       };
 
       const onSettled = () => {
@@ -231,14 +246,13 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         onSettled,
       });
     } catch (error: unknown) {
-      const message =
-        typeof error === 'object' && error
-          ? (error as ErrorWithMessage).message
-          : undefined;
+      const message = resolveSubmitErrorMessage(
+        typeof error === 'object' && error ? error as ErrorWithMessage : undefined
+      );
       showSnackbar({ message: message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
       setIsPosting(false);
     }
-  }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar]);
+  }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar, resolveSubmitErrorMessage]);
 
   return (
     <SafeAreaView style={styles.container}>

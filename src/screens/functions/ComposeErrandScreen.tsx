@@ -36,6 +36,7 @@ import {
 } from '../../utils/textLimit';
 import { formatDeadline } from '../../utils/dateFormat';
 import { useAuthStore } from '../../store/authStore';
+import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'ComposeErrand'>;
 
@@ -121,8 +122,21 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
 
+  const resolveSubmitErrorMessage = useCallback((error: unknown) => {
+    const submitError = typeof error === 'object' && error
+      ? error as { errorCode?: string; code?: string | number }
+      : undefined;
+    return isPublishPermissionError(submitError)
+      ? t('hkbuEmailRequiredForPublish')
+      : t(isEditMode ? 'saveFailed' : 'postFailed');
+  }, [isEditMode, t]);
+
   const handlePost = useCallback(() => {
     if (!canPost || !user || isPosting) return;
+    if (!isEditMode && !canPublishCommunityContent(user)) {
+      showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
+      return;
+    }
     setIsPosting(true);
     const payload = {
       category,
@@ -138,8 +152,8 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
       createdAt: initialData?.createdAt ?? new Date().toISOString(),
     };
 
-    const onError = () => {
-      showSnackbar({ message: t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+    const onError = (error: unknown) => {
+      showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
     };
 
     const onSettled = () => {
@@ -178,7 +192,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
       onError,
       onSettled,
     });
-  }, [canPost, user, isPosting, category, t, title, content, from, to, price, item, deadline, initialData?.createdAt, isEditMode, editId, editErrand, showSnackbar, navigation, createErrand]);
+  }, [canPost, user, isPosting, category, t, title, content, from, to, price, item, deadline, initialData?.createdAt, isEditMode, editId, editErrand, showSnackbar, navigation, createErrand, resolveSubmitErrorMessage]);
 
   return (
     <SafeAreaView style={styles.container}>

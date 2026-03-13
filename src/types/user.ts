@@ -1,4 +1,5 @@
 import { Gender, Language, PollOption } from './common';
+import type { RatingCategory } from './rating';
 
 export interface User {
   id?: string;
@@ -79,6 +80,7 @@ export interface UserPost {
   functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
+  ratingCategory?: RatingCategory;
   quotedPost?: {
     id: string;
     name: string;

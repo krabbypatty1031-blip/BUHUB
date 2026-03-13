@@ -9,10 +9,20 @@ export function useRatings(category: RatingCategory, sortMode: RatingSortMode = 
   });
 }
 
-export function useRatingDetail(category: RatingCategory, id: string) {
+export function useRatingDetail(
+  category: RatingCategory | undefined,
+  id: string,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
-    queryKey: ['rating', category, id],
-    queryFn: () => ratingService.getDetail(category, id),
+    queryKey: ['rating', category ?? 'unknown', id],
+    queryFn: () => {
+      if (!category) {
+        throw new Error('Rating category is required');
+      }
+      return ratingService.getDetail(category, id);
+    },
+    enabled: Boolean(category) && (options?.enabled ?? true),
   });
 }
 

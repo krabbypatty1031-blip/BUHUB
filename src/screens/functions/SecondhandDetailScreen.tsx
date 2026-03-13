@@ -29,6 +29,7 @@ import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
@@ -72,38 +73,27 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
+  React.useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !backTo && !backToChat });
+  }, [navigation, backTo, backToChat]);
+
   const handleBack = useCallback(() => {
-    if (backToChat) {
-      navigation.getParent()?.navigate('MessagesTab', {
-        screen: 'Chat',
-        params: backToChat,
-      });
-      return;
-    }
-
-    if (backTo) {
-      const parentNav = navigation.getParent();
-      if (parentNav) {
-        parentNav.navigate(backTo.tab, {
-          ...(backTo.screen ? { screen: backTo.screen } : {}),
-          ...(backTo.params ? { params: backTo.params } : {}),
-        });
-        return;
-      }
-    }
-
-    navigation.goBack();
+    handleFunctionDetailBack({
+      navigation,
+      backToChat,
+      backTo,
+    });
   }, [navigation, backToChat, backTo]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!backToChat) return undefined;
+      if (!backToChat && !backTo) return undefined;
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         handleBack();
         return true;
       });
       return () => sub.remove();
-    }, [backToChat, handleBack])
+    }, [backToChat, backTo, handleBack])
   );
 
   const handleContact = useCallback(() => {

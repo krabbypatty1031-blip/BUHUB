@@ -14,23 +14,17 @@ const MESSAGE_ALBUM_PREFIX = '[BUHUB_ALBUM]';
 const CARD_TITLE_MAX_LEN = 240;
 const CARD_POSTER_MAX_LEN = 80;
 
-type FunctionCardPayload = Pick<ChatFunctionCard, 'type' | 'id' | 'title' | 'posterName' | 'postId'>;
+type FunctionCardPayload = Pick<ChatFunctionCard, 'type' | 'id' | 'title' | 'posterName' | 'postId' | 'ratingCategory'>;
 
 type ReplyPayload = {
   text: string;
-  replyTo: {
-    text: string;
-    from: 'me' | 'them';
-  };
+  replyTo: NonNullable<ChatMessage['replyTo']>;
 };
 
 type AudioPayload = {
   url: string;
   durationMs?: number;
-  replyTo?: {
-    text: string;
-    from: 'me' | 'them';
-  };
+  replyTo?: NonNullable<ChatMessage['replyTo']>;
 };
 
 type ReactionPayload = {
@@ -40,10 +34,7 @@ type ReactionPayload = {
 
 type ImageAlbumPayload = {
   count: number;
-  replyTo?: {
-    text: string;
-    from: 'me' | 'them';
-  };
+  replyTo?: NonNullable<ChatMessage['replyTo']>;
 };
 
 export type SendMessagePayload =
@@ -84,6 +75,15 @@ export type SendMessageResult = {
   message?: ChatMessage;
 };
 
+export type ChatHistoryChunk = {
+  history: ChatHistory[];
+  page: number;
+  limit: number;
+  messageCount: number;
+  hasMore: boolean;
+  total?: number;
+};
+
 export type ConversationSummary = {
   userId: string;
   user: {
@@ -109,6 +109,7 @@ const CARD_TYPE_LABEL_KEYS: Record<FunctionCardType, string> = {
   partner: 'findPartner',
   errand: 'errands',
   secondhand: 'secondhand',
+  rating: 'ratings',
   post: 'forum',
 };
 
@@ -221,6 +222,61 @@ function encodeImageAlbumPayload(payload: ImageAlbumPayload): string {
   return `${MESSAGE_ALBUM_PREFIX}${JSON.stringify(payload)}`;
 }
 
+function normalizeReplyReference(replyTo: unknown): ChatMessage['replyTo'] | undefined {
+  if (!replyTo || typeof replyTo !== 'object') return undefined;
+  const raw = replyTo as Record<string, unknown>;
+  const from =
+    raw.from === 'me' || raw.from === 'them'
+      ? raw.from
+      : typeof raw.isMine === 'boolean'
+        ? raw.isMine
+          ? 'me'
+          : 'them'
+        : null;
+  if (!from) {
+    return undefined;
+  }
+  const normalizedText =
+    typeof raw.text === 'string'
+      ? raw.text
+      : typeof raw.title === 'string'
+        ? raw.title
+        : '';
+
+  return {
+    text: normalizedText,
+    from,
+    ...(typeof raw.fromName === 'string' && raw.fromName.trim().length > 0
+      ? { fromName: raw.fromName.trim() }
+      : {}),
+    ...(typeof raw.messageId === 'string' && raw.messageId.length > 0 ? { messageId: raw.messageId } : {}),
+    ...(typeof raw.clientKey === 'string' && raw.clientKey.length > 0 ? { clientKey: raw.clientKey } : {}),
+    ...(raw.type === 'text' ||
+    raw.type === 'image' ||
+    raw.type === 'audio' ||
+    raw.type === 'card' ||
+    raw.type === 'album' ||
+    raw.type === 'recalled' ||
+    raw.type === 'deleted'
+      ? { type: raw.type }
+      : {}),
+    ...(typeof raw.title === 'string' && raw.title.length > 0 ? { title: raw.title } : {}),
+    ...(typeof raw.thumbnailUri === 'string' && raw.thumbnailUri.length > 0
+      ? { thumbnailUri: raw.thumbnailUri }
+      : {}),
+    ...(typeof raw.durationMs === 'number' && Number.isFinite(raw.durationMs)
+      ? { durationMs: raw.durationMs }
+      : {}),
+    ...(raw.cardType === 'partner' ||
+    raw.cardType === 'errand' ||
+    raw.cardType === 'secondhand' ||
+    raw.cardType === 'rating' ||
+    raw.cardType === 'post'
+      ? { cardType: raw.cardType }
+      : {}),
+  };
+}
+
 function parseMessageContent(raw: string): {
   text: string;
   functionCard?: {
@@ -229,6 +285,7 @@ function parseMessageContent(raw: string): {
     title: string;
     posterName: string;
     postId?: string;
+    ratingCategory?: ChatFunctionCard['ratingCategory'];
   };
   replyTo?: ReplyPayload['replyTo'];
   audio?: AudioPayload;
@@ -245,14 +302,12 @@ function parseMessageContent(raw: string): {
         text: '',
         imageAlbum: {
           count: payload.count,
-          ...(payload.replyTo?.text &&
-          (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
-            ? { replyTo: payload.replyTo }
+          ...(normalizeReplyReference(payload.replyTo)
+            ? { replyTo: normalizeReplyReference(payload.replyTo) }
             : {}),
         },
-        ...(payload.replyTo?.text &&
-        (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
-          ? { replyTo: payload.replyTo }
+        ...(normalizeReplyReference(payload.replyTo)
+          ? { replyTo: normalizeReplyReference(payload.replyTo) }
           : {}),
       };
     } catch {
@@ -286,9 +341,8 @@ function parseMessageContent(raw: string): {
           url: payload.url,
           ...(typeof payload.durationMs === 'number' ? { durationMs: payload.durationMs } : {}),
         },
-        ...(payload.replyTo?.text &&
-        (payload.replyTo.from === 'me' || payload.replyTo.from === 'them')
-          ? { replyTo: payload.replyTo }
+        ...(normalizeReplyReference(payload.replyTo)
+          ? { replyTo: normalizeReplyReference(payload.replyTo) }
           : {}),
       };
     } catch {
@@ -300,17 +354,14 @@ function parseMessageContent(raw: string): {
     try {
       const payload = JSON.parse(raw.slice(MESSAGE_REPLY_PREFIX.length)) as ReplyPayload;
       if (
-        !payload?.replyTo?.text ||
-        (payload.replyTo.from !== 'me' && payload.replyTo.from !== 'them')
+        !normalizeReplyReference(payload?.replyTo)
       ) {
         return { text: raw };
       }
+      const replyTo = normalizeReplyReference(payload.replyTo)!;
       return {
         text: payload.text ?? '',
-        replyTo: {
-          text: payload.replyTo.text,
-          from: payload.replyTo.from,
-        },
+        replyTo,
       };
     } catch {
       return { text: raw };
@@ -334,6 +385,7 @@ function parseMessageContent(raw: string): {
         title: payload.title,
         posterName: payload.posterName,
         postId: payload.postId,
+        ratingCategory: payload.ratingCategory,
       },
     };
   } catch {
@@ -629,15 +681,77 @@ export const messageService = {
     );
   },
 
-  async getChatHistory(userId: string): Promise<ChatHistory[]> {
+  async getChatHistoryChunk(
+    userId: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<ChatHistoryChunk> {
+    const page = Math.max(1, options?.page ?? 1);
+    const limit = Math.min(Math.max(1, options?.limit ?? 50), 100);
     if (USE_MOCK) {
       const { mockChatHistory } = await import('../../data/mock/messages');
       const history = mockChatHistory[userId] || [];
-      return JSON.parse(JSON.stringify(history));
+      const flattenedMessages = history.flatMap((group) => group.messages ?? []);
+      const totalMessages = flattenedMessages.length;
+      const end = Math.max(0, totalMessages - (page - 1) * limit);
+      const start = Math.max(0, end - limit);
+      const pageMessages = flattenedMessages.slice(start, end);
+      const normalizedPageMessages = pageMessages.map((message) => ({
+        id: message.id ?? '',
+        text: message.text,
+        content: message.text,
+        images: message.images,
+        isDeleted: message.isRecalled,
+        isRead: message.status === 'read',
+        createdAt: message.createdAt,
+        time: message.createdAt,
+        isMine: message.type === 'sent',
+      }));
+      const pageHistory = groupMessagesByDate(normalizedPageMessages);
+      return {
+        history: JSON.parse(JSON.stringify(pageHistory)),
+        page,
+        limit,
+        messageCount: pageMessages.length,
+        hasMore: start > 0,
+      };
     }
-    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CHAT(userId));
-    const messages = Array.isArray(data) ? data : [];
-    return groupMessagesByDate(messages);
+    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CHAT(userId), {
+      params: { page, limit },
+    });
+    const payload =
+      data && typeof data === 'object' && !Array.isArray(data)
+        ? (data as {
+            messages?: unknown[];
+            pagination?: {
+              page?: number;
+              limit?: number;
+              total?: number;
+              hasMore?: boolean;
+            };
+          })
+        : null;
+    const messages = Array.isArray(payload?.messages)
+      ? payload.messages
+      : Array.isArray(data)
+        ? data
+        : [];
+    const pagination = payload?.pagination;
+    return {
+      history: groupMessagesByDate(messages),
+      page: typeof pagination?.page === 'number' ? pagination.page : page,
+      limit: typeof pagination?.limit === 'number' ? pagination.limit : limit,
+      messageCount: messages.length,
+      hasMore:
+        typeof pagination?.hasMore === 'boolean'
+          ? pagination.hasMore
+          : messages.length === limit,
+      total: typeof pagination?.total === 'number' ? pagination.total : undefined,
+    };
+  },
+
+  async getChatHistory(userId: string): Promise<ChatHistory[]> {
+    const chunk = await this.getChatHistoryChunk(userId);
+    return chunk.history;
   },
 
   async canSendMessage(userId: string): Promise<boolean> {

@@ -4,6 +4,7 @@ import type {
   ChatRouteParams,
   ForwardedChatType,
 } from '../types/navigation';
+import type { RatingCategory } from '../types';
 
 type BuildChatForwardParamsInput = ChatContactParams & {
   forwardedType: ForwardedChatType;
@@ -16,6 +17,7 @@ type BuildChatForwardParamsInput = ChatContactParams & {
   forwardedNonce: string;
   forwardedRequiresConfirm: boolean;
   backTo?: ChatBackTarget;
+  forwardedRatingCategory?: RatingCategory;
 };
 
 export function buildChatForwardParams({
@@ -32,6 +34,7 @@ export function buildChatForwardParams({
   forwardedNonce,
   forwardedRequiresConfirm,
   backTo,
+  forwardedRatingCategory,
 }: BuildChatForwardParamsInput): ChatRouteParams {
   return {
     contactId,
@@ -46,6 +49,7 @@ export function buildChatForwardParams({
     forwardedMessage,
     forwardedNonce,
     forwardedRequiresConfirm,
+    forwardedRatingCategory,
     ...(backTo ? { backTo } : {}),
   };
 }

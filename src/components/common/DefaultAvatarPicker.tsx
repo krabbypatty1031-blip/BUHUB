@@ -8,45 +8,35 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import type { Gender } from '../../types/common';
 import { ChevronDownIcon } from './icons';
+import {
+  CURATED_DEFAULT_AVATARS as DEFAULT_AVATARS,
+  getDefaultAvatarDef as getAvatarDef,
+} from '../../utils/defaultAvatars';
 
-export interface DefaultAvatarDef {
-  id: string;
-  bg: string;
-  gender?: 'male' | 'female';
-}
-
-export const DEFAULT_AVATARS: DefaultAvatarDef[] = [
-  { id: 'Luna', bg: '#b6e3f4', gender: 'female' },
-  { id: 'Felix', bg: '#c0aede', gender: 'male' },
-  { id: 'Mia', bg: '#ffd5dc', gender: 'female' },
-  { id: 'Leo', bg: '#ffdfbf', gender: 'male' },
-  { id: 'Nala', bg: '#d1d4f9', gender: 'female' },
-  { id: 'Rocky', bg: '#b6e3f4', gender: 'male' },
-  { id: 'Coco', bg: '#ffd5dc' },
-  { id: 'Max', bg: '#c0aede', gender: 'male' },
-  { id: 'Bella', bg: '#ffdfbf', gender: 'female' },
-  { id: 'Finn', bg: '#d1d4f9', gender: 'male' },
-  { id: 'Aria', bg: '#b6e3f4', gender: 'female' },
-  { id: 'Sage', bg: '#c0aede' },
-];
-
-export function getAvatarDef(id: string): DefaultAvatarDef | undefined {
-  return DEFAULT_AVATARS.find((a) => a.id === id);
-}
+export { DEFAULT_AVATARS, getAvatarDef };
 
 /** Pick a gender-appropriate auto-suggestion avatar */
 export function getAutoAvatar(gender: Gender): string {
   switch (gender) {
-    case 'male': return 'Felix';
-    case 'female': return 'Luna';
-    default: return 'Coco';
+    case 'male': return 'Atlas';
+    case 'female': return 'Willow';
+    default: return 'Harbour';
   }
 }
 
-/** Generate DiceBear Micah avatar URL */
+/** Generate DiceBear Open Peeps avatar URL */
 export function getDiceBearUrl(seed: string, size: number, bg?: string): string {
   const bgParam = bg ? `&backgroundColor=${bg.replace('#', '')}` : '';
-  return `https://api.dicebear.com/9.x/micah/png?seed=${encodeURIComponent(seed)}&size=${size}${bgParam}`;
+  const options = [
+    'scale=102',
+    'flip=false',
+    'maskProbability=0',
+    'facialHairProbability=12',
+    'accessoriesProbability=14',
+    'glassesProbability=18',
+    'hatProbability=0',
+  ].join('&');
+  return `https://api.dicebear.com/9.x/open-peeps/png?seed=${encodeURIComponent(seed)}&size=${size}&${options}${bgParam}`;
 }
 
 /** Background color for initial-based avatar by gender */

@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { DEFAULT_AVATAR_IDS } from './defaultAvatars';
 
 const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
@@ -74,10 +75,6 @@ export const normalizeImageUrl = (url: string | null | undefined): string | null
 
 const PLACEHOLDER_AVATARS = new Set(['avatar1.png', 'avatar2.png', 'avatar3.png']);
 
-const DEFAULT_AVATAR_IDS = new Set([
-  'Luna', 'Felix', 'Mia', 'Leo', 'Nala', 'Rocky', 'Coco', 'Max', 'Bella', 'Finn', 'Aria', 'Sage',
-]);
-
 /**
  * Normalize avatar URL
  * - Color (#xxx): return as-is
@@ -88,6 +85,9 @@ const DEFAULT_AVATAR_IDS = new Set([
 export const normalizeAvatarUrl = (avatar: string | null | undefined): string | null => {
   if (!avatar) return null;
   if (typeof avatar === 'string' && avatar.startsWith('#')) {
+    return avatar;
+  }
+  if (typeof avatar === 'string' && avatar.startsWith('badge:')) {
     return avatar;
   }
   if (DEFAULT_AVATAR_IDS.has(avatar)) {

@@ -395,7 +395,7 @@ function ReplyItem({
                 {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
                 {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
               </View>
-              <Text style={styles.replyTimeText}>路 {replyTime}</Text>
+              <Text style={styles.replyTimeText}>· {replyTime}</Text>
             </View>
             {replyAcademicMeta ? <Text style={styles.replyAcademicMeta}>{replyAcademicMeta}</Text> : null}
           </View>
@@ -640,7 +640,7 @@ function CommentItem({
                   <FemaleIcon size={12} color={colors.genderFemale} />
                 )}
               </View>
-              <Text style={styles.commentTimeText}>路 {commentTime}</Text>
+              <Text style={styles.commentTimeText}>· {commentTime}</Text>
             </View>
             {commentAcademicMeta ? <Text style={styles.commentMeta}>{commentAcademicMeta}</Text> : null}
           </View>
@@ -1046,6 +1046,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           setCommentText('');
           setReplyTo(null);
           setIsAnonymous(false);
+          inputRef.current?.blur();
+          Keyboard.dismiss();
         },
         onError: (err: unknown) => {
           const error = typeof err === 'object' && err
@@ -1088,10 +1090,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
     switch (post.functionType) {
       case 'partner':
-        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId, backTo } });
         break;
       case 'errand':
-        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+        nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId, backTo } });
         break;
       case 'secondhand':
         nav.navigate('FunctionsTab', {
@@ -1102,7 +1104,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       case 'rating':
         nav.navigate('FunctionsTab', {
           screen: 'RatingDetail',
-          params: { category: 'teacher' as const, id: functionId },
+          params: {
+            ...(post.ratingCategory ? { category: post.ratingCategory } : {}),
+            id: functionId,
+            backTo,
+          },
         });
         break;
     }
@@ -1262,7 +1268,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                     <FemaleIcon size={14} color={colors.genderFemale} />
                   )}
                 </View>
-                <Text style={styles.postTimeText}>路 {displayTime}</Text>
+                <Text style={styles.postTimeText}>· {displayTime}</Text>
               </View>
               {displayAcademicMeta ? <Text style={styles.postMeta}>{displayAcademicMeta}</Text> : null}
             </View>
@@ -2219,7 +2225,7 @@ const styles = StyleSheet.create({
   },
   commentInputBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     paddingBottom: layout.bottomNavHeight,
@@ -2231,10 +2237,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.surface2,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    textAlignVertical: 'top',
+    includeFontPadding: false,
     ...typography.bodyMedium,
     color: colors.onSurface,
   },

@@ -192,17 +192,17 @@ export default function ForwardSheet({ visible, post, onClose, navigation }: For
 
             {/* ── Bottom input bar ── */}
             <View style={styles.inputBar}>
-              <TextInput
-                ref={inputRef}
-                style={styles.messageInput}
-                value={messageText}
-                onChangeText={setMessageText}
-                placeholder={t('addMessagePlaceholder')}
-                placeholderTextColor={colors.outline}
-                editable={canSend}
-                multiline
-                maxLength={500}
-              />
+                <TextInput
+                  ref={inputRef}
+                  style={styles.messageInput}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  placeholder={t('addMessagePlaceholder')}
+                  placeholderTextColor={colors.outline}
+                  editable={canSend}
+                  multiline
+                  maxLength={500}
+                />
               <TouchableOpacity
                 style={[
                   styles.sendBtn,

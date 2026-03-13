@@ -26,6 +26,7 @@ export type ForumComposeParams = {
   functionTitle?: string;
   functionId?: string;
   functionIndex?: number;
+  ratingCategory?: RatingCategory;
 };
 
 type TabBackTarget<TTab extends TabRouteName, TScreen extends string> =
@@ -50,6 +51,7 @@ export type PendingComposeSelection = {
   functionType?: FunctionRefType;
   functionTitle?: string;
   functionId?: string;
+  ratingCategory?: RatingCategory;
 };
 
 export type ChatForwardParams = {
@@ -62,6 +64,7 @@ export type ChatForwardParams = {
   forwardedMessage?: string;
   forwardedNonce?: string;
   forwardedRequiresConfirm?: boolean;
+  forwardedRatingCategory?: RatingCategory;
 };
 
 export type ChatRouteParams = ChatContactParams &
@@ -79,6 +82,7 @@ export type ChatRouteParams = ChatContactParams &
         forwardedMessage?: undefined;
         forwardedNonce?: undefined;
         forwardedRequiresConfirm?: undefined;
+        forwardedRatingCategory?: undefined;
       }
     | ChatForwardParams
   );
@@ -98,11 +102,13 @@ export type ComposeSecondhandParams = ComposeDraftParams<SecondhandCategory, Sec
 type FunctionDetailParams = {
   id: string;
   backToChat?: ChatContactParams;
+  backTo?: ChatBackTarget;
 };
 
 type FunctionShareParams = {
   posterName: string;
   functionId: string;
+  ratingCategory?: RatingCategory;
 };
 
 type PartnerShareParams = FunctionShareParams & {
@@ -117,13 +123,16 @@ type SecondhandShareParams = FunctionShareParams & {
   itemName: string;
 };
 
+type RatingShareParams = FunctionShareParams & {
+  itemName: string;
+  ratingCategory: RatingCategory;
+};
+
 type PartnerDetailParams = FunctionDetailParams;
 
 type ErrandDetailParams = FunctionDetailParams;
 
-type SecondhandDetailParams = FunctionDetailParams & {
-  backTo?: ChatBackTarget;
-};
+type SecondhandDetailParams = FunctionDetailParams;
 
 // Auth Stack
 export type AuthStackParamList = {
@@ -161,8 +170,9 @@ export type FunctionsStackParamList = {
   SecondhandDetail: SecondhandDetailParams;
   ComposeSecondhand: ComposeSecondhandParams | undefined;
   SecondhandShare: SecondhandShareParams;
-  RatingList: { category?: RatingCategory };
-  RatingDetail: { category: RatingCategory; id: string };
+  RatingList: undefined;
+  RatingDetail: { category?: RatingCategory; id: string; backToChat?: ChatContactParams; backTo?: ChatBackTarget };
+  RatingShare: RatingShareParams;
   RatingForm: { category: RatingCategory; id: string };
   MyPosts: undefined;
   FacilityBooking: undefined;

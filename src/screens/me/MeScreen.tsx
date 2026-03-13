@@ -415,13 +415,13 @@ export default function MeScreen({ navigation }: Props) {
       case 'partner':
         nav.navigate('FunctionsTab', {
           screen: 'PartnerDetail',
-          params: { id: functionId },
+          params: { id: functionId, backTo },
         });
         break;
       case 'errand':
         nav.navigate('FunctionsTab', {
           screen: 'ErrandDetail',
-          params: { id: functionId },
+          params: { id: functionId, backTo },
         });
         break;
       case 'secondhand':
@@ -433,7 +433,11 @@ export default function MeScreen({ navigation }: Props) {
       case 'rating':
         nav.navigate('FunctionsTab', {
           screen: 'RatingDetail',
-          params: { category: 'teacher', id: functionId },
+          params: {
+            ...(post.ratingCategory ? { category: post.ratingCategory } : {}),
+            id: functionId,
+            backTo,
+          },
         });
         break;
     }
@@ -469,6 +473,7 @@ export default function MeScreen({ navigation }: Props) {
     functionId: p.functionId,
     functionIndex: p.functionIndex,
     functionTitle: p.functionTitle,
+    ratingCategory: p.ratingCategory,
     quotedPost: p.quotedPost
       ? {
         ...p.quotedPost,

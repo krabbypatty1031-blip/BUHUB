@@ -77,7 +77,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           navigation.navigate('SecondhandList', {});
           return;
         case 'RatingList':
-          navigation.navigate('RatingList', { category: 'teacher' });
+          navigation.navigate('RatingList');
           return;
         case 'MyPosts':
           navigation.navigate('MyPosts');

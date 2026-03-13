@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useCreatePost, usePostDetail } from '../../hooks/usePosts';
@@ -24,6 +25,7 @@ import QuoteCard from '../../components/common/QuoteCard';
 import FunctionRefCard from '../../components/common/FunctionRefCard';
 import { CloseIcon, PlusIcon, CameraIcon, UserIcon } from '../../components/common/icons';
 import { buildPostMeta } from '../../utils/formatTime';
+import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 import type { Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
 
@@ -47,6 +49,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as Language;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const user = useAuthStore((s) => s.user);
   const createPost = useCreatePost();
   const requestedType = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
@@ -63,6 +66,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const functionType = route.params?.functionType;
   const functionTitle = route.params?.functionTitle;
   const functionId = route.params?.functionId ?? (route.params?.functionIndex != null ? String(route.params.functionIndex) : undefined);
+  const ratingCategory = route.params?.ratingCategory;
   const hasFunctionRef = !!(functionType && functionTitle && functionId);
   const type = hasFunctionRef ? 'text' : requestedType;
 
@@ -112,6 +116,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const [isPosting, setIsPosting] = useState(false);
 
   const resolveComposeErrorMessage = useCallback((error: ComposeErrorLike | undefined) => {
+    if (isPublishPermissionError(error)) {
+      return t('hkbuEmailRequiredForPublish');
+    }
     const code = error?.errorCode || error?.code;
     if (code === 'CONTENT_VIOLATION') {
       return error?.message?.includes('Image') ? t('imageViolation') : t('contentViolation');
@@ -121,6 +128,10 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const handlePost = useCallback(async () => {
     if (!content.trim() || isPosting) return;
+    if (!canPublishCommunityContent(user)) {
+      showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
+      return;
+    }
     if (type === 'poll') {
       const validOpts = pollOptions.filter((o) => o.trim());
       if (validOpts.length < 2) {
@@ -150,6 +161,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
           functionType: hasFunctionRef ? functionType : undefined,
           functionId: hasFunctionRef ? functionId : undefined,
           functionTitle: hasFunctionRef ? functionTitle : undefined,
+          ratingCategory: hasFunctionRef ? ratingCategory : undefined,
         },
         {
           onSuccess: () => {
@@ -160,9 +172,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
             const composeError = typeof error === 'object' && error
               ? error as ComposeErrorLike
               : undefined;
-            const code = composeError?.errorCode || composeError?.code;
-            const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('postFailed');
-            showSnackbar({ message: msg, type: 'error' });
+            showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
           },
           onSettled: () => {
             setIsPosting(false);
@@ -176,7 +186,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
       showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
       setIsPosting(false);
     }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, quotePostId, hasFunctionRef, resolveComposeErrorMessage]);
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, user, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, ratingCategory, quotePostId, hasFunctionRef, resolveComposeErrorMessage]);
 
   return (
       <SafeAreaView style={styles.container}>

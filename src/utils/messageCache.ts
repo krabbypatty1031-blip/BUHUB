@@ -7,9 +7,11 @@ import { useAuthStore } from '../store/authStore';
 const MESSAGE_CACHE_VERSION = 1;
 const CONTACTS_CACHE_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:contacts`;
 const CHAT_CACHE_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:chat`;
+const HIDDEN_CHAT_MESSAGES_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:hidden-chat-messages`;
 
 const contactsMemoryCache = new Map<string, Contact[]>();
 const chatMemoryCache = new Map<string, ChatHistory[]>();
+const hiddenChatMessagesMemoryCache = new Map<string, string[]>();
 
 function getNormalizedLanguage(language?: string | null): string {
   return normalizeLanguage(language ?? i18n.language) ?? 'tc';
@@ -21,6 +23,10 @@ function buildContactsCacheKey(userId: string, language: string) {
 
 function buildChatCacheKey(userId: string, language: string, contactId: string) {
   return `${CHAT_CACHE_PREFIX}:${userId}:${getNormalizedLanguage(language)}:${contactId}`;
+}
+
+function buildHiddenChatMessagesKey(userId: string, contactId: string) {
+  return `${HIDDEN_CHAT_MESSAGES_PREFIX}:${userId}:${contactId}`;
 }
 
 function cloneContacts(contacts: Contact[]): Contact[] {
@@ -49,6 +55,10 @@ function cloneChatHistory(history: ChatHistory[]): ChatHistory[] {
     ...group,
     messages: cloneMessages(group.messages),
   }));
+}
+
+function cloneStringArray(values: string[]): string[] {
+  return [...values];
 }
 
 function readLanguageFromQueryKey(queryKey: QueryKey, fallback?: string): string {
@@ -102,6 +112,8 @@ export function buildPreviewFromChatMessage(message: ChatMessage): string {
             ? 'errands'
             : message.functionCard.type === 'secondhand'
               ? 'secondhand'
+              : message.functionCard.type === 'rating'
+                ? 'ratings'
               : 'forum')),
         title: message.functionCard.title,
       })
@@ -240,24 +252,58 @@ export function markMessageAsRecalledInHistory(
 ): ChatHistory[] | undefined {
   if (!Array.isArray(history) || history.length === 0) return history;
   const recalledText = String(i18n.t('messageYouRecalled', { lng: getCurrentMessageLanguage() }));
+  const recalledPreviewText = String(
+    i18n.t('replySourceUnavailable', { lng: getCurrentMessageLanguage() })
+  );
+  const recalledLookupKeys = new Set<string>();
+  history.forEach((group) => {
+    group.messages.forEach((message) => {
+      if (message.id !== messageId && message.clientKey !== messageId) return;
+      if (message.id) recalledLookupKeys.add(`id:${message.id}`);
+      if (message.clientKey) recalledLookupKeys.add(`client:${message.clientKey}`);
+    });
+  });
   let changed = false;
   const next = history.map((group) => {
     let groupChanged = false;
     const messages = group.messages.map((message) => {
-      if (message.id !== messageId) return message;
+      if (message.id === messageId || message.clientKey === messageId) {
+        changed = true;
+        groupChanged = true;
+        return {
+          ...message,
+          text: recalledText,
+          images: [],
+          mediaMetas: [],
+          audio: undefined,
+          functionCard: undefined,
+          imageAlbum: undefined,
+          replyTo: undefined,
+          reactions: [],
+          isRecalled: true,
+        };
+      }
+
+      const replyTo = message.replyTo;
+      if (!replyTo) return message;
+      const matchesRecalledSource = Boolean(
+        (replyTo.messageId && recalledLookupKeys.has(`id:${replyTo.messageId}`)) ||
+        (replyTo.clientKey && recalledLookupKeys.has(`client:${replyTo.clientKey}`))
+      );
+      if (!matchesRecalledSource) return message;
+
       changed = true;
       groupChanged = true;
       return {
         ...message,
-        text: recalledText,
-        images: [],
-        mediaMetas: [],
-        audio: undefined,
-        functionCard: undefined,
-        imageAlbum: undefined,
-        replyTo: undefined,
-        reactions: [],
-        isRecalled: true,
+        replyTo: {
+          ...replyTo,
+          type: 'recalled' as const,
+          text: recalledPreviewText,
+          title: undefined,
+          thumbnailUri: undefined,
+          durationMs: undefined,
+        },
       };
     });
     return groupChanged ? { ...group, messages } : group;
@@ -320,6 +366,34 @@ export async function hydrateChatCache(
   }
 }
 
+export function peekCachedContacts(
+  userId: string,
+  language: string
+): Contact[] | undefined {
+  const cacheKey = buildContactsCacheKey(userId, language);
+  const cached = contactsMemoryCache.get(cacheKey);
+  return cached ? cloneContacts(cached) : undefined;
+}
+
+export function peekCachedChatHistory(
+  userId: string,
+  language: string,
+  contactId: string
+): ChatHistory[] | undefined {
+  const cacheKey = buildChatCacheKey(userId, language, contactId);
+  const cached = chatMemoryCache.get(cacheKey);
+  return cached ? cloneChatHistory(cached) : undefined;
+}
+
+export function peekHiddenChatMessages(
+  userId: string,
+  contactId: string
+): string[] | undefined {
+  const cacheKey = buildHiddenChatMessagesKey(userId, contactId);
+  const cached = hiddenChatMessagesMemoryCache.get(cacheKey);
+  return cached ? cloneStringArray(cached) : undefined;
+}
+
 export async function persistContactsCache(
   userId: string,
   language: string,
@@ -344,6 +418,43 @@ export async function persistChatCache(
   const cacheKey = buildChatCacheKey(userId, language, contactId);
   const snapshot = cloneChatHistory(history);
   chatMemoryCache.set(cacheKey, snapshot);
+  try {
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(snapshot));
+  } catch {
+    // Ignore cache persistence failures.
+  }
+}
+
+export async function hydrateHiddenChatMessages(
+  userId: string,
+  contactId: string
+): Promise<string[] | null> {
+  const cacheKey = buildHiddenChatMessagesKey(userId, contactId);
+  if (hiddenChatMessagesMemoryCache.has(cacheKey)) {
+    return cloneStringArray(hiddenChatMessagesMemoryCache.get(cacheKey)!);
+  }
+  try {
+    const raw = await AsyncStorage.getItem(cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as string[];
+    if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== 'string')) {
+      return null;
+    }
+    hiddenChatMessagesMemoryCache.set(cacheKey, cloneStringArray(parsed));
+    return cloneStringArray(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export async function persistHiddenChatMessages(
+  userId: string,
+  contactId: string,
+  hiddenMessageKeys: string[]
+): Promise<void> {
+  const cacheKey = buildHiddenChatMessagesKey(userId, contactId);
+  const snapshot = cloneStringArray(hiddenMessageKeys);
+  hiddenChatMessagesMemoryCache.set(cacheKey, snapshot);
   try {
     await AsyncStorage.setItem(cacheKey, JSON.stringify(snapshot));
   } catch {

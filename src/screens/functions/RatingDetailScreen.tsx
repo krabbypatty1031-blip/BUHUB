@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,25 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { RatingItem } from '../../types';
+import type { RatingCategory, RatingItem } from '../../types';
 import { useRatingDetail } from '../../hooks/useRatings';
+import { ratingService } from '../../api/services/rating.service';
+import { useAuthStore } from '../../store/authStore';
 import { translateLabel } from '../../utils/translate';
+import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon, StarIcon } from '../../components/common/icons';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
+import { BackIcon, MoreHorizontalIcon, StarIcon } from '../../components/common/icons';
 import Avatar from '../../components/common/Avatar';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingDetail'>;
@@ -51,18 +57,88 @@ function DimensionBar({
 export default function RatingDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { category, id } = route.params;
-  const { data: item, isLoading, refetch } = useRatingDetail(category, id);
-  const rateLabelKey = RATE_LABEL_KEYS[category];
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+  const { category: initialCategory, id, backToChat, backTo } = route.params;
+  const [resolvedCategory, setResolvedCategory] = useState<RatingCategory | undefined>(initialCategory);
+  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [isResolvingCategory, setIsResolvingCategory] = useState(!initialCategory);
+  const activeCategory = initialCategory ?? resolvedCategory;
+  const { data: item, isLoading, refetch } = useRatingDetail(activeCategory, id, { enabled: !!activeCategory });
+  const rateLabelKey = activeCategory ? RATE_LABEL_KEYS[activeCategory] : 'rate';
+
+  React.useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !backTo && !backToChat });
+  }, [navigation, backTo, backToChat]);
+
+  React.useEffect(() => {
+    if (initialCategory) {
+      setResolvedCategory(initialCategory);
+      setIsResolvingCategory(false);
+      return;
+    }
+    let cancelled = false;
+    setResolvedCategory(undefined);
+    setIsResolvingCategory(true);
+
+    void (async () => {
+      const categories: RatingCategory[] = ['course', 'teacher', 'canteen', 'major'];
+      for (const candidate of categories) {
+        try {
+          await queryClient.fetchQuery({
+            queryKey: ['rating', candidate, id],
+            queryFn: () => ratingService.getDetail(candidate, id),
+            staleTime: 60_000,
+          });
+          if (cancelled) return;
+          setResolvedCategory(candidate);
+          setIsResolvingCategory(false);
+          navigation.setParams({ category: candidate });
+          return;
+        } catch {
+          // Try the next rating category until one resolves.
+        }
+      }
+      if (!cancelled) {
+        setIsResolvingCategory(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, initialCategory, navigation, queryClient]);
+
+  const handleBack = React.useCallback(() => {
+    handleFunctionDetailBack({
+      navigation,
+      backToChat,
+      backTo,
+    });
+  }, [navigation, backToChat, backTo]);
 
   useFocusEffect(
     React.useCallback(() => {
+      if (!activeCategory) return undefined;
       refetch();
-    }, [refetch])
+    }, [activeCategory, refetch])
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!backTo && !backToChat) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [backTo, backToChat, handleBack])
   );
 
   const overallScore = useMemo(() => {
     if (!item) return 0;
+    if (item.scores.length === 0) return 0;
     const total = item.scores.reduce((sum, s) => sum + s.value, 0);
     return Math.round(total / item.scores.length);
   }, [item]);
@@ -88,8 +164,15 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
     if ('location' in ratingItem) return ratingItem.location || ratingItem.department || '';
     return ratingItem.department || '';
   };
+  const sharedTitle = item ? translateLabel(item.name, lang) : '';
+  const senderDisplayName = currentUser?.nickname || currentUser?.name || t('meLabel');
 
-  if (isLoading) {
+  const handleShareToContact = React.useCallback(() => {
+    setPopoverVisible(false);
+    setShareSheetVisible(true);
+  }, []);
+
+  if (isLoading || isResolvingCategory) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -99,21 +182,58 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  if (!item) return null;
+  if (!item) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.iconBtn}
+          >
+            <BackIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>{t('ratings')}</Text>
+          <View style={styles.iconBtn} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.emptyText}>{t('notFound')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           style={styles.iconBtn}
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t(category)}</Text>
-        <View style={styles.iconBtn} />
+        <Text style={styles.topBarTitle}>{activeCategory ? t(activeCategory) : t('ratings')}</Text>
+        <TouchableOpacity
+          onPress={() => setPopoverVisible(true)}
+          style={styles.iconBtn}
+        >
+          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
+
+      {popoverVisible && (
+        <TouchableOpacity
+          style={styles.popoverOverlay}
+          activeOpacity={1}
+          onPress={() => setPopoverVisible(false)}
+        >
+          <View style={styles.popoverBubble}>
+            <TouchableOpacity style={styles.popoverItem} onPress={handleShareToContact}>
+              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* ── Profile Header ── */}
@@ -194,7 +314,9 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
             style={styles.rateButton}
             activeOpacity={0.7}
             onPress={() =>
-              navigation.navigate('RatingForm', { category, id })
+              activeCategory
+                ? navigation.navigate('RatingForm', { category: activeCategory, id })
+                : undefined
             }
           >
             <StarIcon size={18} color={colors.onPrimary} />
@@ -204,6 +326,16 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <FunctionForwardSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        functionType="rating"
+        functionTitle={sharedTitle}
+        functionPosterName={senderDisplayName}
+        functionId={item.id}
+        ratingCategory={activeCategory}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
@@ -235,10 +367,36 @@ const styles = StyleSheet.create({
     ...typography.titleMedium,
     color: colors.onSurface,
   },
+  popoverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  popoverBubble: {
+    position: 'absolute',
+    top: 56,
+    right: spacing.lg,
+    minWidth: 160,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.xs,
+    ...elevation[2],
+  },
+  popoverItem: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  popoverItemText: {
+    ...typography.bodyMedium,
+    color: colors.onSurface,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyText: {
+    ...typography.bodyLarge,
+    color: colors.onSurfaceVariant,
   },
   scroll: {
     flex: 1,

@@ -343,15 +343,15 @@ export default function SecondhandListScreen({ navigation }: Props) {
         <View style={styles.topBarActions}>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() => setShowSearch(!showSearch)}
-          >
-            <SearchIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
             onPress={() => navigation.navigate('SecondhandCart')}
           >
             <ShoppingCartIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setShowSearch(!showSearch)}
+          >
+            <SearchIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
         </View>
       </View>

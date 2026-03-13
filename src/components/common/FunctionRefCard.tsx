@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
 import { borderRadius, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { ChevronRightIcon, QuoteIcon, ShoppingBagIcon, TruckIcon, UsersIcon } from './icons';
+import { ChevronRightIcon, QuoteIcon, ShoppingBagIcon, StarIcon, TruckIcon, UsersIcon } from './icons';
 
 type FunctionRefCardProps = {
   functionType: string;
@@ -16,6 +16,7 @@ function FunctionTypeIcon({ functionType }: { functionType: string }) {
   if (functionType === 'partner') return <UsersIcon size={11} color={colors.primary} />;
   if (functionType === 'errand') return <TruckIcon size={11} color={colors.primary} />;
   if (functionType === 'secondhand') return <ShoppingBagIcon size={11} color={colors.primary} />;
+  if (functionType === 'rating') return <StarIcon size={11} color={colors.primary} fill={colors.primary} />;
   return <QuoteIcon size={11} color={colors.primary} />;
 }
 
@@ -30,7 +31,9 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
         ? t('errands')
         : functionType === 'secondhand'
           ? t('secondhand')
-          : t('forum');
+          : functionType === 'rating'
+            ? t('ratings')
+            : t('forum');
 
   return (
     <TouchableOpacity

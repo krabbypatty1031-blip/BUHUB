@@ -17,7 +17,7 @@ import {
 } from './icons';
 import FunctionForwardSheet from './FunctionForwardSheet';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
-import type { FunctionRefType, FunctionShareNavigation } from '../../types';
+import type { FunctionRefType, FunctionShareNavigation, RatingCategory } from '../../types';
 
 interface FunctionShareLayoutProps {
   navigation: FunctionShareNavigation;
@@ -35,6 +35,10 @@ interface FunctionShareLayoutProps {
   posterName: string;
   /** Item id forwarded to forum / DM */
   functionId: string;
+  /** Required to route rating cards back to the right detail page */
+  ratingCategory?: RatingCategory;
+  /** Disable forum repost when a function type should stay in DM only */
+  allowForumShare?: boolean;
 }
 
 export default function FunctionShareLayout({
@@ -46,6 +50,8 @@ export default function FunctionShareLayout({
   functionTitle,
   posterName,
   functionId,
+  ratingCategory,
+  allowForumShare = true,
 }: FunctionShareLayoutProps) {
   const { t } = useTranslation();
   const [forwardVisible, setForwardVisible] = useState(false);
@@ -76,28 +82,31 @@ export default function FunctionShareLayout({
 
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          <TouchableOpacity
-            style={styles.actionRow}
-            activeOpacity={0.7}
-            onPress={() => {
-              navigateToForumComposeSelection({
-                navigation,
-                functionType,
-                functionTitle,
-                functionId,
-              });
-            }}
-          >
-            <View style={styles.actionLeft}>
-              <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
-                <RepostIcon size={16} color={shareActionThemes.blue.icon} />
+          {allowForumShare ? (
+            <TouchableOpacity
+              style={styles.actionRow}
+              activeOpacity={0.7}
+              onPress={() => {
+                navigateToForumComposeSelection({
+                  navigation,
+                  functionType,
+                  functionTitle,
+                  functionId,
+                  ratingCategory,
+                });
+              }}
+            >
+              <View style={styles.actionLeft}>
+                <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
+                  <RepostIcon size={16} color={shareActionThemes.blue.icon} />
+                </View>
+                <Text style={styles.actionLabel}>{t('shareToForumAction')}</Text>
               </View>
-              <Text style={styles.actionLabel}>{t('shareToForumAction')}</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
-            style={styles.actionRow}
+            style={[styles.actionRow, !allowForumShare ? styles.actionRowLast : null]}
             activeOpacity={0.7}
             onPress={() => setForwardVisible(true)}
           >
@@ -118,6 +127,7 @@ export default function FunctionShareLayout({
         functionTitle={functionTitle}
         functionPosterName={posterName}
         functionId={functionId}
+        ratingCategory={ratingCategory}
         navigation={navigation}
       />
     </SafeAreaView>
@@ -184,6 +194,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  actionRowLast: {
+    borderBottomWidth: 0,
   },
   actionIcon: {
     width: 32,

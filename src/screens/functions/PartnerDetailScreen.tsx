@@ -26,6 +26,7 @@ import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
@@ -45,7 +46,7 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;
 export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const { id, backToChat } = route.params;
+  const { id, backToChat, backTo } = route.params;
   const { data: partner } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
@@ -54,26 +55,27 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
+  React.useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !backTo && !backToChat });
+  }, [navigation, backTo, backToChat]);
+
   const handleBack = useCallback(() => {
-    if (backToChat) {
-      navigation.getParent()?.navigate('MessagesTab', {
-        screen: 'Chat',
-        params: backToChat,
-      });
-      return;
-    }
-    navigation.goBack();
-  }, [navigation, backToChat]);
+    handleFunctionDetailBack({
+      navigation,
+      backToChat,
+      backTo,
+    });
+  }, [navigation, backToChat, backTo]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!backToChat) return undefined;
+      if (!backToChat && !backTo) return undefined;
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         handleBack();
         return true;
       });
       return () => sub.remove();
-    }, [backToChat, handleBack])
+    }, [backToChat, backTo, handleBack])
   );
 
   const handleDmOrganizer = useCallback(() => {

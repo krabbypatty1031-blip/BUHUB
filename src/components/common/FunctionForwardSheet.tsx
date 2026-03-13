@@ -21,6 +21,7 @@ import { CloseIcon, SendIcon, CheckIcon } from './icons';
 import type { Contact, ChatForwardNavigation, FunctionRefType } from '../../types';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { buildChatForwardParams } from '../../utils/chatForwarding';
+import type { RatingCategory } from '../../types';
 
 interface FunctionForwardSheetProps {
   visible: boolean;
@@ -29,6 +30,7 @@ interface FunctionForwardSheetProps {
   functionTitle: string;
   functionPosterName: string;
   functionId: string;
+  ratingCategory?: RatingCategory;
   navigation: ChatForwardNavigation;
 }
 
@@ -68,6 +70,7 @@ export default function FunctionForwardSheet({
   functionTitle,
   functionPosterName,
   functionId,
+  ratingCategory,
   navigation,
 }: FunctionForwardSheetProps) {
   const { t } = useTranslation();
@@ -115,6 +118,7 @@ export default function FunctionForwardSheet({
             forwardedTitle: functionTitle,
             forwardedPosterName: functionPosterName,
             forwardedId: functionId,
+            forwardedRatingCategory: ratingCategory,
             forwardedMessage: messageText.trim() || undefined,
             forwardedNonce: `${Date.now()}-${selectedContact.id}-${functionId}`,
             forwardedRequiresConfirm: false,
@@ -131,6 +135,7 @@ export default function FunctionForwardSheet({
     functionTitle,
     functionPosterName,
     functionId,
+    ratingCategory,
     messageText,
   ]);
 
@@ -198,17 +203,17 @@ export default function FunctionForwardSheet({
             <View style={styles.divider} />
 
             <View style={styles.inputBar}>
-              <TextInput
-                ref={inputRef}
-                style={styles.messageInput}
-                value={messageText}
-                onChangeText={setMessageText}
-                placeholder={t('addMessagePlaceholder')}
-                placeholderTextColor={colors.outline}
-                editable={canSend}
-                multiline
-                maxLength={500}
-              />
+                <TextInput
+                  ref={inputRef}
+                  style={styles.messageInput}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  placeholder={t('addMessagePlaceholder')}
+                  placeholderTextColor={colors.outline}
+                  editable={canSend}
+                  multiline
+                  maxLength={500}
+                />
               <TouchableOpacity
                 style={[
                   styles.sendBtn,

@@ -112,16 +112,25 @@ export const authService = {
   },
 
   async setupProfile(profile: {
-    nickname: string;
-    grade: string;
-    major: string;
-    gender: string;
+    autoGenerate?: boolean;
+    nickname?: string;
+    grade?: string;
+    major?: string;
+    gender?: string;
     bio?: string;
     avatar?: string;
     language?: 'tc' | 'sc' | 'en';
   }) {
     if (USE_MOCK) {
-      return { success: true };
+      return {
+        nickname: profile.nickname ?? '浸園旅人28',
+        avatar: profile.avatar ?? 'Harbour',
+        grade: profile.grade ?? '',
+        major: profile.major ?? '',
+        bio: profile.bio ?? '',
+        gender: profile.gender ?? 'other',
+        language: profile.language ?? 'tc',
+      };
     }
     const { data } = await apiClient.post(ENDPOINTS.AUTH.PROFILE_SETUP, profile);
     return data;

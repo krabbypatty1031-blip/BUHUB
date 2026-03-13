@@ -40,6 +40,7 @@ import {
 } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
 
@@ -65,14 +66,16 @@ export default function ForumScreen({ navigation, route }: Props) {
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [functionRef, setFunctionRef] = useState<{
-    functionType: 'partner' | 'errand' | 'secondhand';
+    functionType: 'partner' | 'errand' | 'secondhand' | 'rating';
     functionTitle: string;
     functionId: string;
+    ratingCategory?: ForumPost['ratingCategory'];
   } | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Restore tab bar when screen gets focus
   useFocusEffect(
@@ -92,6 +95,7 @@ export default function ForumScreen({ navigation, route }: Props) {
         functionType: pendingSelection.functionType,
         functionTitle: pendingSelection.functionTitle,
         functionId: pendingSelection.functionId,
+        ratingCategory: pendingSelection.ratingCategory,
       });
       navigation.setParams({ pendingComposeSelection: undefined });
       return;
@@ -187,18 +191,31 @@ export default function ForumScreen({ navigation, route }: Props) {
       if (!post.functionType || !functionId) return;
       const nav = navigation.getParent();
       if (!nav) return;
+      const backTo =
+        buildChatBackTarget(navigation, 'ForumTab') ??
+        ({
+          tab: 'ForumTab' as const,
+          screen: 'ForumHome',
+        } as const);
       switch (post.functionType) {
         case 'partner':
-          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId, backTo } });
           break;
         case 'errand':
-          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId, backTo } });
           break;
         case 'secondhand':
-          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId, backTo } });
           break;
         case 'rating':
-          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
+          nav.navigate('FunctionsTab', {
+            screen: 'RatingDetail',
+            params: {
+              ...(post.ratingCategory ? { category: post.ratingCategory } : {}),
+              id: functionId,
+              backTo,
+            },
+          });
           break;
       }
     },
@@ -220,6 +237,7 @@ export default function ForumScreen({ navigation, route }: Props) {
         functionType: functionRef?.functionType,
         functionTitle: functionRef?.functionTitle,
         functionId: functionRef?.functionId,
+        ratingCategory: functionRef?.ratingCategory,
       });
       setQuotePostId(undefined);
       setFunctionRef(undefined);
@@ -285,7 +303,8 @@ export default function ForumScreen({ navigation, route }: Props) {
     }),
     [votedPolls, pollListRefreshKey, posts]
   );
-  const isPullRefreshing = isFetching && !isLoading && !isFetchingNextPage;
+  const isPullRefreshing = isManualRefreshing && isFetching && !isLoading && !isFetchingNextPage;
+  const showInitialSkeleton = isLoading && allPosts.length === 0;
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -301,6 +320,15 @@ export default function ForumScreen({ navigation, route }: Props) {
       </View>
     );
   }, [isFetchingNextPage, t]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [refetch]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -323,7 +351,7 @@ export default function ForumScreen({ navigation, route }: Props) {
         extraData={listExtraData}
         refreshing={isPullRefreshing}
         onRefresh={() => {
-          void refetch();
+          void handleRefresh();
         }}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
@@ -334,7 +362,7 @@ export default function ForumScreen({ navigation, route }: Props) {
         drawDistance={700}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
-          isLoading ? (
+          showInitialSkeleton ? (
             <ForumListSkeleton />
           ) : (
             <EmptyState

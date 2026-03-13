@@ -54,7 +54,7 @@ function MiniScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-export default function RatingListScreen({ navigation, route }: Props) {
+export default function RatingListScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const selectedCategory = useRatingStore((s) => s.selectedCategory);
@@ -64,8 +64,8 @@ export default function RatingListScreen({ navigation, route }: Props) {
   const [showSearch, setShowSearch] = useState(false);
   const sortMode = useRatingStore((s) => s.sortMode);
   const setSortMode = useRatingStore((s) => s.setSortMode);
+  const category = selectedCategory;
 
-  const category = route.params?.category || selectedCategory;
   const { data: ratings, isLoading, refetch } = useRatings(category, sortMode);
 
   useFocusEffect(

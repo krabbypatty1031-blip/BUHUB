@@ -17,6 +17,8 @@ import {
   markMessageAsRecalledInHistory,
   patchChatQueries,
   patchContactsQueries,
+  peekCachedChatHistory,
+  peekCachedContacts,
   persistChatCache,
   persistContactsCache,
   replaceMessageInHistory,
@@ -164,6 +166,7 @@ export function useContacts(options: ContactsQueryOptions = {}) {
     refetchInterval: polling ? 30 * 1000 : false,
     refetchOnWindowFocus: polling,
     refetchOnReconnect: true,
+    initialData: userId ? peekCachedContacts(userId, normalizedLanguage) : undefined,
   });
 }
 
@@ -212,6 +215,10 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
     refetchInterval: polling ? 60 * 1000 : false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    initialData:
+      currentUserId && userId
+        ? peekCachedChatHistory(currentUserId, normalizedLanguage, userId)
+        : undefined,
   });
 }
 

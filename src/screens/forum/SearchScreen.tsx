@@ -26,6 +26,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, SearchIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
+import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Search'>;
@@ -110,18 +111,31 @@ export default function SearchScreen({ navigation }: Props) {
       if (!post.functionType || !functionId) return;
       const nav = navigation.getParent();
       if (!nav) return;
+      const backTo =
+        buildChatBackTarget(navigation, 'ForumTab') ??
+        ({
+          tab: 'ForumTab' as const,
+          screen: 'Search',
+        } as const);
       switch (post.functionType) {
         case 'partner':
-          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: functionId, backTo } });
           break;
         case 'errand':
-          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: functionId, backTo } });
           break;
         case 'secondhand':
-          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId } });
+          nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: functionId, backTo } });
           break;
         case 'rating':
-          nav.navigate('FunctionsTab', { screen: 'RatingDetail', params: { category: 'teacher' as const, id: functionId } });
+          nav.navigate('FunctionsTab', {
+            screen: 'RatingDetail',
+            params: {
+              ...(post.ratingCategory ? { category: post.ratingCategory } : {}),
+              id: functionId,
+              backTo,
+            },
+          });
           break;
       }
     },

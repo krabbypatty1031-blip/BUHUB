@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary } from '../../types';
+import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary, RatingCategory } from '../../types';
 import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
@@ -12,6 +12,7 @@ type FunctionRefPayload = {
   type: FunctionRefType;
   id: string;
   title: string;
+  ratingCategory?: RatingCategory;
 };
 
 type ApiAuthorRecord = {
@@ -115,13 +116,14 @@ type ApiPostsResponse = {
 
 function encodeFunctionRef(
   content: string,
-  ref?: { functionType?: string; functionId?: string; functionTitle?: string }
+  ref?: { functionType?: string; functionId?: string; functionTitle?: string; ratingCategory?: RatingCategory }
 ) {
   if (!ref?.functionType || !ref.functionId || !ref.functionTitle) return content;
   const payload: FunctionRefPayload = {
     type: ref.functionType as FunctionRefType,
     id: ref.functionId,
     title: ref.functionTitle,
+    ...(ref.functionType === 'rating' && ref.ratingCategory ? { ratingCategory: ref.ratingCategory } : {}),
   };
   return `${FUNCTION_REF_PREFIX}${JSON.stringify(payload)}\n${content}`;
 }
@@ -132,6 +134,7 @@ function parseFunctionRef(content: string): {
   functionType?: FunctionRefType;
   functionId?: string;
   functionTitle?: string;
+  ratingCategory?: RatingCategory;
 } {
   if (!content.startsWith(FUNCTION_REF_PREFIX)) {
     return { content };
@@ -153,6 +156,7 @@ function parseFunctionRef(content: string): {
       functionType: payload.type,
       functionId: payload.id,
       functionTitle: payload.title,
+      ...(payload.type === 'rating' && payload.ratingCategory ? { ratingCategory: payload.ratingCategory } : {}),
     };
   } catch {
     return { content: parsedContent };
@@ -420,6 +424,7 @@ export const forumService = {
     functionType?: string;
     functionId?: string;
     functionTitle?: string;
+    ratingCategory?: RatingCategory;
   }): Promise<ForumPost> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
@@ -445,6 +450,7 @@ export const forumService = {
       functionType: post.functionType,
       functionId: post.functionId,
       functionTitle: post.functionTitle,
+      ratingCategory: post.ratingCategory,
     });
     const { data } = await apiClient.post(ENDPOINTS.FORUM.POSTS, {
       postType,

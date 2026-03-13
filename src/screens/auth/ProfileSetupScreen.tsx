@@ -24,8 +24,9 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon, CameraIcon } from '../../components/common/icons';
-import DefaultAvatarPicker, { DEFAULT_AVATARS, DefaultAvatarSvg, InitialAvatar, getDiceBearUrl } from '../../components/common/DefaultAvatarPicker';
+import DefaultAvatarPicker, { DefaultAvatarSvg, InitialAvatar } from '../../components/common/DefaultAvatarPicker';
 import type { Gender } from '../../types/common';
+import { getDefaultAvatarDef } from '../../utils/defaultAvatars';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ProfileSetup'>;
 
@@ -117,7 +118,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
     const resolvedGender: Gender = gender || 'other';
     setIsSaving(true);
     try {
-      // Upload avatar if selected
       let finalAvatarUrl: string | null = null;
       if (avatarUri) {
         try {
@@ -128,13 +128,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           });
           finalAvatarUrl = result.url;
         } catch {
-          // Upload failed, use local URI as fallback
           finalAvatarUrl = avatarUri;
         }
       }
 
-      // Call API to set up profile
-      await authService.setupProfile({
+      const savedProfile = await authService.setupProfile({
         nickname,
         grade,
         major,
@@ -144,17 +142,19 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
       });
       await changeLanguage(language);
 
-      // Update local auth state
+      const savedAvatar = savedProfile.avatar ?? finalAvatarUrl ?? selectedDefaultAvatar ?? null;
+      const savedDefaultAvatar = typeof savedAvatar === 'string' && getDefaultAvatarDef(savedAvatar) ? savedAvatar : null;
+
       setUser({
-        name: nickname,
-        nickname,
+        name: savedProfile.nickname,
+        nickname: savedProfile.nickname,
         email,
-        avatar: finalAvatarUrl,
-        defaultAvatar: finalAvatarUrl ? null : selectedDefaultAvatar,
-        grade,
-        major,
-        bio: '',
-        gender: resolvedGender,
+        avatar: savedAvatar,
+        defaultAvatar: savedDefaultAvatar,
+        grade: savedProfile.grade ?? grade,
+        major: savedProfile.major ?? major,
+        bio: savedProfile.bio ?? '',
+        gender: (savedProfile.gender as Gender | undefined) ?? resolvedGender,
         language,
         isLoggedIn: true,
       });
@@ -168,31 +168,28 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const handleSkip = useCallback(async () => {
     setIsSaving(true);
     try {
-      const randomNum = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
-      const randomNickname = `浸大${randomNum}`;
-      const randomAvatarDef = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
-      const randomAvatarUrl = getDiceBearUrl(randomAvatarDef.id, 200, randomAvatarDef.bg);
-
-      await authService.setupProfile({
-        nickname: randomNickname,
-        grade: '',
-        major: '',
-        gender: 'secret',
-        avatar: randomAvatarUrl,
+      const generatedProfile = await authService.setupProfile({
+        autoGenerate: true,
         language,
       });
       await changeLanguage(language);
 
+      const generatedAvatar = generatedProfile.avatar ?? null;
+      const generatedDefaultAvatar =
+        typeof generatedAvatar === 'string' && getDefaultAvatarDef(generatedAvatar)
+          ? generatedAvatar
+          : null;
+
       setUser({
-        name: randomNickname,
-        nickname: randomNickname,
+        name: generatedProfile.nickname,
+        nickname: generatedProfile.nickname,
         email,
-        avatar: randomAvatarUrl,
-        defaultAvatar: randomAvatarDef.id,
-        grade: '',
-        major: '',
-        bio: '',
-        gender: 'secret',
+        avatar: generatedAvatar,
+        defaultAvatar: generatedDefaultAvatar,
+        grade: generatedProfile.grade ?? '',
+        major: generatedProfile.major ?? '',
+        bio: generatedProfile.bio ?? '',
+        gender: (generatedProfile.gender as Gender | undefined) ?? 'other',
         language,
         isLoggedIn: true,
       });
@@ -221,7 +218,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <TouchableOpacity style={styles.avatarUpload} activeOpacity={0.7} onPress={pickImages}>
             <View style={styles.avatarCircle}>
@@ -244,7 +240,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           <Text style={styles.avatarHint}>{t('uploadAvatar')}</Text>
         </View>
 
-        {/* Default Avatar Picker */}
         {!avatarUri && (
           <View style={styles.defaultAvatarSection}>
             <DefaultAvatarPicker
@@ -255,9 +250,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Form Card */}
         <View style={styles.formCard}>
-          {/* Nickname */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{t('nickname')}</Text>
             <TextInput
@@ -272,7 +265,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Grade */}
           <TouchableOpacity style={styles.field} onPress={() => showPicker('grade')}>
             <Text style={styles.fieldLabel}>{t('grade')}</Text>
             <View style={styles.fieldSelect}>
@@ -285,7 +277,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Major */}
           <TouchableOpacity style={styles.field} onPress={() => showPicker('major')}>
             <Text style={styles.fieldLabel}>{t('major')}</Text>
             <View style={styles.fieldSelect}>
@@ -298,7 +289,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Gender */}
           <TouchableOpacity style={styles.field} onPress={() => showPicker('gender')}>
             <Text style={styles.fieldLabel}>{t('gender')}</Text>
             <View style={styles.fieldSelect}>
@@ -310,7 +300,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Done Button */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.doneBtn, !isFormComplete && styles.doneBtnDisabled]}
@@ -323,7 +312,6 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      {/* Picker Modal */}
       <Modal
         visible={pickerVisible}
         transparent
@@ -520,7 +508,6 @@ const styles = StyleSheet.create({
   doneBtnTextDisabled: {
     color: colors.onSurfaceVariant,
   },
-  // Picker Modal
   pickerOverlay: {
     flex: 1,
     backgroundColor: colors.scrim,

@@ -90,6 +90,50 @@ function updateCommentTreeById(
   return changed ? nextComments : comments;
 }
 
+function findCommentNodeById(
+  comments: Array<Comment | Reply> | undefined,
+  targetId: string,
+): Comment | Reply | undefined {
+  if (!comments) return undefined;
+
+  for (const comment of comments) {
+    if (comment.id === targetId) {
+      return comment;
+    }
+    const nested = findCommentNodeById(comment.replies, targetId);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return undefined;
+}
+
+function insertCreatedComment(
+  comments: Comment[] | undefined,
+  createdComment: Comment,
+  parentId?: string,
+): Comment[] | undefined {
+  if (!parentId) {
+    return comments ? [createdComment, ...comments] : [createdComment];
+  }
+
+  if (!comments) return comments;
+
+  const parentNode = findCommentNodeById(comments, parentId);
+  if (!parentNode) return comments;
+
+  const reply: Reply = {
+    ...createdComment,
+    replyTo: parentNode.name,
+  };
+
+  return updateCommentTreeById(comments, parentId, (node) => ({
+    ...node,
+    replies: [reply, ...(node.replies ?? [])],
+  }));
+}
+
 function updateMyContentCommentById(
   myContent: MyContent | undefined,
   targetId: string,
@@ -209,7 +253,7 @@ export function useSearch(query: string) {
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[]; images?: string[]; quotedPostId?: string; functionType?: string; functionId?: string; functionTitle?: string }) =>
+    mutationFn: (post: { content: string; tags?: string[]; isAnonymous?: boolean; pollOptions?: string[]; images?: string[]; quotedPostId?: string; functionType?: string; functionId?: string; functionTitle?: string; ratingCategory?: import('../types').RatingCategory }) =>
       forumService.createPost(post),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -246,11 +290,32 @@ export function useCreateComment(postId: string) {
   return useMutation({
     mutationFn: ({ content, isAnonymous, parentId }: { content: string; isAnonymous?: boolean; parentId?: string }) =>
       forumService.createComment(postId, content, isAnonymous, parentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
-      queryClient.invalidateQueries({ queryKey: ['post', postId] });
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+    onSuccess: (createdComment, variables) => {
+      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+        insertCreatedComment(old, createdComment, variables.parentId)
+      );
+      queryClient.setQueryData<ForumPost>(['post', postId], (old) =>
+        old
+          ? {
+              ...old,
+              comments: old.comments + 1,
+            }
+          : old
+      );
+      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        mapPostsPages(old, (post) =>
+          post.id === postId
+            ? {
+                ...post,
+                comments: post.comments + 1,
+              }
+            : post
+        )
+      );
+
+      queryClient.invalidateQueries({ queryKey: ['comments', postId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
     },
   });
 }
@@ -348,10 +413,10 @@ export function useLikePost() {
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (res, _err, postId) => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
       if (typeof res?.likeCount !== 'number') {
-        queryClient.invalidateQueries({ queryKey: ['post', postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
       }
     },
   });
@@ -592,15 +657,58 @@ export function useBookmarkPost() {
       );
       return { previousList, previousDetail, previousMyContent };
     },
+    onSuccess: (res, postId) => {
+      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        mapPostsPages(old, (post) =>
+          post.id === postId
+            ? {
+                ...post,
+                bookmarked: res.bookmarked,
+              }
+            : post
+        )
+      );
+      queryClient.setQueryData<ForumPost>(['post', postId], (old) =>
+        old
+          ? {
+              ...old,
+              bookmarked: res.bookmarked,
+            }
+          : old
+      );
+      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+        old
+          ? {
+              ...old,
+              posts: old.posts.map((item) =>
+                item.postId === postId
+                  ? {
+                      ...item,
+                      bookmarked: res.bookmarked,
+                    }
+                  : item
+              ),
+              anonPosts: old.anonPosts.map((item) =>
+                item.postId === postId
+                  ? {
+                      ...item,
+                      bookmarked: res.bookmarked,
+                    }
+                  : item
+              ),
+            }
+          : old
+      );
+    },
     onError: (_err, postId, context) => {
       if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
       if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (_data, _err, postId) => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post', postId] });
-      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
     },
   });
 }

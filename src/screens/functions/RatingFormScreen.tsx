@@ -18,6 +18,7 @@ import { useRatingDetail, useSubmitRating, useRatingDimensions, useRatingTagOpti
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { translateLabel } from '../../utils/translate';
+import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, layout } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -94,6 +95,7 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   const { data: dimensions } = useRatingDimensions(category);
   const { data: tagOptions } = useRatingTagOptions(category);
   const submitRating = useSubmitRating(category, id);
+  const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { tabBarTranslateY } = useTabBarAnimation();
@@ -129,6 +131,9 @@ export default function RatingFormScreen({ navigation, route }: Props) {
     setScores(initial);
   }, [item?.id]);
 
+  const itemNameForShare = translateLabel(item?.name || 'Untitled', lang);
+  const senderDisplayName = user?.nickname || user?.name || t('meLabel');
+
   const handleScoreChange = useCallback((key: string, value: number) => {
     setScores((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -145,6 +150,10 @@ export default function RatingFormScreen({ navigation, route }: Props) {
       showSnackbar({ message: t('emailVerifyRequired'), type: 'error' });
       return;
     }
+    if (!canPublishCommunityContent(user)) {
+      showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
+      return;
+    }
     hapticMedium();
     submitRating.mutate(
       {
@@ -155,14 +164,25 @@ export default function RatingFormScreen({ navigation, route }: Props) {
       {
         onSuccess: () => {
           showSnackbar({ message: t('ratingShareTitle'), type: 'success' });
-          navigation.pop();
+          navigation.replace('RatingShare', {
+            itemName: itemNameForShare,
+            posterName: senderDisplayName,
+            functionId: id,
+            ratingCategory: category,
+          });
         },
-        onError: () => {
-          showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
+        onError: (error) => {
+          const submitError = typeof error === 'object' && error
+            ? error as { errorCode?: string; code?: string | number }
+            : undefined;
+          showSnackbar({
+            message: isPublishPermissionError(submitError) ? t('hkbuEmailRequiredForPublish') : t('dataLoadFailed'),
+            type: 'error',
+          });
         },
       }
     );
-  }, [scores, selectedTags, comment, submitRating, showSnackbar, navigation, t, isLoggedIn]);
+  }, [scores, selectedTags, comment, submitRating, showSnackbar, navigation, t, isLoggedIn, user, itemNameForShare, senderDisplayName, id, category]);
 
   if (isLoading) {
     return (

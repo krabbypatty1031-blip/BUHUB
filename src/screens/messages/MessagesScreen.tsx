@@ -19,6 +19,8 @@ import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
 import { useContacts } from '../../hooks/useMessages';
 import { useBlockUser, useBlockedList } from '../../hooks/useUser';
+import { messageService } from '../../api/services/message.service';
+import { normalizeLanguage } from '../../i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useMessageStore } from '../../store/messageStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -143,6 +145,8 @@ export default function MessagesScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isFocused = useIsFocused();
+  const language = useAuthStore((s) => s.language);
+  const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
   const { data: contacts, isLoading, isFetching, refetch } = useContacts({ polling: isFocused });
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
   const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
@@ -200,12 +204,12 @@ export default function MessagesScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       shouldSnapshotInboxSeenRef.current = true;
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      void queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'], type: 'active' });
+      void refetch();
       return () => {
         shouldSnapshotInboxSeenRef.current = false;
       };
-    }, [queryClient])
+    }, [queryClient, refetch])
   );
 
   useEffect(() => {
@@ -381,6 +385,21 @@ export default function MessagesScreen({ navigation }: Props) {
           effectiveUnread={effectiveUnread}
           onPress={() => {
             clearUnread(item.id);
+            void queryClient.prefetchQuery({
+              queryKey: ['chat', item.id, normalizedLanguage],
+              queryFn: () => messageService.getChatHistory(item.id),
+              staleTime: 60 * 1000,
+            });
+            void queryClient.prefetchQuery({
+              queryKey: ['chat-can-send', item.id],
+              queryFn: () => messageService.canSendMessage(item.id),
+              staleTime: 60 * 1000,
+            });
+            void queryClient.prefetchQuery({
+              queryKey: ['presence', item.id],
+              queryFn: () => messageService.getPresence(item.id),
+              staleTime: 10 * 1000,
+            });
             navigation.navigate('Chat', {
               contactId: item.id,
               contactName: item.name,
@@ -392,7 +411,7 @@ export default function MessagesScreen({ navigation }: Props) {
         />
       );
     },
-    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, showSearch]
+    [navigation, isPinned, isMuted, getEffectiveUnread, markedUnreadContacts, readContacts, handleLongPress, handleAvatarPress, clearUnread, queryClient, normalizedLanguage, showSearch]
   );
 
   /* Action sheet computed labels */
