@@ -20,6 +20,7 @@ import { changeLanguage } from '../../i18n';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { authService } from '../../api/services/auth.service';
 import { uploadService } from '../../api/services/upload.service';
+import { HKBU_MAJOR_KEYS } from '../../data/hkbuMajors';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -52,12 +53,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const [pickerType, setPickerType] = useState<PickerType>('grade');
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
-  const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
   const GENDER_KEYS: Gender[] = ['male', 'female', 'other', 'secret'];
 
   const pickerData: Record<PickerType, string[]> = {
     grade: GRADE_KEYS,
-    major: MAJOR_KEYS,
+    major: HKBU_MAJOR_KEYS,
     gender: GENDER_KEYS,
   };
 

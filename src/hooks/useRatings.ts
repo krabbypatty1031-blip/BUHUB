@@ -6,6 +6,8 @@ export function useRatings(category: RatingCategory, sortMode: RatingSortMode = 
   return useQuery({
     queryKey: ['ratings', category, sortMode],
     queryFn: () => ratingService.getList(category, sortMode),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 

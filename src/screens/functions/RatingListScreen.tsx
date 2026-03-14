@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,25 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingCategory, RatingItem, RatingSortMode } from '../../types';
 import { useRatings } from '../../hooks/useRatings';
 import { useRatingStore } from '../../store/ratingStore';
+import { ratingService } from '../../api/services/rating.service';
 import { translateLabel } from '../../utils/translate';
+import { getLocalizedRatingDepartment, getLocalizedRatingLocation, getLocalizedRatingMetaLabel } from '../../utils/ratingMeta';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon, SearchIcon, StarIcon } from '../../components/common/icons';
+import { BackIcon, CloseIcon, SearchIcon, StarIcon } from '../../components/common/icons';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
@@ -43,6 +47,151 @@ const SEARCH_PLACEHOLDERS: Record<RatingCategory, string> = {
   major: 'searchMajor',
 };
 
+const ALL_FILTER_VALUE = '__all__';
+
+type QuickFilterOption = {
+  value: string;
+  label: string;
+  count: number;
+};
+
+type IndexedSearchField = {
+  rawLower: string;
+  normalized: string;
+  weight: number;
+};
+
+type IndexedRatingItem = {
+  item: RatingItem;
+  quickFilterValue: string;
+  quickFilterLabel: string;
+  searchFields: IndexedSearchField[];
+};
+
+type SearchQueryIndex = {
+  trimmed: string;
+  lowered: string;
+  normalized: string;
+  loweredTokens: string[];
+  normalizedTokens: string[];
+};
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[^a-z0-9\u3400-\u9fff]+/gi, '');
+}
+
+function extractCourseSubject(code: string) {
+  const compactCode = code.replace(/\s+/g, '').toUpperCase();
+  const matched = compactCode.match(/^[A-Z]+/);
+  return matched?.[0] ?? compactCode;
+}
+
+function simplifyFilterLabel(value: string) {
+  return value
+    .replace(/^Department of\s+/i, '')
+    .replace(/^School of\s+/i, '')
+    .replace(/^Academy of\s+/i, '')
+    .replace(/^Faculty of\s+/i, '')
+    .replace(/^Institute of\s+/i, '')
+    .trim();
+}
+
+function getQuickFilterValue(item: RatingItem, category: RatingCategory) {
+  if (category === 'course' && 'code' in item && item.code) {
+    return extractCourseSubject(item.code);
+  }
+  if (category === 'canteen' && 'location' in item && item.location) {
+    return item.location.trim();
+  }
+  return item.department.trim();
+}
+
+function getDepartmentLabel(item: RatingItem, lang: 'tc' | 'sc' | 'en') {
+  return getLocalizedRatingDepartment(item, lang);
+}
+
+function getLocationLabel(item: RatingItem, lang: 'tc' | 'sc' | 'en') {
+  return getLocalizedRatingLocation(item, lang);
+}
+
+function buildSearchQueryIndex(query: string): SearchQueryIndex {
+  const trimmed = query.trim();
+  const rawTokens = trimmed.split(/\s+/).filter(Boolean);
+
+  return {
+    trimmed,
+    lowered: trimmed.toLowerCase(),
+    normalized: normalizeSearchText(trimmed),
+    loweredTokens: rawTokens.map((token) => token.toLowerCase()),
+    normalizedTokens: rawTokens.map((token) => normalizeSearchText(token)).filter(Boolean),
+  };
+}
+
+function buildIndexedSearchFields(item: RatingItem, lang: 'tc' | 'sc' | 'en'): IndexedSearchField[] {
+  const departmentLabel = getDepartmentLabel(item, lang);
+  const fields: Array<{ value: string; weight: number }> = [
+    { value: item.name ?? '', weight: 160 },
+    { value: translateLabel(item.name ?? '', lang), weight: 180 },
+    { value: item.department ?? '', weight: 80 },
+    { value: departmentLabel, weight: 110 },
+  ];
+
+  if ('code' in item && item.code) {
+    fields.push({ value: item.code, weight: 220 });
+    fields.push({ value: extractCourseSubject(item.code), weight: 140 });
+  }
+
+  if ('email' in item && item.email) {
+    fields.push({ value: item.email, weight: 90 });
+  }
+
+  if ('location' in item && item.location) {
+    fields.push({ value: item.location, weight: 110 });
+    fields.push({ value: getLocationLabel(item, lang), weight: 130 });
+  }
+
+  return fields
+    .filter((field) => field.value.trim().length > 0)
+    .map((field) => ({
+      rawLower: field.value.toLowerCase(),
+      normalized: normalizeSearchText(field.value),
+      weight: field.weight,
+    }));
+}
+
+function getSearchScore(indexedItem: IndexedRatingItem, queryIndex: SearchQueryIndex) {
+  let bestScore = 0;
+
+  for (const field of indexedItem.searchFields) {
+    let score = 0;
+
+    if (field.rawLower === queryIndex.lowered || field.normalized === queryIndex.normalized) {
+      score = field.weight + 220;
+    } else if (field.rawLower.startsWith(queryIndex.lowered) || field.normalized.startsWith(queryIndex.normalized)) {
+      score = field.weight + 150;
+    } else if (field.rawLower.includes(queryIndex.lowered) || field.normalized.includes(queryIndex.normalized)) {
+      score = field.weight + 70;
+    }
+
+    if (queryIndex.loweredTokens.length > 1) {
+      const matchedAllRawTokens = queryIndex.loweredTokens.every((token) => field.rawLower.includes(token));
+      const matchedAllNormalizedTokens = queryIndex.normalizedTokens.every((token) => field.normalized.includes(token));
+      if (matchedAllRawTokens || matchedAllNormalizedTokens) {
+        score = Math.max(score, field.weight + 110 + queryIndex.loweredTokens.length * 15);
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+    }
+  }
+
+  return bestScore;
+}
+
 function MiniScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <View style={styles.miniBarRow}>
@@ -56,15 +205,25 @@ function MiniScoreBar({ label, value }: { label: string; value: number }) {
 
 export default function RatingListScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
+  const listRef = useRef<any>(null);
   const selectedCategory = useRatingStore((s) => s.selectedCategory);
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showSearch, setShowSearch] = useState(false);
   const sortMode = useRatingStore((s) => s.sortMode);
   const setSortMode = useRatingStore((s) => s.setSortMode);
+  const [activeFilters, setActiveFilters] = useState<Record<RatingCategory, string>>({
+    course: ALL_FILTER_VALUE,
+    teacher: ALL_FILTER_VALUE,
+    canteen: ALL_FILTER_VALUE,
+    major: ALL_FILTER_VALUE,
+  });
   const category = selectedCategory;
+  const activeQuickFilter = activeFilters[category] ?? ALL_FILTER_VALUE;
 
   const { data: ratings, isLoading, refetch } = useRatings(category, sortMode);
 
@@ -73,6 +232,17 @@ export default function RatingListScreen({ navigation }: Props) {
       refetch();
     }, [refetch])
   );
+
+  useEffect(() => {
+    const categoriesToPrefetch = CATEGORIES.filter((candidate) => candidate !== category);
+    for (const candidate of categoriesToPrefetch) {
+      void queryClient.prefetchQuery({
+        queryKey: ['ratings', candidate, sortMode],
+        queryFn: () => ratingService.getList(candidate, sortMode),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+  }, [category, queryClient, sortMode]);
 
   const categoryOptions = useMemo<SegmentedControlOption<RatingCategory>[]>(
     () =>
@@ -98,23 +268,136 @@ export default function RatingListScreen({ navigation }: Props) {
     [setCategory]
   );
 
-  const filteredRatings = useMemo(() => {
+  const indexedRatings = useMemo<IndexedRatingItem[]>(() => {
     if (!ratings) return [];
-    if (!searchQuery.trim()) return ratings;
-    const q = searchQuery.toLowerCase();
-    return ratings.filter((item) => {
-      const rawName = item.name ?? '';
-      const rawDepartment = item.department ?? '';
-      const translatedName = translateLabel(rawName, lang);
-      const translatedDepartment = translateLabel(rawDepartment, lang);
-      return (
-        rawName.toLowerCase().includes(q) ||
-        rawDepartment.toLowerCase().includes(q) ||
-        translatedName.toLowerCase().includes(q) ||
-        translatedDepartment.toLowerCase().includes(q)
-      );
+
+    return ratings.map((item) => {
+      const quickFilterValue = getQuickFilterValue(item, category);
+      const quickFilterLabel =
+        category === 'course'
+          ? quickFilterValue
+          : simplifyFilterLabel(getLocalizedRatingMetaLabel(quickFilterValue, lang));
+
+      return {
+        item,
+        quickFilterValue,
+        quickFilterLabel,
+        searchFields: buildIndexedSearchFields(item, lang),
+      };
     });
-  }, [ratings, searchQuery, lang]);
+  }, [ratings, category, lang]);
+
+  const allQuickFilterOptions = useMemo<QuickFilterOption[]>(() => {
+    const counts = new Map<string, QuickFilterOption>();
+    for (const entry of indexedRatings) {
+      if (!entry.quickFilterValue) continue;
+      const existing = counts.get(entry.quickFilterValue);
+      if (existing) {
+        existing.count += 1;
+        continue;
+      }
+      counts.set(entry.quickFilterValue, {
+        value: entry.quickFilterValue,
+        label: entry.quickFilterLabel,
+        count: 1,
+      });
+    }
+
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [indexedRatings]);
+
+  const quickFilterOptions = useMemo(() => {
+    const maxVisible = category === 'course' ? 12 : 8;
+    const visibleOptions = allQuickFilterOptions.slice(0, maxVisible);
+
+    if (activeQuickFilter === ALL_FILTER_VALUE) {
+      return visibleOptions;
+    }
+
+    if (visibleOptions.some((option) => option.value === activeQuickFilter)) {
+      return visibleOptions;
+    }
+
+    const activeOption = allQuickFilterOptions.find((option) => option.value === activeQuickFilter);
+    return activeOption ? [...visibleOptions, activeOption] : visibleOptions;
+  }, [activeQuickFilter, allQuickFilterOptions, category]);
+
+  const effectiveQuickFilter = useMemo(
+    () =>
+      activeQuickFilter === ALL_FILTER_VALUE || allQuickFilterOptions.some((option) => option.value === activeQuickFilter)
+        ? activeQuickFilter
+        : ALL_FILTER_VALUE,
+    [activeQuickFilter, allQuickFilterOptions]
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      startTransition(() => {
+        setSearchQuery(value);
+      });
+    },
+    [setSearchQuery]
+  );
+
+  const handleQuickFilterChange = useCallback(
+    (value: string) => {
+      setActiveFilters((prev) => ({ ...prev, [category]: value }));
+    },
+    [category]
+  );
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [category, sortMode, effectiveQuickFilter]);
+
+  const searchQueryIndex = useMemo(() => buildSearchQueryIndex(deferredSearchQuery), [deferredSearchQuery]);
+
+  const filteredRatings = useMemo(() => {
+    const scopedRatings =
+      effectiveQuickFilter === ALL_FILTER_VALUE
+        ? indexedRatings
+        : indexedRatings.filter((entry) => entry.quickFilterValue === effectiveQuickFilter);
+
+    if (!searchQueryIndex.trimmed) {
+      return scopedRatings.map((entry) => entry.item);
+    }
+
+    return scopedRatings
+      .map((entry, index) => ({
+        item: entry.item,
+        index,
+        score: getSearchScore(entry, searchQueryIndex),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          b.item.recentCount - a.item.recentCount ||
+          b.item.ratingCount - a.item.ratingCount ||
+          a.index - b.index
+      )
+      .map((entry) => entry.item);
+  }, [effectiveQuickFilter, indexedRatings, searchQueryIndex]);
+
+  const getSubtitle = useCallback(
+    (item: RatingItem) => {
+      const translatedDepartment = getDepartmentLabel(item, lang);
+      if ('code' in item && item.code) {
+        return [item.code, translatedDepartment].filter(Boolean).join(' | ');
+      }
+      if ('email' in item && item.email) {
+        return [translatedDepartment, item.email].filter(Boolean).join(' | ');
+      }
+      if ('location' in item && item.location) {
+        return [getLocationLabel(item, lang), translatedDepartment].filter(Boolean).join(' | ');
+      }
+      return translatedDepartment;
+    },
+    [lang]
+  );
 
   const getTopTags = useCallback((item: RatingItem) => {
     const entries = Object.entries(item.tagCounts);
@@ -135,9 +418,14 @@ export default function RatingListScreen({ navigation }: Props) {
         >
           <View style={styles.cardHeader}>
             <Avatar text={item.name} uri={item.avatar} size="sm" />
-            <Text style={styles.cardName} numberOfLines={1}>
-              {translateLabel(item.name, lang)}
-            </Text>
+            <View style={styles.cardTitleWrap}>
+              <Text style={styles.cardName} numberOfLines={1}>
+                {translateLabel(item.name, lang)}
+              </Text>
+              <Text style={styles.cardSubtitle} numberOfLines={2}>
+                {getSubtitle(item)}
+              </Text>
+            </View>
           </View>
           <View style={styles.cardBody}>
             <View style={styles.miniBarsColumn}>
@@ -195,10 +483,19 @@ export default function RatingListScreen({ navigation }: Props) {
               placeholder={t(SEARCH_PLACEHOLDERS[category])}
               placeholderTextColor={colors.outline}
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={handleSearchChange}
               returnKeyType="search"
               autoFocus
             />
+            {searchQuery.trim().length > 0 && (
+              <TouchableOpacity
+                style={styles.clearSearchBtn}
+                activeOpacity={0.7}
+                onPress={() => handleSearchChange('')}
+              >
+                <CloseIcon size={16} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
@@ -217,6 +514,49 @@ export default function RatingListScreen({ navigation }: Props) {
         <SegmentedControl options={sortOptions} value={sortMode} onChange={setSortMode} />
       </View>
 
+      {quickFilterOptions.length > 0 && (
+        <View style={styles.filterSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => handleQuickFilterChange(ALL_FILTER_VALUE)}
+              style={[
+                styles.filterChip,
+                effectiveQuickFilter === ALL_FILTER_VALUE && styles.filterChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  effectiveQuickFilter === ALL_FILTER_VALUE && styles.filterChipTextActive,
+                ]}
+              >
+                {t('allFilter')}
+              </Text>
+            </TouchableOpacity>
+            {quickFilterOptions.map((option) => {
+              const isActive = effectiveQuickFilter === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  activeOpacity={0.7}
+                  onPress={() => handleQuickFilterChange(option.value)}
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                >
+                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Rating List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -224,7 +564,10 @@ export default function RatingListScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlashList
+          ref={listRef}
+          key={`${category}:${sortMode}:${effectiveQuickFilter}`}
           data={filteredRatings}
+          extraData={`${category}:${sortMode}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}:${filteredRatings.length}:${filteredRatings[0]?.id ?? 'empty'}`}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -236,7 +579,7 @@ export default function RatingListScreen({ navigation }: Props) {
           ListEmptyComponent={
             <EmptyState
               icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noRatingData')}
+              title={deferredSearchQuery.trim() || effectiveQuickFilter !== ALL_FILTER_VALUE ? t('noSearchResults') : t('noRatingData')}
             />
           }
         />
@@ -292,12 +635,53 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.onSurface,
     marginLeft: spacing.sm,
+    height: 24,
+    lineHeight: 18,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  clearSearchBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   sortRow: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
+  },
+  filterSection: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  filterRow: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primaryContainer,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    ...typography.labelMedium,
+    color: colors.onSurfaceVariant,
+  },
+  filterChipTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -321,11 +705,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  cardTitleWrap: {
+    marginLeft: spacing.md,
+    flex: 1,
+    gap: spacing.xxs,
+  },
   cardName: {
     ...typography.titleSmall,
     color: colors.onSurface,
-    marginLeft: spacing.md,
-    flex: 1,
+  },
+  cardSubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   cardBody: {
     marginLeft: 32 + spacing.md,

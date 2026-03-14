@@ -19,6 +19,7 @@ import type { User } from '../../types';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { uploadService } from '../../api/services/upload.service';
+import { HKBU_MAJOR_KEYS } from '../../data/hkbuMajors';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -67,7 +68,6 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
-  const MAJOR_KEYS = ['majorCS', 'majorComm', 'majorMusic', 'majorJournalism', 'majorBCDA', 'majorAI', 'majorSE', 'majorIDS'];
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -260,7 +260,7 @@ export default function EditProfileScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={pickerType === 'grade' ? GRADE_KEYS : MAJOR_KEYS}
+                data={pickerType === 'grade' ? GRADE_KEYS : HKBU_MAJOR_KEYS}
               keyExtractor={(item) => item}
               renderItem={({ item }) => {
                 const currentVal = pickerType === 'grade' ? grade : major;

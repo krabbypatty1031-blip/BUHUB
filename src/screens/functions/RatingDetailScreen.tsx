@@ -19,6 +19,7 @@ import { useRatingDetail } from '../../hooks/useRatings';
 import { ratingService } from '../../api/services/rating.service';
 import { useAuthStore } from '../../store/authStore';
 import { translateLabel } from '../../utils/translate';
+import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../utils/ratingMeta';
 import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -159,10 +160,11 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   }, [item]);
 
   const getSubtitle = (ratingItem: RatingItem): string => {
-    if ('email' in ratingItem) return ratingItem.department || ratingItem.email || '';
-    if ('code' in ratingItem) return [ratingItem.code, ratingItem.department].filter(Boolean).join(' | ');
-    if ('location' in ratingItem) return ratingItem.location || ratingItem.department || '';
-    return ratingItem.department || '';
+    const localizedDepartment = getLocalizedRatingDepartment(ratingItem, lang);
+    if ('email' in ratingItem) return localizedDepartment || ratingItem.email || '';
+    if ('code' in ratingItem) return [ratingItem.code, localizedDepartment].filter(Boolean).join(' | ');
+    if ('location' in ratingItem) return getLocalizedRatingLocation(ratingItem, lang) || localizedDepartment || '';
+    return localizedDepartment || '';
   };
   const sharedTitle = item ? translateLabel(item.name, lang) : '';
   const senderDisplayName = currentUser?.nickname || currentUser?.name || t('meLabel');
@@ -240,7 +242,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
         <View style={styles.headerSection}>
           <Avatar text={item.name} uri={item.avatar} size="xl" />
           <Text style={styles.itemName}>{translateLabel(item.name, lang)}</Text>
-          <Text style={styles.itemSubtitle}>{translateLabel(getSubtitle(item), lang)}</Text>
+          <Text style={styles.itemSubtitle}>{getSubtitle(item)}</Text>
         </View>
 
         <View style={styles.divider} />
