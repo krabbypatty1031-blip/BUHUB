@@ -3,7 +3,7 @@
     "name": "UHUB",
     "slug": "buhub-rn",
     "scheme": "buhub",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -40,12 +40,6 @@
     },
     "web": {
       "favicon": "./assets/icon.png"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
     },
     "plugins": [
       "expo-font",

@@ -9,6 +9,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -22,7 +23,6 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
-import PostImageGallery from '../../components/common/PostImageGallery';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
@@ -66,6 +66,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const isContactDisabled = isOwnPost || isListingInactive;
   const isWantDisabled = isListingInactive;
   const previewImages = useMemo(() => item?.images ?? [], [item?.images]);
+  const primaryImage = previewImages[0];
 
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
@@ -246,20 +247,30 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             isListingInactive && styles.heroImageDimmed,
           ]}
         >
-          {previewImages.length > 0 ? (
+          {primaryImage ? (
             <>
-              <PostImageGallery
-                images={previewImages}
-                onImagePress={(index) => {
-                  setPreviewIndex(index);
+              <TouchableOpacity
+                style={styles.heroImageTouch}
+                activeOpacity={0.9}
+                onPress={() => {
+                  setPreviewIndex(0);
                   setPreviewVisible(true);
                 }}
-                borderRadiusValue={0}
-                backgroundColor={colors.surface2}
-                minHeight={screenWidth * 0.65}
-                maxHeight={screenWidth * 0.65}
-                resizeMode="cover"
-              />
+              >
+                <ExpoImage
+                  source={primaryImage}
+                  style={styles.heroImageAsset}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={0}
+                  recyclingKey={primaryImage}
+                />
+              </TouchableOpacity>
+              {previewImages.length > 1 ? (
+                <View style={styles.imageCountBadge}>
+                  <Text style={styles.imageCountBadgeText}>{`1/${previewImages.length}`}</Text>
+                </View>
+              ) : null}
             </>
           ) : (
             <ShoppingBagIcon size={56} color={colors.outlineVariant} />
@@ -520,6 +531,29 @@ const styles = StyleSheet.create({
   },
   heroImageDimmed: {
     opacity: 0.5,
+  },
+  heroImageTouch: {
+    width: '100%',
+    height: '100%',
+  },
+  heroImageAsset: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  imageCountBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontWeight: '700',
   },
   conditionBadge: {
     position: 'absolute',
