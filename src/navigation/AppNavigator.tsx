@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { authService } from '../api/services/auth.service';
@@ -8,6 +8,8 @@ import { Snackbar, ConfirmModal } from '../components/common';
 import { colors } from '../theme/colors';
 import i18n, { changeLanguage, normalizeLanguage } from '../i18n';
 import type { ApiError } from '../types';
+import { flushPendingPushNavigation, usePushRegistration } from '../hooks/usePushRegistration';
+import type { MainTabParamList } from '../types/navigation';
 
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
@@ -26,6 +28,7 @@ function isAuthFailure(error: unknown): boolean {
 }
 
 export default function AppNavigator() {
+  const navigationRef = useNavigationContainerRef<MainTabParamList>();
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
@@ -35,6 +38,7 @@ export default function AppNavigator() {
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  usePushRegistration(navigationRef);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -85,7 +89,11 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer theme={AppTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={AppTheme}
+      onReady={() => flushPendingPushNavigation(navigationRef)}
+    >
       {isLoggedIn ? <MainTabNavigator /> : <AuthNavigator />}
       <Snackbar />
       <ConfirmModal />

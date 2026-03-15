@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -387,7 +387,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                   {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
                   {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 </View>
-                <Text style={styles.timeText}>�� {sellerTime}</Text>
+                <Text style={styles.timeText}>{sellerTime}</Text>
               </View>
               {sellerMeta ? <Text style={styles.meta} numberOfLines={1}>{sellerMeta}</Text> : null}
             </View>

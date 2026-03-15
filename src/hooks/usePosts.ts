@@ -11,6 +11,7 @@ type MyContentCommentLike = {
   likes: number;
   bookmarked?: boolean;
 };
+type BookmarkSourcePost = ForumPost | UserPost;
 
 const POSTS_LIMIT = 20;
 
@@ -157,6 +158,128 @@ function updateMyContentCommentById(
     myBookmarks: {
       ...myContent.myBookmarks,
       comments: includeReactionLists ? updateArray(myContent.myBookmarks.comments) : myContent.myBookmarks.comments,
+    },
+  };
+}
+
+function mapForumPostToUserPost(post: ForumPost): UserPost {
+  return {
+    postId: post.id,
+    name: post.name,
+    userName: post.userName,
+    avatar: post.avatar,
+    defaultAvatar: post.defaultAvatar,
+    gender: post.gender,
+    gradeKey: post.gradeKey,
+    majorKey: post.majorKey,
+    meta: post.meta,
+    lang: post.lang,
+    sourceLanguage: post.sourceLanguage,
+    content: post.content,
+    time: post.createdAt,
+    likes: post.likes,
+    comments: post.comments,
+    tags: post.tags,
+    images: post.images,
+    hasImage: post.hasImage,
+    image: post.image,
+    isAnonymous: post.isAnonymous,
+    postType: post.postType,
+    isPoll: post.isPoll,
+    pollOptions: post.pollOptions,
+    myVote: post.myVote,
+    isFunction: post.isFunction,
+    functionType: post.functionType,
+    functionId: post.functionId,
+    functionIndex: post.functionIndex,
+    functionTitle: post.functionTitle,
+    ratingCategory: post.ratingCategory,
+    quotedPost: post.quotedPost
+      ? {
+          id: post.quotedPost.id,
+          name: post.quotedPost.name,
+          sourceLanguage: post.quotedPost.sourceLanguage,
+          content: post.quotedPost.content,
+          createdAt: post.quotedPost.createdAt ?? '',
+        }
+      : undefined,
+    liked: post.liked,
+    bookmarked: post.bookmarked,
+  };
+}
+
+function toBookmarkedUserPost(source: BookmarkSourcePost, bookmarked: boolean): UserPost {
+  if ('postId' in source) {
+    return {
+      ...source,
+      bookmarked,
+    };
+  }
+
+  return mapForumPostToUserPost({
+    ...source,
+    bookmarked,
+  });
+}
+
+function findSourcePostForBookmark(
+  myContent: MyContent | undefined,
+  postId: string,
+  sourcePost?: BookmarkSourcePost
+): BookmarkSourcePost | undefined {
+  if (sourcePost) return sourcePost;
+  if (!myContent) return undefined;
+  return (
+    myContent.posts.find((item) => item.postId === postId) ??
+    myContent.anonPosts.find((item) => item.postId === postId) ??
+    myContent.myBookmarks.posts.find((item) => item.postId === postId)
+  );
+}
+
+function updateMyContentPostBookmark(
+  myContent: MyContent | undefined,
+  postId: string,
+  bookmarked: boolean,
+  sourcePost?: BookmarkSourcePost
+): MyContent | undefined {
+  if (!myContent) return myContent;
+
+  const updateUserPost = (item: UserPost) =>
+    item.postId === postId
+      ? {
+          ...item,
+          bookmarked,
+        }
+      : item;
+
+  const currentBookmarks = myContent.myBookmarks.posts;
+  const existingBookmarkIndex = currentBookmarks.findIndex((item) => item.postId === postId);
+  const resolvedSourcePost = findSourcePostForBookmark(myContent, postId, sourcePost);
+
+  let nextBookmarks = currentBookmarks.map(updateUserPost);
+
+  if (bookmarked) {
+    if (existingBookmarkIndex === -1 && resolvedSourcePost) {
+      nextBookmarks = [toBookmarkedUserPost(resolvedSourcePost, true), ...nextBookmarks];
+    }
+  } else if (existingBookmarkIndex !== -1) {
+    nextBookmarks = nextBookmarks.filter((item) => item.postId !== postId);
+  }
+
+  const collectionDelta =
+    bookmarked && existingBookmarkIndex === -1 ? 1 : !bookmarked && existingBookmarkIndex !== -1 ? -1 : 0;
+
+  return {
+    ...myContent,
+    posts: myContent.posts.map(updateUserPost),
+    anonPosts: myContent.anonPosts.map(updateUserPost),
+    myBookmarks: {
+      ...myContent.myBookmarks,
+      posts: nextBookmarks,
+    },
+    stats: {
+      ...myContent.stats,
+      collection: Math.max(0, (myContent.stats?.collection ?? 0) + collectionDelta),
     },
   };
 }
@@ -632,14 +755,13 @@ export function useBookmarkPost() {
       const previousList = queryClient.getQueryData<PostsInfiniteData>(['posts']);
       const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+      const listSourcePost = flattenPostPages(previousList).find((item) => item.id === postId);
+      const sourcePost = previousDetail ?? listSourcePost;
+      const nextBookmarked =
+        sourcePost?.bookmarked != null
+          ? !sourcePost.bookmarked
+          : !previousMyContent?.myBookmarks.posts.some((item) => item.postId === postId);
       const toggle = (p: ForumPost) => ({ ...p, bookmarked: !p.bookmarked });
-      const toggleUserPost = (p: UserPost) =>
-        p.postId === postId
-          ? {
-              ...p,
-              bookmarked: !p.bookmarked,
-            }
-          : p;
       queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
@@ -647,13 +769,7 @@ export function useBookmarkPost() {
         queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
-        old
-          ? {
-              ...old,
-              posts: old.posts.map(toggleUserPost),
-              anonPosts: old.anonPosts.map(toggleUserPost),
-            }
-          : old
+        updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
       );
       return { previousList, previousDetail, previousMyContent };
     },
@@ -677,27 +793,13 @@ export function useBookmarkPost() {
           : old
       );
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
-        old
-          ? {
-              ...old,
-              posts: old.posts.map((item) =>
-                item.postId === postId
-                  ? {
-                      ...item,
-                      bookmarked: res.bookmarked,
-                    }
-                  : item
-              ),
-              anonPosts: old.anonPosts.map((item) =>
-                item.postId === postId
-                  ? {
-                      ...item,
-                      bookmarked: res.bookmarked,
-                    }
-                  : item
-              ),
-            }
-          : old
+        updateMyContentPostBookmark(
+          old,
+          postId,
+          res.bookmarked,
+          queryClient.getQueryData<ForumPost>(['post', postId]) ??
+            flattenPostPages(queryClient.getQueryData<PostsInfiniteData>(['posts'])).find((item) => item.id === postId)
+        )
       );
     },
     onError: (_err, postId, context) => {
@@ -708,7 +810,7 @@ export function useBookmarkPost() {
     onSettled: (_data, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
 }

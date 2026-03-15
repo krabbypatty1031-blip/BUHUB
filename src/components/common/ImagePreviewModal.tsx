@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   runOnJS,
@@ -70,7 +70,7 @@ export default function ImagePreviewModal({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <GestureHandlerRootView style={styles.overlay}>
         <FlatList
           ref={listRef}
           data={images}
@@ -110,7 +110,7 @@ export default function ImagePreviewModal({
             </Text>
           </View>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -262,8 +262,11 @@ function ZoomableImage({
       }
     });
 
-  const tapGesture = Gesture.Tap().onEnd((_event, success) => {
+  const tapGesture = Gesture.Tap().maxDuration(220).onEnd((_event, success) => {
     if (success) {
+      if (scale.value > 1.01) {
+        return;
+      }
       runOnJS(onTap)();
     }
   });

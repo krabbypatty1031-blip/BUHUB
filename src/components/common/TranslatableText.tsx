@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useContentTranslation } from '../../hooks/useContentTranslation';
+import { normalizeLanguage } from '../../i18n';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -40,6 +42,7 @@ export default function TranslatableText({
   numberOfLines,
 }: Props) {
   const { t } = useTranslation();
+  const targetLanguage = useAuthStore((state) => state.language);
   const pageTranslation = usePageTranslation();
   const registerPageItem = pageTranslation?.registerItem;
   const unregisterPageItem = pageTranslation?.unregisterItem;
@@ -47,7 +50,8 @@ export default function TranslatableText({
   const registrationKeyRef = useRef(`translation-${Math.random().toString(36).slice(2)}`);
 
   const trimmedSourceText = sourceText?.trim() ?? '';
-  const canTranslate = Boolean(entityId && trimmedSourceText);
+  const normalizedSourceLanguage = normalizeLanguage(sourceLanguage);
+  const canTranslate = Boolean(entityId && trimmedSourceText) && normalizedSourceLanguage !== targetLanguage;
   const showTranslated = pageTranslation?.showTranslated ?? localShowTranslated;
   const usesPageToggle = Boolean(pageTranslation);
   const shouldRequestTranslation = canTranslate && showTranslated;
@@ -69,7 +73,7 @@ export default function TranslatableText({
     if (!usesPageToggle) {
       return undefined;
     }
-    if (!entityId || !trimmedSourceText) {
+    if (!canTranslate || !entityId || !trimmedSourceText) {
       return undefined;
     }
 
@@ -83,7 +87,7 @@ export default function TranslatableText({
     return () => {
       unregisterPageItem?.(registrationKeyRef.current);
     };
-  }, [entityId, entityType, registerPageItem, sourceLanguage, trimmedSourceText, unregisterPageItem, usesPageToggle]);
+  }, [canTranslate, entityId, entityType, registerPageItem, sourceLanguage, trimmedSourceText, unregisterPageItem, usesPageToggle]);
 
   useEffect(() => {
     if (!usesPageToggle) {

@@ -51,7 +51,7 @@ import type {
   MainTabParamList,
   MessagesStackParamList,
 } from '../../types/navigation';
-import type { ChatMessage, ChatHistory, ForwardedCardDraft } from '../../types';
+import type { ChatMessage, ChatHistory, Contact, ForwardedCardDraft } from '../../types';
 import { useCanSendMessage, useChatHistory, usePresence, useRecallMessage, useSendMessage } from '../../hooks/useMessages';
 import { useAutoGrowingInput } from '../../hooks/useAutoGrowingInput';
 import { useAuthStore } from '../../store/authStore';
@@ -431,6 +431,37 @@ type PendingSendRequest =
 
 function formatLocalMessageTime(date: Date) {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function buildConversationPreviewContact(
+  contactId: string,
+  message: ChatMessage,
+  contactName: string,
+  contactAvatar: string,
+  existing?: Contact
+): Contact {
+  const createdAt = message.createdAt ?? new Date().toISOString();
+  const trimmedContactName = contactName.trim();
+  const resolvedName =
+    existing?.name ??
+    (trimmedContactName.length > 0 ? trimmedContactName : undefined) ??
+    existing?.userName ??
+    contactId;
+  return {
+    id: contactId,
+    userName: existing?.userName,
+    name: resolvedName,
+    avatar: existing?.avatar ?? contactAvatar ?? '',
+    grade: existing?.grade,
+    major: existing?.major,
+    message: buildPreviewFromChatMessage(message),
+    time: formatConversationTime(createdAt),
+    lastMessageAt: createdAt,
+    unread: 0,
+    pinned: existing?.pinned ?? false,
+    gender: existing?.gender,
+    muted: existing?.muted,
+  };
 }
 
 function createLocalMessageId() {
@@ -1549,7 +1580,10 @@ export default function ChatScreen({ navigation, route }: Props) {
   });
   const { data: canSendMessage } = useCanSendMessage(contactId);
   const { data: presence } = usePresence(contactId);
-  const sendMessageMutation = useSendMessage(contactId);
+  const sendMessageMutation = useSendMessage(contactId, {
+    name: contactName,
+    avatar: contactAvatar,
+  });
   const sendMessage = sendMessageMutation.mutateAsync;
   const recallMessageMutation = useRecallMessage(contactId);
   const user = useAuthStore((s) => s.user);
@@ -1776,6 +1810,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const transientMediaPreviewByKeyRef = useRef<
     Record<string, NonNullable<ChatMessage['mediaMetas']>>
   >({});
+  const composerSendLockRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -2307,21 +2342,19 @@ export default function ChatScreen({ navigation, route }: Props) {
     await Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] }),
       queryClient.invalidateQueries({ queryKey: ['chat-can-send', contactId] }),
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' }),
     ]);
   }, [contactId, queryClient]);
 
   const patchConversationPreview = useCallback((message: ChatMessage) => {
     patchContactsQueries(queryClient, user?.id, (current) => {
       const existing = current?.find((contact) => contact.id === contactId);
-      if (!existing) return current;
-      return upsertContact(current, {
-        ...existing,
-        message: buildPreviewFromChatMessage(message),
-        time: formatConversationTime(message.createdAt ?? new Date().toISOString()),
-        unread: 0,
-      });
+      return upsertContact(
+        current,
+        buildConversationPreviewContact(contactId, message, contactName, contactAvatar, existing)
+      );
     });
-  }, [contactId, queryClient, user?.id]);
+  }, [contactAvatar, contactId, contactName, queryClient, user?.id]);
 
   useEffect(() => {
     const persistedIds = new Set(
@@ -2820,7 +2853,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           const nextOlderMessage = reversedMessages[mi + 1];
           const isMessageGroupEnd =
             !nextOlderMessage || !shouldMessagesShareGroup(renderMessage, nextOlderMessage);
-          if (currentGroupTime && nextOlderMessage && isMessageGroupEnd) {
+          if (currentGroupTime && isMessageGroupEnd) {
             items.push({
               kind: 'time',
               timeLabel: currentGroupTime.timeLabel,
@@ -3094,6 +3127,14 @@ export default function ChatScreen({ navigation, route }: Props) {
                   contactAvatar,
                 },
               };
+        const parentNavigation = navigation.getParent();
+        if (parentNavigation) {
+          parentNavigation.navigate('FunctionsTab', {
+            screen: screenMap[card.type],
+            params: detailParams,
+          });
+          return;
+        }
         navigation.dispatch(
           CommonActions.navigate({
             name: 'FunctionsTab',
@@ -3303,12 +3344,14 @@ export default function ChatScreen({ navigation, route }: Props) {
   );
 
   const handleSend = useCallback(async () => {
+    if (composerSendLockRef.current) return;
     const text = inputText.trim();
     const pendingForwardDraft =
       forwardedCardDraft && pendingForwardPreview?.dedupeKey === forwardedCardDraft.dedupeKey
         ? forwardedCardDraft
         : null;
     if (!text && !pendingForwardDraft) return;
+    composerSendLockRef.current = true;
     if (typingStopTimerRef.current) {
       clearTimeout(typingStopTimerRef.current);
       typingStopTimerRef.current = null;
@@ -3320,21 +3363,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     setInputText('');
     setReplyTarget(null);
 
-    if (pendingForwardDraft) {
-      const localCardMessage = buildLocalPendingMessage({
-        functionCard: {
-          type: pendingForwardDraft.normalizedType,
-          ...(pendingForwardDraft.resolvedId ? { id: pendingForwardDraft.resolvedId } : {}),
-          title: pendingForwardDraft.cardTitle,
-          posterName: pendingForwardDraft.posterName,
-          ...(pendingForwardDraft.forwardedPostId ? { postId: pendingForwardDraft.forwardedPostId } : {}),
-          ...(pendingForwardDraft.ratingCategory ? { ratingCategory: pendingForwardDraft.ratingCategory } : {}),
-        },
-        ...(replyPayload ? { replyTo: replyPayload } : {}),
-      });
-      const cardRequest: PendingSendRequest = {
-        kind: 'direct',
-        payload: {
+    try {
+      if (pendingForwardDraft) {
+        const localCardMessage = buildLocalPendingMessage({
           functionCard: {
             type: pendingForwardDraft.normalizedType,
             ...(pendingForwardDraft.resolvedId ? { id: pendingForwardDraft.resolvedId } : {}),
@@ -3344,31 +3375,47 @@ export default function ChatScreen({ navigation, route }: Props) {
             ...(pendingForwardDraft.ratingCategory ? { ratingCategory: pendingForwardDraft.ratingCategory } : {}),
           },
           ...(replyPayload ? { replyTo: replyPayload } : {}),
-        },
-      };
-      queueLocalPendingMessage(localCardMessage, cardRequest);
-      const cardSent = await executePendingSend(localCardMessage.id!, cardRequest);
-      if (!cardSent) return;
-      setPendingForwardConfirmKey((current) =>
-        current === pendingForwardDraft.dedupeKey ? null : current
-      );
-    }
+        });
+        const cardRequest: PendingSendRequest = {
+          kind: 'direct',
+          payload: {
+            functionCard: {
+              type: pendingForwardDraft.normalizedType,
+              ...(pendingForwardDraft.resolvedId ? { id: pendingForwardDraft.resolvedId } : {}),
+              title: pendingForwardDraft.cardTitle,
+              posterName: pendingForwardDraft.posterName,
+              ...(pendingForwardDraft.forwardedPostId ? { postId: pendingForwardDraft.forwardedPostId } : {}),
+              ...(pendingForwardDraft.ratingCategory ? { ratingCategory: pendingForwardDraft.ratingCategory } : {}),
+            },
+            ...(replyPayload ? { replyTo: replyPayload } : {}),
+          },
+        };
+        queueLocalPendingMessage(localCardMessage, cardRequest);
+        const cardSent = await executePendingSend(localCardMessage.id!, cardRequest);
+        if (!cardSent) return;
+        setPendingForwardConfirmKey((current) =>
+          current === pendingForwardDraft.dedupeKey ? null : current
+        );
+      }
 
-    if (!text) return;
+      if (!text) return;
 
-    const localMessage = buildLocalPendingMessage({
-      text,
-      ...(replyPayload ? { replyTo: replyPayload } : {}),
-    });
-    const textRequest: PendingSendRequest = {
-      kind: 'direct',
-      payload: {
+      const localMessage = buildLocalPendingMessage({
         text,
         ...(replyPayload ? { replyTo: replyPayload } : {}),
-      },
-    };
-    queueLocalPendingMessage(localMessage, textRequest);
-    await executePendingSend(localMessage.id!, textRequest);
+      });
+      const textRequest: PendingSendRequest = {
+        kind: 'direct',
+        payload: {
+          text,
+          ...(replyPayload ? { replyTo: replyPayload } : {}),
+        },
+      };
+      queueLocalPendingMessage(localMessage, textRequest);
+      await executePendingSend(localMessage.id!, textRequest);
+    } finally {
+      composerSendLockRef.current = false;
+    }
   }, [
     buildLocalPendingMessage,
     buildReplyPayload,
@@ -3966,6 +4013,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   );
 
   const actionCanRecall = canRecallMessage(actionTarget);
+  const canSubmitComposer = hasText || Boolean(pendingForwardPreview);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -4175,7 +4223,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                   />
                 </View>
 
-                {hasText ? (
+                {canSubmitComposer ? (
                   <TouchableOpacity
                     style={styles.sendBtn}
                     onPress={handleSend}

@@ -19,6 +19,7 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, UsersIcon } from '../../components/common/icons';
+import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'FollowList'>;
@@ -38,7 +39,7 @@ const FollowItem = React.memo(function FollowItem({
   followLabel: string;
   t: (key: string) => string;
 }) {
-  const majorLabel = item.major ? t(item.major) : '';
+  const majorLabel = item.major ? getLocalizedMajorLabel(item.major, t) : '';
   const gradeLabel = item.grade ? t(item.grade) : '';
   const subInfo = [majorLabel, gradeLabel].filter(Boolean).join(' / ');
   const displayName = item.nickname || item.userName;

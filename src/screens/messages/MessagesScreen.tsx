@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
-import { useContacts } from '../../hooks/useMessages';
+import { useContacts, useMessageSearch } from '../../hooks/useMessages';
 import { useBlockUser, useBlockedList } from '../../hooks/useUser';
 import { messageService } from '../../api/services/message.service';
 import { normalizeLanguage } from '../../i18n';
@@ -74,6 +74,14 @@ const NOTIFY_ENTRIES: NotifyEntry[] = [
     countKey: 'unreadComments',
   },
 ];
+
+function resolveContactActivityTs(contact: Contact): number {
+  if (typeof contact.lastMessageAt === 'string' && contact.lastMessageAt.length > 0) {
+    const parsed = Date.parse(contact.lastMessageAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
 
 /* Memoized contact row */
 const ContactRow = React.memo(function ContactRow({
@@ -176,6 +184,10 @@ export default function MessagesScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
   const shouldSnapshotInboxSeenRef = useRef(false);
+  const normalizedSearchQuery = searchQuery.trim();
+  const { data: searchedContacts } = useMessageSearch(normalizedSearchQuery, {
+    enabled: showSearch && normalizedSearchQuery.length > 0,
+  });
 
   useEffect(() => {
     if (!blockedList) return;
@@ -233,22 +245,52 @@ export default function MessagesScreen({ navigation }: Props) {
     if (!contacts) return [];
     const visible = contacts.filter((c) => !isBlocked(c.userName ?? c.name));
     if (showSearch) {
-      const q = searchQuery.trim().toLowerCase();
+      const q = normalizedSearchQuery.toLowerCase();
       if (q.length > 0) {
-        return visible.filter(
+        const localMatches = visible.filter(
           (c) =>
             c.name.toLowerCase().includes(q) ||
-            (c.userName ?? '').toLowerCase().includes(q)
+            (c.userName ?? '').toLowerCase().includes(q) ||
+            c.message.toLowerCase().includes(q)
+        );
+        const remoteMatches = (searchedContacts ?? []).filter(
+          (c) => !isBlocked(c.userName ?? c.name)
+        );
+        const mergedMatches = new Map<string, Contact>();
+
+        localMatches.forEach((contact) => {
+          mergedMatches.set(contact.id, contact);
+        });
+        remoteMatches.forEach((contact) => {
+          if (!mergedMatches.has(contact.id)) {
+            mergedMatches.set(contact.id, contact);
+          }
+        });
+
+        return Array.from(mergedMatches.values()).sort(
+          (a, b) => resolveContactActivityTs(b) - resolveContactActivityTs(a)
         );
       }
-      return visible;
+      return [...visible].sort(
+        (a, b) => resolveContactActivityTs(b) - resolveContactActivityTs(a)
+      );
     }
     return [...visible].sort((a, b) => {
       const aPinned = isPinned(a.id, a.pinned) ? 1 : 0;
       const bPinned = isPinned(b.id, b.pinned) ? 1 : 0;
-      return bPinned - aPinned;
+      if (bPinned !== aPinned) return bPinned - aPinned;
+      return resolveContactActivityTs(b) - resolveContactActivityTs(a);
     });
-  }, [contacts, showSearch, searchQuery, pinnedContacts, isPinned, blockedUsers, isBlocked]);
+  }, [
+    contacts,
+    showSearch,
+    normalizedSearchQuery,
+    searchedContacts,
+    pinnedContacts,
+    isPinned,
+    blockedUsers,
+    isBlocked,
+  ]);
 
   const toggleSearch = useCallback(() => {
     setShowSearch((prev) => {

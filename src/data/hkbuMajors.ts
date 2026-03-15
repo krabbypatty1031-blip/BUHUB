@@ -376,3 +376,47 @@ export const HKBU_MAJORS: HKBUMajor[] = [
 ];
 
 export const HKBU_MAJOR_KEYS = HKBU_MAJORS.map((major) => major.key);
+
+const LEGACY_MAJOR_LABELS: Record<string, string> = {
+  majorBCDA: 'Business Computing & Data Analytics',
+  majorAI: 'Artificial Intelligence',
+  majorSE: 'Software Engineering',
+  majorIDS: 'Investment Science and Data Science',
+  majorCS: 'Computer Science',
+  majorComm: 'Communication',
+  majorMusic: 'Music',
+  majorJournalism: 'Journalism',
+};
+
+const MAJOR_FALLBACK_OVERRIDES: Record<string, string> = {
+  majorHKBUJournalism: 'Journalism',
+};
+
+const humanizeMajorKey = (majorKey: string): string =>
+  majorKey
+    .replace(/^major(?:HKBU)?/, '')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export function getMajorFallbackLabel(majorKey?: string | null): string {
+  if (!majorKey) {
+    return '';
+  }
+
+  return LEGACY_MAJOR_LABELS[majorKey] ?? MAJOR_FALLBACK_OVERRIDES[majorKey] ?? humanizeMajorKey(majorKey);
+}
+
+export function getLocalizedMajorLabel(
+  majorKey: string | null | undefined,
+  t: (key: string, options?: { defaultValue?: string }) => string,
+): string {
+  if (!majorKey) {
+    return '';
+  }
+
+  const fallback = getMajorFallbackLabel(majorKey);
+  const translated = t(majorKey, { defaultValue: fallback });
+  return translated === majorKey ? fallback : translated;
+}

@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { RatingCategory, RatingItem, RatingSortMode } from '../../types';
+import type { RatingCategory, RatingItem } from '../../types';
 import { useRatings } from '../../hooks/useRatings';
 import { useRatingStore } from '../../store/ratingStore';
 import { ratingService } from '../../api/services/rating.service';
@@ -214,8 +214,6 @@ export default function RatingListScreen({ navigation }: Props) {
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showSearch, setShowSearch] = useState(false);
-  const sortMode = useRatingStore((s) => s.sortMode);
-  const setSortMode = useRatingStore((s) => s.setSortMode);
   const [activeFilters, setActiveFilters] = useState<Record<RatingCategory, string>>({
     course: ALL_FILTER_VALUE,
     teacher: ALL_FILTER_VALUE,
@@ -225,7 +223,7 @@ export default function RatingListScreen({ navigation }: Props) {
   const category = selectedCategory;
   const activeQuickFilter = activeFilters[category] ?? ALL_FILTER_VALUE;
 
-  const { data: ratings, isLoading, refetch } = useRatings(category, sortMode);
+  const { data: ratings, isLoading, refetch } = useRatings(category);
 
   useFocusEffect(
     useCallback(() => {
@@ -237,12 +235,12 @@ export default function RatingListScreen({ navigation }: Props) {
     const categoriesToPrefetch = CATEGORIES.filter((candidate) => candidate !== category);
     for (const candidate of categoriesToPrefetch) {
       void queryClient.prefetchQuery({
-        queryKey: ['ratings', candidate, sortMode],
-        queryFn: () => ratingService.getList(candidate, sortMode),
+        queryKey: ['ratings', candidate, 'recent'],
+        queryFn: () => ratingService.getList(candidate),
         staleTime: 5 * 60 * 1000,
       });
     }
-  }, [category, queryClient, sortMode]);
+  }, [category, queryClient]);
 
   const categoryOptions = useMemo<SegmentedControlOption<RatingCategory>[]>(
     () =>
@@ -250,14 +248,6 @@ export default function RatingListScreen({ navigation }: Props) {
         value: cat,
         label: t(CATEGORY_LABELS[cat]),
       })),
-    [t]
-  );
-
-  const sortOptions = useMemo<SegmentedControlOption<RatingSortMode>[]>(
-    () => [
-      { value: 'recent', label: t('sortRecent') },
-      { value: 'controversial', label: t('sortControversial') },
-    ],
     [t]
   );
 
@@ -351,7 +341,7 @@ export default function RatingListScreen({ navigation }: Props) {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
     return () => cancelAnimationFrame(frameId);
-  }, [category, sortMode, effectiveQuickFilter]);
+  }, [category, effectiveQuickFilter]);
 
   const searchQueryIndex = useMemo(() => buildSearchQueryIndex(deferredSearchQuery), [deferredSearchQuery]);
 
@@ -509,11 +499,6 @@ export default function RatingListScreen({ navigation }: Props) {
         />
       </View>
 
-      {/* Sort Toggle */}
-      <View style={styles.sortRow}>
-        <SegmentedControl options={sortOptions} value={sortMode} onChange={setSortMode} />
-      </View>
-
       {quickFilterOptions.length > 0 && (
         <View style={styles.filterSection}>
           <ScrollView
@@ -565,9 +550,9 @@ export default function RatingListScreen({ navigation }: Props) {
       ) : (
         <FlashList
           ref={listRef}
-          key={`${category}:${sortMode}:${effectiveQuickFilter}`}
+          key={`${category}:${effectiveQuickFilter}`}
           data={filteredRatings}
-          extraData={`${category}:${sortMode}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}:${filteredRatings.length}:${filteredRatings[0]?.id ?? 'empty'}`}
+          extraData={`${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}:${filteredRatings.length}:${filteredRatings[0]?.id ?? 'empty'}`}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -648,12 +633,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
-  },
-  sortRow: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
   },
   filterSection: {
     paddingTop: spacing.sm,

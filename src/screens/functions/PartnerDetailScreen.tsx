@@ -314,7 +314,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                   {partner.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
                   {partner.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 </View>
-                <Text style={styles.timeText}>· {organizerTime}</Text>
+                <Text style={styles.timeText}>{organizerTime}</Text>
               </View>
               {organizerMeta ? <Text style={styles.meta} numberOfLines={1}>{organizerMeta}</Text> : null}
             </View>

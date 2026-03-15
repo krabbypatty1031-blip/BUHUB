@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../api/services/message.service';
 import type { SendMessagePayload } from '../api/services/message.service';
 import { normalizeLanguage } from '../i18n';
-import type { ChatHistory, ChatMessage } from '../types';
+import type { ChatHistory, ChatMessage, Contact } from '../types';
 import { useAuthStore } from '../store/authStore';
 import { normalizeImageUrl as normalizeMediaUrl } from '../utils/imageUrl';
 import {
@@ -40,6 +40,19 @@ type ChatHistoryQueryOptions = {
 
 type ContactsQueryOptions = {
   polling?: boolean;
+};
+
+type SendMessageContactSeed = {
+  name: string;
+  avatar?: string | null;
+  userName?: string;
+  grade?: string;
+  major?: string;
+  gender?: Contact['gender'];
+};
+
+type MessageSearchOptions = {
+  enabled?: boolean;
 };
 
 type SendMutationContext = {
@@ -123,6 +136,50 @@ function buildOptimisticMessage(
   };
 }
 
+function getLatestMessageFromHistory(history: ChatHistory[] | undefined): ChatMessage | null {
+  if (!Array.isArray(history) || history.length === 0) return null;
+  for (let groupIndex = history.length - 1; groupIndex >= 0; groupIndex -= 1) {
+    const group = history[groupIndex];
+    for (let messageIndex = group.messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+      const message = group.messages[messageIndex];
+      if (message) {
+        return message;
+      }
+    }
+  }
+  return null;
+}
+
+function buildConversationContact(
+  receiverId: string,
+  message: ChatMessage,
+  existing: Contact | undefined,
+  seed?: SendMessageContactSeed
+): Contact {
+  const createdAt = message.createdAt ?? new Date().toISOString();
+  const seededName = seed?.name?.trim();
+  const resolvedName =
+    existing?.name ??
+    (seededName && seededName.length > 0 ? seededName : undefined) ??
+    seed?.userName ??
+    receiverId;
+  return {
+    id: receiverId,
+    userName: existing?.userName ?? seed?.userName,
+    name: resolvedName,
+    avatar: existing?.avatar ?? seed?.avatar ?? '',
+    grade: existing?.grade ?? seed?.grade,
+    major: existing?.major ?? seed?.major,
+    message: buildPreviewFromChatMessage(message),
+    time: formatConversationTime(createdAt),
+    lastMessageAt: createdAt,
+    unread: 0,
+    pinned: existing?.pinned ?? false,
+    gender: existing?.gender ?? seed?.gender,
+    muted: existing?.muted,
+  };
+}
+
 
 export function useContacts(options: ContactsQueryOptions = {}) {
   const { polling = false } = options;
@@ -167,6 +224,20 @@ export function useContacts(options: ContactsQueryOptions = {}) {
     refetchOnWindowFocus: polling,
     refetchOnReconnect: true,
     initialData: userId ? peekCachedContacts(userId, normalizedLanguage) : undefined,
+  });
+}
+
+export function useMessageSearch(query: string, options: MessageSearchOptions = {}) {
+  const language = useAuthStore((s) => s.language);
+  const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
+  const trimmedQuery = query.trim();
+
+  return useQuery({
+    queryKey: ['message-search', normalizedLanguage, trimmedQuery],
+    queryFn: () => messageService.searchContacts(trimmedQuery),
+    enabled: (options.enabled ?? true) && trimmedQuery.length > 0,
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -244,7 +315,7 @@ export function usePresence(userId: string) {
   });
 }
 
-export function useSendMessage(receiverId: string) {
+export function useSendMessage(receiverId: string, contactSeed?: SendMessageContactSeed) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.id);
   return useMutation({
@@ -265,13 +336,10 @@ export function useSendMessage(receiverId: string) {
         patchContactsQueries(queryClient, currentUserId, (current) => {
           if (!optimisticMessage) return current;
           const existing = current?.find((contact) => contact.id === receiverId);
-          if (!existing) return current;
-          return upsertContact(current, {
-            ...existing,
-            message: buildPreviewFromChatMessage(optimisticMessage),
-            time: formatConversationTime(optimisticMessage.createdAt ?? new Date().toISOString()),
-            unread: 0,
-          });
+          return upsertContact(
+            current,
+            buildConversationContact(receiverId, optimisticMessage, existing, contactSeed)
+          );
         });
       }
 
@@ -306,17 +374,13 @@ export function useSendMessage(receiverId: string) {
       if (sentMessage) {
         patchContactsQueries(queryClient, currentUserId, (current) => {
           const existing = current?.find((contact) => contact.id === receiverId);
-          if (!existing) return current;
-          return upsertContact(current, {
-            ...existing,
-            message: buildPreviewFromChatMessage(sentMessage),
-            time: formatConversationTime(sentMessage.createdAt ?? new Date().toISOString()),
-            unread: 0,
-          });
+          return upsertContact(
+            current,
+            buildConversationContact(receiverId, sentMessage, existing, contactSeed)
+          );
         });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'inactive' });
       }
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },
   });
@@ -328,12 +392,32 @@ export function useRecallMessage(contactId: string) {
   return useMutation({
     mutationFn: (messageId: string) => messageService.deleteMessage(messageId),
     onMutate: async (messageId): Promise<RecallMutationContext> => {
+      await queryClient.cancelQueries({ queryKey: ['chat', contactId] });
+      await queryClient.cancelQueries({ queryKey: ['contacts'] });
       const previousChats = queryClient.getQueriesData<ChatHistory[]>({
         queryKey: ['chat', contactId],
       });
       patchChatQueries(queryClient, currentUserId, contactId, (old) =>
         markMessageAsRecalledInHistory(old, messageId)
       );
+      patchContactsQueries(queryClient, currentUserId, (current, language) => {
+        const existing = current?.find((contact) => contact.id === contactId);
+        if (!existing) return current;
+        const nextHistory = queryClient.getQueryData<ChatHistory[]>([
+          'chat',
+          contactId,
+          language,
+        ]);
+        const latestMessage = getLatestMessageFromHistory(nextHistory);
+        if (!latestMessage) return current;
+        return upsertContact(current, {
+          ...existing,
+          message: buildPreviewFromChatMessage(latestMessage),
+          time: latestMessage.createdAt
+            ? formatConversationTime(latestMessage.createdAt)
+            : existing.time,
+        });
+      });
       return { previousChats };
     },
     onError: (_error, _variables, context) => {
@@ -342,8 +426,8 @@ export function useRecallMessage(contactId: string) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat', contactId], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['chat', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },
   });

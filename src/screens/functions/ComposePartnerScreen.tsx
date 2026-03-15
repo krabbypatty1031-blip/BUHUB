@@ -122,6 +122,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   const editPartner = useEditPartner();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
+  const postingLockRef = React.useRef(false);
 
   const resolveSubmitErrorMessage = useCallback((error: unknown) => {
     const submitError = typeof error === 'object' && error
@@ -133,11 +134,12 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   }, [isEditMode, t]);
 
   const handlePost = useCallback(() => {
-    if (!canPost || !user || isPosting) return;
+    if (!canPost || !user || isPosting || postingLockRef.current) return;
     if (!isEditMode && !canPublishCommunityContent(user)) {
       showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
       return;
     }
+    postingLockRef.current = true;
     setIsPosting(true);
     const payload = {
       category: category!,
@@ -155,6 +157,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
     };
 
     const onSettled = () => {
+      postingLockRef.current = false;
       setIsPosting(false);
     };
 
@@ -201,12 +204,12 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newPartnerPost')}</Text>
         <TouchableOpacity
-          style={[styles.postBtn, !canPost && styles.postBtnDisabled]}
+          style={[styles.postBtn, (!canPost || isPosting) && styles.postBtnDisabled]}
           onPress={handlePost}
-          disabled={!canPost}
+          disabled={!canPost || isPosting}
         >
           <Text
-            style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
+            style={[styles.postBtnText, (!canPost || isPosting) && styles.postBtnTextDisabled]}
           >
             {t(isEditMode ? 'save' : 'publishBtn')}
           </Text>
@@ -303,25 +306,6 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* ----- Location ----- */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>
-              <MapPinIcon size={14} color={colors.primary} />{' '}
-              {t('locationLabel')}
-            </Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder={t('placeholderLocation')}
-                placeholderTextColor={colors.outline}
-                value={location}
-                onChangeText={setLocation}
-                maxLength={50}
-                selectionColor={colors.primary}
-              />
-            </View>
-          </View>
-
           {/* ----- Deadline ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
@@ -349,6 +333,25 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
                 <ChevronRightIcon size={18} color={colors.onSurface} />
               </TouchableOpacity>
             )}
+          </View>
+
+          {/* ----- Location ----- */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.primary} />{' '}
+              {t('locationLabel')}
+            </Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderLocation')}
+                placeholderTextColor={colors.outline}
+                value={location}
+                onChangeText={setLocation}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
           </View>
         </View>
 

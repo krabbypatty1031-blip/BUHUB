@@ -1,4 +1,5 @@
 import type { RatingItem } from '../types';
+import { getLocalizedHkbuCanteenLabel } from '../data/hkbuCanteenTranslations';
 
 const RATING_META_TRANSLATIONS: Record<'tc' | 'sc' | 'en', Record<string, string>> = {
   tc: {
@@ -85,7 +86,7 @@ const RATING_META_TRANSLATIONS: Record<'tc' | 'sc' | 'en', Record<string, string
 };
 
 export function getLocalizedRatingMetaLabel(value: string, lang: 'tc' | 'sc' | 'en') {
-  return RATING_META_TRANSLATIONS[lang][value] ?? value;
+  return getLocalizedHkbuCanteenLabel(value, lang) ?? RATING_META_TRANSLATIONS[lang][value] ?? value;
 }
 
 export function getLocalizedRatingDepartment(item: RatingItem, lang: 'tc' | 'sc' | 'en') {

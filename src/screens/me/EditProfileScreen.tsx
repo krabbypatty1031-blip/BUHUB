@@ -19,7 +19,7 @@ import type { User } from '../../types';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { uploadService } from '../../api/services/upload.service';
-import { HKBU_MAJOR_KEYS } from '../../data/hkbuMajors';
+import { HKBU_MAJOR_KEYS, getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
@@ -66,6 +66,7 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
+  const getMajorLabel = useCallback((value: string) => getLocalizedMajorLabel(value, t), [t]);
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
 
@@ -214,7 +215,7 @@ export default function EditProfileScreen({ navigation }: Props) {
               activeOpacity={0.7}
             >
               <Text style={[styles.selectText, !major && styles.selectPlaceholder]}>
-                {major ? t(major) : t('major')}
+                {major ? getMajorLabel(major) : t('major')}
               </Text>
               <ChevronRightIcon size={18} color={colors.onSurface} />
             </TouchableOpacity>
@@ -275,7 +276,7 @@ export default function EditProfileScreen({ navigation }: Props) {
                     }}
                   >
                     <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextSelected]}>
-                      {t(item)}
+                      {pickerType === 'major' ? getMajorLabel(item) : t(item)}
                     </Text>
                   </TouchableOpacity>
                 );

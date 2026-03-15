@@ -58,6 +58,7 @@ import { getVotedOptionIndex } from '../../utils/forum';
 import { hapticLight } from '../../utils/haptics';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -878,7 +879,7 @@ export default function MeScreen({ navigation }: Props) {
                 {displayUser?.nickname || displayUser?.name || '---'}
               </Text>
               <Text style={styles.meta}>
-                {[displayUser?.major ? t(displayUser.major) : undefined, displayUser?.grade ? t(displayUser.grade) : undefined]
+                {[displayUser?.major ? getLocalizedMajorLabel(displayUser.major, t) : undefined, displayUser?.grade ? t(displayUser.grade) : undefined]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
@@ -1164,12 +1165,15 @@ const styles = StyleSheet.create({
   },
   profileInfoLeft: {
     flex: 1,
+    minWidth: 0,
     marginRight: spacing.md,
   },
   profileAvatarWrap: {
+    flexShrink: 0,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginLeft: -60,
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+    paddingTop: spacing.xs,
   },
   nickname: {
     ...typography.headlineSmall,
@@ -1190,12 +1194,15 @@ const styles = StyleSheet.create({
   },
   miniStats: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    flexWrap: 'wrap',
+    columnGap: spacing.lg,
+    rowGap: spacing.sm,
   },
   miniStatItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    minHeight: 24,
   },
   miniStatValue: {
     ...typography.titleMedium,

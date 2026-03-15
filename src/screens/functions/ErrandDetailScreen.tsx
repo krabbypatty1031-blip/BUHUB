@@ -375,7 +375,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                   {errand.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
                   {errand.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
                 </View>
-                <Text style={styles.timeText}>· {posterTime}</Text>
+                <Text style={styles.timeText}>{posterTime}</Text>
               </View>
               {posterMeta ? <Text style={styles.meta} numberOfLines={1}>{posterMeta}</Text> : null}
             </View>

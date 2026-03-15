@@ -1,4 +1,5 @@
 import type { Language } from '../types';
+import { getLocalizedMajorLabel } from '../data/hkbuMajors';
 
 const weekdayMap: Record<string, Record<string, string>> = {
   '週一': { sc: '周一', en: 'Mon' },
@@ -68,7 +69,7 @@ export function translateMeta(meta: string, language: Language): string {
 }
 
 export function buildPostMeta(
-  t: (key: string) => string,
+  t: (key: string, options?: { defaultValue?: string }) => string,
   language: Language,
   options: {
     gradeKey?: string;
@@ -83,13 +84,13 @@ export function buildPostMeta(
   }
   const parts: string[] = [];
   if (options.gradeKey) parts.push(t(options.gradeKey));
-  if (options.majorKey) parts.push(t(options.majorKey));
+  if (options.majorKey) parts.push(getLocalizedMajorLabel(options.majorKey, t));
   parts.push(time);
   return parts.join(' · ');
 }
 
 export function buildGradeMajorMeta(
-  t: (key: string) => string,
+  t: (key: string, options?: { defaultValue?: string }) => string,
   options: {
     gradeKey?: string;
     majorKey?: string;
@@ -99,7 +100,7 @@ export function buildGradeMajorMeta(
   if (options.isAnonymous) return '';
   const parts: string[] = [];
   if (options.gradeKey) parts.push(t(options.gradeKey));
-  if (options.majorKey) parts.push(t(options.majorKey));
+  if (options.majorKey) parts.push(getLocalizedMajorLabel(options.majorKey, t));
   return parts.join(' · ');
 }
 

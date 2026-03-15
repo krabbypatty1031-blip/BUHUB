@@ -114,6 +114,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   );
 
   const [isPosting, setIsPosting] = useState(false);
+  const postingLockRef = React.useRef(false);
 
   const resolveComposeErrorMessage = useCallback((error: ComposeErrorLike | undefined) => {
     if (isPublishPermissionError(error)) {
@@ -127,7 +128,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   }, [t]);
 
   const handlePost = useCallback(async () => {
-    if (!content.trim() || isPosting) return;
+    if (!content.trim() || isPosting || postingLockRef.current) return;
     if (!canPublishCommunityContent(user)) {
       showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
       return;
@@ -139,6 +140,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         return;
       }
     }
+    postingLockRef.current = true;
     setIsPosting(true);
     try {
       // Upload images if any
@@ -175,6 +177,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
             showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
           },
           onSettled: () => {
+            postingLockRef.current = false;
             setIsPosting(false);
           },
         }
@@ -184,6 +187,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         ? error as ComposeErrorLike
         : undefined;
       showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
+      postingLockRef.current = false;
       setIsPosting(false);
     }
   }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, user, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, ratingCategory, quotePostId, hasFunctionRef, resolveComposeErrorMessage]);
@@ -197,12 +201,12 @@ export default function ComposeScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.headerType}>{typeLabels[type]}</Text>
         <TouchableOpacity
-          style={[styles.postBtn, !content.trim() && styles.postBtnDisabled]}
+          style={[styles.postBtn, (!content.trim() || isPosting) && styles.postBtnDisabled]}
           onPress={handlePost}
-          disabled={!content.trim()}
+          disabled={!content.trim() || isPosting}
         >
           <Text
-            style={[styles.postBtnText, !content.trim() && styles.postBtnTextDisabled]}
+            style={[styles.postBtnText, (!content.trim() || isPosting) && styles.postBtnTextDisabled]}
           >
             {t('post')}
           </Text>

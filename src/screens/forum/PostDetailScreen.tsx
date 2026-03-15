@@ -22,6 +22,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost, useDeletePost, useDeleteComment } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
+import { useFollowersList, useFollowingList } from '../../hooks/useUser';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
@@ -71,11 +72,41 @@ type MutationErrorLike = {
   code?: string;
 };
 type NativeNodeHandleTarget = React.Component<unknown> | number | null | undefined;
+type MentionCandidate = {
+  key: string;
+  name: string;
+  mentionValue: string;
+  userName?: string;
+  avatar?: string | null;
+  gender?: ForumPost['gender'] | Comment['gender'];
+};
+
+const AUTO_GENERATED_USERNAME_REGEX = /^u[a-z0-9]{12}$/i;
+const SAFE_MENTION_VALUE_REGEX = /^[\p{L}\p{N}_.-]{2,30}$/u;
+const MULTILINGUAL_TEXT_FONT_FAMILY = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+});
 
 function resolveNodeHandle(target: NativeNodeHandleTarget): number | null {
   if (typeof target === 'number') return target;
   if (!target) return null;
   return findNodeHandle(target);
+}
+
+function buildMentionValue(name: string, userName?: string | null): string {
+  const trimmedName = name.trim();
+  const trimmedUserName = userName?.trim();
+
+  if (
+    trimmedName.length >= 2 &&
+    SAFE_MENTION_VALUE_REGEX.test(trimmedName) &&
+    (!trimmedUserName || AUTO_GENERATED_USERNAME_REGEX.test(trimmedUserName))
+  ) {
+    return trimmedName;
+  }
+
+  return trimmedUserName || trimmedName;
 }
 
 /* Helper functions for infinite nested comments */
@@ -732,6 +763,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const lang = i18n.language as Language;
   const { postId, commentId, shouldReply } = route.params;
+  const currentUser = useAuthStore((s) => s.user);
   const { data: post, isLoading } = usePostDetail(postId);
   const { data: comments } = useComments(postId);
   // like/bookmark state comes from server data (optimistic updates)
@@ -746,6 +778,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const deleteCommentMutation = useDeleteComment(postId);
   const votedPolls = useForumStore((s) => s.votedPolls);
   const { data: contacts } = useContacts();
+  const { data: followingList } = useFollowingList();
+  const { data: followersList } = useFollowersList();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<{ name: string; commentId: string } | null>(null);
   const autoReplyHandledKeyRef = useRef<string | null>(null);
@@ -919,26 +953,132 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     return afterAt;
   }, [commentText]);
 
+  const mentionCandidates = useMemo<MentionCandidate[]>(() => {
+    const candidates = new Map<string, MentionCandidate>();
+    const currentUserName = currentUser?.userName?.trim().toLowerCase();
+    const currentNickname = currentUser?.nickname?.trim();
+
+    const pushCandidate = (input: {
+      key?: string;
+      name?: string | null;
+      userName?: string | null;
+      avatar?: string | null;
+      gender?: ForumPost['gender'] | Comment['gender'];
+      isAnonymous?: boolean;
+    }) => {
+      if (input.isAnonymous) return;
+      const name = input.name?.trim();
+      const userName = input.userName?.trim() || undefined;
+      if (!name) return;
+      if (userName && currentUserName && userName.toLowerCase() === currentUserName) return;
+      if (!userName && currentNickname && name === currentNickname) return;
+
+      const mentionValue = buildMentionValue(name, userName);
+      if (!mentionValue) return;
+
+      const dedupeKey = (userName || name).trim().toLowerCase();
+      if (!dedupeKey || candidates.has(dedupeKey)) return;
+
+      candidates.set(dedupeKey, {
+        key: input.key ?? dedupeKey,
+        name,
+        mentionValue,
+        ...(userName ? { userName } : {}),
+        ...(input.avatar ? { avatar: input.avatar } : {}),
+        ...(input.gender ? { gender: input.gender } : {}),
+      });
+    };
+
+    contacts?.forEach((contact) => {
+      pushCandidate({
+        key: `contact:${contact.id}`,
+        name: contact.name,
+        userName: contact.userName,
+        avatar: contact.avatar,
+        gender: contact.gender,
+      });
+    });
+
+    followingList?.forEach((item) => {
+      pushCandidate({
+        key: `following:${item.userName}`,
+        name: item.nickname ?? item.userName,
+        userName: item.userName,
+        avatar: item.avatar,
+        gender: item.gender,
+      });
+    });
+
+    followersList?.forEach((item) => {
+      pushCandidate({
+        key: `follower:${item.userName}`,
+        name: item.nickname ?? item.userName,
+        userName: item.userName,
+        avatar: item.avatar,
+        gender: item.gender,
+      });
+    });
+
+    if (post && !post.isAnonymous) {
+      pushCandidate({
+        key: `post:${post.id}`,
+        name: post.name,
+        userName: post.userName,
+        avatar: post.avatar,
+        gender: post.gender,
+      });
+    }
+
+    const walkCommentTree = (items: Array<Comment | Reply> | undefined) => {
+      items?.forEach((item) => {
+        pushCandidate({
+          key: `comment:${item.id}`,
+          name: item.name,
+          userName: item.userName,
+          avatar: item.avatar,
+          gender: item.gender,
+          isAnonymous: item.isAnonymous,
+        });
+        if (item.replies?.length) {
+          walkCommentTree(item.replies);
+        }
+      });
+    };
+
+    walkCommentTree(comments);
+
+    return Array.from(candidates.values()).sort((left, right) => {
+      const leftHasChat = contacts?.some((contact) => contact.userName === left.userName || contact.name === left.name) ? 1 : 0;
+      const rightHasChat = contacts?.some((contact) => contact.userName === right.userName || contact.name === right.name) ? 1 : 0;
+      if (leftHasChat !== rightHasChat) {
+        return rightHasChat - leftHasChat;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  }, [comments, contacts, currentUser?.nickname, currentUser?.userName, followersList, followingList, post]);
+
   const mentionSuggestions = useMemo(() => {
-    if (mentionQuery === null || !contacts) return [];
-    if (mentionQuery === '') return contacts;
+    if (mentionQuery === null) return [];
+    if (mentionQuery === '') return mentionCandidates.slice(0, 12);
     const q = mentionQuery.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.userName ?? '').toLowerCase().includes(q)
-    );
-  }, [mentionQuery, contacts]);
+    return mentionCandidates
+      .filter(
+        (candidate) =>
+          candidate.name.toLowerCase().includes(q) ||
+          (candidate.userName ?? '').toLowerCase().includes(q) ||
+          candidate.mentionValue.toLowerCase().includes(q)
+      )
+      .slice(0, 12);
+  }, [mentionCandidates, mentionQuery]);
 
   const showMentions = mentionQuery !== null && mentionSuggestions.length > 0;
 
   const handleMentionSelect = useCallback(
-    (contact: { name: string; userName?: string }) => {
+    (candidate: MentionCandidate) => {
       const lastAtIndex = commentText.lastIndexOf('@');
       if (lastAtIndex === -1) return;
-      const mentionHandle = (contact.userName ?? contact.name).trim().replace(/\s+/g, '');
-      if (!mentionHandle) return;
-      const newText = commentText.substring(0, lastAtIndex) + `@${mentionHandle} `;
+      if (!candidate.mentionValue) return;
+      const newText = commentText.substring(0, lastAtIndex) + `@${candidate.mentionValue} `;
       setCommentText(newText);
     },
     [commentText]
@@ -969,7 +1109,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     () => post?.pollOptions?.reduce((sum, opt) => sum + (opt.voteCount ?? 0), 0) ?? 0,
     [post?.pollOptions],
   );
-  const currentUser = useAuthStore((s) => s.user);
   const isOwnPost = useMemo(
     () =>
       isCurrentUserContentOwner(currentUser, {
@@ -1535,20 +1674,23 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         {/* @ Mention Suggestions */}
         {showMentions && (
           <View style={styles.mentionOverlay}>
-            <Text style={styles.mentionHeader}>{t('recentChats')}</Text>
+            <Text style={styles.mentionHeader}>{t('mentionContact')}</Text>
             <ScrollView
               keyboardShouldPersistTaps="always"
               style={styles.mentionScroll}
             >
-              {mentionSuggestions.map((contact) => (
+              {mentionSuggestions.map((candidate) => (
                 <TouchableOpacity
-                  key={contact.id}
+                  key={candidate.key}
                   style={styles.mentionItem}
                   activeOpacity={0.7}
-                  onPress={() => handleMentionSelect(contact)}
+                  onPress={() => handleMentionSelect(candidate)}
                 >
-                  <Avatar text={contact.name} uri={contact.avatar} size="sm" gender={contact.gender} />
-                  <Text style={styles.mentionName}>{contact.name}</Text>
+                  <Avatar text={candidate.name} uri={candidate.avatar} size="sm" gender={candidate.gender} />
+                  <View style={styles.mentionTextWrap}>
+                    <Text style={styles.mentionName}>{candidate.name}</Text>
+                    <Text style={styles.mentionMeta}>@{candidate.mentionValue}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2057,6 +2199,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.onSurface,
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyTimeText: {
     fontSize: 10,
@@ -2075,6 +2218,7 @@ const styles = StyleSheet.create({
   replyToLabel: {
     fontSize: 11,
     color: colors.onSurfaceVariant,
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyTime: {
     fontSize: 10,
@@ -2092,11 +2236,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.onSurface,
     lineHeight: 18,
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyToAt: {
     fontSize: 13,
     color: colors.primary,
     fontWeight: '500',
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyActions: {
     marginLeft: 28,
@@ -2129,10 +2275,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.md,
   },
+  mentionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   mentionName: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     fontWeight: '500',
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
+  },
+  mentionMeta: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
 
   /* 鈹€鈹€ Popover 鈹€鈹€ */
@@ -2246,6 +2403,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     ...typography.bodyMedium,
     color: colors.onSurface,
+    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   commentInputAnon: {
     backgroundColor: '#E0E0E0',

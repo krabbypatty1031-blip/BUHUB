@@ -495,6 +495,7 @@ export function buildChatMessageFromPersistedMessage(
 }
 
 export function mapConversationSummaryToContact(summary: ConversationSummary): Contact {
+  const latestMessageAt = resolveMessageTimestamp(summary.latestMessage?.createdAt);
   return {
     id: summary.userId,
     userName: summary.user?.userName ?? undefined,
@@ -507,7 +508,8 @@ export function mapConversationSummaryToContact(summary: ConversationSummary): C
       summary.latestMessage?.images,
       summary.latestMessage?.isDeleted
     ),
-    time: formatMessageTime(resolveMessageTimestamp(summary.latestMessage?.createdAt)),
+    time: formatMessageTime(latestMessageAt),
+    lastMessageAt: latestMessageAt,
     unread: summary.unreadCount ?? 0,
     pinned: false,
     gender: (summary.user?.gender as Contact['gender']) ?? undefined,
@@ -678,6 +680,29 @@ export const messageService = {
     const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CONVERSATIONS);
     return (Array.isArray(data) ? data : []).map((c) =>
       mapConversationSummaryToContact(c as ConversationSummary)
+    );
+  },
+
+  async searchContacts(query: string, limit = 20): Promise<Contact[]> {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return [];
+    }
+    if (USE_MOCK) {
+      const { mockContacts } = await import('../../data/mock/messages');
+      const lowered = trimmedQuery.toLowerCase();
+      return mockContacts.filter(
+        (contact) =>
+          contact.name.toLowerCase().includes(lowered) ||
+          (contact.userName ?? '').toLowerCase().includes(lowered) ||
+          contact.message.toLowerCase().includes(lowered)
+      );
+    }
+    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.SEARCH, {
+      params: { q: trimmedQuery, limit },
+    });
+    return (Array.isArray(data) ? data : []).map((item) =>
+      mapConversationSummaryToContact(item as ConversationSummary)
     );
   },
 

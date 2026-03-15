@@ -20,7 +20,7 @@ import { changeLanguage } from '../../i18n';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { authService } from '../../api/services/auth.service';
 import { uploadService } from '../../api/services/upload.service';
-import { HKBU_MAJOR_KEYS } from '../../data/hkbuMajors';
+import { HKBU_MAJOR_KEYS, getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -113,6 +113,8 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         return '';
     }
   }, [t]);
+
+  const getMajorLabel = useCallback((value: string) => getLocalizedMajorLabel(value, t), [t]);
 
   const handleDone = useCallback(async () => {
     const resolvedGender: Gender = gender || 'other';
@@ -281,7 +283,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
             <Text style={styles.fieldLabel}>{t('major')}</Text>
             <View style={styles.fieldSelect}>
               {major ? (
-                <Text style={styles.fieldValue}>{t(major)}</Text>
+                <Text style={styles.fieldValue}>{getMajorLabel(major)}</Text>
               ) : null}
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </View>
@@ -348,7 +350,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
                       currentValues[pickerType] === item && styles.pickerItemTextSelected,
                     ]}
                   >
-                    {pickerType === 'gender' ? getGenderLabel(item as Gender) : t(item)}
+                    {pickerType === 'gender'
+                      ? getGenderLabel(item as Gender)
+                      : pickerType === 'major'
+                        ? getMajorLabel(item)
+                        : t(item)}
                   </Text>
                 </TouchableOpacity>
               )}

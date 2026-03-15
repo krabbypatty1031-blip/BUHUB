@@ -21,7 +21,7 @@ import { useUIStore } from '../../store/uiStore';
 import { changeLanguage } from '../../i18n';
 import { authService } from '../../api/services/auth.service';
 import { userService } from '../../api/services/user.service';
-import { notificationService } from '../../api/services/notification.service';
+import { useNotificationSettings, useUpdateNotificationSettings } from '../../hooks/useNotifications';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -53,6 +53,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const setLanguage = useAuthStore((s) => s.setLanguage);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const queryClient = useQueryClient();
+  const { data: notificationSettings } = useNotificationSettings();
+  const updateNotificationSettings = useUpdateNotificationSettings();
 
   // Local state
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -81,19 +83,46 @@ export default function SettingsScreen({ navigation }: Props) {
     };
   }, [showSnackbar, t]);
 
+  useEffect(() => {
+    if (!notificationSettings) {
+      return;
+    }
+
+    setTaskReminder(notificationSettings.system);
+    setDmNotification(
+      notificationSettings.likes &&
+      notificationSettings.comments &&
+      notificationSettings.followers &&
+      notificationSettings.messages
+    );
+  }, [notificationSettings]);
+
   const handleTaskReminderChange = useCallback((value: boolean) => {
+    const previousValue = taskReminder;
     setTaskReminder(value);
-    notificationService.updateSettings({ system: value }).catch(() => {
-      showSnackbar({ message: t('saveFailed'), type: 'error' });
+    updateNotificationSettings.mutate({ system: value }, {
+      onError: () => {
+        setTaskReminder(previousValue);
+        showSnackbar({ message: t('saveFailed'), type: 'error' });
+      },
     });
-  }, [showSnackbar, t]);
+  }, [showSnackbar, t, taskReminder, updateNotificationSettings]);
 
   const handleDmNotificationChange = useCallback((value: boolean) => {
+    const previousValue = dmNotification;
     setDmNotification(value);
-    notificationService.updateSettings({ messages: value }).catch(() => {
-      showSnackbar({ message: t('saveFailed'), type: 'error' });
+    updateNotificationSettings.mutate({
+      likes: value,
+      comments: value,
+      followers: value,
+      messages: value,
+    }, {
+      onError: () => {
+        setDmNotification(previousValue);
+        showSnackbar({ message: t('saveFailed'), type: 'error' });
+      },
     });
-  }, [showSnackbar, t]);
+  }, [dmNotification, showSnackbar, t, updateNotificationSettings]);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<PickerType>('visibility');
@@ -381,6 +410,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <IOSSwitch
               value={taskReminder}
               onValueChange={handleTaskReminderChange}
+              disabled={updateNotificationSettings.isPending}
               activeColor={colors.onSurface}
             />
           </View>
@@ -396,6 +426,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <IOSSwitch
               value={dmNotification}
               onValueChange={handleDmNotificationChange}
+              disabled={updateNotificationSettings.isPending}
               activeColor={colors.onSurface}
             />
           </View>

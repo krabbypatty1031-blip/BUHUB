@@ -80,6 +80,7 @@ const ENDPOINTS = {
   // Messages (backend: conversations, chat/:userId, POST /messages)
   MESSAGE: {
     CONVERSATIONS: '/messages/conversations',
+    SEARCH: '/messages/search',
     CHAT: (userId: string) => `/messages/chat/${userId}`,
     CAN_SEND: (userId: string) => `/messages/can-send/${userId}`,
     UPDATES: '/messages/updates',

@@ -201,7 +201,7 @@ export const notificationService = {
     await apiClient.post(ENDPOINTS.NOTIFICATION.REGISTER_DEVICE, {
       token: pushToken,
       platform,
-      provider: 'fcm',
+      provider: 'expo',
     });
     return { success: true };
   },
@@ -214,9 +214,9 @@ export const notificationService = {
     return data;
   },
 
-  async updateSettings(settings: Partial<NotificationSettings>): Promise<{ success: boolean }> {
+  async updateSettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
     if (USE_MOCK) {
-      return { success: true };
+      return { likes: true, comments: true, followers: true, messages: true, system: true };
     }
     const { data } = await apiClient.put(ENDPOINTS.NOTIFICATION.SETTINGS, settings);
     return data;

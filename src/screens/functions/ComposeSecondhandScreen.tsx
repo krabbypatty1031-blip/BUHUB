@@ -161,6 +161,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const editSecondhand = useEditSecondhand();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
+  const postingLockRef = React.useRef(false);
 
   const resolveSubmitErrorMessage = useCallback((error: unknown) => {
     const submitError = typeof error === 'object' && error
@@ -173,11 +174,12 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   }, [isEditMode, t]);
 
   const handlePost = useCallback(async () => {
-    if (!canPost || !user || isPosting) return;
+    if (!canPost || !user || isPosting || postingLockRef.current) return;
     if (!isEditMode && !canPublishCommunityContent(user)) {
       showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
       return;
     }
+    postingLockRef.current = true;
     setIsPosting(true);
     try {
       const remoteImages = images.filter(isRemoteImage);
@@ -210,6 +212,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
       };
 
       const onSettled = () => {
+        postingLockRef.current = false;
         setIsPosting(false);
       };
 
@@ -250,6 +253,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         typeof error === 'object' && error ? error as ErrorWithMessage : undefined
       );
       showSnackbar({ message: message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
+      postingLockRef.current = false;
       setIsPosting(false);
     }
   }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar, resolveSubmitErrorMessage]);
@@ -263,12 +267,12 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newSecondhandPost')}</Text>
         <TouchableOpacity
-          style={[styles.postBtn, !canPost && styles.postBtnDisabled]}
+          style={[styles.postBtn, (!canPost || isPosting) && styles.postBtnDisabled]}
           onPress={handlePost}
-          disabled={!canPost}
+          disabled={!canPost || isPosting}
         >
           <Text
-            style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}
+            style={[styles.postBtnText, (!canPost || isPosting) && styles.postBtnTextDisabled]}
           >
             {t(isEditMode ? 'save' : 'publishBtn')}
           </Text>

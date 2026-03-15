@@ -43,6 +43,7 @@
     },
     "plugins": [
       "expo-font",
+      "expo-notifications",
       [
         "expo-camera",
         {

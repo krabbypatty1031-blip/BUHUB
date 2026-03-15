@@ -1,6 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from '../../types';
+import { mockRatings, mockScoreDimensions, mockTagOptions } from '../../data/mock/ratings';
 
 const USE_MOCK = false;
 type ApiScoreRecord = {
@@ -101,7 +102,11 @@ export const ratingService = {
       return items;
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(toApiCategory(category)), { params: { sortMode } });
-    return (Array.isArray(data) ? data : []).map(mapRatingItem);
+    const mapped = (Array.isArray(data) ? data : []).map(mapRatingItem);
+    if (category === 'canteen' && mapped.length === 0) {
+      return [...mockRatings.canteen];
+    }
+    return mapped;
   },
 
   async getDetail(category: RatingCategory, id: string): Promise<RatingItem> {
@@ -112,8 +117,16 @@ export const ratingService = {
       if (!item) throw new Error('Not found');
       return item;
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.DETAIL(toApiCategory(category), id));
-    return mapRatingItem(data);
+    try {
+      const { data } = await apiClient.get(ENDPOINTS.RATING.DETAIL(toApiCategory(category), id));
+      return mapRatingItem(data);
+    } catch (error) {
+      if (category === 'canteen') {
+        const fallback = mockRatings.canteen.find((item) => item.id === id);
+        if (fallback) return fallback;
+      }
+      throw error;
+    }
   },
 
   async submitRating(
@@ -141,7 +154,7 @@ export const ratingService = {
       return mockScoreDimensions[category] || [];
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.DIMENSIONS(toApiCategory(category)));
-    return (Array.isArray(data) ? data : []).map((dimension: ApiDimensionRecord) => {
+    const mapped = (Array.isArray(data) ? data : []).map((dimension: ApiDimensionRecord) => {
       const rawLabel = dimension?.label;
       const label = typeof rawLabel === 'string'
         ? rawLabel
@@ -155,6 +168,10 @@ export const ratingService = {
         right,
       };
     });
+    if (category === 'canteen' && mapped.length === 0) {
+      return mockScoreDimensions.canteen;
+    }
+    return mapped;
   },
 
   async getTagOptions(category: RatingCategory): Promise<string[]> {
@@ -163,6 +180,12 @@ export const ratingService = {
       return mockTagOptions[category] || [];
     }
     const { data } = await apiClient.get(ENDPOINTS.RATING.TAGS(toApiCategory(category)));
-    return data;
+    const options = Array.isArray(data)
+      ? data.filter((item): item is string => typeof item === 'string')
+      : [];
+    if (category === 'canteen' && options.length === 0) {
+      return mockTagOptions.canteen;
+    }
+    return options;
   },
 };

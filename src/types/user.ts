@@ -202,6 +202,7 @@ export interface Contact {
   major?: string;
   message: string;
   time: string;
+  lastMessageAt?: string;
   unread: number;
   pinned: boolean;
   gender?: Gender;
