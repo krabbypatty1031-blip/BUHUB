@@ -783,7 +783,7 @@
   "bookmarkFailed": "收藏失败",
   "likeFailed": "点赞失败",
   "followFailed": "操作失败，请重试",
-  "networkError": "网络错误",
+  "networkError": "网络错误，请检查网络或稍后重试",
   "errorTitle": "错误",
   "scanToVisitProfile": "扫描二维码访问我的主页",
   "qrSaved": "二维码已保存至相册",
