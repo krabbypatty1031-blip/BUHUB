@@ -1,12 +1,23 @@
 import { Gender, Language, PollOption } from './common';
 import type { RatingCategory } from './rating';
 
+export interface LinkedEmail {
+  id: string;
+  email: string;
+  type: 'primary' | 'hkbu';
+  canLogin: boolean;
+  verified: boolean;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
 export interface User {
   id?: string;
   userName?: string;
   name: string;
   nickname: string;
   email: string;
+  currentLoginEmail?: string;
   avatar: string | null;
   defaultAvatar?: string | null;
   grade: string;
@@ -14,6 +25,10 @@ export interface User {
   bio: string;
   gender: Gender;
   language?: Language;
+  linkedEmails?: LinkedEmail[];
+  isHKBUVerified?: boolean;
+  hkbuEmail?: string;
+  role?: string;
   isLoggedIn: boolean;
 }
 

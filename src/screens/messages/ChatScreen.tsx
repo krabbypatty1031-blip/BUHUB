@@ -1578,7 +1578,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     enabled: isScreenFocused,
     polling: false,
   });
-  const { data: canSendMessage } = useCanSendMessage(contactId);
+  const { data: canSendState } = useCanSendMessage(contactId);
+  const canSendMessage = canSendState?.canSendMessage;
+  const canSendReason = canSendState?.reason;
   const { data: presence } = usePresence(contactId);
   const sendMessageMutation = useSendMessage(contactId, {
     name: contactName,
@@ -1674,6 +1676,19 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
     navigation.getParent()?.navigate('MessagesTab', { screen: 'MessagesList' });
   }, [navigation, backTo]);
+
+  const handleOpenManageEmails = useCallback(() => {
+    const parent = navigation.getParent<NavigationProp<MainTabParamList>>();
+    if (!parent) return;
+    parent.dispatch(
+      CommonActions.navigate({
+        name: 'MeTab',
+        params: {
+          screen: 'ManageEmails',
+        },
+      })
+    );
+  }, [navigation]);
 
   // Hide tab bar when chat is focused, restore when leaving
   useFocusEffect(
@@ -2073,7 +2088,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   );
 
   useEffect(() => {
-    if (isLoading || canSendMessage === false || !forwardedCardDraft) return;
+    if (isLoading || canSendMessage !== true || !forwardedCardDraft) return;
     if (cardSentRef.current === forwardedCardDraft.dedupeKey) {
       setPendingForwardConfirmKey(null);
       return;
@@ -2767,10 +2782,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (!latestMessage) return false;
     return latestMessage.type === 'sent';
   }, [chatHistory, localPendingMessages, todayLabel]);
-  const waitingForReply =
-    typeof canSendMessage === 'boolean'
-      ? !canSendMessage
+  const waitingForReply = canSendReason === 'WAITING_FOR_REPLY'
+    ? true
+    : canSendState
+      ? false
       : waitingForReplyByHistory;
+  const hkbuBindingRequired = canSendReason === 'HKBU_BIND_REQUIRED';
+  const messageSendBlocked = canSendReason === 'BLOCKED' || canSendReason === 'SELF';
   const isContactTyping = Boolean(
     typingState?.isTyping &&
       typeof typingState?.updatedAt === 'number' &&
@@ -4116,10 +4134,20 @@ export default function ChatScreen({ navigation, route }: Props) {
         ) : null}
 
         {/* Input Bar */}
-        {waitingForReply ? (
-          /* ----- Waiting for reply: disabled input with hint ----- */
+        {hkbuBindingRequired ? (
+          <View style={styles.noticeBar}>
+            <Text style={styles.waitingText}>{t('messageEmailBindingRequired')}</Text>
+            <TouchableOpacity style={styles.noticeButton} onPress={handleOpenManageEmails}>
+              <Text style={styles.noticeButtonText}>{t('bindNow')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : waitingForReply ? (
           <View style={styles.waitingBar}>
             <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
+          </View>
+        ) : messageSendBlocked ? (
+          <View style={styles.waitingBar}>
+            <Text style={styles.waitingText}>{t('cannotMessageUser')}</Text>
           </View>
         ) : (
           <View>
@@ -5358,6 +5386,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+  },
+  noticeBar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  noticeButton: {
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.onSurface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  noticeButtonText: {
+    ...typography.labelLarge,
+    color: colors.surface,
+    fontWeight: '600',
   },
   waitingText: {
     ...typography.titleMedium,

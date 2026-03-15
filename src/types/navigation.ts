@@ -202,6 +202,7 @@ export type MeStackParamList = {
   UserProfile: UserProfileParams;
   PostDetail: PostDetailParams;
   Settings: undefined;
+  ManageEmails: undefined;
   Blocklist: undefined;
 };
 

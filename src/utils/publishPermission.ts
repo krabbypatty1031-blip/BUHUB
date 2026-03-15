@@ -15,7 +15,7 @@ export function isLifeHkbuEmail(email?: string | null): boolean {
 }
 
 export function canPublishCommunityContent(user?: User | null): boolean {
-  return isLifeHkbuEmail(user?.email);
+  return Boolean(user?.isHKBUVerified || isLifeHkbuEmail(user?.hkbuEmail) || isLifeHkbuEmail(user?.email));
 }
 
 export function isPublishPermissionError(error?: PublishPermissionErrorLike | null): boolean {

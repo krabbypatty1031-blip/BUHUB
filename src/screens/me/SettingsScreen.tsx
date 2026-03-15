@@ -22,6 +22,7 @@ import { changeLanguage } from '../../i18n';
 import { authService } from '../../api/services/auth.service';
 import { userService } from '../../api/services/user.service';
 import { useNotificationSettings, useUpdateNotificationSettings } from '../../hooks/useNotifications';
+import { useProfile } from '../../hooks/useUser';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -53,8 +54,19 @@ export default function SettingsScreen({ navigation }: Props) {
   const setLanguage = useAuthStore((s) => s.setLanguage);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
   const { data: notificationSettings } = useNotificationSettings();
   const updateNotificationSettings = useUpdateNotificationSettings();
+  const linkedEmails = profile?.linkedEmails ?? user?.linkedEmails ?? [];
+  const currentLoginEmailLabel =
+    language === 'en' ? 'Current login email' : language === 'sc' ? '当前登录邮箱' : '當前登入郵箱';
+  const currentLoginEmailAddress =
+    profile?.currentLoginEmail ??
+    user?.currentLoginEmail ??
+    linkedEmails.find((item) => item.isPrimary)?.email ??
+    profile?.email ??
+    user?.email ??
+    '---';
 
   // Local state
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -292,13 +304,21 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* ── Section 1: Account & Security ── */}
         <Text style={styles.sectionHeader}>{t('accountSecurity')}</Text>
         <View style={styles.sectionCard}>
-          {/* Linked Email (read-only) */}
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>{t('linkedEmail')}</Text>
-            <Text style={styles.rowValue} numberOfLines={1}>
-              {user?.email || '---'}
-            </Text>
+            <Text style={styles.rowLabel}>{currentLoginEmailLabel}</Text>
+            <Text style={styles.rowValueMuted}>{currentLoginEmailAddress}</Text>
           </View>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('ManageEmails')}>
+            <Text style={styles.rowLabel}>{t('manageEmails')}</Text>
+            <View style={styles.rowRight}>
+              <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.rowHint}>{t('bindHkbuEmailHint')}</Text>
 
           <View style={styles.divider} />
 

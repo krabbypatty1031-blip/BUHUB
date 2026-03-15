@@ -1,4 +1,4 @@
-import apiClient, { setToken, clearToken } from '../client';
+﻿import apiClient, { setToken, clearToken } from '../client';
 import ENDPOINTS from '../endpoints';
 import type { User } from '../../types';
 
@@ -57,6 +57,26 @@ export const authService = {
     if (data.token) {
       await setToken(data.token);
     }
+    return data;
+  },
+
+  async bindHkbuSendCode(email: string) {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.BIND_HKBU_SEND_CODE, { email });
+    return data;
+  },
+
+  async bindHkbuVerify(email: string, code: string) {
+    if (USE_MOCK) {
+      return {
+        linkedEmails: [],
+        isHKBUVerified: true,
+        hkbuEmail: email,
+      };
+    }
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.BIND_HKBU_VERIFY, { email, code });
     return data;
   },
 
@@ -147,11 +167,14 @@ export const authService = {
   },
 
   async logout() {
-    if (USE_MOCK) {
+    try {
+      if (USE_MOCK) {
+        return { success: true };
+      }
+      await apiClient.post(ENDPOINTS.AUTH.LOGOUT);
+    } finally {
       await clearToken();
-      return { success: true };
     }
-    await apiClient.post(ENDPOINTS.AUTH.LOGOUT);
-    await clearToken();
   },
 };
+

@@ -70,6 +70,11 @@ export type UserPresence = {
   lastSeen: number | null;
 };
 
+export type CanSendMessageResult = {
+  canSendMessage: boolean;
+  reason?: 'SELF' | 'BLOCKED' | 'WAITING_FOR_REPLY' | 'HKBU_BIND_REQUIRED';
+};
+
 export type SendMessageResult = {
   success: boolean;
   message?: ChatMessage;
@@ -779,10 +784,13 @@ export const messageService = {
     return chunk.history;
   },
 
-  async canSendMessage(userId: string): Promise<boolean> {
-    if (USE_MOCK) return true;
+  async canSendMessage(userId: string): Promise<CanSendMessageResult> {
+    if (USE_MOCK) return { canSendMessage: true };
     const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CAN_SEND(userId));
-    return Boolean((data as { canSendMessage?: boolean })?.canSendMessage);
+    return {
+      canSendMessage: Boolean((data as { canSendMessage?: boolean })?.canSendMessage),
+      reason: (data as { reason?: CanSendMessageResult['reason'] })?.reason,
+    };
   },
 
   async sendTyping(toUserId: string, isTyping: boolean): Promise<void> {

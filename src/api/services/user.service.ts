@@ -1,4 +1,4 @@
-import apiClient from '../client';
+﻿import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import { useForumStore } from '../../store/forumStore';
 import type {
@@ -11,6 +11,7 @@ import type {
   FollowListItem,
   Language,
   MyInviteCode,
+  LinkedEmail,
 } from '../../types';
 import { normalizeAvatarUrl, normalizeImageUrl } from '../../utils/imageUrl';
 
@@ -123,6 +124,23 @@ export const userService = {
     }
     await apiClient.put(ENDPOINTS.USER.UPDATE_PROFILE, { language });
     return { success: true };
+  },
+
+  async unlinkEmail(emailId: string): Promise<{
+    linkedEmails: LinkedEmail[];
+    isHKBUVerified: boolean;
+    hkbuEmail?: string;
+    currentLoginEmail?: string;
+    requiresRelogin?: boolean;
+  }> {
+    if (USE_MOCK) {
+      return {
+        linkedEmails: [],
+        isHKBUVerified: false,
+      };
+    }
+    const { data } = await apiClient.delete(ENDPOINTS.USER.UNLINK_EMAIL(emailId));
+    return data;
   },
 
   async getPublicProfile(userName: string): Promise<UserPublicProfile> {
@@ -405,3 +423,4 @@ export const userService = {
     }));
   },
 };
+
