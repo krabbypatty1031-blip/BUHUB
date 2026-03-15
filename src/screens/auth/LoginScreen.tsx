@@ -27,7 +27,18 @@ import { EyeIcon, EyeOffIcon } from '../../components/common/icons';
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 type AuthErrorLike = {
   message?: string;
+  errorCode?: string;
+  code?: number;
 };
+
+function isNetworkOrConnectivityError(err: AuthErrorLike): boolean {
+  const msg = (err?.message ?? '').toLowerCase();
+  if (err?.code === 0) return true;
+  if (msg.includes('network error') || msg.includes('no response')) return true;
+  if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('enotfound')) return true;
+  if (msg.includes('network request failed') || msg.includes('failed to fetch')) return true;
+  return false;
+}
 
 export default function LoginScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -56,20 +67,28 @@ export default function LoginScreen({ navigation }: Props) {
       if (loginResult.token) {
         setToken(loginResult.token);
       }
-
-      const { user } = await authService.verifyToken();
-      if (user) {
-        setUser(user);
+      if (loginResult.user) {
+        setUser(loginResult.user);
+      } else {
+        const { user } = await authService.verifyToken();
+        if (user) setUser(user);
       }
     } catch (error: unknown) {
-      const msg =
-        typeof error === 'object' && error
-          ? ((error as AuthErrorLike).message ?? '')
-          : '';
-      if (msg.includes('verify your email') || msg.includes('EMAIL_NOT_VERIFIED')) {
+      const err = error as AuthErrorLike;
+      const msg = typeof err?.message === 'string' ? err.message : '';
+      const code = typeof err?.errorCode === 'string' ? err.errorCode : '';
+      if (isNetworkOrConnectivityError(err)) {
+        showSnackbar({ message: t('networkError') || '网络错误，请检查网络或稍后重试', type: 'error' });
+      } else if (code === 'EMAIL_NOT_VERIFIED' || msg.includes('verify your email')) {
         showSnackbar({ message: t('emailNotVerified'), type: 'error' });
-      } else if (msg.includes('disabled') || msg.includes('ACCOUNT_DISABLED')) {
+      } else if (code === 'ACCOUNT_DISABLED' || msg.includes('disabled')) {
         showSnackbar({ message: t('accountDisabled'), type: 'error' });
+      } else if (code === 'RATE_LIMITED' || msg.includes('Too many attempts')) {
+        showSnackbar({ message: t('rateLimited') || '请求过于频繁，请稍后再试', type: 'error' });
+      } else if (code === 'SERVICE_UNAVAILABLE' || msg.includes('temporarily unavailable')) {
+        showSnackbar({ message: t('serviceUnavailable') || '服务暂时不可用，请稍后再试', type: 'error' });
+      } else if (code === 'SESSION_EXPIRED' || msg.includes('Session expired')) {
+        showSnackbar({ message: t('sessionExpired') || '登录已过期，请重新登录', type: 'error' });
       } else {
         showSnackbar({ message: t('invalidCredentials'), type: 'error' });
       }

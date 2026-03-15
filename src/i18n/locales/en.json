@@ -797,7 +797,7 @@
   "bookmarkFailed": "Failed to bookmark",
   "likeFailed": "Failed to like",
   "followFailed": "Action failed, please try again",
-  "networkError": "Network error",
+  "networkError": "Network error. Please check your connection or try again later.",
   "errorTitle": "Error",
   "scanToVisitProfile": "Scan this QR code to visit my profile",
   "qrSaved": "QR code saved to photo library",
