@@ -3,9 +3,9 @@
     "name": "UHUB",
     "slug": "buhub-rn",
     "scheme": "buhub",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ios-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "8",
+      "buildNumber": "9",
       "bundleIdentifier": "com.buhub.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -28,8 +28,9 @@
       }
     },
     "android": {
+      "icon": "./assets/android-icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/android-icon.png",
         "backgroundColor": "#6750A4"
       },
       "versionCode": 1,
@@ -39,7 +40,7 @@
       "usesCleartextTraffic": false
     },
     "web": {
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",

@@ -26,7 +26,7 @@
   "englishEn": "English",
   "continue": "继续",
   "emailInputTitle": "验证你的学校邮箱",
-  "emailInputDesc": "请输入你的浸大邮箱地址",
+  "emailInputDesc": "使用浸大邮箱地址以使用校园功能，否则只能浏览内容",
   "verifyTitle": "输入验证码",
   "verifyDesc": "我们已发送验证码到 {{email}}",
   "emailPlaceholder": "请输入邮箱",

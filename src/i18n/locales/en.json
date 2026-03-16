@@ -12,7 +12,7 @@
   "englishEn": "英語",
   "continue": "Continue",
   "emailInputTitle": "Verify your school email",
-  "emailInputDesc": "Please enter your HKBU email address",
+  "emailInputDesc": "Use HKBU email address to experience full campus features, otherwise you can only browse content",
   "verifyTitle": "Enter verification code",
   "verifyDesc": "We've sent a code to {{email}}",
   "emailPlaceholder": "Enter your email",
