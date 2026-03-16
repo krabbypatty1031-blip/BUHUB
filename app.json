@@ -46,6 +46,16 @@
       "expo-font",
       "expo-notifications",
       [
+        "expo-localization",
+        {
+          "locales": {
+            "en": "./assets/locales/en.json",
+            "zh-Hant": "./assets/locales/zh-Hant.json",
+            "zh-Hans": "./assets/locales/zh-Hans.json"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "UHUB needs camera access to scan QR codes and take photos."

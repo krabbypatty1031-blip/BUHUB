@@ -1,102 +1,99 @@
 import { TextStyle } from 'react-native';
 
-// Font families for three languages
-export const fontFamily = {
-  tc: 'NotoSansTC',
-  sc: 'NotoSansSC',
-  en: 'Inter',
+// Source Han Sans CN weight-to-family mapping
+const sourceHan = {
+  light: 'SourceHanSansCN-Light',
+  regular: 'SourceHanSansCN-Regular',
+  medium: 'SourceHanSansCN-Medium',
+  bold: 'SourceHanSansCN-Bold',
+  heavy: 'SourceHanSansCN-Heavy',
 } as const;
 
-// Inter weight-to-family mapping (custom fonts require explicit family per weight)
-const inter = {
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semibold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
-} as const;
+export const fontFamily = sourceHan;
+
 export const typography: Record<string, TextStyle> = {
   displayLarge: {
     fontSize: 57,
     lineHeight: 64,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.heavy,
     letterSpacing: -0.25,
   },
   displayMedium: {
     fontSize: 45,
     lineHeight: 52,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   displaySmall: {
     fontSize: 36,
     lineHeight: 44,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   headlineLarge: {
     fontSize: 32,
     lineHeight: 40,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   headlineMedium: {
     fontSize: 28,
     lineHeight: 36,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   headlineSmall: {
     fontSize: 24,
     lineHeight: 32,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   titleLarge: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: inter.bold,
+    fontFamily: sourceHan.bold,
   },
   titleMedium: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: inter.semibold,
+    fontFamily: sourceHan.medium,
     letterSpacing: 0,
   },
   titleSmall: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: inter.semibold,
+    fontFamily: sourceHan.medium,
     letterSpacing: 0,
   },
   bodyLarge: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: inter.regular,
+    fontFamily: sourceHan.regular,
     letterSpacing: 0,
   },
   bodyMedium: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: inter.regular,
+    fontFamily: sourceHan.regular,
     letterSpacing: 0,
   },
   bodySmall: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: inter.regular,
+    fontFamily: sourceHan.regular,
     letterSpacing: 0,
   },
   labelLarge: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: inter.semibold,
+    fontFamily: sourceHan.medium,
     letterSpacing: 0,
   },
   labelMedium: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: inter.semibold,
+    fontFamily: sourceHan.medium,
     letterSpacing: 0,
   },
   labelSmall: {
     fontSize: 11,
     lineHeight: 16,
-    fontFamily: inter.semibold,
+    fontFamily: sourceHan.medium,
     letterSpacing: 0,
   },
 };
