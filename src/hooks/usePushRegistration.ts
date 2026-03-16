@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import type { NavigationContainerRef } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
 import { useAuthStore } from '../store/authStore';
 import type { MainTabParamList } from '../types/navigation';
@@ -29,7 +30,7 @@ Notifications.setNotificationHandler({
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
   }),
 });
 
@@ -212,6 +213,7 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const queryClient = useQueryClient();
   const inFlightRef = useRef(false);
   const handledNotificationIdsRef = useRef<Set<string>>(new Set());
 
@@ -324,4 +326,23 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
 
     flushPendingPushNavigation(navigationRef);
   }, [hasHydrated, isLoggedIn, navigationRef]);
+
+  // #4: Refresh unread count immediately when a push arrives in the foreground
+  useEffect(() => {
+    if (!hasHydrated || !isLoggedIn) {
+      return;
+    }
+
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      return;
+    }
+
+    const subscription = Notifications.addNotificationReceivedListener(() => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [hasHydrated, isLoggedIn, queryClient]);
 }

@@ -120,7 +120,6 @@ const ENDPOINTS = {
     COMMENTS: '/notifications/comments',
     UNREAD_COUNT: '/notifications/unread-count',
     MARK_READ: '/notifications/read-all',
-    MARK_READ_ONE: (id: string) => `/notifications/${id}/read`,
     REGISTER_DEVICE: '/notifications/register-token',
     SETTINGS: '/notifications/settings',
   },

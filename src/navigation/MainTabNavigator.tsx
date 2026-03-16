@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import type { NavigationState, PartialState, Route } from '@react-navigation/native';
@@ -54,6 +56,13 @@ export default function MainTabNavigator() {
     setUnreadFollowers(unreadData.followers ?? 0);
     setUnreadComments(unreadData.comments ?? 0);
     setUnreadMessages(unreadData.messages ?? 0);
+
+    // Sync iOS/Android home screen app badge with total unread count
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      const total = (unreadData.likes ?? 0) + (unreadData.followers ?? 0)
+        + (unreadData.comments ?? 0) + (unreadData.messages ?? 0);
+      Notifications.setBadgeCountAsync(total).catch(() => {});
+    }
   }, [unreadData, setUnreadLikes, setUnreadFollowers, setUnreadComments, setUnreadMessages]);
 
   return (

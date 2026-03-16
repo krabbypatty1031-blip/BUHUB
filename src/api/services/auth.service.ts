@@ -84,7 +84,9 @@ export const authService = {
     if (USE_MOCK) {
       return { valid: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY_TOKEN);
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.VERIFY_TOKEN, null, {
+      timeout: 5000,
+    });
     return data;
   },
 

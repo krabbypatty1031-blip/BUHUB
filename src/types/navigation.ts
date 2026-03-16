@@ -138,6 +138,8 @@ type SecondhandDetailParams = FunctionDetailParams;
 export type AuthStackParamList = {
   Language: undefined;
   Login: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email: string };
   EmailInput: undefined;
   SetPassword: { email: string; registrationToken?: string; agreedToTerms?: boolean };
   InviteCode: undefined;

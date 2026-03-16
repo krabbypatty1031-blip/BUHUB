@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 
 import LanguageScreen from '../screens/auth/LanguageScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import EmailInputScreen from '../screens/auth/EmailInputScreen';
 import SetPasswordScreen from '../screens/auth/SetPasswordScreen';
 import InviteCodeScreen from '../screens/auth/InviteCodeScreen';
@@ -24,6 +26,8 @@ export default function AuthNavigator() {
     <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="EmailInput" component={EmailInputScreen} />
       <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
       <Stack.Screen name="InviteCode" component={InviteCodeScreen} />

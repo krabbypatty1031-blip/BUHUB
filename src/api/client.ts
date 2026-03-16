@@ -8,6 +8,18 @@ import type { ApiError } from '../types';
 
 const TOKEN_KEY = 'buhub-token';
 
+// In-memory token cache to avoid AsyncStorage reads on every request
+let cachedToken: string | null = null;
+let tokenCacheReady = false;
+
+async function ensureTokenCache(): Promise<string | null> {
+  if (!tokenCacheReady) {
+    cachedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    tokenCacheReady = true;
+  }
+  return cachedToken;
+}
+
 const getApiBaseUrl = () => {
   // 1) Prefer public env (dev / CI)
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -80,7 +92,7 @@ const uploadClient = axios.create({
 // Request interceptor: attach Bearer token + language header + debug log
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const token = await ensureTokenCache();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -99,7 +111,7 @@ apiClient.interceptors.request.use(
 // Same interceptor for upload client
 uploadClient.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const token = await ensureTokenCache();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -176,10 +188,14 @@ uploadClient.interceptors.response.use(
 );
 
 export const setToken = async (token: string) => {
+  cachedToken = token;
+  tokenCacheReady = true;
   await AsyncStorage.setItem(TOKEN_KEY, token);
 };
 
 export const clearToken = async () => {
+  cachedToken = null;
+  tokenCacheReady = true;
   await AsyncStorage.removeItem(TOKEN_KEY);
 };
 
