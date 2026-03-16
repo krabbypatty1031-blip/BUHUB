@@ -19,17 +19,16 @@ export default React.memo(Tag);
 
 const styles = StyleSheet.create({
   tag: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primaryContainer,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 100,
+    backgroundColor: '#F3F5F7',
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
-    minHeight: 28,
     justifyContent: 'center',
   },
   label: {
     fontSize: 12,
-    color: colors.primary,
+    color: '#9CA3AF',
   },
 });

@@ -596,6 +596,7 @@
   "userAgreementContent": "Users must follow community guidelines, use anonymous features responsibly, and not post illegal, abusive, or false content. Violators will be permanently banned.",
   "versionInfo": "Version",
   "hkbuEmailRequiredForPublish": "Please go to Me > Settings > Manage Emails to bind your HKBU email first",
+  "hkbuEmailRequiredForComment": "You need to bind an HKBU email before commenting. Go to Me > Settings > Manage Emails to bind.",
   "selectCircle": "Select Circle (pick one)",
   "mentionContact": "Mention Contact",
   "markAsUnread": "Mark as Unread",

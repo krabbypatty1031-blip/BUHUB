@@ -9,7 +9,7 @@ import {
   Share,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
@@ -267,6 +267,7 @@ const CommentItem = React.memo(function CommentItem({
 
 export default function MeScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const lang = i18n.language as Language;
   const { data: profile, isLoading } = useProfile();
   const { data: myContent } = useMyContent();
@@ -840,16 +841,16 @@ export default function MeScreen({ navigation }: Props) {
 
   if (isLoading && !displayUser) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <ProfileSkeleton />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* ==================== Top Bar ==================== */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <TouchableOpacity
           style={styles.topBarIconBtn}
           activeOpacity={0.6}
@@ -1115,14 +1116,14 @@ export default function MeScreen({ navigation }: Props) {
         onClose={() => setForwardComment(null)}
         navigation={navigation}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F7F6F9',
   },
   scroll: {
     flex: 1,
@@ -1133,13 +1134,14 @@ const styles = StyleSheet.create({
 
   /* ==================== Top Bar ==================== */
   topBar: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingBottom: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   topBarRight: {
     flexDirection: 'row',
@@ -1157,6 +1159,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
+    backgroundColor: colors.white,
   },
   profileInfoRow: {
     flexDirection: 'row',
@@ -1217,6 +1220,7 @@ const styles = StyleSheet.create({
   /* ==================== Lower: Content section ==================== */
   contentSection: {
     flex: 1,
+    backgroundColor: colors.white,
   },
 
   /* Action row */
@@ -1225,6 +1229,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.md,
+    backgroundColor: colors.white,
   },
   actionBtn: {
     flex: 1,
@@ -1254,7 +1259,6 @@ const styles = StyleSheet.create({
 
   /* Tab content */
   tabContent: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
 
@@ -1270,8 +1274,9 @@ const styles = StyleSheet.create({
   commentItem: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   commentHeader: {
     flexDirection: 'row',

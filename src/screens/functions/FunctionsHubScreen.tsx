@@ -21,7 +21,6 @@ import {
   FacilityFnIcon,
   MyPostsFnIcon,
   ArrowRightFnIcon,
-  SearchFnIcon,
 } from '../../components/functions/FunctionHubIcons';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -42,16 +41,17 @@ interface FunctionEntry {
   subtitleKey: string;
   Icon: React.FC<{ size?: number; color?: string }>;
   iconColor: string;
+  arrowColor: string;
   route: FunctionsHubRouteName;
 }
 
 const ENTRIES: FunctionEntry[] = [
-  { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', route: 'PartnerList' },
-  { key: 'errand', titleKey: 'errands', subtitleKey: 'errandsDesc', Icon: ErrandFnIcon, iconColor: '#FF9145', route: 'ErrandList' },
-  { key: 'secondhand', titleKey: 'secondHand', subtitleKey: 'secondHandDesc', Icon: SecondhandFnIcon, iconColor: '#02AF4A', route: 'SecondhandList' },
-  { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', route: 'RatingList' },
-  { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', route: 'FacilityBooking' },
-  { key: 'myPosts', titleKey: 'myPosts', subtitleKey: 'myPostsDesc', Icon: MyPostsFnIcon, iconColor: '#7C3AED', route: 'MyPosts' },
+  { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', arrowColor: '#C1C1C1', route: 'PartnerList' },
+  { key: 'errand', titleKey: 'errands', subtitleKey: 'errandsDesc', Icon: ErrandFnIcon, iconColor: '#FF9145', arrowColor: '#C1C1C1', route: 'ErrandList' },
+  { key: 'secondhand', titleKey: 'secondHand', subtitleKey: 'secondHandDesc', Icon: SecondhandFnIcon, iconColor: '#02AF4A', arrowColor: '#C1C1C1', route: 'SecondhandList' },
+  { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', arrowColor: '#C1C1C1', route: 'RatingList' },
+  { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', arrowColor: '#C1C1C1', route: 'FacilityBooking' },
+  { key: 'myPosts', titleKey: 'myPosts', subtitleKey: 'myPostsDesc', Icon: MyPostsFnIcon, iconColor: '#7C3AED', arrowColor: '#C1C1C1', route: 'MyPosts' },
 ];
 
 const HEADER_BG_COLOR = '#333333';
@@ -108,11 +108,14 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         activeOpacity={1}
         onPress={() => handlePress(entry.route)}
       >
-        <View style={styles.cardTop}>
-          <entry.Icon size={28} color={entry.iconColor} />
-          <ArrowRightFnIcon size={24} />
+        {/* Arrow pinned to top-right */}
+        <View style={styles.cardArrow}>
+          <ArrowRightFnIcon size={24} color={entry.arrowColor} />
         </View>
-        <View style={styles.cardBottom}>
+        {/* Icon */}
+        <entry.Icon size={28} color={entry.iconColor} />
+        {/* Title + Subtitle */}
+        <View style={styles.cardTextGroup}>
           <Text style={styles.cardTitle} numberOfLines={1}>
             {t(entry.titleKey)}
           </Text>
@@ -147,12 +150,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
             resizeMode="cover"
           />
           <View style={styles.headerContent}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle}>{t('campusTitle')}</Text>
-              <TouchableOpacity style={styles.searchBtn} activeOpacity={0.7}>
-                <SearchFnIcon size={28} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.headerTitle}>{t('campusTitle')}</Text>
             <Text style={styles.headerSubtitle}>{t('campusSubtitle')}</Text>
           </View>
         </View>
@@ -202,19 +200,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: GRID_PADDING,
     paddingTop: 24,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   headerTitle: {
     fontSize: 32,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#FFFFFF',
     lineHeight: 38,
-  },
-  searchBtn: {
-    padding: 4,
   },
   headerSubtitle: {
     fontSize: 13,
@@ -241,15 +231,18 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: CARD_RADIUS,
     height: CARD_HEIGHT,
-    padding: 20,
-    justifyContent: 'space-between',
+    paddingTop: 22,
+    paddingLeft: 20,
+    paddingBottom: 16,
+    paddingRight: 14,
+    gap: 10,
   },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  cardArrow: {
+    position: 'absolute',
+    top: 24,
+    right: 10,
   },
-  cardBottom: {
+  cardTextGroup: {
     gap: 4,
   },
   cardTitle: {

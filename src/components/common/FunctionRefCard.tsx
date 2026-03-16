@@ -1,10 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
 import { borderRadius, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { ChevronRightIcon, QuoteIcon, ShoppingBagIcon, StarIcon, TruckIcon, UsersIcon } from './icons';
+import {
+  PartnerFnIcon,
+  ErrandFnIcon,
+  SecondhandFnIcon,
+  RatingFnIcon,
+} from '../functions/FunctionHubIcons';
 
 type FunctionRefCardProps = {
   functionType: string;
@@ -12,12 +18,33 @@ type FunctionRefCardProps = {
   onPress?: () => void;
 };
 
+const FUNCTION_COLORS: Record<string, string> = {
+  partner: '#3B82F6',
+  errand: '#FF9145',
+  secondhand: '#02AF4A',
+  rating: '#FFA814',
+};
+
+function getFunctionColor(functionType: string) {
+  return FUNCTION_COLORS[functionType] ?? '#0C1015';
+}
+
 function FunctionTypeIcon({ functionType }: { functionType: string }) {
-  if (functionType === 'partner') return <UsersIcon size={11} color={colors.primary} />;
-  if (functionType === 'errand') return <TruckIcon size={11} color={colors.primary} />;
-  if (functionType === 'secondhand') return <ShoppingBagIcon size={11} color={colors.primary} />;
-  if (functionType === 'rating') return <StarIcon size={11} color={colors.primary} fill={colors.primary} />;
-  return <QuoteIcon size={11} color={colors.primary} />;
+  const c = getFunctionColor(functionType);
+  if (functionType === 'partner') return <PartnerFnIcon size={13} color={c} />;
+  if (functionType === 'errand') return <ErrandFnIcon size={13} color={c} />;
+  if (functionType === 'secondhand') return <SecondhandFnIcon size={13} color={c} />;
+  if (functionType === 'rating') return <RatingFnIcon size={13} color={c} />;
+  return <PartnerFnIcon size={13} color="#0C1015" />;
+}
+
+/** Figma chevron right arrow */
+function ChevronRightSmall({ size = 18, color = '#C1C1C1' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 18 18" fill="none">
+      <Path d="M7.125 4.5L11.625 9 7.125 13.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 export default function FunctionRefCard({ functionType, title, onPress }: FunctionRefCardProps) {
@@ -35,6 +62,8 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
             ? t('ratings')
             : t('forum');
 
+  const accentColor = getFunctionColor(functionType);
+
   return (
     <TouchableOpacity
       activeOpacity={isPressable ? 0.85 : 1}
@@ -42,7 +71,7 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
       onPress={onPress}
       style={styles.card}
     >
-      <View style={styles.accentBar} />
+      <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
 
       <View style={styles.inner}>
         <View style={styles.header}>
@@ -52,7 +81,7 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
             </View>
             <Text style={styles.label}>{typeLabel}</Text>
           </View>
-          <ChevronRightIcon size={14} color={colors.onSurfaceVariant} />
+          <ChevronRightSmall size={18} color="#C1C1C1" />
         </View>
 
         {!!title && (
@@ -68,10 +97,9 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#DEE2E5',
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
+    borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -80,44 +108,41 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
-    backgroundColor: colors.primary,
-    opacity: 0.88,
+    width: 2,
   },
   inner: {
-    padding: spacing.md,
-    paddingLeft: spacing.md + spacing.xs,
+    paddingLeft: 16,
+    paddingRight: 12,
+    paddingVertical: 12,
+    gap: 6,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
   },
   iconWrap: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary + '18',
+    backgroundColor: '#F7F7F7',
   },
   label: {
-    ...typography.labelSmall,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.6,
+    fontFamily: 'SourceHanSansCN-Medium',
+    fontSize: 12,
+    color: '#86909C',
   },
   title: {
-    ...typography.bodySmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-    lineHeight: 18,
+    fontFamily: 'SourceHanSansCN-Medium',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#0C1015',
   },
 });

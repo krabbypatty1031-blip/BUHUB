@@ -600,6 +600,7 @@
   "userAgreementContent": "用戶須遵守社區規範，合理使用「馬甲」功能，匿名發布須遵守相關守則，不得發布違法、侮辱性或虛假內容。違規者將被永久封禁。",
   "versionInfo": "版本信息",
   "hkbuEmailRequiredForPublish": "請前往「我的 > 設定 > 管理郵箱」綁定浸大郵箱後使用此功能",
+  "hkbuEmailRequiredForComment": "發表評論需先綁定浸大郵箱，請前往「我的 > 設定 > 管理郵箱」進行綁定",
   "selectCircle": "選擇圈子（限一個）",
   "mentionContact": "提及聯繫人",
   "markAsUnread": "標記為未讀",

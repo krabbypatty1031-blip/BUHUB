@@ -590,15 +590,16 @@ export default function UserProfileScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F7F6F9',
   },
   topBar: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   iconBtn: {
     width: 48,
@@ -615,8 +616,9 @@ const styles = StyleSheet.create({
   profileHeader: {
     alignItems: 'center',
     padding: spacing.xxl,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   userNameRow: {
     flexDirection: 'row',

@@ -7,7 +7,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
@@ -29,8 +29,8 @@ import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import EmptyState from '../../components/common/EmptyState';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import ForwardSheet from '../../components/common/ForwardSheet';
+import SearchFigmaIcon from '../../components/common/SearchFigmaIcon';
 import {
-  SearchIcon,
   PlusIcon,
   ImageIcon,
   EditIcon,
@@ -49,6 +49,7 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 
 export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts();
   const allPosts = useMemo(() => flattenPostPages(data), [data]);
@@ -332,15 +333,15 @@ export default function ForumScreen({ navigation, route }: Props) {
   }, [queryClient]);
 
   return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
       {/* Top Bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <Text style={styles.topBarTitle}>UHUB</Text>
         <TouchableOpacity
           style={styles.iconBtn}
           onPress={() => navigation.navigate('Search')}
         >
-          <SearchIcon size={24} color={colors.onSurface} />
+          <SearchFigmaIcon size={26} color="#0C1015" />
         </TouchableOpacity>
       </View>
 
@@ -473,30 +474,29 @@ export default function ForumScreen({ navigation, route }: Props) {
         initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
-      </SafeAreaView>
+      </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F7F6F9',
   },
   topBar: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingBottom: 12,
+    backgroundColor: colors.white,
   },
   topBarTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.onSurface,
-    fontFamily: 'SourceHanSansCN-Bold',
-    letterSpacing: -0.5,
+    fontSize: 32,
+    lineHeight: 36,
+    color: '#1C1C1E',
+    fontFamily: 'SourceHanSansCN-Heavy',
+    letterSpacing: -0.75,
   },
   iconBtn: {
     width: 44,
@@ -527,7 +527,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...elevation[3],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 8,
   },
   // Compose Sheet
   overlay: {
