@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 interface ForumState {
-  votedPolls: Map<string, number>;
-  blockedUsers: Set<string>;
+  votedPolls: Record<string, number>;
+  blockedUsers: Record<string, true>;
   /** Bump to force forum list to re-render after vote (so poll results show). */
   pollListRefreshKey: number;
 
@@ -18,53 +18,49 @@ interface ForumState {
 }
 
 export const useForumStore = create<ForumState>()((set, get) => ({
-  votedPolls: new Map<string, number>(),
-  blockedUsers: new Set<string>(),
+  votedPolls: {} as Record<string, number>,
+  blockedUsers: {} as Record<string, true>,
   pollListRefreshKey: 0,
 
   bumpPollListRefresh: () => set((s) => ({ pollListRefreshKey: s.pollListRefreshKey + 1 })),
 
   votePoll: (postId, optionIndex) =>
-    set((state) => {
-      const next = new Map(state.votedPolls);
-      next.set(postId, optionIndex);
-      return { votedPolls: next };
-    }),
+    set((state) => ({
+      votedPolls: { ...state.votedPolls, [postId]: optionIndex },
+    })),
 
   setVotedPoll: (postId, optionIndex) =>
-    set((state) => {
-      const next = new Map(state.votedPolls);
-      next.set(postId, optionIndex);
-      return { votedPolls: next };
-    }),
+    set((state) => ({
+      votedPolls: { ...state.votedPolls, [postId]: optionIndex },
+    })),
 
   clearVotedPoll: (postId) =>
     set((state) => {
-      if (!state.votedPolls.has(postId)) return state;
-      const next = new Map(state.votedPolls);
-      next.delete(postId);
-      return { votedPolls: next };
+      if (!(postId in state.votedPolls)) return state;
+      const { [postId]: _, ...rest } = state.votedPolls;
+      return { votedPolls: rest };
     }),
 
   clearVotedPolls: () =>
-    set(() => ({ votedPolls: new Map<string, number>() })),
+    set(() => ({ votedPolls: {} as Record<string, number> })),
 
   setBlockedUsers: (users) =>
-    set(() => ({ blockedUsers: new Set(users) })),
+    set(() => {
+      const record: Record<string, true> = {};
+      for (const u of users) record[u] = true;
+      return { blockedUsers: record };
+    }),
 
   blockUser: (userName) =>
-    set((state) => {
-      const next = new Set(state.blockedUsers);
-      next.add(userName);
-      return { blockedUsers: next };
-    }),
+    set((state) => ({
+      blockedUsers: { ...state.blockedUsers, [userName]: true as const },
+    })),
 
   unblockUser: (userName) =>
     set((state) => {
-      const next = new Set(state.blockedUsers);
-      next.delete(userName);
-      return { blockedUsers: next };
+      const { [userName]: _, ...rest } = state.blockedUsers;
+      return { blockedUsers: rest };
     }),
 
-  isBlocked: (userName) => get().blockedUsers.has(userName),
+  isBlocked: (userName) => userName in get().blockedUsers,
 }));

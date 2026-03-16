@@ -206,7 +206,8 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const setExpiredNotified = useSecondhandStore((s) => s.setExpiredNotified);
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const { data: items, isLoading, refetch } = useSecondhand(selectedCategory || undefined);
+  const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSecondhand(selectedCategory || undefined);
+  const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -214,9 +215,12 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
 
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   // Filter by search text
   const filteredItems = useMemo(() => {
-    if (!items) return [];
     if (!searchText.trim()) return items;
     const query = searchText.trim().toLowerCase();
     return items.filter(
@@ -227,7 +231,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
   }, [items, searchText]);
 
   useEffect(() => {
-    if (items && !expiredNotified) {
+    if (items.length > 0 && !expiredNotified) {
       const hasExpired = items.some((item) => item.expired);
       if (hasExpired) {
         showSnackbar({ message: t('secondhandExpiryNotice'), type: 'info' });
@@ -395,16 +399,18 @@ export default function SecondhandListScreen({ navigation }: Props) {
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
-        refreshing={isLoading}
+        refreshing={isRefetching}
         onRefresh={refetch}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ListEmptyComponent={
-          !isLoading ? (
+          !isLoading && !isRefetching ? (
             <EmptyState
               icon={<ShoppingBagIcon size={36} color={colors.onSurfaceVariant} />}
-              title={searchText.trim() ? t('noRelatedItems') : t('noRelatedItems')}
+              title={searchText.trim() ? t('noSearchResults') : t('noRelatedItems')}
             />
           ) : null
         }
@@ -741,7 +747,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 104,
+    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 16,

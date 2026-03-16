@@ -220,7 +220,7 @@ export function useContacts(options: ContactsQueryOptions = {}) {
       return contacts;
     },
     staleTime: polling ? 10 * 1000 : 60 * 1000,
-    refetchInterval: polling ? 30 * 1000 : false,
+    refetchInterval: polling ? 15 * 1000 : false,
     refetchOnWindowFocus: polling,
     refetchOnReconnect: true,
     initialData: userId ? peekCachedContacts(userId, normalizedLanguage) : undefined,
@@ -282,8 +282,8 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
       return history;
     },
     enabled: enabled && userId.length > 0,
-    staleTime: polling ? 20 * 1000 : 60 * 1000,
-    refetchInterval: polling ? 60 * 1000 : false,
+    staleTime: polling ? 10 * 1000 : 60 * 1000,
+    refetchInterval: polling ? 15 * 1000 : false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     initialData:
@@ -322,6 +322,8 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
     mutationFn: ({ payload, images }: SendMessageRequest) =>
       messageService.sendMessage(receiverId, payload, images),
     onMutate: async ({ payload, images }): Promise<SendMutationContext> => {
+      await queryClient.cancelQueries({ queryKey: ['chat', receiverId] });
+      await queryClient.cancelQueries({ queryKey: ['contacts'] });
       const previousChats = queryClient.getQueriesData<ChatHistory[]>({
         queryKey: ['chat', receiverId],
       });

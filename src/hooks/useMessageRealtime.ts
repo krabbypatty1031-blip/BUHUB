@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE } from '../api/client';
@@ -145,9 +146,23 @@ export function useMessageRealtime() {
             if (event.message && currentUserId) {
               const nextMessage = buildChatMessageFromPersistedMessage(event.message, currentUserId);
               if (nextMessage) {
-                patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
-                  appendMessageToHistory(current, nextMessage, language)
-                );
+                const isSenderEcho = event.fromUserId === currentUserId;
+                if (isSenderEcho) {
+                  // For our own message echo: the optimistic message was already
+                  // replaced with the real message by useSendMessage.onSuccess.
+                  // appendMessageToHistory has dedup by id, so this is a safe no-op
+                  // if onSuccess already ran. If onSuccess hasn't run yet (rare race),
+                  // this append will add the real message; onSuccess will then replace
+                  // the optimistic one, and the next poll will reconcile.
+                  patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
+                    appendMessageToHistory(current, nextMessage, language)
+                  );
+                } else {
+                  // Incoming message from the other party — always append
+                  patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
+                    appendMessageToHistory(current, nextMessage, language)
+                  );
+                }
               }
             } else {
               queryClient.invalidateQueries({
@@ -226,13 +241,31 @@ export function useMessageRealtime() {
 
       try {
         const wsUrl = buildRealtimeWsUrl(token, sinceRef.current);
+        if (__DEV__) {
+          console.log('[WS] Connecting to:', wsUrl);
+        }
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
 
         ws.onopen = () => {
           if (socketRef.current !== ws) return;
+          const wasReconnect = reconnectAttemptRef.current > 0;
           reconnectAttemptRef.current = 0;
           recordMessageMetric('message_ws_connected');
+          if (wasReconnect) {
+            // After reconnect, refresh active chat and contacts to catch missed messages
+            const activeChatContactId = useMessageStore.getState().activeChatContactId;
+            if (activeChatContactId) {
+              queryClient.invalidateQueries({
+                queryKey: ['chat', activeChatContactId],
+                refetchType: 'active',
+              });
+            }
+            queryClient.invalidateQueries({
+              queryKey: ['contacts'],
+              refetchType: 'active',
+            });
+          }
         };
 
         ws.onmessage = (event) => {
@@ -243,8 +276,11 @@ export function useMessageRealtime() {
           applyEvents(events, payload.now);
         };
 
-        ws.onerror = () => {
+        ws.onerror = (error) => {
           if (socketRef.current !== ws) return;
+          if (__DEV__) {
+            console.log('[WS] Error:', error);
+          }
           try {
             ws.close();
           } catch {
@@ -252,13 +288,23 @@ export function useMessageRealtime() {
           }
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
+          if (__DEV__) {
+            console.log('[WS] Closed:', event.code, event.reason);
+          }
           if (socketRef.current === ws) {
             socketRef.current = null;
           }
-          if (!canceled) {
-            scheduleReconnect();
+          if (canceled) return;
+          // Auth-related close codes: do not reconnect, trigger logout
+          const AUTH_CLOSE_CODES = [4001, 4003, 4010, 1008];
+          if (AUTH_CLOSE_CODES.includes(event.code)) {
+            recordMessageMetric('message_ws_auth_rejected', { code: event.code });
+            // Clear stale token and let authStore handle re-auth
+            void AsyncStorage.removeItem(TOKEN_KEY);
+            return;
           }
+          scheduleReconnect();
         };
       } catch {
         recordMessageMetric('message_ws_connect_failed');
@@ -268,8 +314,32 @@ export function useMessageRealtime() {
 
     void connectSocket();
 
+    // When the app returns from background, reconnect immediately if socket is dead
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (canceled) return;
+      if (nextState === 'active') {
+        const ws = socketRef.current;
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          socketRef.current = null;
+          clearReconnectTimer();
+          reconnectAttemptRef.current = 0;
+          void connectSocket();
+        }
+        // Refresh active queries on foreground to catch missed messages
+        queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
+        const activeChatContactId = useMessageStore.getState().activeChatContactId;
+        if (activeChatContactId) {
+          queryClient.invalidateQueries({
+            queryKey: ['chat', activeChatContactId],
+            refetchType: 'active',
+          });
+        }
+      }
+    });
+
     return () => {
       canceled = true;
+      appStateSubscription.remove();
       clearReconnectTimer();
       reconnectAttemptRef.current = 0;
       const ws = socketRef.current;

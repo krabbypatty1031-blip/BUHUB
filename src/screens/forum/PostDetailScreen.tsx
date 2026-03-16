@@ -28,7 +28,7 @@ import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation, layout } from '../../theme/spacing';
+import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
@@ -857,7 +857,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const composerBottomInset = isKeyboardVisible
     ? spacing.sm
-    : layout.bottomNavHeight + insets.bottom;
+    : Math.max(insets.bottom, spacing.sm);
 
   const targetCommentIndex = useMemo(() => {
     if (!commentId || !comments) return -1;
@@ -2385,7 +2385,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    paddingBottom: layout.bottomNavHeight,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.outlineVariant,
     backgroundColor: colors.surface,

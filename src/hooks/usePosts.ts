@@ -292,6 +292,7 @@ export function usePosts() {
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
+    staleTime: 60 * 1000, // 1 minute for the live feed
   });
 }
 
@@ -614,7 +615,7 @@ export function useVotePost() {
 
       const previousPosts = queryClient.getQueryData<PostsInfiniteData>(['posts']);
       const previousPostDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
-      const previousOptionIndex = useForumStore.getState().votedPolls.get(postId);
+      const previousOptionIndex = useForumStore.getState().votedPolls[postId];
       setVotedPoll(postId, optionIndex);
 
       const applyVote = (post: ForumPost): ForumPost => {
@@ -673,30 +674,11 @@ export function useVotePost() {
     },
     onSuccess: async (_data, variables) => {
       const { postId } = variables;
-      let freshPost: ForumPost | null = null;
-      try {
-        freshPost = await forumService.getPostDetail(postId);
-        queryClient.setQueryData<ForumPost>(['post', postId], freshPost);
-      } catch {
-        // Ignore; list cache already has optimistic data
-      }
-
-      if (freshPost) {
-        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
-          mapPostsPages(old, (p) => {
-            if (p.id !== postId) return p;
-            return {
-              ...p,
-              myVote: freshPost!.myVote,
-              pollOptions: freshPost!.pollOptions ?? p.pollOptions,
-            };
-          })
-        );
-        bumpPollListRefresh();
-      }
-
+      await queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['search'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      bumpPollListRefresh();
     },
   });
 }

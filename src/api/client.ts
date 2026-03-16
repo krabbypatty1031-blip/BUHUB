@@ -51,7 +51,7 @@ const getApiBaseUrl = () => {
 
 const API_BASE = getApiBaseUrl();
 
-console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS, '| DEV:', __DEV__);
+if (__DEV__) console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
 
 // Callback for handling unauthorized (401) responses
 // Set by authStore to avoid circular dependency

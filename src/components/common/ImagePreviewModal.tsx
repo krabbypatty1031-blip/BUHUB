@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
+  Alert,
   FlatList,
   Image as RNImage,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -19,6 +21,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import * as MediaLibrary from 'expo-media-library';
+import { Paths, File as ExpoFile } from 'expo-file-system';
+import { useTranslation } from 'react-i18next';
 import { spacing, typography } from '../../theme';
 
 type Props = {
@@ -35,6 +40,7 @@ export default function ImagePreviewModal({
   onClose,
 }: Props) {
   const { width, height } = useWindowDimensions();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<string>>(null);
   const safeIndex = Math.min(Math.max(initialIndex, 0), Math.max(images.length - 1, 0));
@@ -57,6 +63,38 @@ export default function ImagePreviewModal({
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentIndex(Math.min(Math.max(nextIndex, 0), Math.max(images.length - 1, 0)));
   });
+
+  const handleSaveImage = useCallback(async (uri: string) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('', t('photoPermissionMessage'));
+        return;
+      }
+
+      const downloaded = await ExpoFile.downloadFileAsync(uri, Paths.cache, { idempotent: true });
+      await MediaLibrary.saveToLibraryAsync(downloaded.uri);
+      // Delete cached file so repeated saves re-download cleanly
+      try { await downloaded.delete(); } catch {}
+      Alert.alert('', t('imageSavedToAlbum'));
+    } catch {
+      Alert.alert('', t('saveFailed'));
+    }
+  }, [t]);
+
+  const showSaveMenu = useCallback((uri: string) => {
+    if (Platform.OS === 'ios') {
+      Alert.alert('', '', [
+        { text: t('saveImageToAlbum'), onPress: () => handleSaveImage(uri) },
+        { text: t('cancel'), style: 'cancel' },
+      ]);
+    } else {
+      Alert.alert('', t('saveImageToAlbum') + '?', [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('confirm'), onPress: () => handleSaveImage(uri) },
+      ]);
+    }
+  }, [handleSaveImage, t]);
 
   if (!visible || images.length === 0) {
     return null;
@@ -94,6 +132,7 @@ export default function ImagePreviewModal({
                 height={imageHeight}
                 isActive={index === currentIndex}
                 onTap={onClose}
+                onLongPress={() => showSaveMenu(item)}
                 onZoomStateChange={setScrollEnabled}
               />
             </View>
@@ -129,6 +168,7 @@ type ZoomableImageProps = {
   height: number;
   isActive: boolean;
   onTap: () => void;
+  onLongPress: () => void;
   onZoomStateChange: (scrollEnabled: boolean) => void;
 };
 
@@ -138,6 +178,7 @@ function ZoomableImage({
   height,
   isActive,
   onTap,
+  onLongPress,
   onZoomStateChange,
 }: ZoomableImageProps) {
   const scale = useSharedValue(1);
@@ -271,7 +312,19 @@ function ZoomableImage({
     }
   });
 
-  const gesture = Gesture.Exclusive(Gesture.Simultaneous(pinchGesture, panGesture), tapGesture);
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(500)
+    .onEnd((_event, success) => {
+      if (success && scale.value <= 1.01) {
+        runOnJS(onLongPress)();
+      }
+    });
+
+  const gesture = Gesture.Exclusive(
+    Gesture.Simultaneous(pinchGesture, panGesture),
+    longPressGesture,
+    tapGesture,
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

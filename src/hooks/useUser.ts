@@ -15,13 +15,14 @@ function isSameHandle(left: string | null | undefined, right: string | null | un
 
 function filterBlockedFollowList(
   list: FollowListItem[] | undefined,
-  blockedUsers: Set<string>
+  blockedUsers: Record<string, true>
 ): FollowListItem[] | undefined {
   if (!list) return list;
-  if (blockedUsers.size === 0) return list;
+  const keys = Object.keys(blockedUsers);
+  if (keys.length === 0) return list;
 
   const normalizedBlockedUsers = new Set(
-    Array.from(blockedUsers)
+    keys
       .map((userName) => normalizeHandle(userName))
       .filter((userName) => userName.length > 0)
   );

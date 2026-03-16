@@ -223,12 +223,12 @@ export default function RatingListScreen({ navigation }: Props) {
   const category = selectedCategory;
   const activeQuickFilter = activeFilters[category] ?? ALL_FILTER_VALUE;
 
-  const { data: ratings, isLoading, refetch } = useRatings(category);
+  const { data: ratings, isLoading, isRefetching, refetch, isStale } = useRatings(category);
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      if (isStale) refetch();
+    }, [isStale, refetch])
   );
 
   useEffect(() => {
@@ -543,7 +543,7 @@ export default function RatingListScreen({ navigation }: Props) {
       )}
 
       {/* Rating List */}
-      {isLoading ? (
+      {isLoading && !ratings ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -556,7 +556,7 @@ export default function RatingListScreen({ navigation }: Props) {
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshing={isLoading}
+          refreshing={isRefetching}
           onRefresh={refetch}
           drawDistance={250}
           keyboardShouldPersistTaps="handled"

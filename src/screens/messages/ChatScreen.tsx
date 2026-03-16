@@ -86,7 +86,7 @@ import {
   StarIcon,
   EditIcon,
 } from '../../components/common/icons';
-import { showTabBar, useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
+import { showTabBar } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
 import { transcribeAudioFileWithNativeSpeech } from '../../utils/nativeSpeechToText';
 import { getSpeechRecognitionModule } from '../../utils/speechRecognition';
@@ -1208,6 +1208,8 @@ const MessageDeliveryStatus = React.memo(function MessageDeliveryStatus({
         activeOpacity={0.75}
         style={styles.messageStatusWrap}
         onPress={() => onRetryFailedMessage?.(message)}
+        accessibilityLabel="Retry sending message"
+        accessibilityRole="button"
       >
         <View style={styles.messageFailedBadge}>
           <Text style={styles.messageFailedBadgeText}>!</Text>
@@ -1594,8 +1596,6 @@ export default function ChatScreen({ navigation, route }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]);
   const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
-  const { tabBarTranslateY } = useTabBarAnimation();
-  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
   const shouldForceLatestOnReadyRef = useRef(true);
   const scrollRetryTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const flatListRef = useRef<FlashListRef<ChatListItem>>(null);
@@ -1690,15 +1690,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     );
   }, [navigation]);
 
-  // Hide tab bar when chat is focused, restore when leaving
-  useFocusEffect(
-    useCallback(() => {
-      tabBarTranslateY.value = withTiming(hiddenTabBarOffset, { duration: 250 });
-      return () => {
-        tabBarTranslateY.value = withTiming(0, { duration: 250 });
-      };
-    }, [hiddenTabBarOffset, tabBarTranslateY])
-  );
+  // Tab bar visibility is now handled by MainTabNavigator's screenListeners
 
   useFocusEffect(
     useCallback(() => {
@@ -1826,6 +1818,11 @@ export default function ChatScreen({ navigation, route }: Props) {
     Record<string, NonNullable<ChatMessage['mediaMetas']>>
   >({});
   const composerSendLockRef = useRef(false);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -2591,6 +2588,8 @@ export default function ChatScreen({ navigation, route }: Props) {
 
       if (sentMessage) {
         const resolvedMessage = mergeResolvedMessageWithPreview(messageId, sentMessage);
+        // Guard: skip local state updates if component unmounted during the await
+        if (!isMountedRef.current) return true;
         resolveLocalPendingMessage(messageId, resolvedMessage);
         patchChatQueries(queryClient, user?.id, contactId, (current, language) =>
           replaceMessageInHistory(current, messageId, resolvedMessage) ??
@@ -2630,11 +2629,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       void refreshMessageQueries();
       return true;
     } catch (error) {
-      updateLocalPendingMessageStatus(messageId, 'failed');
       recordMessageMetric('message_send_failed', {
         kind: request.kind,
         contactId,
       });
+      if (!isMountedRef.current) return false;
+      updateLocalPendingMessageStatus(messageId, 'failed');
       const mediaKind = request.kind === 'audio'
         ? 'audio'
         : request.kind === 'image-batch' || request.kind === 'image-single'
@@ -4095,7 +4095,11 @@ export default function ChatScreen({ navigation, route }: Props) {
                   <Text style={styles.loadingText}>{t('loading')}</Text>
                 </View>
               </View>
-            ) : null
+            ) : (
+              <View style={[styles.invertedListItem, styles.loadingContainer]}>
+                <Text style={styles.emptyStateText}>{t('noMessages')}</Text>
+              </View>
+            )
           }
         />
         {showOlderHistoryLoading ? (
@@ -4122,6 +4126,8 @@ export default function ChatScreen({ navigation, route }: Props) {
               style={styles.newMessageHintButton}
               activeOpacity={0.88}
               onPress={handlePressNewMessageHint}
+              accessibilityLabel="Scroll to new messages"
+              accessibilityRole="button"
             >
               <Text style={styles.newMessageHintArrow}>{'\u2193'}</Text>
               <Text style={styles.newMessageHintCount}>
@@ -4205,6 +4211,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                   style={[styles.mediaBtn, styles.voiceModeBtn]}
                   activeOpacity={0.7}
                   onPress={handleToggleVoiceMode}
+                  accessibilityLabel={t('switchToKeyboard')}
+                  accessibilityRole="button"
                 >
                   <KeyboardIcon size={22} color={PURE_BLACK} />
                 </TouchableOpacity>
@@ -4220,6 +4228,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                   style={styles.mediaBtn}
                   activeOpacity={0.6}
                   onPress={handlePickImage}
+                  accessibilityLabel={t('pickImage')}
+                  accessibilityRole="button"
                 >
                   <ImageIcon size={22} color={PURE_BLACK} />
                 </TouchableOpacity>
@@ -4231,6 +4241,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                     style={styles.mediaBtn}
                     activeOpacity={0.6}
                     onPress={handleCamera}
+                    accessibilityLabel={t('camera')}
+                    accessibilityRole="button"
                   >
                     <CameraIcon size={22} color={PURE_BLACK} />
                   </TouchableOpacity>
@@ -4256,6 +4268,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                     style={styles.sendBtn}
                     onPress={handleSend}
                     activeOpacity={0.7}
+                    accessibilityLabel={t('send')}
+                    accessibilityRole="button"
                   >
                     <SendIcon size={20} color="#FFFFFF" />
                   </TouchableOpacity>
@@ -4265,6 +4279,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                       style={styles.mediaBtn}
                       activeOpacity={0.6}
                       onPress={handleToggleVoiceMode}
+                      accessibilityLabel={t('voiceMessage')}
+                      accessibilityRole="button"
                     >
                       <MicIcon size={22} color={PURE_BLACK} />
                     </TouchableOpacity>
@@ -4272,6 +4288,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                       style={styles.mediaBtn}
                       activeOpacity={0.6}
                       onPress={handlePickImage}
+                      accessibilityLabel={t('pickImage')}
+                      accessibilityRole="button"
                     >
                       <ImageIcon size={22} color={PURE_BLACK} />
                     </TouchableOpacity>
@@ -4371,6 +4389,8 @@ export default function ChatScreen({ navigation, route }: Props) {
                       ]}
                       activeOpacity={0.7}
                       onPress={() => handleSendReaction(emoji)}
+                      accessibilityLabel={`React with ${emoji}`}
+                      accessibilityRole="button"
                     >
                       <Text style={styles.actionEmojiText}>{emoji}</Text>
                     </TouchableOpacity>
@@ -4538,6 +4558,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   loadingText: {
+    ...typography.bodyMedium,
+    color: colors.onSurfaceVariant,
+  },
+  emptyStateText: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
   },

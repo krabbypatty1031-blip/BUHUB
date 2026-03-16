@@ -7,6 +7,7 @@ import {
   ScrollView,
   useWindowDimensions,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image as ExpoImage } from 'expo-image';
@@ -53,7 +54,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { width: screenWidth } = useWindowDimensions();
   const { id, backToChat, backTo } = route.params;
-  const { data: item } = useSecondhandDetail(id);
+  const { data: item, isLoading: isItemLoading } = useSecondhandDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
   const currentUser = useAuthStore((s) => s.user);
@@ -170,8 +171,14 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
-          <ShoppingBagIcon size={48} color={colors.outlineVariant} />
-          <Text style={styles.emptyText}>{t('notFound')}</Text>
+          {isItemLoading ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <>
+              <ShoppingBagIcon size={48} color={colors.outlineVariant} />
+              <Text style={styles.emptyText}>{t('notFound')}</Text>
+            </>
+          )}
         </View>
         </SafeAreaView>
       </PageTranslationProvider>

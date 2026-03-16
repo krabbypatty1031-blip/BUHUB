@@ -64,10 +64,11 @@ export default function PartnerListScreen({ navigation }: Props) {
   const setExpiredNotified = usePartnerStore((s) => s.setExpiredNotified);
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const { data: partners, isLoading, refetch } = usePartners(selectedCategory || undefined);
+  const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePartners(selectedCategory || undefined);
+  const partners = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   useEffect(() => {
-    if (partners && !expiredNotified) {
+    if (partners.length > 0 && !expiredNotified) {
       const hasExpired = partners.some((item) => item.expired);
       if (hasExpired) {
         showSnackbar({ message: t('partnerExpiryNotice'), type: 'info' });
@@ -95,8 +96,11 @@ export default function PartnerListScreen({ navigation }: Props) {
   // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const filteredPartners = useMemo(() => {
-    if (!partners) return [];
     const query = searchText.trim().toLowerCase();
     if (!query) return partners;
     return partners.filter((item) =>
@@ -151,7 +155,7 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
-      const isJoined = joinedActivities.has(item.id);
+      const isJoined = item.id in joinedActivities;
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
@@ -296,13 +300,15 @@ export default function PartnerListScreen({ navigation }: Props) {
         data={filteredPartners}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isLoading}
+        refreshing={isRefetching}
         onRefresh={refetch}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ListEmptyComponent={
-          !isLoading ? (
+          !isLoading && !isRefetching ? (
             <EmptyState
               icon={<UsersIcon size={36} color={colors.onSurfaceVariant} />}
               title={searchText.trim() ? t('noSearchResults') : t('noPartners')}
@@ -560,7 +566,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 104,
+    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 16,

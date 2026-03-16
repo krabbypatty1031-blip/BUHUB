@@ -22,7 +22,7 @@ import MessagesStackNavigator from './MessagesStackNavigator';
 import MeStackNavigator from './MeStackNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
-const MANUAL_TAB_BAR_ROUTES = new Set(['Chat', 'RatingForm']);
+const TAB_ROOT_ROUTES = new Set(['ForumHome', 'FunctionsHub', 'MessagesList', 'MeHome']);
 
 type NavigationStateLike = NavigationState | PartialState<NavigationState>;
 type RouteWithState = Route<string> & { state?: NavigationStateLike };
@@ -78,22 +78,22 @@ export default function MainTabNavigator() {
             return;
           }
           const focusedLeafRouteName = getFocusedLeafRouteName(activeRoute);
-          if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
-            hideTabBar(hiddenTabBarOffset);
+          if (!focusedLeafRouteName || TAB_ROOT_ROUTES.has(focusedLeafRouteName)) {
+            showTabBar();
             return;
           }
-          showTabBar();
+          hideTabBar(hiddenTabBarOffset);
         },
         focus: () => {
           const tabRoute = navigation
             .getState()
             .routes.find((stateRoute) => stateRoute.key === route.key) as RouteWithState | undefined;
           const focusedLeafRouteName = getFocusedLeafRouteName(tabRoute);
-          if (focusedLeafRouteName && MANUAL_TAB_BAR_ROUTES.has(focusedLeafRouteName)) {
-            hideTabBar(hiddenTabBarOffset);
+          if (!focusedLeafRouteName || TAB_ROOT_ROUTES.has(focusedLeafRouteName)) {
+            showTabBar();
             return;
           }
-          showTabBar();
+          hideTabBar(hiddenTabBarOffset);
         },
         tabPress: (e) => {
           const state = navigation.getState();
@@ -102,6 +102,29 @@ export default function MainTabNavigator() {
           );
           const isCurrentTab = state.index === targetIndex;
           if (!isCurrentTab) {
+            // Switching from another tab — if the target tab has a nested
+            // stack (e.g. Chat pushed via cross-tab navigation), reset it
+            // to its root screen so the user sees the list, not a stale
+            // deep screen.
+            const targetRoute = state.routes[targetIndex] as RouteWithState | undefined;
+            const nestedState = targetRoute?.state;
+            const isNested = nestedState && (nestedState.index ?? 0) > 0;
+            if (isNested) {
+              e.preventDefault();
+              showTabBar();
+              navigation.dispatch(
+                CommonActions.reset({
+                  ...state,
+                  index: targetIndex,
+                  routes: state.routes.map((r) =>
+                    r.name === route.name
+                      ? { ...r, state: undefined }
+                      : r,
+                  ),
+                }),
+              );
+              return;
+            }
             showTabBar();
             return;
           }

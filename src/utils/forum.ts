@@ -3,7 +3,7 @@ import type { ForumPost } from '../types';
 /** Get voted option index from myVote (API) or votedPolls (optimistic). */
 export function getVotedOptionIndex(
   post: ForumPost,
-  votedPolls: Map<string, number>
+  votedPolls: Record<string, number>
 ): number | undefined {
   // Prefer myVote from API/cache
   const optId = post.myVote?.optionId;
@@ -12,6 +12,6 @@ export function getVotedOptionIndex(
     if (idx >= 0) return idx;
   }
   // Fallback to votedPolls store (optimistic update before cache sync)
-  const storeIndex = votedPolls.get(post.id);
+  const storeIndex = votedPolls[post.id];
   return typeof storeIndex === 'number' ? storeIndex : undefined;
 }

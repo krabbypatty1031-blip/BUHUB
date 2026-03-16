@@ -1,12 +1,28 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { secondhandService } from '../api/services/secondhand.service';
 import type { SecondhandItem, SecondhandCategory } from '../types';
 
+const PAGE_LIMIT = 20;
+
+export type SecondhandPage = { items: SecondhandItem[]; page: number; hasMore: boolean };
+export type SecondhandInfiniteData = InfiniteData<SecondhandPage>;
+
 export function useSecondhand(category?: SecondhandCategory) {
-  return useQuery({
+  return useInfiniteQuery<SecondhandPage, Error, SecondhandInfiniteData, (string | undefined)[], number>({
     queryKey: ['secondhand', category],
-    queryFn: () => secondhandService.getList(category || undefined),
+    queryFn: async ({ pageParam }) => {
+      const items = await secondhandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    staleTime: 60 * 1000,
   });
+}
+
+export function flattenSecondhandPages(data: SecondhandInfiniteData | undefined): SecondhandItem[] {
+  if (!data) return [];
+  return data.pages.flatMap((p) => p.items);
 }
 
 export function useMySecondhand(category?: SecondhandCategory) {
@@ -61,6 +77,7 @@ export function useDeleteSecondhand() {
     mutationFn: (id: string) => secondhandService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand', 'all'] });
     },
   });
 }
@@ -87,17 +104,30 @@ export function useWantSecondhand() {
       await queryClient.cancelQueries({ queryKey: ['secondhand'] });
       await queryClient.cancelQueries({ queryKey: ['secondhandItem', id] });
 
-      const previousSecondhandQueries = queryClient.getQueriesData<SecondhandItem[]>({
+      const previousSecondhandQueries = queryClient.getQueriesData<SecondhandInfiniteData | SecondhandItem[]>({
         queryKey: ['secondhand'],
       });
       const previousDetail = queryClient.getQueryData<SecondhandItem>(['secondhandItem', id]);
 
+      // Update list caches (both infinite and plain arrays)
       for (const [queryKey, data] of previousSecondhandQueries) {
-        if (!Array.isArray(data)) continue;
-        queryClient.setQueryData<SecondhandItem[]>(
-          queryKey,
-          data.map((item) => (item.id === id ? { ...item, isWanted: nextWanted } : item))
-        );
+        if (!data) continue;
+        if (Array.isArray(data)) {
+          // Plain array (useMySecondhand, useWantedSecondhand)
+          queryClient.setQueryData<SecondhandItem[]>(
+            queryKey,
+            data.map((item) => (item.id === id ? { ...item, isWanted: nextWanted } : item))
+          );
+        } else if ('pages' in data) {
+          // InfiniteData (useSecondhand)
+          queryClient.setQueryData<SecondhandInfiniteData>(queryKey, {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) => (item.id === id ? { ...item, isWanted: nextWanted } : item)),
+            })),
+          });
+        }
       }
 
       if (previousDetail) {
@@ -107,35 +137,18 @@ export function useWantSecondhand() {
         });
       }
 
-      const previousWanted = queryClient.getQueryData<SecondhandItem[]>(['secondhand', 'wanted']);
-      if (previousWanted) {
-        const wantedSource = previousDetail
-          ?? previousSecondhandQueries.flatMap(([, data]) => (Array.isArray(data) ? data : [])).find((item) => item.id === id);
-        queryClient.setQueryData<SecondhandItem[]>(
-          ['secondhand', 'wanted'],
-          nextWanted
-            ? wantedSource
-              ? [{ ...wantedSource, isWanted: true }, ...previousWanted.filter((item) => item.id !== id)]
-              : previousWanted
-            : previousWanted.filter((item) => item.id !== id)
-        );
-      }
-
-      return { previousSecondhandQueries, previousDetail, previousWanted };
+      return { previousSecondhandQueries, previousDetail };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secondhand'] });
-      queryClient.invalidateQueries({ queryKey: ['secondhand', 'wanted'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand', 'wanted'], exact: true });
     },
     onError: (_error, variables, context) => {
-      context?.previousSecondhandQueries?.forEach(([queryKey, data]: [readonly unknown[], SecondhandItem[] | undefined]) => {
+      context?.previousSecondhandQueries?.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
       if (context?.previousDetail) {
         queryClient.setQueryData(['secondhandItem', variables.id], context.previousDetail);
-      }
-      if (context?.previousWanted) {
-        queryClient.setQueryData(['secondhand', 'wanted'], context.previousWanted);
       }
     },
   });

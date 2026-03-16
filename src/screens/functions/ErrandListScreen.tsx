@@ -62,10 +62,11 @@ export default function ErrandListScreen({ navigation }: Props) {
   const setExpiredNotified = useErrandStore((s) => s.setExpiredNotified);
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const { data: errands, isLoading, refetch } = useErrands(selectedCategory || undefined);
+  const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useErrands(selectedCategory || undefined);
+  const errands = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   useEffect(() => {
-    if (errands && !expiredNotified) {
+    if (errands.length > 0 && !expiredNotified) {
       const hasExpired = errands.some((item) => item.expired);
       if (hasExpired) {
         showSnackbar({ message: t('errandExpiryNotice'), type: 'info' });
@@ -116,8 +117,11 @@ export default function ErrandListScreen({ navigation }: Props) {
   // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const filteredErrands = useMemo(() => {
-    if (!errands) return [];
     const query = searchText.trim().toLowerCase();
     if (!query) return errands;
     return errands.filter((item) =>
@@ -150,7 +154,7 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
-      const isAccepted = acceptedErrands.has(item.id);
+      const isAccepted = item.id in acceptedErrands;
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
@@ -297,13 +301,15 @@ export default function ErrandListScreen({ navigation }: Props) {
         data={filteredErrands}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isLoading}
+        refreshing={isRefetching}
         onRefresh={refetch}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ListEmptyComponent={
-          !isLoading ? (
+          !isLoading && !isRefetching ? (
             <EmptyState
               icon={<TruckIcon size={36} color={colors.onSurfaceVariant} />}
               title={searchText.trim() ? t('noSearchResults') : t('noErrands')}
@@ -575,7 +581,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 104,
+    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 16,

@@ -1,13 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { errandService } from '../api/services/errand.service';
 import type { Errand, ErrandCategory } from '../types';
 
+const PAGE_LIMIT = 20;
+
+export type ErrandPage = { items: Errand[]; page: number; hasMore: boolean };
+export type ErrandInfiniteData = InfiniteData<ErrandPage>;
+
 export function useErrands(category?: ErrandCategory) {
-  return useQuery({
+  return useInfiniteQuery<ErrandPage, Error, ErrandInfiniteData, (string | undefined)[], number>({
     queryKey: ['errands', category],
-    queryFn: () => errandService.getList(category || undefined),
+    queryFn: async ({ pageParam }) => {
+      const items = await errandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    staleTime: 60 * 1000,
   });
 }
+
+export function flattenErrandPages(data: ErrandInfiniteData | undefined): Errand[] {
+  if (!data) return [];
+  return data.pages.flatMap((p) => p.items);
+}
+
 export function useMyErrands(category?: ErrandCategory) {
   return useQuery({
     queryKey: ['errands', 'all', category],
@@ -52,6 +69,7 @@ export function useDeleteErrand() {
     mutationFn: (id: string) => errandService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['errands'] });
+      queryClient.invalidateQueries({ queryKey: ['errands', 'all'] });
     },
   });
 }

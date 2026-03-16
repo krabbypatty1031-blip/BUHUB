@@ -20,14 +20,11 @@ import { useUIStore } from '../../store/uiStore';
 import { translateLabel } from '../../utils/translate';
 import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, layout } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon } from '../../components/common/icons';
 import Chip from '../../components/common/Chip';
 import { hapticSelection, hapticMedium } from '../../utils/haptics';
-import { useFocusEffect } from '@react-navigation/native';
-import { withTiming } from 'react-native-reanimated';
-import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingForm'>;
 
@@ -98,17 +95,8 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const { tabBarTranslateY } = useTabBarAnimation();
-  const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
 
-  useFocusEffect(
-    useCallback(() => {
-      tabBarTranslateY.value = withTiming(hiddenTabBarOffset, { duration: 250 });
-      return () => {
-        tabBarTranslateY.value = withTiming(0, { duration: 250 });
-      };
-    }, [hiddenTabBarOffset, tabBarTranslateY])
-  );
+  // Tab bar visibility is now handled by MainTabNavigator's screenListeners
 
   const dimensionMap = useMemo(() => {
     if (!dimensions) return {};

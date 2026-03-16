@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -47,7 +48,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { id, backToChat, backTo } = route.params;
-  const { data: partner } = usePartnerDetail(id);
+  const { data: partner, isLoading: isPartnerLoading } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, partner?.authorId, partner?.user);
@@ -142,8 +143,14 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
-          <UsersIcon size={48} color={colors.outlineVariant} />
-          <Text style={styles.emptyText}>{t('notFound')}</Text>
+          {isPartnerLoading ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <>
+              <UsersIcon size={48} color={colors.outlineVariant} />
+              <Text style={styles.emptyText}>{t('notFound')}</Text>
+            </>
+          )}
         </View>
         </SafeAreaView>
       </PageTranslationProvider>

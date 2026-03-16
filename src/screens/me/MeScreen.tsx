@@ -76,7 +76,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'anonPosts', labelKey: 'tabAnonPosts', locked: true },
   { key: 'anonComments', labelKey: 'tabAnonComments', locked: true },
   { key: 'bookmarks', labelKey: 'tabBookmarks', locked: true },
-  { key: 'myLikes', labelKey: 'tabMyLikes', locked: false },
+  { key: 'myLikes', labelKey: 'tabMyLikes', locked: true },
 ];
 
 /*
@@ -273,7 +273,7 @@ export default function MeScreen({ navigation }: Props) {
   const { data: followedCircles } = useFollowedCircles();
   const user = useAuthStore((s) => s.user);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
-  const shouldLoadFollowLists = blockedUsers.size > 0;
+  const shouldLoadFollowLists = Object.keys(blockedUsers).length > 0;
   const { data: followingData } = useFollowingList({ enabled: shouldLoadFollowLists });
   const { data: followersData } = useFollowersList({ enabled: shouldLoadFollowLists });
   const [activeTab, setActiveTab] = useState<MeTab>('posts');

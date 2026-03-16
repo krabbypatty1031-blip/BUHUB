@@ -402,7 +402,7 @@ export const userService = {
     if (USE_MOCK) {
       const { mockUsers } = await import('../../data/mock/users');
       const blockedUsers = useForumStore.getState().blockedUsers;
-      return Array.from(blockedUsers)
+      return Object.keys(blockedUsers)
         .filter((name) => mockUsers[name])
         .map((name) => ({
           userName: name,

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +51,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { id, backToChat, backTo } = route.params;
-  const { data: errand } = useErrandDetail(id);
+  const { data: errand, isLoading: isErrandLoading } = useErrandDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, errand?.authorId, errand?.user);
@@ -145,8 +146,14 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <View style={styles.iconBtn} />
         </View>
         <View style={styles.emptyContainer}>
-          <TruckIcon size={48} color={colors.outlineVariant} />
-          <Text style={styles.emptyText}>{t('notFound')}</Text>
+          {isErrandLoading ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <>
+              <TruckIcon size={48} color={colors.outlineVariant} />
+              <Text style={styles.emptyText}>{t('notFound')}</Text>
+            </>
+          )}
         </View>
         </SafeAreaView>
       </PageTranslationProvider>

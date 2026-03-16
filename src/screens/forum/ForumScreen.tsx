@@ -37,6 +37,7 @@ import {
   BarChartIcon,
   ChevronRightIcon,
   CloseIcon,
+  AlertTriangleIcon,
 } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
@@ -49,7 +50,7 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'ForumHome'>;
 export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts();
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts();
   const allPosts = useMemo(() => flattenPostPages(data), [data]);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
@@ -303,7 +304,7 @@ export default function ForumScreen({ navigation, route }: Props) {
     }),
     [votedPolls, pollListRefreshKey, posts]
   );
-  const isPullRefreshing = isManualRefreshing && isFetching && !isLoading && !isFetchingNextPage;
+  const isPullRefreshing = isManualRefreshing;
   const showInitialSkeleton = isLoading && allPosts.length === 0;
 
   const handleEndReached = useCallback(() => {
@@ -324,11 +325,11 @@ export default function ForumScreen({ navigation, route }: Props) {
   const handleRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
-      await refetch();
+      await queryClient.resetQueries({ queryKey: ['posts'] });
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refetch]);
+  }, [queryClient]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -364,6 +365,11 @@ export default function ForumScreen({ navigation, route }: Props) {
         ListEmptyComponent={
           showInitialSkeleton ? (
             <ForumListSkeleton />
+          ) : isError ? (
+            <EmptyState
+              icon={<AlertTriangleIcon size={36} color={colors.error} />}
+              title={t('loadFailed')}
+            />
           ) : (
             <EmptyState
               icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
