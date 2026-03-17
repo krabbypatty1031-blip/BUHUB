@@ -4618,6 +4618,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
   },

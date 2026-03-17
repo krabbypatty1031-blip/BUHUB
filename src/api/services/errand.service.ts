@@ -63,7 +63,7 @@ const mapErrand = (e: ApiErrandRecord): Errand => ({
   majorKey: e.author?.major ?? e.majorKey ?? undefined,
   authorId: e.author?.id ?? e.authorId ?? '',
   desc: e.description ?? e.desc ?? '',
-  expired: Boolean(e.expired),
+  expired: Boolean(e.expired) || (e.expiresAt ? new Date(String(e.expiresAt)) < new Date() : false),
   expiresAt: typeof e.expiresAt === 'string' ? e.expiresAt : '',
   createdAt: typeof e.createdAt === 'string' ? e.createdAt : '',
   sourceLanguage: e.sourceLanguage ?? 'tc',

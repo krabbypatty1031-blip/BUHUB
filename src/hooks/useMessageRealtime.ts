@@ -23,8 +23,8 @@ import {
 import { recordMessageMetric } from '../utils/messageMetrics';
 
 const TOKEN_KEY = 'buhub-token';
-const RECONNECT_BASE_DELAY_MS = 1000;
-const RECONNECT_MAX_DELAY_MS = 10000;
+const RECONNECT_BASE_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 5000;
 
 type RealtimeEvent = {
   type: 'message:new' | 'message:read' | 'message:recalled' | 'typing:update' | 'notification:new';
@@ -253,14 +253,11 @@ export function useMessageRealtime() {
           reconnectAttemptRef.current = 0;
           recordMessageMetric('message_ws_connected');
           if (wasReconnect) {
-            // After reconnect, refresh active chat and contacts to catch missed messages
-            const activeChatContactId = useMessageStore.getState().activeChatContactId;
-            if (activeChatContactId) {
-              queryClient.invalidateQueries({
-                queryKey: ['chat', activeChatContactId],
-                refetchType: 'active',
-              });
-            }
+            // After reconnect, refresh all active chats and contacts to catch missed messages
+            queryClient.invalidateQueries({
+              queryKey: ['chat'],
+              refetchType: 'active',
+            });
             queryClient.invalidateQueries({
               queryKey: ['contacts'],
               refetchType: 'active',

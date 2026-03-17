@@ -98,7 +98,7 @@ const mapSecondhand = (i: ApiSecondhandRecord): SecondhandItem => ({
   desc: i.description ?? i.desc ?? '',
   sold: Boolean(i.sold),
   expiresAt: typeof i.expiresAt === 'string' ? i.expiresAt : '',
-  expired: Boolean(i.expired),
+  expired: Boolean(i.expired) || (i.expiresAt ? new Date(String(i.expiresAt)) < new Date() : false),
   createdAt: typeof i.createdAt === 'string' ? i.createdAt : '',
   isWanted: Boolean(i.isWanted ?? (Array.isArray(i.wants) && i.wants.length > 0)),
   sourceLanguage: i.sourceLanguage ?? 'tc',
