@@ -19,7 +19,7 @@ import {
   SecondhandFnIcon,
   RatingFnIcon,
   FacilityFnIcon,
-  MyPostsFnIcon,
+  AIScheduleFnIcon,
   ArrowRightFnIcon,
 } from '../../components/functions/FunctionHubIcons';
 
@@ -31,7 +31,7 @@ type FunctionsHubRouteName =
   | 'PartnerList'
   | 'ErrandList'
   | 'SecondhandList'
-  | 'MyPosts'
+  | 'AISchedule'
   | 'RatingList'
   | 'FacilityBooking';
 
@@ -51,7 +51,7 @@ const ENTRIES: FunctionEntry[] = [
   { key: 'secondhand', titleKey: 'secondHand', subtitleKey: 'secondHandDesc', Icon: SecondhandFnIcon, iconColor: '#02AF4A', arrowColor: '#C1C1C1', route: 'SecondhandList' },
   { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', arrowColor: '#C1C1C1', route: 'RatingList' },
   { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', arrowColor: '#C1C1C1', route: 'FacilityBooking' },
-  { key: 'myPosts', titleKey: 'myPosts', subtitleKey: 'myPostsDesc', Icon: MyPostsFnIcon, iconColor: '#7C3AED', arrowColor: '#C1C1C1', route: 'MyPosts' },
+  { key: 'aiSchedule', titleKey: 'aiSchedule', subtitleKey: 'aiScheduleDesc', Icon: AIScheduleFnIcon, iconColor: '#5B73FF', arrowColor: '#C1C1C1', route: 'AISchedule' },
 ];
 
 const HEADER_BG_COLOR = '#333333';
@@ -85,8 +85,8 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'RatingList':
           navigation.navigate('RatingList');
           return;
-        case 'MyPosts':
-          navigation.navigate('MyPosts');
+        case 'AISchedule':
+          // TODO: Navigate to AI Schedule screen
           return;
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');

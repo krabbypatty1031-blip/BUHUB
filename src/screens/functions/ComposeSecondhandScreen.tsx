@@ -12,8 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { SecondhandCategory } from '../../types';
-import { useCreateSecondhand, useEditSecondhand } from '../../hooks/useSecondhand';
+import type { SecondhandCategory, SecondhandItem } from '../../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEditSecondhand, type SecondhandInfiniteData } from '../../hooks/useSecondhand';
+import { secondhandService } from '../../api/services/secondhand.service';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { useUIStore } from '../../store/uiStore';
 import { uploadService } from '../../api/services/upload.service';
@@ -157,7 +159,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     deadline !== null;
 
   const user = useAuthStore((s) => s.user);
-  const createSecondhand = useCreateSecondhand();
+  const queryClient = useQueryClient();
   const editSecondhand = useEditSecondhand();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isPosting, setIsPosting] = useState(false);
@@ -181,82 +183,179 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
     }
     postingLockRef.current = true;
     setIsPosting(true);
-    try {
-      const remoteImages = images.filter(isRemoteImage);
-      const localImages = images.filter((uri) => !isRemoteImage(uri));
 
-      let uploadedImages: string[] = [];
-      if (localImages.length > 0) {
-        const result = await uploadService.uploadImages(
-          localImages.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
-        );
-        uploadedImages = result.urls;
-      }
-
-      const payload = {
-        category,
-        type: t(category),
-        title: title.trim(),
-        desc: description.trim(),
-        images: [...remoteImages, ...uploadedImages],
-        price: `HK$${price.trim()}`,
-        condition: condition ?? '',
-        location: tradeLocation.trim(),
-        expiresAt: deadline!.toISOString(),
-        expired: initialData?.expired ?? false,
-        createdAt: initialData?.createdAt ?? new Date().toISOString(),
-      };
-
-      const onError = (error: unknown) => {
-        showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
-      };
-
-      const onSettled = () => {
-        postingLockRef.current = false;
-        setIsPosting(false);
-      };
-
-      if (isEditMode && editId) {
+    // ── Edit mode: keep synchronous flow ──
+    if (isEditMode && editId) {
+      try {
+        const remoteImages = images.filter(isRemoteImage);
+        const localImages = images.filter((uri) => !isRemoteImage(uri));
+        let uploadedImages: string[] = [];
+        if (localImages.length > 0) {
+          const result = await uploadService.uploadImages(
+            localImages.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
+          );
+          uploadedImages = result.urls;
+        }
+        const payload = {
+          category,
+          type: t(category),
+          title: title.trim(),
+          desc: description.trim(),
+          images: [...remoteImages, ...uploadedImages],
+          price: `HK$${price.trim()}`,
+          condition: condition ?? '',
+          location: tradeLocation.trim(),
+          expiresAt: deadline!.toISOString(),
+          expired: initialData?.expired ?? false,
+          createdAt: initialData?.createdAt ?? new Date().toISOString(),
+        };
         editSecondhand.mutate(
           { id: editId, item: payload },
           {
-          onSuccess: (updated) => {
-            showSnackbar({ message: t('saveSuccess'), type: 'success' });
-            navigation.reset({
-              index: 1,
-              routes: [
-                { name: 'FunctionsHub' },
-                { name: 'MyPosts' },
-              ],
-            });
+            onSuccess: () => {
+              showSnackbar({ message: t('saveSuccess'), type: 'success' });
+              navigation.reset({
+                index: 1,
+                routes: [
+                  { name: 'FunctionsHub' },
+                  { name: 'MyPosts' },
+                ],
+              });
+            },
+            onError: (error: unknown) => {
+              showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
+            },
+            onSettled: () => {
+              postingLockRef.current = false;
+              setIsPosting(false);
+            },
           },
-          onError,
-          onSettled,
-        },
         );
-        return;
+      } catch (error: unknown) {
+        showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
+        postingLockRef.current = false;
+        setIsPosting(false);
       }
-
-      createSecondhand.mutate(payload, {
-        onSuccess: (created) => {
-          navigation.replace('SecondhandShare', {
-            itemName: title,
-            posterName: user.name,
-            functionId: created.id,
-          });
-        },
-        onError,
-        onSettled,
-      });
-    } catch (error: unknown) {
-      const message = resolveSubmitErrorMessage(
-        typeof error === 'object' && error ? error as ErrorWithMessage : undefined
-      );
-      showSnackbar({ message: message || t(isEditMode ? 'saveFailed' : 'postFailed'), type: 'error' });
-      postingLockRef.current = false;
-      setIsPosting(false);
+      return;
     }
-  }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, createSecondhand, showSnackbar, resolveSubmitErrorMessage]);
+
+    // ── Create mode: optimistic + background upload ──
+    const optimisticId = `optimistic-${Date.now()}`;
+    const allImages = [...images];
+    const optimisticItem: SecondhandItem = {
+      id: optimisticId,
+      category,
+      type: t(category),
+      title: title.trim(),
+      desc: description.trim(),
+      images: allImages,
+      price: `HK$${price.trim()}`,
+      condition: condition ?? '',
+      location: tradeLocation.trim(),
+      user: user.name,
+      userName: user.userName,
+      authorId: user.id,
+      avatar: user.avatar || '',
+      gender: user.gender || 'other',
+      bio: user.bio || '',
+      gradeKey: user.grade,
+      majorKey: user.major,
+      sold: false,
+      isWanted: false,
+      expiresAt: deadline!.toISOString(),
+      expired: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Insert optimistic item into cache
+    const insertOptimistic = (old: SecondhandInfiniteData | undefined) => {
+      if (!old || !old.pages.length) return old;
+      return {
+        ...old,
+        pages: [
+          { ...old.pages[0], items: [optimisticItem, ...old.pages[0].items] },
+          ...old.pages.slice(1),
+        ],
+      };
+    };
+    queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], insertOptimistic);
+    queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], insertOptimistic);
+
+    // Navigate back immediately — zero perceived delay
+    navigation.goBack();
+    showSnackbar({ message: t('postPublishing'), type: 'info' });
+
+    // Capture values for background closure
+    const capturedImages = allImages;
+    const capturedTitle = title.trim();
+    const capturedDesc = description.trim();
+    const capturedPrice = `HK$${price.trim()}`;
+    const capturedCondition = condition ?? '';
+    const capturedLocation = tradeLocation.trim();
+    const capturedDeadline = deadline!.toISOString();
+
+    // Background upload + creation (fire-and-forget)
+    (async () => {
+      try {
+        const remoteImages = capturedImages.filter(isRemoteImage);
+        const localImages = capturedImages.filter((uri) => !isRemoteImage(uri));
+        let uploadedImages: string[] = [];
+        if (localImages.length > 0) {
+          const result = await uploadService.uploadImages(
+            localImages.map((uri, i) => ({ uri, type: 'image/jpeg', name: `secondhand-${i}.jpg` }))
+          );
+          uploadedImages = result.urls;
+        }
+
+        const createdItem = await secondhandService.create({
+          category,
+          type: t(category),
+          title: capturedTitle,
+          desc: capturedDesc,
+          images: [...remoteImages, ...uploadedImages],
+          price: capturedPrice,
+          condition: capturedCondition,
+          location: capturedLocation,
+          expiresAt: capturedDeadline,
+          expired: false,
+          createdAt: new Date().toISOString(),
+        });
+
+        // Replace optimistic item with real server data
+        const replaceOptimistic = (old: SecondhandInfiniteData | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) => (item.id === optimisticId ? createdItem : item)),
+            })),
+          };
+        };
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], replaceOptimistic);
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], replaceOptimistic);
+
+        showSnackbar({ message: t('postSuccess'), type: 'success' });
+      } catch (error: unknown) {
+        // Remove optimistic item on failure
+        const removeOptimistic = (old: SecondhandInfiniteData | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.filter((item) => item.id !== optimisticId),
+            })),
+          };
+        };
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], removeOptimistic);
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], removeOptimistic);
+        showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
+      } finally {
+        postingLockRef.current = false;
+      }
+    })();
+  }, [canPost, user, isPosting, images, category, t, title, description, price, condition, tradeLocation, deadline, initialData?.expired, initialData?.createdAt, isEditMode, editId, editSecondhand, navigation, queryClient, showSnackbar, resolveSubmitErrorMessage]);
 
   return (
     <SafeAreaView style={styles.container}>

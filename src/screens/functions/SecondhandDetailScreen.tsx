@@ -35,6 +35,7 @@ import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import {
   BackIcon,
   ShoppingBagIcon,
@@ -58,11 +59,12 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const wantMutation = useWantSecondhand();
   const currentUser = useAuthStore((s) => s.user);
+  const now = useExpirationTick(30000);
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, item?.authorId, item?.user);
 
   const isWanted = !!item?.isWanted;
   const isSold = item?.sold ?? false;
-  const isExpired = item ? item.expired && !item.sold : false;
+  const isExpired = item ? !item.sold && isExpiredNow(item.expired, item.expiresAt, now) : false;
   const isListingInactive = isSold || isExpired;
   const isContactDisabled = isOwnPost || isListingInactive;
   const isWantDisabled = isListingInactive;
@@ -850,5 +852,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
-
 

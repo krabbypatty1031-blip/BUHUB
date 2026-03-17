@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Linking } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { uploadService } from '../api/services/upload.service';
 
 interface UseImagePickerOptions {
   allowsMultiple?: boolean;
@@ -70,6 +71,11 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
       } else {
         setImages(uris.slice(0, 1));
       }
+
+      // Pre-compress in background so upload is faster when user hits send
+      uploadService.preCompressImages(
+        uris.map((uri, i) => ({ uri, type: 'image/jpeg', name: `precomp-${i}.jpg` }))
+      ).catch(() => {});
     }
   }, [allowsMultiple, maxImages, images.length, t]);
 

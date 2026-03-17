@@ -30,6 +30,7 @@ export function useMySecondhand(category?: SecondhandCategory) {
   return useQuery({
     queryKey: ['secondhand', 'all', category],
     queryFn: () => secondhandService.getList(category || undefined, { includeExpired: true }),
+    refetchInterval: 2 * 60 * 1000,
   });
 }
 

@@ -233,16 +233,19 @@ function PostCard({
                 >
                   <AnimatedPollBar percent={opt.percent ?? 0} isVoted={i === votedOptionIndex} />
                   <View style={styles.pollOptionContent}>
-                    <Text
-                      style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
-                    </Text>
-                    {i === votedOptionIndex && (
-                      <CheckIcon size={16} color="#0463E2" />
-                    )}
+                    <View style={styles.pollOptionLeft}>
+                      <Text
+                        style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
+                      </Text>
+                      {i === votedOptionIndex && (
+                        <CheckIcon size={16} color="#0463E2" />
+                      )}
+                    </View>
+                    <Text style={styles.pollVoteCount}>{opt.voteCount ?? 0}</Text>
                   </View>
                 </View>
               ) : (
@@ -258,6 +261,16 @@ function PostCard({
                 </TouchableOpacity>
               )
             )}
+            {/* Figma: hint before voting / total count after voting */}
+            <View style={styles.pollFooter}>
+              {hasVoted ? (
+                <Text style={styles.pollFooterText}>
+                  {t('totalVotes', { count: totalPollVotes })}
+                </Text>
+              ) : (
+                <Text style={styles.pollHintText}>{t('pollHint')}</Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -435,8 +448,21 @@ const styles = StyleSheet.create({
   pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
+  },
+  pollOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 1,
+    flexShrink: 1,
+  },
+  /* Figma: vote count on the right, 12px Regular #0C1015 */
+  pollVoteCount: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
   },
   pollBar: {
     position: 'absolute',
@@ -476,6 +502,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 12 * 1.4,
     color: '#0C1015',
+  },
+  /* Figma: footer row below poll options */
+  pollFooter: {
+    flexDirection: 'row',
+    marginTop: spacing.xxs,
+  },
+  /* Figma: "共 X 人投票" right-aligned, 12px Regular #9CA3AF */
+  pollFooterText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
+    marginLeft: 'auto',
+  },
+  /* Figma: "点击上方按钮，选择你的观点" left-aligned, 12px Regular #9CA3AF */
+  pollHintText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
   },
   pollTotal: {
     ...typography.bodySmall,

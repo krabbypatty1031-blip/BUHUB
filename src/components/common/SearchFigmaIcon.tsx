@@ -8,7 +8,7 @@ interface Props {
 }
 
 /** Figma 搜索图标 - 放大镜 + 光泽 + 把手 */
-export default function SearchFigmaIcon({ size = 26, color = '#0C1015' }: Props) {
+export default function SearchFigmaIcon({ size = 30, color = '#0C1015' }: Props) {
   return (
     <View style={{ width: size, height: size }}>
       {/* Circle */}

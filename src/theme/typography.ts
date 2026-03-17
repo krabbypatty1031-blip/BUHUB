@@ -9,6 +9,11 @@ const sourceHan = {
   heavy: 'SourceHanSansCN-Heavy',
 } as const;
 
+// D-DIN Exp (used for price display per Figma)
+export const dinExp = {
+  bold: 'DINExp-Bold',
+} as const;
+
 export const fontFamily = sourceHan;
 
 export const typography: Record<string, TextStyle> = {

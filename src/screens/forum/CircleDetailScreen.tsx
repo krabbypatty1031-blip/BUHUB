@@ -5,30 +5,34 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import ForwardSheet from '../../components/common/ForwardSheet';
-import { BackIcon } from '../../components/common/icons';
+import { BackIcon, PlusIcon } from '../../components/common/icons';
 import type { ForumPost } from '../../types';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const headerBg = require('../../../assets/images/campus-header-bg.png');
+
 type Props = NativeStackScreenProps<ForumStackParamList, 'CircleDetail'>;
 
 export default function CircleDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { tag } = route.params;
   const { data } = usePosts();
   const allPosts = useMemo(() => flattenPostPages(data), [data]);
@@ -48,7 +52,8 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const followed = circleFollow?.followed ?? false;
   const displayName = useMemo(() => {
     const translated = t(tag);
-    return translated !== tag ? translated : tag;
+    const name = translated !== tag ? translated : tag;
+    return name.replace(/^#\s*/, '');
   }, [tag, t]);
 
   // Filter posts by tag and exclude blocked users
@@ -57,44 +62,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     [allPosts, tag, blockedUsers, isBlocked]
   );
   const followerCount = circleFollow?.followerCount ?? 0;
-
-  const renderHeader = useCallback(
-    () => (
-      <View style={styles.circleHeader}>
-        <View style={styles.circleBody}>
-          <View style={styles.circleIcon}>
-            <Text style={styles.circleIconText}>
-              {displayName.replace(/^#/, '').charAt(0) || '#'}
-            </Text>
-          </View>
-          <View style={styles.circleInfo}>
-            <Text style={styles.circleName}>{displayName}</Text>
-            <Text style={styles.circleDesc}>
-              {t('circleDetail')}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.circleFooter}>
-          <View style={styles.circleStats}>
-            <View style={styles.circleStat}>
-              <Text style={styles.circleStatNum}>{followerCount}</Text>
-              <Text style={styles.circleStatLabel}>{t('fans')}</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.followBtn, followed && styles.followBtnActive]}
-            onPress={() => toggleCircleFollowMutation.mutate()}
-            disabled={toggleCircleFollowMutation.isPending}
-          >
-            <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-              {followed ? t('alreadyFollowed') : `+ ${t('follow')}`}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    ),
-    [displayName, followerCount, followed, t, toggleCircleFollowMutation]
-  );
+  const contentCount = posts.length;
 
   const handleTagPress = useCallback(
     (pressedTag: string) => {
@@ -215,23 +183,58 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('circleDetail')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+    <View style={styles.container}>
+      {/* Dark immersive header */}
+      <SafeAreaView edges={['top']} style={styles.darkHeader}>
+        <Image source={headerBg} style={styles.headerBgImage} resizeMode="cover" />
+        {/* Navigation bar */}
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <BackIcon size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+        {/* Circle info + Follow button */}
+        <View style={styles.headerContent}>
+          {/* Row 1: name */}
+          <View style={styles.circleNameRow}>
+            <Text style={styles.hashIcon}>#</Text>
+            <Text style={styles.circleNameText}>{displayName}</Text>
+          </View>
+          {/* Row 2: stats + follow button */}
+          <View style={styles.statsWithBtn}>
+            <View style={styles.statsRow}>
+              <Text style={styles.statsLabel}>{t('circleDetail')}</Text>
+              <Text style={styles.statsSep}>｜</Text>
+              <Text style={styles.statsNum}>{followerCount}</Text>
+              <Text style={styles.statsLabel}>{t('fansUnit')}</Text>
+              <Text style={styles.statsLabel}>·</Text>
+              <Text style={styles.statsNum}>{contentCount}</Text>
+              <Text style={styles.statsLabel}>{t('contentUnit')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.followBtn, followed && styles.followBtnActive]}
+              onPress={() => toggleCircleFollowMutation.mutate()}
+              disabled={toggleCircleFollowMutation.isPending}
+            >
+              {!followed && <PlusIcon size={15} color="#0C1015" />}
+              <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
+                {followed ? t('alreadyFollowed') : t('follow')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
 
-      <FlatList
-        data={posts}
-        ListHeaderComponent={renderHeader}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        extraData={votedPolls}
-        contentContainerStyle={styles.listContent}
-      />
+      {/* Posts area with rounded top corners */}
+      <View style={styles.postsWrapper}>
+        <FlatList
+          data={posts}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          extraData={votedPolls}
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
+        />
+      </View>
 
       <ForwardSheet
         visible={!!forwardPost}
@@ -245,113 +248,121 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
         initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#333333',
   },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+  darkHeader: {
+    backgroundColor: '#333333',
+    overflow: 'hidden',
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  headerBgImage: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    width: '100%',
+    height: '200%',
+    opacity: 0.04,
+  },
+  navBar: {
+    height: 62,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarTitle: {
-    flex: 1,
-    textAlign: 'center',
-    ...typography.titleMedium,
-    color: colors.onSurface,
+  headerContent: {
+    paddingLeft: 21,
+    paddingRight: 24,
+    paddingBottom: 20,
+    gap: 16,
   },
-  listContent: {
-    paddingBottom: spacing.lg,
-  },
-  // Circle Header
-  circleHeader: {
-    padding: spacing.lg,
-    backgroundColor: colors.surface3,
-    marginBottom: spacing.sm,
-  },
-  circleBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  circleIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primaryContainer,
-    borderWidth: 2.5,
-    borderColor: colors.onSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  circleIconText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  circleInfo: {
-    flex: 1,
-  },
-  circleName: {
-    ...typography.titleLarge,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  circleDesc: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  circleFooter: {
+  statsWithBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  circleStats: {
+  circleNameRow: {
     flexDirection: 'row',
-    gap: spacing.xxl,
-  },
-  circleStat: {
     alignItems: 'center',
+    gap: 8,
+    height: 25,
   },
-  circleStatNum: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    fontWeight: '600',
+  hashIcon: {
+    fontSize: 22,
+    fontFamily: fontFamily.bold,
+    color: '#0090F0',
+    lineHeight: 22,
   },
-  circleStatLabel: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+  circleNameText: {
+    fontSize: 26,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+    lineHeight: 26,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  statsLabel: {
+    fontSize: 12,
+    lineHeight: 12,
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  statsSep: {
+    fontSize: 12,
+    lineHeight: 12,
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.5)',
+    marginHorizontal: 4,
+  },
+  statsNum: {
+    fontSize: 12,
+    lineHeight: 12,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
   },
   followBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#EDF2F5',
+    borderWidth: 1,
+    borderColor: '#EDF2F5',
+    borderRadius: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   followBtnActive: {
-    backgroundColor: colors.surfaceVariant,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   followBtnText: {
-    ...typography.labelMedium,
-    color: colors.onPrimary,
+    fontSize: 14,
+    fontFamily: fontFamily.medium,
+    color: '#0C1015',
+    lineHeight: 20,
   },
   followBtnTextActive: {
-    color: colors.onSurfaceVariant,
+    color: '#FFFFFF',
+  },
+  postsWrapper: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
 });

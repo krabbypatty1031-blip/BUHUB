@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ForumStackParamList } from '../../types/navigation';
-import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
+import { usePosts, useFollowingPosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -51,12 +51,22 @@ export default function ForumScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts();
-  const allPosts = useMemo(() => flattenPostPages(data), [data]);
+  const [feedTab, setFeedTab] = useState<'following' | 'discover'>('discover');
+  // Both queries always enabled — cached data makes tab switching instant
+  const discoverQuery = usePosts(true);
+  const followingQuery = useFollowingPosts(true);
+  const activeQuery = feedTab === 'following' ? followingQuery : discoverQuery;
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = activeQuery;
+  // Separate posts arrays for each tab
+  const discoverAllPosts = useMemo(() => flattenPostPages(discoverQuery.data), [discoverQuery.data]);
+  const followingAllPosts = useMemo(() => flattenPostPages(followingQuery.data), [followingQuery.data]);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
   const pollListRefreshKey = useForumStore((s) => s.pollListRefreshKey);
-  const posts = useMemo(() => allPosts.filter((p) => !isBlocked(p.name)), [allPosts, blockedUsers, isBlocked]);
+  const discoverPosts = useMemo(() => discoverAllPosts.filter((p) => !isBlocked(p.name)), [discoverAllPosts, blockedUsers, isBlocked]);
+  const followingPosts = useMemo(() => followingAllPosts.filter((p) => !isBlocked(p.name)), [followingAllPosts, blockedUsers, isBlocked]);
+  const posts = feedTab === 'following' ? followingPosts : discoverPosts;
+  const allPosts = feedTab === 'following' ? followingAllPosts : discoverAllPosts;
   const votedPolls = useForumStore((s) => s.votedPolls);
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
@@ -78,12 +88,22 @@ export default function ForumScreen({ navigation, route }: Props) {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const discoverListRef = useRef<any>(null);
+  const followingListRef = useRef<any>(null);
+  const listRef = feedTab === 'following' ? followingListRef : discoverListRef;
 
   // Restore tab bar when screen gets focus
   useFocusEffect(
     useCallback(() => {
       show();
-    }, [show])
+      // Scroll to top if a new post was just composed (flag set by ComposeScreen)
+      if (queryClient.getQueryData<boolean>(['posts:scrollToTop'])) {
+        queryClient.setQueryData(['posts:scrollToTop'], false);
+        setTimeout(() => {
+          listRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }, 100);
+      }
+    }, [show, queryClient])
   );
 
   useEffect(() => {
@@ -334,51 +354,105 @@ export default function ForumScreen({ navigation, route }: Props) {
 
   return (
       <View style={styles.container}>
-      {/* Top Bar */}
+      {/* Top Bar with Following / Discover tabs */}
       <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <Text style={styles.topBarTitle}>UHUB</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => navigation.navigate('Search')}
-        >
-          <SearchFigmaIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
+        <View style={styles.feedTabs}>
+          <TouchableOpacity
+            style={styles.feedTab}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (feedTab === 'following') return;
+              setFeedTab('following');
+              show();
+            }}
+          >
+            <Text style={feedTab === 'following' ? styles.feedTabTextActive : styles.feedTabText}>
+              {t('following')}
+            </Text>
+            {feedTab === 'following' && <View style={styles.feedTabIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.feedTab}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (feedTab === 'discover') return;
+              setFeedTab('discover');
+              show();
+            }}
+          >
+            <Text style={feedTab === 'discover' ? styles.feedTabTextActive : styles.feedTabText}>
+              {t('discover')}
+            </Text>
+            {feedTab === 'discover' && <View style={styles.feedTabIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('Search')}
+          >
+            <SearchFigmaIcon size={30} color="#0C1015" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Post List */}
-      <FlashList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        extraData={listExtraData}
-        refreshing={isPullRefreshing}
-        onRefresh={() => {
-          void handleRefresh();
-        }}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.5}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        removeClippedSubviews={false}
-        contentContainerStyle={styles.listContent}
-        drawDistance={700}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={
-          showInitialSkeleton ? (
-            <ForumListSkeleton />
-          ) : isError ? (
-            <EmptyState
-              icon={<AlertTriangleIcon size={36} color={colors.error} />}
-              title={t('loadFailed')}
-            />
-          ) : (
-            <EmptyState
-              icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
-              title={t('noPosts')}
-            />
-          )
-        }
-      />
+      {/* Two stacked lists — both stay mounted, only active one is visible */}
+      <View style={styles.feedContainer}>
+        <View style={[styles.feedLayer, feedTab !== 'discover' && styles.feedLayerHidden]} pointerEvents={feedTab === 'discover' ? 'auto' : 'none'}>
+          <FlashList
+            ref={discoverListRef}
+            data={discoverPosts}
+            renderItem={renderPost}
+            keyExtractor={(item) => item.id}
+            extraData={listExtraData}
+            refreshing={feedTab === 'discover' && isPullRefreshing}
+            onRefresh={() => { void handleRefresh(); }}
+            onEndReached={feedTab === 'discover' ? handleEndReached : undefined}
+            onEndReachedThreshold={0.5}
+            onScroll={feedTab === 'discover' ? onScroll : undefined}
+            scrollEventThrottle={16}
+            removeClippedSubviews={false}
+            contentContainerStyle={styles.listContent}
+            drawDistance={700}
+            ListFooterComponent={feedTab === 'discover' ? renderFooter : null}
+            ListEmptyComponent={
+              discoverQuery.isLoading && discoverAllPosts.length === 0 ? (
+                <ForumListSkeleton />
+              ) : discoverQuery.isError ? (
+                <EmptyState icon={<AlertTriangleIcon size={36} color={colors.error} />} title={t('loadFailed')} />
+              ) : (
+                <EmptyState icon={<EditIcon size={36} color={colors.onSurfaceVariant} />} title={t('noPosts')} />
+              )
+            }
+          />
+        </View>
+        <View style={[styles.feedLayer, feedTab !== 'following' && styles.feedLayerHidden]} pointerEvents={feedTab === 'following' ? 'auto' : 'none'}>
+          <FlashList
+            ref={followingListRef}
+            data={followingPosts}
+            renderItem={renderPost}
+            keyExtractor={(item) => item.id}
+            extraData={listExtraData}
+            refreshing={feedTab === 'following' && isPullRefreshing}
+            onRefresh={() => { void handleRefresh(); }}
+            onEndReached={feedTab === 'following' ? handleEndReached : undefined}
+            onEndReachedThreshold={0.5}
+            onScroll={feedTab === 'following' ? onScroll : undefined}
+            scrollEventThrottle={16}
+            removeClippedSubviews={false}
+            contentContainerStyle={styles.listContent}
+            drawDistance={700}
+            ListFooterComponent={feedTab === 'following' ? renderFooter : null}
+            ListEmptyComponent={
+              followingQuery.isLoading && followingAllPosts.length === 0 ? (
+                <ForumListSkeleton />
+              ) : followingQuery.isError ? (
+                <EmptyState icon={<AlertTriangleIcon size={36} color={colors.error} />} title={t('loadFailed')} />
+              ) : (
+                <EmptyState icon={<EditIcon size={36} color={colors.onSurfaceVariant} />} title={t('noFollowingPosts')} />
+              )
+            }
+          />
+        </View>
+      </View>
 
       {/* FAB */}
       <Animated.View style={[styles.fabWrapper, fabAnimatedStyle]}>
@@ -484,25 +558,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F6F9',
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 12,
     backgroundColor: colors.white,
   },
-  topBarTitle: {
-    fontSize: 32,
-    lineHeight: 36,
-    color: '#1C1C1E',
-    fontFamily: 'SourceHanSansCN-Heavy',
-    letterSpacing: -0.75,
-  },
-  iconBtn: {
-    width: 44,
-    height: 44,
+  feedTabs: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 44,
+    gap: 24,
+  },
+  feedTab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  /* Figma: active 18px Bold #0C1015 */
+  feedTabTextActive: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+  },
+  /* Figma: inactive 16px Regular #86909C */
+  feedTabText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  /* Figma: 15x3 black indicator bar below active tab */
+  feedTabIndicator: {
+    width: 15,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#0C1015',
+    marginTop: 2,
+  },
+  iconBtn: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  feedLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  feedLayerHidden: {
+    opacity: 0,
   },
   listContent: {
     paddingBottom: 100,

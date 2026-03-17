@@ -28,6 +28,7 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import {
   BackIcon,
   RepostIcon,
@@ -46,11 +47,17 @@ type CardItem =
   | { kind: 'errand'; data: Errand; id: string }
   | { kind: 'secondhand'; data: SecondhandItem; id: string };
 
+function isCardExpired(card: CardItem, now: number): boolean {
+  const expired = isExpiredNow(card.data.expired, card.data.expiresAt, now);
+  return card.kind === 'secondhand' ? expired && !card.data.sold : expired;
+}
+
 export default function MyPostsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const currentUser = useAuthStore((s) => s.user);
   const nickname = currentUser?.nickname || currentUser?.name || '娴稿ぇ灏忔槑';
+  const now = useExpirationTick(30000);
   const { data: partners } = useMyPartners();
   const { data: errands } = useMyErrands();
   const { data: secondhandItems } = useMySecondhand();
@@ -66,7 +73,6 @@ export default function MyPostsScreen({ navigation }: Props) {
   const [actionItem, setActionItem] = useState<CardItem | null>(null);
 
   const allPosts = useMemo(() => {
-    const now = new Date().getTime();
     const items: CardItem[] = [];
     if (partners) {
       partners.forEach((item) => {
@@ -86,8 +92,8 @@ export default function MyPostsScreen({ navigation }: Props) {
     const kindOrder = { partner: 0, errand: 1, secondhand: 2 };
 
     items.sort((a, b) => {
-      const aExpired = new Date(a.data.expiresAt).getTime() < now;
-      const bExpired = new Date(b.data.expiresAt).getTime() < now;
+      const aExpired = isCardExpired(a, now);
+      const bExpired = isCardExpired(b, now);
       if (aExpired !== bExpired) {
         return aExpired ? 1 : -1;
       }
@@ -97,7 +103,7 @@ export default function MyPostsScreen({ navigation }: Props) {
     });
 
     return items;
-  }, [partners, errands, secondhandItems, nickname]);
+  }, [partners, errands, secondhandItems, nickname, now]);
 
   const handlePress = useCallback(
     (card: CardItem) => {
@@ -133,9 +139,6 @@ export default function MyPostsScreen({ navigation }: Props) {
     [navigation]
   );
 
-  const isExpired = (card: CardItem): boolean => {
-    return card.data.expired;
-  };
   const handleClosePost = useCallback(
     async (item: CardItem) => {
       try {
@@ -205,7 +208,7 @@ export default function MyPostsScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: CardItem }) => {
-      const expired = isExpired(item);
+      const expired = isCardExpired(item, now);
       const d = item.data;
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: d.gradeKey,
@@ -302,7 +305,7 @@ export default function MyPostsScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [handleAvatarPress, handlePress, t, lang]
+    [handleAvatarPress, handlePress, t, lang, now]
   );
 
   return (
@@ -383,7 +386,7 @@ export default function MyPostsScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {/* 浠呮湭杩囨湡甯栧瓙鏄剧ず鍏抽棴閫夐」 */}
-            {!actionItem?.data.expired && (
+            {(!actionItem || !isCardExpired(actionItem, now)) && (
               <TouchableOpacity
                 style={styles.actionRowCenter}
                 onPress={() => {
@@ -649,4 +652,3 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
 });
-

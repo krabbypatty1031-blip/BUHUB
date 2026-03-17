@@ -31,6 +31,7 @@ import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import {
   BackIcon,
   UsersIcon,
@@ -51,7 +52,9 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const { data: partner, isLoading: isPartnerLoading } = usePartnerDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
+  const now = useExpirationTick(30000);
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, partner?.authorId, partner?.user);
+  const isExpired = partner ? isExpiredNow(partner.expired, partner.expiresAt, now) : false;
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -225,7 +228,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             <View style={styles.tag}>
               <Text style={styles.tagText}>{t(partner.category)}</Text>
             </View>
-            {partner.expired && (
+            {isExpired && (
               <>
                 <View style={styles.tagDot} />
                 <View style={styles.statusTag}>
@@ -330,12 +333,12 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 
         {/* ----- Action Bar ----- */}
         {!isOwnPost && (
-          <View style={[styles.actionBar, partner.expired && styles.actionBarDisabled]}>
+          <View style={[styles.actionBar, isExpired && styles.actionBarDisabled]}>
             <TouchableOpacity
               style={styles.dmButton}
               activeOpacity={0.7}
               onPress={handleDmOrganizer}
-              disabled={partner.expired}
+              disabled={isExpired}
             >
               <MessageIcon size={18} color={colors.onPrimary} />
               <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
@@ -628,5 +631,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
-
 

@@ -64,14 +64,17 @@ export function FacilityFnIcon({ size = 28, color = '#C76FF6' }: IconProps) {
   );
 }
 
-/** 我的发布 – document with lines */
-export function MyPostsFnIcon({ size = 28, color = '#7C3AED' }: IconProps) {
+/** AI 课表 – calendar with AI text (exact Figma SVG) */
+export function AIScheduleFnIcon({ size = 28, color = '#5B73FF' }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <Path d="M16.333 3.5H7A2.333 2.333 0 004.667 5.833v16.334A2.333 2.333 0 007 24.5h14a2.333 2.333 0 002.333-2.333V10.5L16.333 3.5z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
-      <Path d="M15.167 3.5v8.167h8.166" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M10.5 15.167h7" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M10.5 19.833h4.667" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M24.5 5.83333H3.5C2.85567 5.83333 2.33333 6.35567 2.33333 7V22.1667C2.33333 22.811 2.85567 23.3333 3.5 23.3333H24.5C25.1443 23.3333 25.6667 22.811 25.6667 22.1667V7C25.6667 6.35567 25.1443 5.83333 24.5 5.83333Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8.16667 3.5V8.16667" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M10.5 13.4167L8.16667 13.4167" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M19.5506 15.8667H18.3543V10.8901H19.5506V15.8667Z" fill={color} />
+      <Path d="M16.3274 14.937H14.6834L14.3963 15.8667H13.1145L14.9397 10.8901H16.0676L17.9065 15.8667H16.6179L16.3274 14.937ZM14.9705 14.0107H16.0403L15.5037 12.2846L14.9705 14.0107Z" fill={color} />
+      <Path d="M19.8333 18.0833H8.16667" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M19.8333 3.5V8.16667" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }

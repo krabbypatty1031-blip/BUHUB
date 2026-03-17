@@ -284,7 +284,7 @@ function updateMyContentPostBookmark(
   };
 }
 
-export function usePosts() {
+export function usePosts(enabled = true) {
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
     queryKey: ['posts'],
     queryFn: ({ pageParam }) =>
@@ -292,7 +292,21 @@ export function usePosts() {
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
-    staleTime: 60 * 1000, // 1 minute for the live feed
+    staleTime: 60 * 1000,
+    enabled,
+  });
+}
+
+export function useFollowingPosts(enabled = true) {
+  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
+    queryKey: ['posts', 'following'],
+    queryFn: ({ pageParam }) =>
+      forumService.getFollowingPosts({ page: pageParam, limit: POSTS_LIMIT }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
+    staleTime: 60 * 1000,
+    enabled,
   });
 }
 
@@ -463,6 +477,13 @@ export function useDeleteComment(postId: string) {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        mapPostsPages(old, (post) =>
+          post.id === postId
+            ? { ...post, comments: Math.max(0, post.comments - 1) }
+            : post
+        )
+      );
     },
   });
 }

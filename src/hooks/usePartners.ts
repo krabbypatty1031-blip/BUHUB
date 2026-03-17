@@ -30,6 +30,7 @@ export function useMyPartners(category?: PartnerCategory) {
   return useQuery({
     queryKey: ['partners', 'all', category],
     queryFn: () => partnerService.getList(category || undefined, { includeExpired: true }),
+    refetchInterval: 2 * 60 * 1000,
   });
 }
 

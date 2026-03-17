@@ -30,6 +30,7 @@ export function useMyErrands(category?: ErrandCategory) {
   return useQuery({
     queryKey: ['errands', 'all', category],
     queryFn: () => errandService.getList(category || undefined, { includeExpired: true }),
+    refetchInterval: 2 * 60 * 1000,
   });
 }
 

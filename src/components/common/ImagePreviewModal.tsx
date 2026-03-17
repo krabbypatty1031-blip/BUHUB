@@ -104,7 +104,7 @@ export default function ImagePreviewModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
@@ -313,17 +313,16 @@ function ZoomableImage({
   });
 
   const longPressGesture = Gesture.LongPress()
-    .minDuration(500)
-    .onEnd((_event, success) => {
-      if (success && scale.value <= 1.01) {
+    .minDuration(350)
+    .onStart(() => {
+      if (scale.value <= 1.01) {
         runOnJS(onLongPress)();
       }
     });
 
-  const gesture = Gesture.Exclusive(
+  const gesture = Gesture.Race(
     Gesture.Simultaneous(pinchGesture, panGesture),
-    longPressGesture,
-    tapGesture,
+    Gesture.Exclusive(longPressGesture, tapGesture),
   );
 
   const animatedStyle = useAnimatedStyle(() => ({

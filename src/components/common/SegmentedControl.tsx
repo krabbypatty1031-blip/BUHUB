@@ -28,6 +28,9 @@ interface SegmentedControlProps<T extends string = string> {
   value: T;
   onChange: (value: T) => void;
   style?: StyleProp<ViewStyle>;
+  activeTextColor?: string;
+  inactiveTextColor?: string;
+  containerHeight?: number;
 }
 
 interface SegmentMeasurement {
@@ -40,6 +43,9 @@ export default function SegmentedControl<T extends string = string>({
   value,
   onChange,
   style,
+  activeTextColor,
+  inactiveTextColor,
+  containerHeight,
 }: SegmentedControlProps<T>) {
   const [measurements, setMeasurements] = useState<Map<T, SegmentMeasurement>>(new Map());
   const indicatorX = useSharedValue(0);
@@ -70,7 +76,7 @@ export default function SegmentedControl<T extends string = string>({
   }));
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, containerHeight != null && { height: containerHeight }, style]}>
       {/* Sliding indicator */}
       <Animated.View style={[styles.indicator, animatedIndicatorStyle]} />
 
@@ -91,7 +97,9 @@ export default function SegmentedControl<T extends string = string>({
             <Text
               style={[
                 styles.segmentText,
+                inactiveTextColor != null && { color: inactiveTextColor },
                 isActive && styles.segmentTextActive,
+                isActive && activeTextColor != null && { color: activeTextColor },
               ]}
             >
               {option.label}

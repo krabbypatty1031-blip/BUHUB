@@ -1174,7 +1174,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const handleSendComment = useCallback(() => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || createCommentMutation.isPending) return;
     createCommentMutation.mutate(
       {
         content: commentText.trim(),
@@ -1731,9 +1731,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             textAlignVertical="top"
           />
           <TouchableOpacity
-            style={[styles.sendBtn, !commentText.trim() && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, (!commentText.trim() || createCommentMutation.isPending) && styles.sendBtnDisabled]}
             onPress={handleSendComment}
-            disabled={!commentText.trim()}
+            disabled={!commentText.trim() || createCommentMutation.isPending}
           >
             <SendIcon
               size={20}

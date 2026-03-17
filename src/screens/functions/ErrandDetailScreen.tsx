@@ -31,6 +31,7 @@ import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import {
   BackIcon,
   DollarIcon,
@@ -54,7 +55,9 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const { data: errand, isLoading: isErrandLoading } = useErrandDetail(id);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const currentUser = useAuthStore((s) => s.user);
+  const now = useExpirationTick(30000);
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, errand?.authorId, errand?.user);
+  const isExpired = errand ? isExpiredNow(errand.expired, errand.expiresAt, now) : false;
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -227,7 +230,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <View style={styles.tag}>
               <Text style={styles.tagText}>{t(errand.category)}</Text>
             </View>
-            {errand.expired && (
+            {isExpired && (
               <>
                 <View style={styles.tagDot} />
                 <View style={styles.statusTag}>
@@ -399,12 +402,12 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         {/* ----- Action Bar ----- */}
         {!isOwnPost && (
-          <View style={[styles.actionBar, errand.expired && styles.actionBarDisabled]}>
+          <View style={[styles.actionBar, isExpired && styles.actionBarDisabled]}>
             <TouchableOpacity
               style={styles.dmButton}
               activeOpacity={0.7}
               onPress={handleDmPoster}
-              disabled={errand.expired}
+              disabled={isExpired}
             >
               <MessageIcon size={18} color={colors.onPrimary} />
               <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
@@ -785,5 +788,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
-
 

@@ -28,6 +28,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -66,6 +67,11 @@ export default function PartnerListScreen({ navigation }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePartners(selectedCategory || undefined);
   const partners = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+  const now = useExpirationTick(30000);
+  const visiblePartners = useMemo(
+    () => partners.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    [partners, now]
+  );
 
   useEffect(() => {
     if (partners.length > 0 && !expiredNotified) {
@@ -102,14 +108,14 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const filteredPartners = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    if (!query) return partners;
-    return partners.filter((item) =>
+    if (!query) return visiblePartners;
+    return visiblePartners.filter((item) =>
       item.title.toLowerCase().includes(query) ||
       item.desc.toLowerCase().includes(query) ||
       item.location.toLowerCase().includes(query) ||
       item.user.toLowerCase().includes(query)
     );
-  }, [partners, searchText]);
+  }, [visiblePartners, searchText]);
 
   const handleDmOrganizer = useCallback(
     (item: PartnerPost, functionId: string) => {
@@ -156,6 +162,7 @@ export default function PartnerListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
       const isJoined = item.id in joinedActivities;
+      const expired = isExpiredNow(item.expired, item.expiresAt, now);
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
@@ -164,7 +171,7 @@ export default function PartnerListScreen({ navigation }: Props) {
       return (
         <PageTranslationProvider>
         <TouchableOpacity
-          style={[styles.card, item.expired && styles.cardExpired]}
+          style={[styles.card, expired && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('PartnerDetail', { id: item.id })}
         >
@@ -194,7 +201,7 @@ export default function PartnerListScreen({ navigation }: Props) {
                 </Text>
               ) : null}
             </View>
-            {!item.expired && (
+            {!expired && (
               <TouchableOpacity
                 style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -227,14 +234,14 @@ export default function PartnerListScreen({ navigation }: Props) {
             />
 
             {/* Badges */}
-            {(isJoined || item.expired) && (
+            {(isJoined || expired) && (
               <View style={styles.badgeRow}>
                 {isJoined && (
                   <View style={styles.joinedBadge}>
                     <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
                   </View>
                 )}
-                {item.expired && (
+                {expired && (
                   <View style={styles.expiredBadge}>
                     <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
                   </View>
@@ -249,7 +256,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [joinedActivities, navigation, t, lang, handleAvatarPress]
+    [joinedActivities, navigation, t, lang, now, handleAvatarPress]
   );
 
   return (
@@ -622,4 +629,3 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 });
-

@@ -28,6 +28,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -64,6 +65,11 @@ export default function ErrandListScreen({ navigation }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useErrands(selectedCategory || undefined);
   const errands = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+  const now = useExpirationTick(30000);
+  const visibleErrands = useMemo(
+    () => errands.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    [errands, now]
+  );
 
   useEffect(() => {
     if (errands.length > 0 && !expiredNotified) {
@@ -123,8 +129,8 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   const filteredErrands = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    if (!query) return errands;
-    return errands.filter((item) =>
+    if (!query) return visibleErrands;
+    return visibleErrands.filter((item) =>
       item.title.toLowerCase().includes(query) ||
       item.desc.toLowerCase().includes(query) ||
       item.item.toLowerCase().includes(query) ||
@@ -132,7 +138,7 @@ export default function ErrandListScreen({ navigation }: Props) {
       item.to.toLowerCase().includes(query) ||
       item.user.toLowerCase().includes(query)
     );
-  }, [errands, searchText]);
+  }, [visibleErrands, searchText]);
 
   const isActionItemOwnPost = useMemo(
     () =>
@@ -155,6 +161,7 @@ export default function ErrandListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: Errand }) => {
       const isAccepted = item.id in acceptedErrands;
+      const expired = isExpiredNow(item.expired, item.expiresAt, now);
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
@@ -163,7 +170,7 @@ export default function ErrandListScreen({ navigation }: Props) {
       return (
         <PageTranslationProvider>
         <TouchableOpacity
-          style={[styles.card, item.expired && styles.cardExpired]}
+          style={[styles.card, expired && styles.cardExpired]}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('ErrandDetail', { id: item.id })}
         >
@@ -193,7 +200,7 @@ export default function ErrandListScreen({ navigation }: Props) {
                 </Text>
               ) : null}
             </View>
-            {!item.expired && (
+            {!expired && (
               <TouchableOpacity
                 style={styles.moreBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -233,7 +240,7 @@ export default function ErrandListScreen({ navigation }: Props) {
                   <Text style={styles.acceptedBadgeText}>{t('accepted')}</Text>
                 </View>
               )}
-              {item.expired && (
+              {expired && (
                 <View style={styles.expiredBadge}>
                   <Text style={styles.expiredBadgeText}>{t('errandExpired')}</Text>
                 </View>
@@ -245,7 +252,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         </PageTranslationProvider>
       );
     },
-    [acceptedErrands, navigation, t, lang, handleAvatarPress]
+    [acceptedErrands, navigation, t, lang, now, handleAvatarPress]
   );
 
   return (
@@ -637,4 +644,3 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 });
-

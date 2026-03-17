@@ -28,6 +28,7 @@ export default function App() {
     'SourceHanSansCN-Bold': require(`${FONT_DIR}/Source Han Sans CN Bold.otf`),
     'SourceHanSansCN-Heavy': require(`${FONT_DIR}/Source Han Sans CN Heavy.otf`),
     'SourceHanSansCN-Light': require(`${FONT_DIR}/Source Han Sans CN Light.otf`),
+    'DINExp-Bold': require('./assets/fonts/d-din/D-DINExp-Bold.otf'),
   });
 
   if (!fontsLoaded) {

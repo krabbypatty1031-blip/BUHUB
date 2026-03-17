@@ -395,6 +395,22 @@ export const forumService = {
     };
   },
 
+  async getFollowingPosts(params?: PaginationParams): Promise<{ posts: ForumPost[]; hasMore: boolean; page: number }> {
+    if (USE_MOCK) {
+      return { posts: [], hasMore: false, page: 1 };
+    }
+    const { data } = await apiClient.get(ENDPOINTS.FEED.FOLLOWING, { params });
+    if (Array.isArray(data)) {
+      return { posts: data.map((post: ApiPostRecord) => mapPostRecord(post)), hasMore: false, page: 1 };
+    }
+    const { posts: rawPosts, hasMore, page } = data as ApiPostsResponse;
+    return {
+      posts: (Array.isArray(rawPosts) ? rawPosts : []).map((post: ApiPostRecord) => mapPostRecord(post)),
+      hasMore: !!hasMore,
+      page: page ?? 1,
+    };
+  },
+
   async getPostDetail(postId: string): Promise<ForumPost> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');

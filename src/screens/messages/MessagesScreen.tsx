@@ -26,20 +26,19 @@ import { useMessageStore } from '../../store/messageStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useForumStore } from '../../store/forumStore';
 import { useUIStore } from '../../store/uiStore';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
 import {
-  HeartIcon,
-  UserIcon,
-  CommentIcon,
-  SearchIcon,
   CloseIcon,
   MessageIcon,
 } from '../../components/common/icons';
+import {
+  FigmaSearchIcon,
+  FigmaHeartIcon,
+  FigmaNewFollowerIcon,
+  FigmaCommentIcon,
+} from '../../components/messages/MessagesFigmaIcons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'MessagesList'>;
@@ -51,25 +50,24 @@ interface NotifyEntry {
   countKey: 'unreadLikes' | 'unreadFollowers' | 'unreadComments';
 }
 
-const ICON_SIZE = 60;
-const NOTIFY_ICON_SIZE = 32;
+const NOTIFY_ICON_SIZE = 30;
 
 const NOTIFY_ENTRIES: NotifyEntry[] = [
   {
     key: 'NotifyLikes',
-    icon: <HeartIcon size={NOTIFY_ICON_SIZE} color="#FF6B7A" fill="#FF6B7A" />,
+    icon: <FigmaHeartIcon size={NOTIFY_ICON_SIZE} />,
     labelKey: 'likeNotifications',
     countKey: 'unreadLikes',
   },
   {
     key: 'NotifyFollowers',
-    icon: <UserIcon size={NOTIFY_ICON_SIZE} color="#4A90FF" />,
+    icon: <FigmaNewFollowerIcon size={NOTIFY_ICON_SIZE} />,
     labelKey: 'followerNotifications',
     countKey: 'unreadFollowers',
   },
   {
     key: 'NotifyComments',
-    icon: <CommentIcon size={NOTIFY_ICON_SIZE} color="#4CD964" fill="#4CD964" />,
+    icon: <FigmaCommentIcon size={NOTIFY_ICON_SIZE} />,
     labelKey: 'commentNotifications',
     countKey: 'unreadComments',
   },
@@ -116,34 +114,22 @@ const ContactRow = React.memo(function ContactRow({
         activeOpacity={0.8}
         onPress={onAvatarPress}
       >
-        <Avatar text={item.name} uri={item.avatar || null} size="md" gender={item.gender} />
+        <Avatar text={item.name} uri={item.avatar || null} size="ml" gender={item.gender} />
+        {showUnread && <View style={styles.avatarUnreadDot} />}
       </TouchableOpacity>
-      <View style={styles.contactInfo}>
-        <View style={styles.contactNameRow}>
+      <View style={styles.contactContent}>
+        <View style={styles.contactTextCol}>
           <Text style={styles.contactName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.contactTime}>{item.time}</Text>
-        </View>
-        <View style={styles.contactMessageRow}>
           <Text
             style={[styles.contactMessage, isMuted && styles.contactMessageMuted]}
             numberOfLines={1}
           >
             {isMuted ? '\u{1F507} ' : ''}{item.message}
           </Text>
-          {showUnread ? (
-            isMuted ? (
-              <View style={styles.unreadDot} />
-            ) : (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>
-                  {effectiveUnread > 99 ? '99+' : effectiveUnread}
-                </Text>
-              </View>
-            )
-          ) : null}
         </View>
+        <Text style={styles.contactTime}>{item.time}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -374,42 +360,32 @@ export default function MessagesScreen({ navigation }: Props) {
   /* List header: user avatar + notifications */
   const renderHeader = useCallback(() => {
     return (
-      <View>
-        {/* Notification entries */}
-        <View style={styles.notifySection}>
-          {NOTIFY_ENTRIES.map((entry) => {
-            const count = unreadCounts[entry.countKey];
-            return (
-              <TouchableOpacity
-                key={entry.key}
-                style={styles.notifyCard}
-                activeOpacity={0.7}
-                onPress={() => handleOpenNotification(entry)}
-              >
-                <View style={styles.notifyIconSquare}>
-                  {entry.icon}
-                  {count > 0 && (
-                    <View style={styles.notifyBadge}>
-                      <Text style={styles.notifyBadgeText}>
-                        {count > 99 ? '99+' : count}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.notifyLabel} numberOfLines={1}>
-                  {t(entry.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Section label */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {t('recentChats')}
-          </Text>
-        </View>
+      <View style={styles.notifySection}>
+        {NOTIFY_ENTRIES.map((entry) => {
+          const count = unreadCounts[entry.countKey];
+          return (
+            <TouchableOpacity
+              key={entry.key}
+              style={styles.notifyCard}
+              activeOpacity={0.7}
+              onPress={() => handleOpenNotification(entry)}
+            >
+              <View style={styles.notifyIconWrap}>
+                {entry.icon}
+                {count > 0 && (
+                  <View style={styles.notifyBadge}>
+                    <Text style={styles.notifyBadgeText}>
+                      {count > 99 ? '99+' : count}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.notifyLabel} numberOfLines={1}>
+                {t(entry.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
   }, [handleOpenNotification, t, unreadCounts]);
@@ -478,9 +454,9 @@ export default function MessagesScreen({ navigation }: Props) {
           onPress={toggleSearch}
         >
           {showSearch ? (
-            <CloseIcon size={24} color={colors.onSurface} />
+            <CloseIcon size={30} color="#010101" />
           ) : (
-            <SearchIcon size={24} color={colors.onSurface} />
+            <FigmaSearchIcon size={30} />
           )}
         </TouchableOpacity>
       </View>
@@ -488,18 +464,18 @@ export default function MessagesScreen({ navigation }: Props) {
       {/* Search Bar (expandable) */}
       {showSearch && (
         <View style={styles.searchBar}>
-          <SearchIcon size={18} color={colors.onSurfaceVariant} />
+          <FigmaSearchIcon size={18} color="#999999" />
           <TextInput
             style={styles.searchInput}
             placeholder={t('searchMessagesPlaceholder')}
-            placeholderTextColor={colors.onSurfaceVariant}
+            placeholderTextColor={'#999999'}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <CloseIcon size={18} color={colors.onSurfaceVariant} />
+              <CloseIcon size={18} color={'#999999'} />
             </TouchableOpacity>
           )}
         </View>
@@ -523,14 +499,14 @@ export default function MessagesScreen({ navigation }: Props) {
             showSearch && searchQuery.trim() ? (
               <EmptyState
                 icon={
-                  <SearchIcon size={36} color={colors.onSurfaceVariant} />
+                  <FigmaSearchIcon size={36} color="#999999" />
                 }
                 title={t('noSearchResults')}
               />
             ) : (
               <EmptyState
                 icon={
-                  <MessageIcon size={36} color={colors.onSurfaceVariant} />
+                  <MessageIcon size={36} color={'#999999'} />
                 }
                 title={t('noMessages')}
               />
@@ -599,7 +575,7 @@ export default function MessagesScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={handleActionBlock}
             >
-              <Text style={[styles.actionSheetText, { color: colors.error }]}>
+              <Text style={[styles.actionSheetText, { color: '#ED4956' }]}>
                 {t('blockContact')}
               </Text>
             </TouchableOpacity>
@@ -611,7 +587,7 @@ export default function MessagesScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={() => setActionSheetContact(null)}
             >
-              <Text style={[styles.actionSheetText, { color: colors.onSurfaceVariant }]}>
+              <Text style={[styles.actionSheetText, { color: '#999999' }]}>
                 {t('cancel')}
               </Text>
             </TouchableOpacity>
@@ -625,29 +601,27 @@ export default function MessagesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
 
-  /* Top Bar */
+  /* Top Bar — Figma: title left:20 top:68, icon left:330 top:76 */
   topBar: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingTop: 24,
+    paddingBottom: 16,
+    paddingLeft: 20,
+    paddingRight: 30,
   },
   topBarTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.onSurface,
+    fontSize: 32,
     fontFamily: 'SourceHanSansCN-Bold',
-    letterSpacing: -0.5,
+    color: '#0C1015',
   },
   topBarIconBtn: {
-    width: 44,
-    height: 44,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -656,77 +630,71 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    paddingHorizontal: 12,
     height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
-    gap: spacing.sm,
+    borderRadius: 9999,
+    backgroundColor: '#F5F5F5',
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    ...typography.bodyMedium,
-    color: colors.onSurface,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
     height: 44,
     padding: 0,
   },
 
-  /* Notification section */
+  /* Notification section — Figma: 3 cards gap:19, centered, top:150 */
   notifySection: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'center',
+    gap: 19,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
   notifyCard: {
+    width: 96,
+    height: 83,
+    backgroundColor: '#F7F7F7',
+    borderRadius: 16,
     alignItems: 'center',
-    gap: spacing.md,
-    minWidth: 80,
+    paddingTop: 16,
+    gap: 6,
   },
-  notifyIconSquare: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
+  notifyIconWrap: {
+    width: 30,
+    height: 30,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
   notifyBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: -6,
+    right: -10,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.error,
+    backgroundColor: '#ED4956',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: colors.background,
+    borderColor: '#FFFFFF',
   },
   notifyBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: '#FFFFFF',
   },
   notifyLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#000000',
     textAlign: 'center',
-  },
-
-  /* Section header */
-  sectionHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  sectionTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
   },
 
   /* Contact list */
@@ -734,109 +702,104 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 100,
   },
+  /* Figma: left:20, py:16, gap:11, avatar 50px */
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 11,
   },
   contactItemPinned: {
-    backgroundColor: colors.surface3,
+    backgroundColor: '#EEEEEE',
   },
   contactSeparator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginLeft: 76,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    marginLeft: 81,
   },
+  /* Figma: avatar 50px with unread dot at right:4 top:2 */
   contactAvatarWrap: {
     position: 'relative',
+    width: 50,
+    height: 50,
   },
-  contactInfo: {
+  avatarUnreadDot: {
+    position: 'absolute',
+    right: 4,
+    top: 2,
+    width: 7,
+    height: 7,
+    borderRadius: 36,
+    backgroundColor: '#E35B49',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  /* Figma: row with items-start, left column + time */
+  contactContent: {
     flex: 1,
-    gap: spacing.xxs,
-  },
-  contactNameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
+  contactTextCol: {
+    flex: 1,
+    gap: 7,
+    marginRight: 8,
+  },
+  /* Figma: 14px Bold #3F3F41 */
   contactName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    flex: 1,
-    marginRight: spacing.sm,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#3F3F41',
   },
-  contactTime: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  contactMessageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
+  /* Figma: 12px Regular #999 */
   contactMessage: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    flex: 1,
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#999999',
   },
   contactMessageMuted: {
-    color: colors.outline,
+    color: '#C7C7CC',
   },
-  unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  unreadBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  unreadDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.outline,
+  /* Figma: 13px Regular #999, text-right, aligned top */
+  contactTime: {
+    fontSize: 13,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#999999',
   },
 
   /* Action Sheet Modal */
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.scrim,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingBottom: 34,
-    ...elevation[3],
   },
   actionSheetTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurfaceVariant,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#999999',
     textAlign: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: 12,
   },
   actionSheetItem: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   actionSheetText: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
   actionSheetDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginHorizontal: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    marginHorizontal: 16,
   },
 });
