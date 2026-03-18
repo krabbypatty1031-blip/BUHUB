@@ -18,19 +18,20 @@ const queryClient = new QueryClient({
   },
 });
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-const FONT_DIR = './assets/思源黑体优化版/思源黑体懿凡修改版';
-
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    'SourceHanSansCN-Regular': require(`${FONT_DIR}/Source Han Sans CN Regular.otf`),
-    'SourceHanSansCN-Medium': require(`${FONT_DIR}/Source Han Sans CN Medium.otf`),
-    'SourceHanSansCN-Bold': require(`${FONT_DIR}/Source Han Sans CN Bold.otf`),
-    'SourceHanSansCN-Heavy': require(`${FONT_DIR}/Source Han Sans CN Heavy.otf`),
-    'SourceHanSansCN-Light': require(`${FONT_DIR}/Source Han Sans CN Light.otf`),
+  const [fontsLoaded, fontError] = useFonts({
+    'SourceHanSansCN-Regular': require('./assets/fonts/source-han/SourceHanSansCN-Regular.otf'),
+    'SourceHanSansCN-Medium': require('./assets/fonts/source-han/SourceHanSansCN-Medium.otf'),
+    'SourceHanSansCN-Bold': require('./assets/fonts/source-han/SourceHanSansCN-Bold.otf'),
+    'SourceHanSansCN-Heavy': require('./assets/fonts/source-han/SourceHanSansCN-Heavy.otf'),
+    'SourceHanSansCN-Light': require('./assets/fonts/source-han/SourceHanSansCN-Light.otf'),
   });
 
-  if (!fontsLoaded) {
+  if (fontError && __DEV__) {
+    console.warn('[Font] Failed to load custom fonts. Continuing with system fallback.', fontError);
+  }
+
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" />
