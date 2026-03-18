@@ -231,13 +231,15 @@ const styles = StyleSheet.create({
     borderColor: colors.outline,
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
+    minHeight: 56,
   },
   input: {
     ...typography.bodyLarge,
     color: colors.onSurface,
-    height: 48,
     flex: 1,
+    paddingVertical: 14,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   passwordInput: {
     paddingRight: 40,
@@ -245,7 +247,8 @@ const styles = StyleSheet.create({
   eyeBtn: {
     position: 'absolute',
     right: spacing.md,
-    height: 48,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
