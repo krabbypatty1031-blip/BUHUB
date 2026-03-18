@@ -5,11 +5,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
-import { Poppins_900Black } from '@expo-google-fonts/poppins/900Black';
-import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 
 import './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -23,13 +18,17 @@ const queryClient = new QueryClient({
   },
 });
 
+/* eslint-disable @typescript-eslint/no-var-requires */
+const FONT_DIR = './assets/思源黑体优化版/思源黑体懿凡修改版';
+
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Poppins_900Black,
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    'SourceHanSansCN-Regular': require(`${FONT_DIR}/Source Han Sans CN Regular.otf`),
+    'SourceHanSansCN-Medium': require(`${FONT_DIR}/Source Han Sans CN Medium.otf`),
+    'SourceHanSansCN-Bold': require(`${FONT_DIR}/Source Han Sans CN Bold.otf`),
+    'SourceHanSansCN-Heavy': require(`${FONT_DIR}/Source Han Sans CN Heavy.otf`),
+    'SourceHanSansCN-Light': require(`${FONT_DIR}/Source Han Sans CN Light.otf`),
+    'DINExp-Bold': require('./assets/fonts/d-din/D-DINExp-Bold.otf'),
   });
 
   if (!fontsLoaded) {

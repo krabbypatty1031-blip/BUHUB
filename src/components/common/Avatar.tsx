@@ -10,11 +10,11 @@ interface AvatarProps {
   text: string;
   uri?: string | null;
   defaultAvatar?: string | null;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xxs' | 'xs' | 'sm' | 'md' | 'ml' | 'lg' | 'xl' | 'xxl';
   gender?: 'male' | 'female' | 'other' | 'secret';
 }
 
-const SIZES = { xs: 24, sm: 32, md: 40, lg: 56, xl: 80 };
+const SIZES = { xxs: 20, xs: 24, sm: 32, md: 40, ml: 50, lg: 56, xl: 80, xxl: 96 };
 
 const PLACEHOLDER_AVATARS = new Set(['avatar1.png', 'avatar2.png', 'avatar3.png']);
 

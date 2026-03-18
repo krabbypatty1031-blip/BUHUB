@@ -20,6 +20,11 @@ const ENDPOINTS = {
     DELETE_ACCOUNT: '/auth/account',
   },
 
+  // Feed
+  FEED: {
+    FOLLOWING: '/feed/following',
+  },
+
   // Forum (backend: /forum/posts, /comments/:id, /forum/posts/:id/vote)
   FORUM: {
     POSTS: '/forum/posts',

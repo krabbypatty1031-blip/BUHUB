@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { translationService } from '../../api/services/translation.service';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
+import { TranslateActionIcon } from './PostActionIcons';
 import type { ContentEntityType, ContentTranslationResult } from '../../types';
 
 type RegisteredTranslationItem = {
@@ -210,9 +211,10 @@ export function PageTranslationToggle({
         onPress={context.toggleTranslated}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.linkText}>
-          {context.showTranslated ? t('viewOriginal') : t('translate')}
-        </Text>
+        <TranslateActionIcon
+          size={18}
+          color={context.showTranslated ? '#0463E2' : '#86909C'}
+        />
       </TouchableOpacity>
     </View>
   );

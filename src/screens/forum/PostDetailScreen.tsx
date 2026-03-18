@@ -44,12 +44,7 @@ import QuoteCard from '../../components/common/QuoteCard';
 import FunctionRefCard from '../../components/common/FunctionRefCard';
 import {
   BackIcon,
-  HeartIcon,
-  CommentIcon,
   SendIcon,
-  ShareIcon,
-  BookmarkIcon,
-  QuoteIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   MoreHorizontalIcon,
@@ -57,6 +52,13 @@ import {
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
+import {
+  LikeActionIcon,
+  CommentActionIcon,
+  ShareActionIcon,
+  BookmarkActionIcon,
+  QuoteActionIcon,
+} from '../../components/common/PostActionIcons';
 import type { ForumPost, Comment, Reply, Language } from '../../types';
 import { buildPostMeta, buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
@@ -252,9 +254,9 @@ function ItemActions({
   return (
     <View style={styles.itemActions}>
       <PressScaleButton style={styles.itemActionBtn} onPress={handleLikePress}>
-        <HeartIcon
+        <LikeActionIcon
           size={size}
-          color={liked ? colors.error : colors.onSurface}
+          color={liked ? colors.error : '#86909C'}
           fill={liked ? colors.error : undefined}
         />
         <Text style={[styles.itemActionText, liked && { color: colors.error }]}>
@@ -262,18 +264,18 @@ function ItemActions({
         </Text>
       </PressScaleButton>
       <PressScaleButton style={styles.itemActionBtn} onPress={handleCommentPress}>
-        <CommentIcon size={size} color={colors.onSurface} />
+        <CommentActionIcon size={size} color="#86909C" />
         {replyCount !== undefined && replyCount > 0 && (
           <Text style={styles.replyCountBadge}>{replyCount}</Text>
         )}
       </PressScaleButton>
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
-        <ShareIcon size={size} color={colors.onSurface} />
+        <ShareActionIcon size={size} color="#86909C" />
       </TouchableOpacity>
       <PressScaleButton style={styles.itemActionBtn} onPress={handleBookmarkPress}>
-        <BookmarkIcon
+        <BookmarkActionIcon
           size={size}
-          color={bookmarked ? colors.primary : colors.onSurface}
+          color={bookmarked ? colors.primary : '#86909C'}
           fill={bookmarked ? colors.primary : undefined}
         />
       </PressScaleButton>
@@ -1172,7 +1174,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const handleSendComment = useCallback(() => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || createCommentMutation.isPending) return;
     createCommentMutation.mutate(
       {
         content: commentText.trim(),
@@ -1193,7 +1195,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             ? err as MutationErrorLike
             : undefined;
           const code = error?.errorCode || error?.code;
-          const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
+          const msg = code === 'HKBU_EMAIL_REQUIRED' || code === 'HKBU_EMAIL_REQUIRED_FOR_PUBLISH'
+            ? t('hkbuEmailRequiredForComment')
+            : code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
           showSnackbar({ message: msg, type: 'error' });
         },
       }
@@ -1470,22 +1474,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <View style={styles.pollContainer}>
               {post.pollOptions.map((opt, i) =>
                 hasVoted ? (
-                  <TouchableOpacity
+                  <View
                     key={opt.id ?? `${i}-${opt.text}`}
-                    style={styles.pollOption}
-                    activeOpacity={1}
-                    disabled
+                    style={[styles.pollOption, i === votedOptionIndex && styles.pollOptionVotedSelected]}
                   >
                     <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
                     <View style={styles.pollOptionContent}>
                       <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
                         {opt.text}
                       </Text>
-                      <Text style={[styles.pollPercent, votedOptionIndex === i && styles.pollPercentVoted]}>
-                        {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
-                      </Text>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ) : (
                   <TouchableOpacity
                     key={opt.id ?? `${i}-${opt.text}`}
@@ -1518,9 +1517,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleLikePostPress}
             >
-              <HeartIcon
+              <LikeActionIcon
                 size={20}
-                color={isLiked ? colors.error : colors.onSurface}
+                color={isLiked ? colors.error : '#86909C'}
                 fill={isLiked ? colors.error : undefined}
               />
               <Text style={[styles.postActionText, isLiked && { color: colors.error }]}>
@@ -1532,7 +1531,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleComment}
             >
-              <CommentIcon size={20} color={colors.onSurface} />
+              <CommentActionIcon size={20} color="#86909C" />
               <Text style={styles.postActionText}>{post.comments}</Text>
             </PressScaleButton>
 
@@ -1540,16 +1539,16 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleForward}
             >
-              <ShareIcon size={20} color={colors.onSurface} />
+              <ShareActionIcon size={20} color="#86909C" />
             </TouchableOpacity>
 
             <PressScaleButton
               style={styles.postActionBtn}
               onPress={handleBookmarkPostPress}
             >
-              <BookmarkIcon
+              <BookmarkActionIcon
                 size={20}
-                color={isBookmarked ? colors.primary : colors.onSurface}
+                color={isBookmarked ? colors.primary : '#86909C'}
                 fill={isBookmarked ? colors.primary : undefined}
               />
             </PressScaleButton>
@@ -1558,7 +1557,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleQuote}
             >
-              <QuoteIcon size={20} color={colors.onSurface} />
+              <QuoteActionIcon size={20} color="#86909C" />
             </TouchableOpacity>
 
             {isOwnPost && (
@@ -1566,7 +1565,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 style={styles.postActionBtn}
                 onPress={handleDeletePost}
               >
-                <TrashIcon size={20} color="#000000" />
+                <TrashIcon size={20} color="#86909C" />
               </TouchableOpacity>
             )}
           </View>
@@ -1600,22 +1599,22 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   if (isLoading || !post) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <View style={styles.topBar}>
+      <View style={styles.container}>
+        <View style={[styles.topBar, { paddingTop: insets.top }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <BackIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
           <View style={styles.iconBtn} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
       {/* Top Bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.iconBtn}
@@ -1732,9 +1731,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             textAlignVertical="top"
           />
           <TouchableOpacity
-            style={[styles.sendBtn, !commentText.trim() && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, (!commentText.trim() || createCommentMutation.isPending) && styles.sendBtnDisabled]}
             onPress={handleSendComment}
-            disabled={!commentText.trim()}
+            disabled={!commentText.trim() || createCommentMutation.isPending}
           >
             <SendIcon
               size={20}
@@ -1852,25 +1851,26 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
-      </SafeAreaView>
+      </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F7F6F9',
   },
   flex1: {
     flex: 1,
   },
   topBar: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingBottom: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   iconBtn: {
     width: 48,
@@ -1891,6 +1891,7 @@ const styles = StyleSheet.create({
   /* === Post Section === */
   postSection: {
     padding: spacing.lg,
+    backgroundColor: colors.white,
   },
   postHeader: {
     flexDirection: 'row',
@@ -1967,52 +1968,47 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   pollOption: {
-    height: 36,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primary + '12',
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DEE2E5',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  pollOptionVotedSelected: {
+    borderColor: '#9CD7FF',
+    backgroundColor: '#E8F3FF',
   },
   pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 20,
+    gap: 1,
   },
   pollBar: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primary + '30',
-    borderTopLeftRadius: borderRadius.sm,
-    borderBottomLeftRadius: borderRadius.sm,
+    backgroundColor: '#0463E2' + '10',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
   },
   pollBarVoted: {
-    backgroundColor: colors.primary + '50',
+    backgroundColor: '#0463E2' + '18',
   },
   pollText: {
-    ...typography.bodyMedium,
-    flex: 1,
+    fontFamily: 'SourceHanSansCN-Regular',
     flexShrink: 1,
-    marginRight: spacing.sm,
-    fontSize: 13,
-    color: colors.onSurface,
-    zIndex: 1,
-  },
-  pollPercent: {
-    ...typography.bodyMedium,
-    minWidth: 56,
-    textAlign: 'right',
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
     zIndex: 1,
   },
   pollTextVoted: {
-    fontWeight: '600',
-  },
-  pollPercentVoted: {
-    color: colors.onPrimaryContainer,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0463E2',
   },
   pollOptionUnvoted: {
     height: 40,
@@ -2057,14 +2053,15 @@ const styles = StyleSheet.create({
   },
 
   divider: {
-    height: 8,
-    backgroundColor: colors.surface2,
+    height: 0.5,
+    backgroundColor: '#DEE2E5',
   },
 
   /* Comments */
   commentSectionHeader: {
     padding: spacing.lg,
     paddingBottom: spacing.sm,
+    backgroundColor: colors.white,
   },
   commentSectionTitle: {
     ...typography.titleSmall,
@@ -2073,6 +2070,9 @@ const styles = StyleSheet.create({
   commentItem: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
   },
   commentHeader: {
     flexDirection: 'row',

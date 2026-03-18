@@ -219,8 +219,8 @@ export function useContacts(options: ContactsQueryOptions = {}) {
       });
       return contacts;
     },
-    staleTime: polling ? 10 * 1000 : 60 * 1000,
-    refetchInterval: polling ? 15 * 1000 : false,
+    staleTime: polling ? 5 * 1000 : 30 * 1000,
+    refetchInterval: polling ? 8 * 1000 : false,
     refetchOnWindowFocus: polling,
     refetchOnReconnect: true,
     initialData: userId ? peekCachedContacts(userId, normalizedLanguage) : undefined,
@@ -282,8 +282,8 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
       return history;
     },
     enabled: enabled && userId.length > 0,
-    staleTime: polling ? 10 * 1000 : 60 * 1000,
-    refetchInterval: polling ? 15 * 1000 : false,
+    staleTime: polling ? 5 * 1000 : 30 * 1000,
+    refetchInterval: polling ? 8 * 1000 : false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     initialData:
@@ -382,6 +382,9 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
           );
         });
       }
+      // Force background refetch to reconcile cache with server after send
+      queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['chat-can-send', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
     },

@@ -15,8 +15,10 @@ import type { ForumStackParamList } from '../../types/navigation';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useImagePicker } from '../../hooks/useImagePicker';
-import { useCreatePost, usePostDetail } from '../../hooks/usePosts';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { usePostDetail, type PostsPage } from '../../hooks/usePosts';
 import { uploadService } from '../../api/services/upload.service';
+import { forumService } from '../../api/services/forum.service';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -26,7 +28,7 @@ import FunctionRefCard from '../../components/common/FunctionRefCard';
 import { CloseIcon, PlusIcon, CameraIcon, UserIcon } from '../../components/common/icons';
 import { buildPostMeta } from '../../utils/formatTime';
 import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
-import type { Language } from '../../types';
+import type { ForumPost, Language } from '../../types';
 import IOSSwitch from '../../components/common/IOSSwitch';
 
 type Props = NativeStackScreenProps<ForumStackParamList, 'Compose'>;
@@ -50,7 +52,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
   const lang = i18n.language as Language;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const user = useAuthStore((s) => s.user);
-  const createPost = useCreatePost();
+  const queryClient = useQueryClient();
   const requestedType = route.params?.type || 'text';
   const quotePostId = route.params?.quotePostId;
   const { data: quotedPostData } = usePostDetail(quotePostId || '');
@@ -127,7 +129,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
     return error?.message || t('postFailed');
   }, [t]);
 
-  const handlePost = useCallback(async () => {
+  const handlePost = useCallback(() => {
     if (!content.trim() || isPosting || postingLockRef.current) return;
     if (!canPublishCommunityContent(user)) {
       showSnackbar({ message: t('hkbuEmailRequiredForPublish'), type: 'error' });
@@ -142,55 +144,147 @@ export default function ComposeScreen({ navigation, route }: Props) {
     }
     postingLockRef.current = true;
     setIsPosting(true);
-    try {
-      // Upload images if any
-      let imageUrls: string[] | undefined;
-      if (images.length > 0) {
-        const result = await uploadService.uploadImages(
-          images.map((uri, i) => ({ uri, type: 'image/jpeg', name: `post-image-${i}.jpg` }))
-        );
-        imageUrls = result.urls;
-      }
 
-      createPost.mutate(
-        {
-          content: content.trim(),
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
-          isAnonymous,
-          pollOptions: type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined,
-          images: type === 'poll' ? [] : imageUrls,
+    // Build optimistic post with local image URIs
+    const optimisticId = `optimistic-${Date.now()}`;
+    const postImages = type !== 'poll' ? [...images] : [];
+    const optimisticPost: ForumPost = {
+      id: optimisticId,
+      name: isAnonymous ? t('anonymous') : (user?.name || '?'),
+      userName: isAnonymous ? undefined : user?.userName,
+      avatar: isAnonymous ? '' : (user?.avatar || ''),
+      defaultAvatar: isAnonymous ? undefined : (user?.defaultAvatar ?? undefined),
+      gender: isAnonymous ? 'other' : (user?.gender || 'other'),
+      gradeKey: isAnonymous ? undefined : user?.grade,
+      majorKey: isAnonymous ? undefined : user?.major,
+      meta: isAnonymous ? '' : [user?.grade, user?.major].filter(Boolean).join(' · '),
+      createdAt: new Date().toISOString(),
+      lang,
+      sourceLanguage: lang as Language,
+      content: content.trim(),
+      images: postImages,
+      hasImage: postImages.length > 0,
+      image: postImages[0],
+      likes: 0,
+      comments: 0,
+      tags: selectedTags.length > 0 ? [...selectedTags] : undefined,
+      isAnonymous,
+      liked: false,
+      bookmarked: false,
+      postType: type === 'poll' ? 'poll' : postImages.length > 0 ? 'image-text' : 'text',
+      isPoll: type === 'poll',
+      pollOptions: type === 'poll'
+        ? pollOptions.filter((o) => o.trim()).slice(0, 10).map((text, i) => ({
+            id: `opt-${i}`,
+            text,
+            voteCount: 0,
+            percent: 0,
+          }))
+        : undefined,
+      isFunction: hasFunctionRef || undefined,
+      functionType: hasFunctionRef ? functionType as ForumPost['functionType'] : undefined,
+      functionId: hasFunctionRef ? functionId : undefined,
+      functionTitle: hasFunctionRef ? functionTitle : undefined,
+      ratingCategory: hasFunctionRef ? ratingCategory : undefined,
+      quotedPost: quotedPost
+        ? {
+            id: quotedPost.id,
+            name: quotedPost.name,
+            sourceLanguage: quotedPost.sourceLanguage,
+            content: quotedPost.content,
+            createdAt: quotedPost.createdAt,
+            isAnonymous: quotedPost.isAnonymous,
+          }
+        : undefined,
+    };
+
+    // Insert optimistic post into cache
+    queryClient.setQueryData<InfiniteData<PostsPage>>(['posts'], (old) => {
+      if (!old || !old.pages.length) return old;
+      return {
+        ...old,
+        pages: [
+          { ...old.pages[0], posts: [optimisticPost, ...old.pages[0].posts] },
+          ...old.pages.slice(1),
+        ],
+      };
+    });
+
+    // Signal ForumScreen to scroll to top when it regains focus
+    queryClient.setQueryData(['posts:scrollToTop'], true);
+
+    // Navigate back immediately — zero perceived delay
+    navigation.goBack();
+    showSnackbar({ message: t('postPublishing'), type: 'info' });
+
+    // Capture values for background closure
+    const capturedContent = content.trim();
+    const capturedImages = [...images];
+    const capturedTags = selectedTags.length > 0 ? [...selectedTags] : undefined;
+    const capturedIsAnonymous = isAnonymous;
+    const capturedPollOptions = type === 'poll' ? pollOptions.filter((o) => o.trim()).slice(0, 10) : undefined;
+    const capturedType = type;
+
+    // Background upload + post creation (fire-and-forget)
+    (async () => {
+      try {
+        let imageUrls: string[] | undefined;
+        if (capturedImages.length > 0 && capturedType !== 'poll') {
+          const result = await uploadService.uploadImages(
+            capturedImages.map((uri, i) => ({ uri, type: 'image/jpeg', name: `post-image-${i}.jpg` }))
+          );
+          imageUrls = result.urls;
+        }
+
+        const createdPost = await forumService.createPost({
+          content: capturedContent,
+          tags: capturedTags,
+          isAnonymous: capturedIsAnonymous,
+          pollOptions: capturedPollOptions,
+          images: capturedType === 'poll' ? [] : imageUrls,
           quotedPostId: quotePostId,
           functionType: hasFunctionRef ? functionType : undefined,
           functionId: hasFunctionRef ? functionId : undefined,
           functionTitle: hasFunctionRef ? functionTitle : undefined,
           ratingCategory: hasFunctionRef ? ratingCategory : undefined,
-        },
-        {
-          onSuccess: () => {
-            showSnackbar({ message: t('postSuccess'), type: 'success' });
-            navigation.goBack();
-          },
-          onError: (error) => {
-            const composeError = typeof error === 'object' && error
-              ? error as ComposeErrorLike
-              : undefined;
-            showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
-          },
-          onSettled: () => {
-            postingLockRef.current = false;
-            setIsPosting(false);
-          },
-        }
-      );
-    } catch (error: unknown) {
-      const composeError = typeof error === 'object' && error
-        ? error as ComposeErrorLike
-        : undefined;
-      showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
-      postingLockRef.current = false;
-      setIsPosting(false);
-    }
-  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, user, createPost, navigation, showSnackbar, t, functionType, functionId, functionTitle, ratingCategory, quotePostId, hasFunctionRef, resolveComposeErrorMessage]);
+        });
+
+        // Replace optimistic post with real server data
+        queryClient.setQueryData<InfiniteData<PostsPage>>(['posts'], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              posts: page.posts.map((p) => (p.id === optimisticId ? createdPost : p)),
+            })),
+          };
+        });
+
+        showSnackbar({ message: t('postSuccess'), type: 'success' });
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+        queryClient.invalidateQueries({ queryKey: ['myContent'] });
+      } catch (error: unknown) {
+        // Remove optimistic post on failure
+        queryClient.setQueryData<InfiniteData<PostsPage>>(['posts'], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              posts: page.posts.filter((p) => p.id !== optimisticId),
+            })),
+          };
+        });
+        const composeError = typeof error === 'object' && error
+          ? error as ComposeErrorLike
+          : undefined;
+        showSnackbar({ message: resolveComposeErrorMessage(composeError), type: 'error' });
+      } finally {
+        postingLockRef.current = false;
+      }
+    })();
+  }, [content, images, selectedTags, isAnonymous, type, pollOptions, isPosting, user, queryClient, navigation, showSnackbar, t, lang, functionType, functionId, functionTitle, ratingCategory, quotePostId, hasFunctionRef, quotedPost, resolveComposeErrorMessage]);
 
   return (
       <SafeAreaView style={styles.container}>
@@ -361,15 +455,15 @@ export default function ComposeScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
   header: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
   },
   iconBtn: {
     width: 48,

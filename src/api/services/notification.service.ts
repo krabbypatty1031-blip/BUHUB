@@ -115,6 +115,7 @@ export const notificationService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.LIKES);
     const list = Array.isArray(data) ? (data as RawLikeNotification[]) : [];
+    const seen = new Set<string>();
     return list.map((item) => {
       const hasCommentId = !!item.commentId;
       return {
@@ -131,6 +132,11 @@ export const notificationService = {
         postId: item.postId ?? '',
         commentId: item.commentId,
       };
+    }).filter((n) => {
+      const key = `${n.userName}:${n.action}:${n.postId}:${n.commentId ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
   },
 
@@ -159,6 +165,7 @@ export const notificationService = {
     }
     const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.COMMENTS);
     const list = Array.isArray(data) ? (data as RawCommentNotification[]) : [];
+    const seen = new Set<string>();
     return list.map((item) => {
       const type = normalizeCommentType(item.type);
       return {
@@ -175,6 +182,11 @@ export const notificationService = {
         postId: item.postId ?? '',
         commentId: item.commentId ?? '',
       };
+    }).filter((n) => {
+      const key = `${n.userName}:${n.type}:${n.postId}:${n.commentId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
   },
 

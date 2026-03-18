@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 32,
     color: colors.onSurface,
-    fontFamily: 'Poppins_900Black',
+    fontFamily: 'SourceHanSansCN-Bold',
     letterSpacing: -0.5,
   },
   subtitle: {

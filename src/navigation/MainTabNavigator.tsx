@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MainTabParamList } from './types';
 import { colors } from '../theme';
 import { layout } from '../theme/spacing';
-import { TabHomeIcon, TabCompassIcon, TabChatIcon, TabProfileIcon } from '../components/common/icons';
+import { TabHomeIcon, TabCampusIcon, TabMessagesIcon, TabMeIcon } from '../components/common/TabBarIcons';
 import { TabBarAnimationProvider, hideTabBar, showTabBar } from '../hooks/TabBarAnimationContext';
 import AnimatedTabBar from '../components/common/AnimatedTabBar';
 import { useUnreadCount } from '../hooks/useNotifications';
@@ -150,8 +150,8 @@ export default function MainTabNavigator() {
         tabBarActiveTintColor: colors.black,
         tabBarInactiveTintColor: colors.black,
         tabBarIconStyle: {
-          width: 28,
-          height: 28,
+          width: 36,
+          height: 36,
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -166,21 +166,21 @@ export default function MainTabNavigator() {
         name="ForumTab"
         component={ForumStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <TabHomeIcon size={28} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ focused }) => <TabHomeIcon size={36} focused={focused} />,
         }}
       />
       <Tab.Screen
         name="FunctionsTab"
         component={FunctionsStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <TabCompassIcon size={28} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ focused }) => <TabCampusIcon size={36} focused={focused} />,
         }}
       />
       <Tab.Screen
         name="MessagesTab"
         component={MessagesStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <TabChatIcon size={28} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ focused }) => <TabMessagesIcon size={36} focused={focused} />,
           tabBarBadge: unreadMessages > 0 ? (unreadMessages > 99 ? '99+' : unreadMessages) : undefined,
         }}
       />
@@ -188,7 +188,7 @@ export default function MainTabNavigator() {
         name="MeTab"
         component={MeStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <TabProfileIcon size={28} color={color} fill={focused ? color : undefined} />,
+          tabBarIcon: ({ focused }) => <TabMeIcon size={36} focused={focused} />,
         }}
       />
     </Tab.Navigator>

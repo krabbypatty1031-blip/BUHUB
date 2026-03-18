@@ -16,7 +16,8 @@ export function useErrands(category?: ErrandCategory) {
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchInterval: 2 * 60 * 1000,
   });
 }
 
@@ -29,6 +30,7 @@ export function useMyErrands(category?: ErrandCategory) {
   return useQuery({
     queryKey: ['errands', 'all', category],
     queryFn: () => errandService.getList(category || undefined, { includeExpired: true }),
+    refetchInterval: 2 * 60 * 1000,
   });
 }
 

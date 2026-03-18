@@ -6,63 +6,69 @@ import {
   StyleSheet,
   ScrollView,
   useWindowDimensions,
+  StatusBar,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
 import {
-  UsersIcon,
-  TruckIcon,
-  ShoppingBagIcon,
-  StarIcon,
-  EditIcon,
-  CalendarIcon,
-} from '../../components/common/icons';
-import type { IconProps } from '../../components/common/icons';
+  PartnerFnIcon,
+  ErrandFnIcon,
+  SecondhandFnIcon,
+  RatingFnIcon,
+  FacilityFnIcon,
+  AIScheduleFnIcon,
+  ArrowRightFnIcon,
+} from '../../components/functions/FunctionHubIcons';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const headerBg = require('../../../assets/images/campus-header-bg.png');
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FunctionsHub'>;
 type FunctionsHubRouteName =
   | 'PartnerList'
   | 'ErrandList'
   | 'SecondhandList'
-  | 'MyPosts'
+  | 'AISchedule'
   | 'RatingList'
   | 'FacilityBooking';
 
 interface FunctionEntry {
   key: string;
-  labelKey: string;
-  Icon: React.FC<IconProps>;
-  route: FunctionsHubRouteName;
-  iconBg: string;
+  titleKey: string;
+  subtitleKey: string;
+  Icon: React.FC<{ size?: number; color?: string }>;
   iconColor: string;
+  arrowColor: string;
+  route: FunctionsHubRouteName;
 }
 
 const ENTRIES: FunctionEntry[] = [
-  { key: 'partner',    labelKey: 'findPartner',     Icon: UsersIcon,       route: 'PartnerList',
-    iconBg: '#DBEAFE', iconColor: '#2563EB' },
-  { key: 'errand',     labelKey: 'errands',         Icon: TruckIcon,       route: 'ErrandList',
-    iconBg: '#FFEDD5', iconColor: '#EA580C' },
-  { key: 'secondhand', labelKey: 'secondHand',      Icon: ShoppingBagIcon, route: 'SecondhandList',
-    iconBg: '#DCFCE7', iconColor: '#16A34A' },
-  { key: 'myPosts',    labelKey: 'myPosts',         Icon: EditIcon,        route: 'MyPosts',
-    iconBg: '#F3E8FF', iconColor: '#7C3AED' },
-  { key: 'rating',     labelKey: 'ratings',         Icon: StarIcon,        route: 'RatingList',
-    iconBg: '#FEF3C7', iconColor: '#D97706' },
-  { key: 'facility',   labelKey: 'facilityBooking', Icon: CalendarIcon,    route: 'FacilityBooking',
-    iconBg: '#CFFAFE', iconColor: '#0891B2' },
+  { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', arrowColor: '#C1C1C1', route: 'PartnerList' },
+  { key: 'errand', titleKey: 'errands', subtitleKey: 'errandsDesc', Icon: ErrandFnIcon, iconColor: '#FF9145', arrowColor: '#C1C1C1', route: 'ErrandList' },
+  { key: 'secondhand', titleKey: 'secondHand', subtitleKey: 'secondHandDesc', Icon: SecondhandFnIcon, iconColor: '#02AF4A', arrowColor: '#C1C1C1', route: 'SecondhandList' },
+  { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', arrowColor: '#C1C1C1', route: 'RatingList' },
+  { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', arrowColor: '#C1C1C1', route: 'FacilityBooking' },
+  { key: 'aiSchedule', titleKey: 'aiSchedule', subtitleKey: 'aiScheduleDesc', Icon: AIScheduleFnIcon, iconColor: '#5B73FF', arrowColor: '#C1C1C1', route: 'AISchedule' },
 ];
 
-const CARD_GAP = spacing.md;
+const HEADER_BG_COLOR = '#333333';
+const CARD_BG = '#FFFFFF';
+const PAGE_BG = '#F7F7F7';
+const TITLE_COLOR = '#0C1015';
+const SUBTITLE_COLOR = '#86909C';
+const GRID_GAP = 12;
+const GRID_PADDING = 24;
+const CARD_RADIUS = 16;
+const CARD_HEIGHT = 131;
 
 export default function FunctionsHubScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
+  const insets = useSafeAreaInsets();
+  const cardWidth = (screenWidth - GRID_PADDING * 2 - GRID_GAP) / 2;
 
   const handlePress = useCallback(
     (targetRoute: FunctionsHubRouteName) => {
@@ -79,92 +85,177 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'RatingList':
           navigation.navigate('RatingList');
           return;
-        case 'MyPosts':
-          navigation.navigate('MyPosts');
+        case 'AISchedule':
+          // TODO: Navigate to AI Schedule screen
           return;
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');
           return;
       }
     },
-    [navigation]
+    [navigation],
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>{t('functions')}</Text>
-      </View>
+  const renderCard = (entry: FunctionEntry, index: number) => {
+    const isRight = index % 2 === 1;
+    return (
+      <TouchableOpacity
+        key={entry.key}
+        style={[
+          styles.card,
+          { width: cardWidth, marginLeft: isRight ? GRID_GAP : 0 },
+        ]}
+        activeOpacity={1}
+        onPress={() => handlePress(entry.route)}
+      >
+        {/* Arrow pinned to top-right */}
+        <View style={styles.cardArrow}>
+          <ArrowRightFnIcon size={24} color={entry.arrowColor} />
+        </View>
+        {/* Icon */}
+        <entry.Icon size={28} color={entry.iconColor} />
+        {/* Title + Subtitle */}
+        <View style={styles.cardTextGroup}>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {t(entry.titleKey)}
+          </Text>
+          <Text style={styles.cardSubtitle} numberOfLines={1}>
+            {t(entry.subtitleKey)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+  // Build rows of 2
+  const rows: FunctionEntry[][] = [];
+  for (let i = 0; i < ENTRIES.length; i += 2) {
+    rows.push(ENTRIES.slice(i, i + 2));
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Header ── */}
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Image
+            source={headerBg}
+            style={styles.headerBgImage}
+            resizeMode="cover"
+          />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{t('campusTitle')}</Text>
+            <Text style={styles.headerSubtitle}>{t('campusSubtitle')}</Text>
+          </View>
+        </View>
+
+        {/* ── Card Grid ── */}
         <View style={styles.grid}>
-          {ENTRIES.map((entry) => (
-            <TouchableOpacity
-              key={entry.key}
-              style={[styles.gridCard, { width: cardWidth }]}
-              activeOpacity={0.7}
-              onPress={() => handlePress(entry.route)}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: entry.iconBg }]}>
-                <entry.Icon size={26} color={entry.iconColor} />
-              </View>
-              <Text style={styles.cardTitle} numberOfLines={1}>
-                {t(entry.labelKey)}
-              </Text>
-            </TouchableOpacity>
+          {rows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.row}>
+              {row.map((entry, colIndex) =>
+                renderCard(entry, rowIndex * 2 + colIndex),
+              )}
+            </View>
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: PAGE_BG,
   },
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  topBarTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.onSurface,
-    fontFamily: 'SourceHanSansCN-Bold',
-    letterSpacing: -0.5,
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingBottom: 40,
   },
+
+  /* ── Header ── */
+  header: {
+    backgroundColor: HEADER_BG_COLOR,
+    paddingBottom: 70, // extra space for cards to overlap
+    overflow: 'hidden',
+  },
+  headerBgImage: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    width: '100%',
+    height: '200%',
+    opacity: 0.04,
+  },
+  headerContent: {
+    paddingHorizontal: GRID_PADDING,
+    paddingTop: 24,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
+    lineHeight: 38,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 14,
+    lineHeight: 18,
+    letterSpacing: 0.5,
+  },
+
+  /* ── Grid ── */
   grid: {
+    marginTop: -57, // overlap the header
+    paddingHorizontal: GRID_PADDING,
+  },
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    marginBottom: GRID_GAP,
+    height: CARD_HEIGHT,
   },
-  gridCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    marginBottom: CARD_GAP,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
+
+  /* ── Card ── */
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: CARD_RADIUS,
+    height: CARD_HEIGHT,
+    paddingTop: 22,
+    paddingLeft: 20,
+    paddingBottom: 16,
+    paddingRight: 14,
+    gap: 10,
   },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+  cardArrow: {
+    position: 'absolute',
+    top: 24,
+    right: 10,
+  },
+  cardTextGroup: {
+    gap: 4,
   },
   cardTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    textAlign: 'center',
+    fontSize: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: TITLE_COLOR,
+    lineHeight: 29,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: SUBTITLE_COLOR,
+    letterSpacing: 0.5,
+    lineHeight: 15,
   },
 });

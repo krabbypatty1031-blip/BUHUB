@@ -21,15 +21,18 @@ import QuoteCard from './QuoteCard';
 import FunctionRefCard from './FunctionRefCard';
 import { normalizeImageUrl } from '../../utils/imageUrl';
 import {
-  HeartIcon,
-  CommentIcon,
-  ShareIcon,
-  BookmarkIcon,
-  QuoteIcon,
   TrashIcon,
   MaleIcon,
   FemaleIcon,
+  CheckIcon,
 } from './icons';
+import {
+  LikeActionIcon,
+  CommentActionIcon,
+  ShareActionIcon,
+  BookmarkActionIcon,
+  QuoteActionIcon,
+} from './PostActionIcons';
 
 interface PostCardProps {
   post: ForumPost;
@@ -187,9 +190,10 @@ function PostCard({
                 <FemaleIcon size={14} color={colors.genderFemale} />
               )}
             </View>
-            <Text style={styles.timeText}>· {displayTime}</Text>
           </View>
-          {displayAcademicMeta ? <Text style={styles.meta}>{displayAcademicMeta}</Text> : null}
+          <Text style={styles.meta} numberOfLines={1}>
+            {displayAcademicMeta ? `${displayAcademicMeta} · ${displayTime}` : displayTime}
+          </Text>
         </View>
       </View>
 
@@ -206,22 +210,13 @@ function PostCard({
           numberOfLines={4}
         />
 
-        {/* Tags */}
-        {post.tags && post.tags.length > 0 && (
-          <View style={styles.tags}>
-            {post.tags.map((tag) => (
-              <Tag key={tag} label={t(tag)} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
-            ))}
-          </View>
-        )}
-
         {/* Image */}
         {post.hasImage && displayImages.length > 0 && (
           <View style={styles.imageWrap}>
             <PostImageGallery
               images={displayImages}
               onImagePress={(index) => onImagePress?.(displayImages, index)}
-              borderRadiusValue={borderRadius.sm}
+              borderRadiusValue={10}
               backgroundColor={colors.surface2}
             />
           </View>
@@ -232,26 +227,27 @@ function PostCard({
           <View style={styles.pollContainer}>
             {post.pollOptions.map((opt, i) =>
               hasVoted ? (
-                <TouchableOpacity
+                <View
                   key={`voted-${opt.id ?? i}`}
-                  style={styles.pollOption}
-                  activeOpacity={1}
-                  disabled
+                  style={[styles.pollOption, i === votedOptionIndex && styles.pollOptionVotedSelected]}
                 >
                   <AnimatedPollBar percent={opt.percent ?? 0} isVoted={i === votedOptionIndex} />
                   <View style={styles.pollOptionContent}>
-                    <Text
-                      style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
-                    </Text>
-                    <Text style={[styles.pollPercent, i === votedOptionIndex && styles.pollPercentVoted]}>
-                      {lang === 'en' ? `${opt.voteCount ?? 0} votes` : `${opt.voteCount ?? 0}票`}
-                    </Text>
+                    <View style={styles.pollOptionLeft}>
+                      <Text
+                        style={[styles.pollText, i === votedOptionIndex && styles.pollTextVoted]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {opt.text?.trim() || `${t('optionN')} ${i + 1}`}
+                      </Text>
+                      {i === votedOptionIndex && (
+                        <CheckIcon size={16} color="#0463E2" />
+                      )}
+                    </View>
+                    <Text style={styles.pollVoteCount}>{opt.voteCount ?? 0}</Text>
                   </View>
-                </TouchableOpacity>
+                </View>
               ) : (
                 <TouchableOpacity
                   key={`unvoted-${opt.id ?? i}`}
@@ -265,9 +261,16 @@ function PostCard({
                 </TouchableOpacity>
               )
             )}
-            <Text style={styles.pollTotal}>
-              {lang === 'en' ? `Total ${totalPollVotes} votes` : `共${totalPollVotes}人投票`}
-            </Text>
+            {/* Figma: hint before voting / total count after voting */}
+            <View style={styles.pollFooter}>
+              {hasVoted ? (
+                <Text style={styles.pollFooterText}>
+                  {t('totalVotes', { count: totalPollVotes })}
+                </Text>
+              ) : (
+                <Text style={styles.pollHintText}>{t('pollHint')}</Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -282,22 +285,36 @@ function PostCard({
 
         {/* Quoted Post */}
         {post.quotedPost && (
-          <QuoteCard
-            postId={post.quotedPost.id}
-            content={post.quotedPost.content}
-            sourceLanguage={post.quotedPost.sourceLanguage}
-            author={post.quotedPost.name}
-            timeLabel={quotedTime}
-            onPress={() => onQuotedPostPress?.(post.quotedPost!.id)}
-          />
+          <>
+            <QuoteCard
+              postId={post.quotedPost.id}
+              content={post.quotedPost.content}
+              sourceLanguage={post.quotedPost.sourceLanguage}
+              author={post.quotedPost.name}
+              timeLabel={quotedTime}
+              onPress={() => onQuotedPostPress?.(post.quotedPost!.id)}
+            />
+            <Text style={styles.quoteMeta}>
+              {post.quotedPost.name} · {quotedTime}
+            </Text>
+          </>
+        )}
+
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <View style={styles.tags}>
+            {post.tags.map((tag) => (
+              <Tag key={tag} label={t(tag)} onPress={onTagPress ? () => onTagPress(tag) : undefined} />
+            ))}
+          </View>
         )}
 
         {/* Actions */}
         <View style={styles.actions}>
           <PressScaleButton style={styles.actionBtn} onPress={handleLike}>
-            <HeartIcon
+            <LikeActionIcon
               size={18}
-              color={isLiked ? colors.error : colors.onSurface}
+              color={isLiked ? colors.error : '#86909C'}
               fill={isLiked ? colors.error : undefined}
             />
             <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
@@ -306,32 +323,33 @@ function PostCard({
           </PressScaleButton>
 
           <PressScaleButton style={styles.actionBtn} onPress={handleComment}>
-            <CommentIcon size={18} color={colors.onSurface} />
+            <CommentActionIcon size={18} color="#86909C" />
             <Text style={styles.actionText}>{post.comments}</Text>
           </PressScaleButton>
 
           <TouchableOpacity style={styles.actionBtn} onPress={onForward}>
-            <ShareIcon size={18} color={colors.onSurface} />
+            <ShareActionIcon size={18} color="#86909C" />
           </TouchableOpacity>
 
           <PressScaleButton style={styles.actionBtn} onPress={handleBookmark}>
-            <BookmarkIcon
+            <BookmarkActionIcon
               size={18}
-              color={isBookmarked ? colors.primary : colors.onSurface}
+              color={isBookmarked ? colors.primary : '#86909C'}
               fill={isBookmarked ? colors.primary : undefined}
             />
           </PressScaleButton>
 
           <TouchableOpacity style={styles.actionBtn} onPress={onQuote}>
-            <QuoteIcon size={18} color={colors.onSurface} />
+            <QuoteActionIcon size={18} color="#86909C" />
           </TouchableOpacity>
+
+          <PageTranslationToggle />
 
           {onDelete && (
             <TouchableOpacity style={styles.actionBtn} onPress={onDelete}>
-              <TrashIcon size={18} color="#000000" />
+              <TrashIcon size={18} color="#86909C" />
             </TouchableOpacity>
           )}
-          <PageTranslationToggle style={styles.translationToggle} />
         </View>
       </View>
       </TouchableOpacity>
@@ -344,17 +362,17 @@ export default React.memo(PostCard);
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    padding: 16,
+    gap: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
   },
   headerInfo: {
-    marginLeft: spacing.md,
     flex: 1,
   },
   translationToggle: {
@@ -362,8 +380,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   body: {
-    marginLeft: 32 + spacing.md,
-    marginTop: spacing.sm,
+    gap: 8,
   },
   nameRow: {
     flexDirection: 'row',
@@ -378,99 +395,133 @@ const styles = StyleSheet.create({
   },
   name: {
     ...typography.titleSmall,
-    fontWeight: '700',
-    color: colors.onSurface,
+    fontWeight: '400',
+    color: '#0C1015',
   },
   timeText: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: '#86909C',
     marginLeft: 4,
   },
   meta: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: '#86909C',
     marginTop: 2,
     flexShrink: 1,
   },
   content: {
     ...typography.bodyLarge,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.onSurface,
-    marginBottom: spacing.md,
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
+  },
+  quoteMeta: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: spacing.sm,
+    gap: 4,
   },
   imageWrap: {
-    marginBottom: spacing.sm,
   },
   pollContainer: {
-    marginBottom: spacing.sm,
-    gap: spacing.xs,
+    gap: 8,
   },
   pollOption: {
-    height: 36,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primary + '12',
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DEE2E5',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  pollOptionVotedSelected: {
+    borderColor: '#9CD7FF',
+    backgroundColor: '#E8F3FF',
   },
   pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  pollOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+    flexShrink: 1,
+  },
+  /* Figma: vote count on the right, 12px Regular #0C1015 */
+  pollVoteCount: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
   },
   pollBar: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primary + '30',
-    borderTopLeftRadius: borderRadius.sm,
-    borderBottomLeftRadius: borderRadius.sm,
+    backgroundColor: '#0463E2' + '10',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
   },
   pollBarVoted: {
-    backgroundColor: colors.primary + '50',
+    backgroundColor: '#0463E2' + '18',
   },
   pollText: {
-    ...typography.bodyMedium,
-    flex: 1,
+    fontFamily: 'SourceHanSansCN-Regular',
     flexShrink: 1,
-    marginRight: spacing.sm,
-    fontSize: 13,
-    color: colors.onSurface,
-    zIndex: 1,
-  },
-  pollPercent: {
-    ...typography.bodyMedium,
-    minWidth: 56,
-    textAlign: 'right',
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
     zIndex: 1,
   },
   pollTextVoted: {
-    fontWeight: '600',
-  },
-  pollPercentVoted: {
-    color: colors.onPrimaryContainer,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0463E2',
   },
   pollOptionUnvoted: {
-    height: 40,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1.5,
-    borderColor: colors.outlineVariant,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9CD7FF',
+    backgroundColor: '#E8F3FF',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 20,
   },
   pollTextUnvoted: {
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: colors.onSurface,
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
+  },
+  /* Figma: footer row below poll options */
+  pollFooter: {
+    flexDirection: 'row',
+    marginTop: spacing.xxs,
+  },
+  /* Figma: "共 X 人投票" right-aligned, 12px Regular #9CA3AF */
+  pollFooterText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
+    marginLeft: 'auto',
+  },
+  /* Figma: "点击上方按钮，选择你的观点" left-aligned, 12px Regular #9CA3AF */
+  pollHintText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
   },
   pollTotal: {
     ...typography.bodySmall,
@@ -481,8 +532,8 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.xl,
+    gap: 24,
+    paddingLeft: 4,
   },
   actionBtn: {
     flexDirection: 'row',
@@ -491,8 +542,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   actionText: {
-    fontSize: 13,
-    color: colors.onSurface,
+    fontSize: 12,
+    color: '#86909C',
   },
 });
 

@@ -62,7 +62,7 @@ const mapPartner = (p: ApiPartnerRecord): PartnerPost => ({
   majorKey: p.author?.major ?? p.majorKey ?? undefined,
   authorId: p.author?.id ?? p.authorId ?? '',
   desc: p.description ?? p.desc ?? '',
-  expired: Boolean(p.expired),
+  expired: Boolean(p.expired) || (p.expiresAt ? new Date(String(p.expiresAt)) < new Date() : false),
   expiresAt: typeof p.expiresAt === 'string' ? p.expiresAt : '',
   createdAt: typeof p.createdAt === 'string' ? p.createdAt : '',
   sourceLanguage: p.sourceLanguage ?? 'tc',

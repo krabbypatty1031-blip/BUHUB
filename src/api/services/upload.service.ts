@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import apiClient, { API_BASE } from '../client';
 import ENDPOINTS from '../endpoints';
 
@@ -12,7 +13,7 @@ const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 const AVATAR_MAX_EDGE = 320;
 const AVATAR_TARGET_MAX_SIZE = 120 * 1024; // 120KB
 const MAX_BATCH_IMAGE_UPLOAD_COUNT = 12;
-const IMAGE_UPLOAD_CONCURRENCY = 3;
+const IMAGE_UPLOAD_CONCURRENCY = 5;
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -100,6 +101,12 @@ async function compressImage(
   file: UploadInput,
   mode: ImageCompressionMode = 'general'
 ): Promise<UploadInput> {
+  const cached = compressionCache.get(file.uri);
+  if (cached) {
+    compressionCache.delete(file.uri);
+    return cached;
+  }
+
   const normalizedType = normalizeMimeType(file.type);
   if (!normalizedType.startsWith('image/')) {
     throw new Error('Only image files are supported for image compression.');
@@ -112,8 +119,10 @@ async function compressImage(
 
   let originalSize = 0;
   try {
-    const originalBlob = await readLocalFileBlob(file.uri);
-    originalSize = originalBlob.size;
+    const info = await FileSystem.getInfoAsync(file.uri);
+    if (info.exists && typeof info.size === 'number') {
+      originalSize = info.size;
+    }
   } catch {
     // Some Android content:// URIs are not directly fetchable.
   }
@@ -141,18 +150,6 @@ async function compressImage(
       format: SaveFormat.JPEG,
     }
   );
-
-  if (__DEV__) {
-    const compressedBlob = await readLocalFileBlob(manipulated.uri);
-    console.log('[Upload] Compression summary:', {
-      mode,
-      originalSize,
-      compressedSize: compressedBlob.size,
-      targetSize: targetMaxSize,
-      width,
-      quality: Number(qualityEstimate.toFixed(3)),
-    });
-  }
 
   return {
     uri: manipulated.uri,
@@ -273,6 +270,15 @@ async function uploadImagesWithConcurrency(files: UploadInput[]): Promise<string
   return results;
 }
 
+// ── Pre-compression cache ──
+const compressionCache = new Map<string, UploadInput>();
+
+async function preCompressSingleImage(file: UploadInput): Promise<UploadInput> {
+  const compressed = await compressImage(file, 'general');
+  compressionCache.set(file.uri, compressed);
+  return compressed;
+}
+
 export const uploadService = {
   async uploadFile(file: UploadInput): Promise<{ url: string }> {
     if (USE_MOCK) {
@@ -310,5 +316,13 @@ export const uploadService = {
 
     const urls = await uploadImagesWithConcurrency(files);
     return { urls };
+  },
+
+  async preCompressImages(files: UploadInput[]): Promise<void> {
+    await Promise.allSettled(files.map(preCompressSingleImage));
+  },
+
+  clearCompressionCache(): void {
+    compressionCache.clear();
   },
 };

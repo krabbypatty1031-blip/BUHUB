@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  useWindowDimensions,
   Modal,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
@@ -19,35 +18,31 @@ import { useSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import Avatar from '../../components/common/Avatar';
-import TranslatableText from '../../components/common/TranslatableText';
-import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
+import { PageTranslationProvider, PageTranslationToggle, usePageTranslation } from '../../components/common/PageTranslation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import {
   BackIcon,
-  PlusIcon,
-  SearchIcon,
   ShoppingBagIcon,
-  ShoppingCartIcon,
-  MapPinIcon,
-  AlertTriangleIcon,
-  RepostIcon,
-  MoreHorizontalIcon,
-  MessageIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
+import {
+  FigmaSearchIcon26,
+  FigmaCartIcon,
+  FigmaMoreDotsIcon,
+  FigmaFabPlusIcon,
+  FigmaInfoIcon,
+} from '../../components/functions/SecondhandFigmaIcons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
 
@@ -59,9 +54,54 @@ const CATEGORIES: Array<{ key: SecondhandCategory | 'all'; labelKey: string }> =
   { key: 'other', labelKey: 'other' },
 ];
 
-const CARD_GAP = spacing.sm;
+/* ── Combined title text: registers for translation, always shows condition + desc ── */
+function CardCombinedText({
+  entityId,
+  item,
+  isSoldOrExpired,
+}: {
+  entityId: string;
+  item: SecondhandItem;
+  isSoldOrExpired: boolean;
+}) {
+  const { t } = useTranslation();
+  const pageCtx = usePageTranslation();
+  const registerItem = pageCtx?.registerItem;
+  const unregisterItem = pageCtx?.unregisterItem;
+  const keyRef = useRef(`sh-${entityId}`);
 
-/* ── Memoized Item Card ── */
+  useEffect(() => {
+    if (!registerItem || !entityId || !item.title?.trim()) return;
+    registerItem(keyRef.current, {
+      entityType: 'secondhand',
+      entityId,
+      sourceText: item.title.trim(),
+      sourceLanguage: item.sourceLanguage,
+    });
+    return () => unregisterItem?.(keyRef.current);
+  }, [registerItem, unregisterItem, entityId, item.title, item.sourceLanguage]);
+
+  // When translated, only replace the title part; condition + desc stay as-is
+  const translatedTitle = pageCtx?.showTranslated
+    ? pageCtx.getTranslation('secondhand', entityId)?.fields?.title
+    : undefined;
+
+  const titlePart = translatedTitle ?? item.title?.trim() ?? '';
+  const conditionPart = getLocalizedSecondhandCondition(item.condition, t);
+  const descPart = item.desc?.trim() || t('noDescription');
+  const combined = [titlePart, conditionPart, descPart].filter(Boolean).join(' | ');
+
+  return (
+    <Text
+      style={[styles.itemTitle, styles.titleTextWrap, isSoldOrExpired && styles.textDimmed]}
+      numberOfLines={2}
+    >
+      {combined}
+    </Text>
+  );
+}
+
+/* ── Memoized Item Card (Figma horizontal layout) ── */
 const ItemCard = React.memo(function ItemCard({
   item,
   id,
@@ -69,8 +109,8 @@ const ItemCard = React.memo(function ItemCard({
   onAvatarPress,
   onMore,
   onImagePress,
+  now,
   t,
-  cardWidth,
 }: {
   item: SecondhandItem;
   id: string;
@@ -78,27 +118,27 @@ const ItemCard = React.memo(function ItemCard({
   onAvatarPress: (item: SecondhandItem) => void;
   onMore: (item: SecondhandItem, id: string) => void;
   onImagePress: (images: string[], index: number) => void;
+  now: number;
   t: (key: string) => string;
-  cardWidth: number;
 }) {
-  const isSoldOrExpired = item.sold || item.expired;
+  const isSoldOrExpired = item.sold || isExpiredNow(item.expired, item.expiresAt, now);
   const primaryImage = item.images?.[0];
 
   return (
     <PageTranslationProvider>
     <TouchableOpacity
-      style={[styles.card, { width: cardWidth }]}
+      style={styles.card}
       activeOpacity={0.7}
       onPress={() => onPress(id)}
     >
-      {/* Image area */}
-      <View style={[styles.imageArea, { height: cardWidth * 0.8 }, isSoldOrExpired && styles.imageAreaDimmed]}>
+      {/* Figma: image 105x105 borderRadius:10 */}
+      <View style={[styles.imageArea, isSoldOrExpired && styles.imageAreaDimmed]}>
         {primaryImage ? (
           <TouchableOpacity
-            style={styles.imagePressTarget}
+            style={StyleSheet.absoluteFillObject}
             activeOpacity={0.9}
-            onPress={(event) => {
-              event.stopPropagation();
+            onPress={(e) => {
+              e.stopPropagation();
               onImagePress(item.images ?? [primaryImage], 0);
             }}
           >
@@ -112,20 +152,13 @@ const ItemCard = React.memo(function ItemCard({
             />
           </TouchableOpacity>
         ) : (
-          <ShoppingBagIcon size={32} color={colors.outlineVariant} />
+          <ShoppingBagIcon size={32} color="#C7C7CC" />
         )}
-        {(item.images?.length ?? 0) > 1 ? (
-          <View style={styles.imageCountBadge}>
-            <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
-          </View>
-        ) : null}
-
-        {/* Condition tag - top left */}
+        {/* Figma: condition badge top:8 left:8, bg rgba(0,0,0,0.4), 9px Medium white */}
         <View style={styles.conditionBadge}>
           <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
         </View>
-
-        {/* Status overlay - sold / expired */}
+        {/* Status overlay */}
         {item.sold && (
           <View style={styles.statusOverlay}>
             <View style={styles.statusBadgeSold}>
@@ -133,7 +166,7 @@ const ItemCard = React.memo(function ItemCard({
             </View>
           </View>
         )}
-        {item.expired && !item.sold && (
+        {isSoldOrExpired && !item.sold && (
           <View style={styles.statusOverlay}>
             <View style={styles.statusBadgeExpired}>
               <Text style={styles.statusBadgeText}>{t('secondhandExpired')}</Text>
@@ -142,54 +175,44 @@ const ItemCard = React.memo(function ItemCard({
         )}
       </View>
 
-      {/* Card body */}
-      <View style={styles.cardBody}>
-        <View style={styles.titleRow}>
-          <TranslatableText
-            entityType="secondhand"
-            entityId={id}
-            fieldName="title"
-            sourceText={item.title}
-            sourceLanguage={item.sourceLanguage}
-            textStyle={[styles.itemTitle, isSoldOrExpired && styles.textDimmed]}
-            containerStyle={styles.titleTextWrap}
-            numberOfLines={2}
-          />
-          <PageTranslationToggle style={styles.cardTranslationToggle} />
-        </View>
-
-        <Text style={styles.itemPrice}>{item.price}</Text>
-
-        <View style={styles.sellerRow}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={(event) => {
-              event.stopPropagation();
-              onAvatarPress(item);
-            }}
-          >
-            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
-          </TouchableOpacity>
-          <View style={styles.sellerInfo}>
-            <View style={styles.sellerNameRow}>
-              <Text style={styles.sellerName} numberOfLines={1}>
-                {item.user}
-              </Text>
-              {item.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
-              {item.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
+      {/* Right content — 105px matches image, seller bottom aligns with image bottom */}
+      <View style={styles.cardContent}>
+        <View style={styles.cardMain}>
+          <View style={styles.titleRow}>
+            <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
+            <PageTranslationToggle style={styles.translateToggle} />
+          </View>
+          <View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceCurrency}>HK¥</Text>
+              <Text style={styles.priceValue}>{item.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
+            </View>
+            <View style={styles.sellerRow}>
+              <TouchableOpacity
+                style={styles.sellerLeft}
+                activeOpacity={0.7}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onAvatarPress(item);
+                }}
+              >
+                <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
+                <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
+                {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+                {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
+              </TouchableOpacity>
+              {!isSoldOrExpired && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => onMore(item, id)}
+                >
+                  <FigmaMoreDotsIcon size={20} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
-        {!item.sold && !item.expired && (
-          <TouchableOpacity
-            style={styles.moreBtn}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            onPress={() => onMore(item, id)}
-          >
-            <MoreHorizontalIcon size={16} color={colors.onSurfaceVariant} />
-          </TouchableOpacity>
-        )}
       </View>
     </TouchableOpacity>
     </PageTranslationProvider>
@@ -198,8 +221,6 @@ const ItemCard = React.memo(function ItemCard({
 
 export default function SecondhandListScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = (screenWidth - spacing.lg * 2 - CARD_GAP) / 2;
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
   const setCategory = useSecondhandStore((s) => s.setCategory);
   const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
@@ -208,6 +229,11 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSecondhand(selectedCategory || undefined);
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+  const now = useExpirationTick(30000);
+  const visibleItems = useMemo(
+    () => items.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    [items, now]
+  );
 
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -219,16 +245,15 @@ export default function SecondhandListScreen({ navigation }: Props) {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Filter by search text
   const filteredItems = useMemo(() => {
-    if (!searchText.trim()) return items;
+    if (!searchText.trim()) return visibleItems;
     const query = searchText.trim().toLowerCase();
-    return items.filter(
+    return visibleItems.filter(
       (item) =>
         item.title.toLowerCase().includes(query) ||
         item.desc.toLowerCase().includes(query)
     );
-  }, [items, searchText]);
+  }, [visibleItems, searchText]);
 
   useEffect(() => {
     if (items.length > 0 && !expiredNotified) {
@@ -259,9 +284,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
     [navigation]
   );
 
-  // Action menu state
   const [actionItem, setActionItem] = useState<{ item: SecondhandItem; id: string } | null>(null);
-  // Forward sheet state
   const [shareSheetItem, setShareSheetItem] = useState<{ item: SecondhandItem; id: string } | null>(null);
 
   const handleDmSeller = useCallback(
@@ -313,49 +336,50 @@ export default function SecondhandListScreen({ navigation }: Props) {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: SecondhandItem }) => {
-      return (
-        <ItemCard
-          id={item.id}
-          item={item}
-          onPress={handleItemPress}
-          onAvatarPress={handleAvatarPress}
-          onMore={handleMore}
-          onImagePress={(images, index) => {
-            setPreviewImages(images);
-            setPreviewIndex(index);
-            setPreviewVisible(true);
-          }}
-          t={t}
-          cardWidth={cardWidth}
-        />
-      );
-    },
-    [handleItemPress, handleAvatarPress, handleMore, t, cardWidth]
+    ({ item }: { item: SecondhandItem }) => (
+      <ItemCard
+        id={item.id}
+        item={item}
+        onPress={handleItemPress}
+        onAvatarPress={handleAvatarPress}
+        onMore={handleMore}
+        onImagePress={(images, index) => {
+          setPreviewImages(images);
+          setPreviewIndex(index);
+          setPreviewVisible(true);
+        }}
+        now={now}
+        t={t}
+      />
+    ),
+    [handleItemPress, handleAvatarPress, handleMore, now, t]
   );
 
+  /* Figma: disclaimer header */
+  const renderHeader = useCallback(() => (
+    <View style={styles.disclaimerSection}>
+      <View style={styles.disclaimerTitleRow}>
+        <Text style={styles.disclaimerTitle}>{t('secondhandDisclaimer')}</Text>
+        <FigmaInfoIcon size={12} />
+      </View>
+      <Text style={styles.disclaimerSubtext}>{t('disclaimer')}</Text>
+    </View>
+  ), [t]);
+
   return (
-      <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
+    <SafeAreaView style={styles.container}>
+      {/* Figma: top bar — back left:12, title center 18px Bold, search+cart right:16 gap:16 */}
       <View style={styles.topBar}>
-        <View style={styles.topBarSide}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-            <BackIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <BackIcon size={26} color="#0C1015" />
+        </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
-        <View style={styles.topBarActions}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('SecondhandCart')}
-          >
-            <ShoppingCartIcon size={24} color={colors.onSurface} />
+        <View style={styles.topBarRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('SecondhandCart')}>
+            <FigmaCartIcon size={26} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setShowSearch(!showSearch)}
-          >
-            <SearchIcon size={24} color={colors.onSurface} />
+          <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
+            <FigmaSearchIcon26 size={30} />
           </TouchableOpacity>
         </View>
       </View>
@@ -364,11 +388,11 @@ export default function SecondhandListScreen({ navigation }: Props) {
       {showSearch && (
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <SearchIcon size={18} color={colors.outline} />
+            <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
               style={styles.searchInput}
               placeholder={t('searchSecondhand')}
-              placeholderTextColor={colors.outline}
+              placeholderTextColor="#999999"
               value={searchText}
               onChangeText={setSearchText}
               returnKeyType="search"
@@ -378,27 +402,24 @@ export default function SecondhandListScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Category Tabs */}
+      {/* Figma: category tabs — bg:#F5F5F5, height:40, borderRadius:10 */}
       <View style={styles.tabsContainer}>
         <SegmentedControl
           options={categoryOptions}
           value={selectedCategory ?? 'all'}
           onChange={handleCategoryChange}
+          containerHeight={40}
+          activeTextColor="#111827"
+          inactiveTextColor="#6B7280"
         />
       </View>
 
-      {/* Disclaimer Banner */}
-      <View style={styles.disclaimerBar}>
-        <Text style={styles.disclaimerText}>{t('disclaimer')}</Text>
-      </View>
-
-      {/* Grid List */}
+      {/* Figma: single column list, gap:16 */}
       <FlatList
         data={filteredItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
+        ListHeaderComponent={renderHeader}
         refreshing={isRefetching}
         onRefresh={refetch}
         onEndReached={handleEndReached}
@@ -409,20 +430,20 @@ export default function SecondhandListScreen({ navigation }: Props) {
         ListEmptyComponent={
           !isLoading && !isRefetching ? (
             <EmptyState
-              icon={<ShoppingBagIcon size={36} color={colors.onSurfaceVariant} />}
+              icon={<ShoppingBagIcon size={36} color="#999999" />}
               title={searchText.trim() ? t('noSearchResults') : t('noRelatedItems')}
             />
           ) : null
         }
       />
 
-      {/* FAB */}
+      {/* Figma: FAB — 56x56, bg:black, borderRadius:16, right:24 bottom:24 */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
         onPress={() => navigation.navigate('ComposeSecondhand', { category: selectedCategory || 'electronics' })}
       >
-        <PlusIcon size={28} color={colors.onPrimary} />
+        <FigmaFabPlusIcon size={17.5} />
       </TouchableOpacity>
 
       {/* Action Menu */}
@@ -439,7 +460,6 @@ export default function SecondhandListScreen({ navigation }: Props) {
         >
           <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.actionHandle} />
-
             <TouchableOpacity
               style={styles.actionRowCenter}
               onPress={() => {
@@ -486,7 +506,6 @@ export default function SecondhandListScreen({ navigation }: Props) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
         visible={!!shareSheetItem}
         onClose={() => setShareSheetItem(null)}
@@ -502,304 +521,308 @@ export default function SecondhandListScreen({ navigation }: Props) {
         initialIndex={previewIndex}
         onClose={() => setPreviewVisible(false)}
       />
-      </SafeAreaView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
 
-  /* Top Bar */
+  /* Figma: top bar — height:62, back left:12, title center 18px Bold, right icons gap:16 right:16 */
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'space-between',
+    paddingLeft: 12,
+    paddingRight: 16,
   },
-  topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    flex: 1,
-    textAlign: 'center',
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarSide: {
-    width: 96,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
+  topBarTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
-  topBarActions: {
-    width: 96,
+  topBarRight: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 16,
   },
 
   /* Search */
   searchSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 9999,
+    paddingHorizontal: 16,
     height: 44,
-    gap: spacing.sm,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    ...typography.bodyMedium,
-    color: colors.onSurface,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
     padding: 0,
   },
 
-  /* Category Tabs */
+  /* Figma: category tabs — px:16 py:8 */
   tabsContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
 
-  /* Disclaimer */
-  disclaimerBar: {
-    marginHorizontal: spacing.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.sm,
+  /* Figma: disclaimer — pl:16, pt:12, pb:16, gap:3 */
+  disclaimerSection: {
+    paddingLeft: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 3,
   },
-  disclaimerText: {
-    ...typography.bodySmall,
-    color: colors.onErrorContainer,
-    textAlign: 'center',
-    fontWeight: '500',
+  disclaimerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  disclaimerTitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+  },
+  disclaimerSubtext: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+    width: 266,
   },
 
-  /* List */
+  /* Figma: item list gap:16, px:16 */
   listContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
     paddingBottom: 100,
   },
-  row: {
-    gap: CARD_GAP,
-    marginBottom: CARD_GAP,
-  },
 
-  /* Card */
+  /* Figma: horizontal card — px:16, image+content row, gap:12 */
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 16,
   },
 
-  /* Image area */
+  /* Figma: image 105x105, borderRadius:10 */
   imageArea: {
-    width: '100%',
-    height: 120,
-    backgroundColor: colors.surface2,
+    width: 105,
+    height: 105,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
-  },
-  cardTranslationToggle: {
-    marginLeft: spacing.sm,
-    alignSelf: 'flex-start',
   },
   cardImage: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
   },
-  imagePressTarget: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  imageCountBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: borderRadius.full,
-  },
-  imageCountBadgeText: {
-    ...typography.labelSmall,
-    color: colors.white,
-    fontWeight: '700',
-  },
   imageAreaDimmed: {
     opacity: 0.45,
   },
+  /* Figma: condition badge — left:8 top:8, bg:rgba(0,0,0,0.4), px:4 py:1, borderRadius:4, 9px Medium white */
   conditionBadge: {
     position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: borderRadius.xs,
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   conditionBadgeText: {
-    ...typography.labelSmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-    fontSize: 10,
+    fontSize: 9,
+    lineHeight: 13,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#FFFFFF',
   },
   statusOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.scrim,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   statusBadgeSold: {
-    backgroundColor: colors.error,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
+    backgroundColor: '#ED4956',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   statusBadgeExpired: {
-    backgroundColor: colors.outline,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
+    backgroundColor: '#C7C7CC',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   statusBadgeText: {
-    ...typography.labelSmall,
-    color: colors.white,
-    fontWeight: '700',
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
   },
 
-  /* Card body */
-  cardBody: {
-    padding: spacing.md,
+  /* Right content column */
+  cardContent: {
+    flex: 1,
   },
+  /* All content fits within image height, seller bottom aligns with image bottom */
+  cardMain: {
+    height: 105,
+    justifyContent: 'space-between',
+  },
+  /* Figma 1:1646: title row — gap:10 */
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
+    gap: 10,
   },
+  /* Figma 1:1647: h:40 (2 lines max) */
   titleTextWrap: {
     flex: 1,
+    height: 40,
+    width: 0,
+    minWidth: 0,
+    flexShrink: 1,
   },
+  /* Figma: 思源黑体 CN Medium, 14px, lineHeight:20, #1F1F1F */
   itemTitle: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    fontWeight: '500',
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#1F1F1F',
   },
   textDimmed: {
-    color: colors.outline,
+    color: '#C7C7CC',
   },
-  itemPrice: {
-    ...typography.titleSmall,
-    color: colors.error,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
+  translateToggle: {
+    marginTop: 0,
+    alignSelf: 'flex-start',
+    marginLeft: 'auto',
   },
+
+  /* Figma 1:1651: D-DIN Exp Bold, #FF2538, gap:2, items-end */
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  /* Figma 1:1652: D-DIN Exp Bold, 12px, tracking:0.6429 */
+  priceCurrency: {
+    fontSize: 12,
+    lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
+    letterSpacing: 0.6429,
+  },
+  /* Figma 1:1653: D-DIN Exp Bold, 19.064px, tracking:1.5, leading:27.234 */
+  priceValue: {
+    fontSize: 19,
+    lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
+    letterSpacing: 1.5,
+  },
+
+  /* Figma 1:1654: seller row — gap:5, items-center */
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+    justifyContent: 'space-between',
   },
-  sellerInfo: {
-    flex: 1,
-  },
-  sellerNameRow: {
+  sellerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    flex: 1,
   },
+  /* Figma 1:1658: 思源黑体 CN Regular, 12px, leading:18, #999 */
   sellerName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    flexShrink: 0,
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#999999',
+    flexShrink: 1,
   },
 
-  moreBtn: {
-    position: 'absolute',
-    right: spacing.sm,
-    bottom: spacing.sm,
-  },
-
-  /* FAB */
+  /* Figma: FAB — 56x56, bg:black, borderRadius:16, right:24 bottom:24, shadow */
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 32,
+    right: 24,
+    bottom: 24,
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    ...elevation[3],
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 6,
   },
 
   /* Action Menu */
   actionOverlay: {
     flex: 1,
-    backgroundColor: colors.scrim,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     paddingBottom: 36,
   },
   actionHandle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: 'rgba(0,0,0,0.15)',
     alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
+    marginTop: 8,
+    marginBottom: 12,
   },
   actionRowCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  actionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
 });

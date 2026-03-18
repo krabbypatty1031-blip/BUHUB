@@ -9,13 +9,20 @@ import {
   Share,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { UserPost, UserComment, ForumPost, Language, MyContent } from '../../types';
+import type { UserPost, UserComment, ForumPost, Language, MyContent, PartnerPost, Errand, SecondhandItem } from '../../types';
 import { useProfile, useMyContent, useFollowingList, useFollowersList } from '../../hooks/useUser';
 import { useFollowedCircles } from '../../hooks/usePosts';
+import { useMyPartners, useDeletePartner, useClosePartner } from '../../hooks/usePartners';
+import { useMyErrands, useDeleteErrand, useCloseErrand } from '../../hooks/useErrands';
+import { useMySecondhand, useDeleteSecondhand, useCloseSecondhand } from '../../hooks/useSecondhand';
+import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
+import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
+import { Image as ExpoImage } from 'expo-image';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLikePost, useBookmarkPost, useVotePost, useDeletePost, useDeleteComment, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
@@ -31,6 +38,7 @@ import TabBar, { type TabOption } from '../../components/common/TabBar';
 import PostCard from '../../components/common/PostCard';
 import TranslatableText from '../../components/common/TranslatableText';
 import ForwardSheet from '../../components/common/ForwardSheet';
+import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import PressScaleButton from '../../components/common/PressScaleButton';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
@@ -52,7 +60,14 @@ import {
   ImageIcon,
   BarChartIcon,
   ChevronRightIcon,
+  MoreHorizontalIcon,
 } from '../../components/common/icons';
+import {
+  FigmaHelpIcon,
+  FigmaSettingsIcon,
+  FigmaEditIcon,
+  FigmaShareIcon,
+} from '../../components/me/MeFigmaIcons';
 import { getRelativeTime, buildPostMeta } from '../../utils/formatTime';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { hapticLight } from '../../utils/haptics';
@@ -62,7 +77,7 @@ import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
-type MeTab = 'posts' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks' | 'myLikes';
+type MeTab = 'posts' | 'myPublished' | 'comments' | 'anonPosts' | 'anonComments' | 'bookmarks' | 'myLikes';
 
 interface TabDef {
   key: MeTab;
@@ -73,6 +88,7 @@ interface TabDef {
 const TAB_DEFS: TabDef[] = [
   { key: 'posts', labelKey: 'tabPosts', locked: false },
   { key: 'comments', labelKey: 'tabComments', locked: false },
+  { key: 'myPublished', labelKey: 'tabMyPublished', locked: false },
   { key: 'anonPosts', labelKey: 'tabAnonPosts', locked: true },
   { key: 'anonComments', labelKey: 'tabAnonComments', locked: true },
   { key: 'bookmarks', labelKey: 'tabBookmarks', locked: true },
@@ -267,6 +283,7 @@ const CommentItem = React.memo(function CommentItem({
 
 export default function MeScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
   const lang = i18n.language as Language;
   const { data: profile, isLoading } = useProfile();
   const { data: myContent } = useMyContent();
@@ -276,6 +293,10 @@ export default function MeScreen({ navigation }: Props) {
   const shouldLoadFollowLists = Object.keys(blockedUsers).length > 0;
   const { data: followingData } = useFollowingList({ enabled: shouldLoadFollowLists });
   const { data: followersData } = useFollowersList({ enabled: shouldLoadFollowLists });
+  const { data: myPartners } = useMyPartners();
+  const { data: myErrands } = useMyErrands();
+  const { data: mySecondhand } = useMySecondhand();
+  const now = useExpirationTick(30000);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [forwardComment, setForwardComment] = useState<ForumPost | null>(null);
@@ -285,6 +306,14 @@ export default function MeScreen({ navigation }: Props) {
   const [postPreviewVisible, setPostPreviewVisible] = useState(false);
   const [postPreviewImages, setPostPreviewImages] = useState<string[]>([]);
   const [postPreviewIndex, setPostPreviewIndex] = useState(0);
+  const [publishedActionItem, setPublishedActionItem] = useState<{ kind: 'partner' | 'errand' | 'secondhand'; data: any; id: string } | null>(null);
+  const [publishedForwardItem, setPublishedForwardItem] = useState<{ kind: 'partner' | 'errand' | 'secondhand'; data: any; id: string } | null>(null);
+  const deletePartnerMutation = useDeletePartner();
+  const deleteErrandMutation = useDeleteErrand();
+  const deleteSecondhandMutation = useDeleteSecondhand();
+  const closePartnerMutation = useClosePartner();
+  const closeErrandMutation = useCloseErrand();
+  const closeSecondhandMutation = useCloseSecondhand();
 
   const displayUser = profile || user;
   const stats = myContent?.stats;
@@ -296,6 +325,21 @@ export default function MeScreen({ navigation }: Props) {
     : (stats?.followers ?? 0);
   const followedForumCount = followedCircles?.length ?? 0;
   const votedPolls = useForumStore((s) => s.votedPolls);
+
+  type PublishedItem =
+    | { kind: 'partner'; data: PartnerPost; id: string }
+    | { kind: 'errand'; data: Errand; id: string }
+    | { kind: 'secondhand'; data: SecondhandItem; id: string };
+
+  const nickname = displayUser?.nickname || displayUser?.name || '';
+  const publishedItems = useMemo<PublishedItem[]>(() => {
+    const items: PublishedItem[] = [];
+    myPartners?.forEach((p) => { if (p.user === nickname) items.push({ kind: 'partner', data: p, id: p.id }); });
+    myErrands?.forEach((e) => { if (e.user === nickname) items.push({ kind: 'errand', data: e, id: e.id }); });
+    mySecondhand?.forEach((s) => { if (s.user === nickname) items.push({ kind: 'secondhand', data: s, id: s.id }); });
+    items.sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
+    return items;
+  }, [myPartners, myErrands, mySecondhand, nickname]);
 
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
@@ -321,6 +365,7 @@ export default function MeScreen({ navigation }: Props) {
   const emptyLabels: Record<MeTab, string> = useMemo(
     () => ({
       posts: t('noPosts'),
+      myPublished: t('noPublished'),
       comments: t('noComments'),
       anonPosts: t('noAnonPosts'),
       anonComments: t('noAnonComments'),
@@ -489,6 +534,96 @@ export default function MeScreen({ navigation }: Props) {
   const renderTabContent = useCallback(() => {
     if (!myContent) {
       return <EmptyState icon={<EditIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels[activeTab]} />;
+    }
+
+    /* ==================== myPublished tab: partner + errand + secondhand items ==================== */
+    if (activeTab === 'myPublished') {
+      if (publishedItems.length === 0) {
+        return <EmptyState icon={<EditIcon size={32} color={colors.onSurfaceVariant} />} title={emptyLabels.myPublished} />;
+      }
+      return (
+        <>
+          {publishedItems.map((item) => {
+            const isExpired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
+            const isSold = item.kind === 'secondhand' && item.data.sold;
+            const dimmed = isExpired || isSold;
+            const kindLabel = t(item.kind === 'partner' ? 'partnerLabel' : item.kind === 'errand' ? 'errandLabel' : 'secondhandLabel');
+            const title = item.data.title;
+            const desc = item.data.desc;
+            const time = getRelativeTime(item.data.createdAt, lang);
+            const primaryImage = item.kind === 'secondhand' ? item.data.images?.[0] : undefined;
+
+            return (
+              <TouchableOpacity
+                key={`${item.kind}-${item.id}`}
+                style={[styles.publishedCard, dimmed && styles.publishedCardDimmed]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const nav = navigation.getParent();
+                  if (!nav) return;
+                  const backTo = { tab: 'MeTab' as const, screen: 'MeHome' as const };
+                  switch (item.kind) {
+                    case 'partner': nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: item.id, backTo } }); break;
+                    case 'errand': nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: item.id, backTo } }); break;
+                    case 'secondhand': nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: item.id, backTo } }); break;
+                  }
+                }}
+              >
+                {/* Image thumbnail (secondhand only) */}
+                {primaryImage && (
+                  <ExpoImage
+                    source={primaryImage}
+                    style={styles.publishedImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={0}
+                  />
+                )}
+                <View style={styles.publishedContent}>
+                  {/* Kind badge + title */}
+                  <View style={styles.publishedHeader}>
+                    <View style={styles.publishedKindBadge}>
+                      <Text style={styles.publishedKindText}>{kindLabel}</Text>
+                    </View>
+                    {isSold && (
+                      <View style={styles.publishedSoldBadge}>
+                        <Text style={styles.publishedSoldText}>{t('sold')}</Text>
+                      </View>
+                    )}
+                    {isExpired && !isSold && (
+                      <View style={styles.publishedExpiredBadge}>
+                        <Text style={styles.publishedExpiredText}>{t('secondhandExpired')}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.publishedTitle} numberOfLines={2}>{title}</Text>
+                  {desc ? <Text style={styles.publishedDesc} numberOfLines={1}>{desc}</Text> : null}
+                  {/* Price (errand/secondhand) */}
+                  {item.kind === 'secondhand' && item.data.price && (
+                    <Text style={styles.publishedPrice}>{item.data.price}</Text>
+                  )}
+                  {item.kind === 'errand' && item.data.price && (
+                    <Text style={styles.publishedPrice}>{item.data.price}</Text>
+                  )}
+                  <View style={styles.publishedFooter}>
+                    <Text style={styles.publishedTime}>{time}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setPublishedActionItem(item);
+                      }}
+                    >
+                      <MoreHorizontalIcon size={20} color="#86909C" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </>
+      );
     }
 
     /* ==================== myLikes tab: liked posts + liked comments ==================== */
@@ -748,7 +883,7 @@ export default function MeScreen({ navigation }: Props) {
       ? (myContent[activeTab] as UserComment[])
       : (myContent[activeTab] as UserPost[]);
 
-    if (data.length === 0) {
+    if (!data || (Array.isArray(data) && data.length === 0)) {
       const iconMap: Record<string, React.ReactNode> = {
         posts: <EditIcon size={32} color={colors.onSurfaceVariant} />,
         comments: <CommentIcon size={32} color={colors.onSurfaceVariant} />,
@@ -840,30 +975,30 @@ export default function MeScreen({ navigation }: Props) {
 
   if (isLoading && !displayUser) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <ProfileSkeleton />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* ==================== Top Bar ==================== */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.topBarIconBtn}
-          activeOpacity={0.6}
-          onPress={() => setContactModalVisible(true)}
-        >
-          <HelpCircleIcon size={24} color="#000" />
-        </TouchableOpacity>
-        <View style={styles.topBarRight}>
+    <View style={styles.container}>
+      {/* Figma: nav bar 62px — help left:12, settings right:16 top:18 */}
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
+        <View style={styles.navBarContent}>
           <TouchableOpacity
-            style={styles.topBarIconBtn}
+            style={styles.topBarIconBtnLeft}
+            activeOpacity={0.6}
+            onPress={() => setContactModalVisible(true)}
+          >
+            <FigmaHelpIcon size={26} color="#0C1015" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.topBarIconBtnRight}
             activeOpacity={0.6}
             onPress={() => navigation.navigate('Settings')}
           >
-            <SettingsIcon size={24} color="#000" />
+            <FigmaSettingsIcon size={26} color="#0C1015" />
           </TouchableOpacity>
         </View>
       </View>
@@ -913,16 +1048,6 @@ export default function MeScreen({ navigation }: Props) {
                     {t('followersStat')}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.miniStatItem}
-                  activeOpacity={0.6}
-                  onPress={() => navigation.navigate('ForumList')}
-                >
-                  <Text style={styles.miniStatValue}>{followedForumCount}</Text>
-                  <Text style={styles.miniStatLabel}>
-                    {t('forumStat')}
-                  </Text>
-                </TouchableOpacity>
                 <View style={styles.miniStatItem}>
                   <Text style={styles.miniStatValue}>{stats?.collection ?? 0}</Text>
                   <Text style={styles.miniStatLabel}>
@@ -944,7 +1069,7 @@ export default function MeScreen({ navigation }: Props) {
                 text={displayUser?.nickname || displayUser?.name || '?'}
                 uri={displayUser?.avatar}
                 defaultAvatar={displayUser?.defaultAvatar}
-                size="xl"
+                size="xxl"
                 gender={displayUser?.gender}
               />
             </TouchableOpacity>
@@ -960,7 +1085,7 @@ export default function MeScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('EditProfile')}
             >
-              <EditIcon size={16} color={colors.onPrimary} />
+              <FigmaEditIcon size={16} color="#0C1015" />
               <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>
                 {t('editProfile')}
               </Text>
@@ -970,7 +1095,7 @@ export default function MeScreen({ navigation }: Props) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('ShareProfile')}
             >
-              <ShareIcon size={16} color={colors.onPrimary} />
+              <FigmaShareIcon size={16} color="#0C1015" />
               <Text style={[styles.actionBtnText, styles.actionBtnTextSecondary]}>
                 {t('shareProfile')}
               </Text>
@@ -1115,14 +1240,142 @@ export default function MeScreen({ navigation }: Props) {
         onClose={() => setForwardComment(null)}
         navigation={navigation}
       />
-    </SafeAreaView>
+
+      {/* Published item action sheet */}
+      <Modal
+        visible={!!publishedActionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPublishedActionItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.publishedActionOverlay}
+          activeOpacity={1}
+          onPress={() => setPublishedActionItem(null)}
+        >
+          <View style={styles.publishedActionSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.publishedActionHandle} />
+            {/* Forward to contact */}
+            <TouchableOpacity
+              style={styles.publishedActionRow}
+              onPress={() => {
+                const a = publishedActionItem;
+                setPublishedActionItem(null);
+                if (a) setPublishedForwardItem(a);
+              }}
+            >
+              <Text style={styles.publishedActionText}>{t('forwardToContact')}</Text>
+            </TouchableOpacity>
+            {/* Forward to forum */}
+            <TouchableOpacity
+              style={styles.publishedActionRow}
+              onPress={() => {
+                const a = publishedActionItem;
+                setPublishedActionItem(null);
+                if (!a) return;
+                navigateToForumComposeSelection({
+                  navigation,
+                  functionType: a.kind,
+                  functionTitle: a.data.title,
+                  functionId: a.id,
+                });
+              }}
+            >
+              <Text style={styles.publishedActionText}>{t('forwardToForum')}</Text>
+            </TouchableOpacity>
+            {/* Edit */}
+            <TouchableOpacity
+              style={styles.publishedActionRow}
+              onPress={() => {
+                const a = publishedActionItem;
+                setPublishedActionItem(null);
+                if (!a) return;
+                const nav = navigation.getParent();
+                if (!nav) return;
+                switch (a.kind) {
+                  case 'partner': nav.navigate('FunctionsTab', { screen: 'ComposePartner', params: { editId: a.id, initialData: a.data } }); break;
+                  case 'errand': nav.navigate('FunctionsTab', { screen: 'ComposeErrand', params: { editId: a.id, initialData: a.data } }); break;
+                  case 'secondhand': nav.navigate('FunctionsTab', { screen: 'ComposeSecondhand', params: { editId: a.id, initialData: a.data } }); break;
+                }
+              }}
+            >
+              <Text style={styles.publishedActionText}>{t('editPost')}</Text>
+            </TouchableOpacity>
+            {/* Close — only for non-expired, non-sold items */}
+            {publishedActionItem && !isExpiredNow(publishedActionItem.data.expired, publishedActionItem.data.expiresAt, now) && !(publishedActionItem.kind === 'secondhand' && publishedActionItem.data.sold) && (
+              <TouchableOpacity
+                style={styles.publishedActionRow}
+                onPress={() => {
+                  const a = publishedActionItem;
+                  setPublishedActionItem(null);
+                  if (!a) return;
+                  showModal({
+                    title: t('closePublishTitle'),
+                    message: t('closePublishMessage'),
+                    onConfirm: async () => {
+                      try {
+                        switch (a.kind) {
+                          case 'partner': await closePartnerMutation.mutateAsync(a.id); break;
+                          case 'errand': await closeErrandMutation.mutateAsync(a.id); break;
+                          case 'secondhand': await closeSecondhandMutation.mutateAsync(a.id); break;
+                        }
+                        showSnackbar({ message: t('closedPublish'), type: 'success' });
+                      } catch {
+                        showSnackbar({ message: t('networkError'), type: 'error' });
+                      }
+                    },
+                  });
+                }}
+              >
+                <Text style={[styles.publishedActionText, { color: '#ED4956' }]}>{t('closePublish')}</Text>
+              </TouchableOpacity>
+            )}
+            {/* Delete */}
+            <TouchableOpacity
+              style={styles.publishedActionRow}
+              onPress={() => {
+                const a = publishedActionItem;
+                setPublishedActionItem(null);
+                if (!a) return;
+                showModal({
+                  title: t('deletePostTitle'),
+                  message: t('deletePostMessage'),
+                  onConfirm: () => {
+                    const onSuccess = () => showSnackbar({ message: t('postDeleted'), type: 'success' });
+                    const onError = () => showSnackbar({ message: t('deleteFailed'), type: 'error' });
+                    switch (a.kind) {
+                      case 'partner': deletePartnerMutation.mutate(a.id, { onSuccess, onError }); break;
+                      case 'errand': deleteErrandMutation.mutate(a.id, { onSuccess, onError }); break;
+                      case 'secondhand': deleteSecondhandMutation.mutate(a.id, { onSuccess, onError }); break;
+                    }
+                  },
+                });
+              }}
+            >
+              <Text style={[styles.publishedActionText, { color: '#ED4956' }]}>{t('deletePost')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Published item forward sheet */}
+      <FunctionForwardSheet
+        visible={!!publishedForwardItem}
+        onClose={() => setPublishedForwardItem(null)}
+        functionType={publishedForwardItem?.kind ?? 'secondhand'}
+        functionTitle={publishedForwardItem?.data.title ?? ''}
+        functionPosterName={publishedForwardItem?.data.user ?? ''}
+        functionId={publishedForwardItem?.id ?? ''}
+        navigation={navigation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F7F6F9',
   },
   scroll: {
     flex: 1,
@@ -1131,130 +1384,275 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  /* ==================== Top Bar ==================== */
+  /* Figma: top bar, white bg, no border */
   topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    backgroundColor: colors.white,
   },
-  topBarRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  topBarIconBtn: {
-    width: 44,
+  navBarContent: {
     height: 44,
+    justifyContent: 'center',
+  },
+  topBarIconBtnLeft: {
+    position: 'absolute',
+    left: 12,
+    top: 0,
+    bottom: 0,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarIconBtnRight: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  /* ==================== Upper: Profile section ==================== */
+  /* Figma 9:844: profile section — left:20, top:111-106=5 from nav */
   profileSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 5,
+    backgroundColor: colors.white,
   },
+  /* Figma 9:845: name+info left, avatar right */
   profileInfoRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
+  /* Figma 9:846: left container, gap:4 between nickname and info block */
   profileInfoLeft: {
     flex: 1,
     minWidth: 0,
-    marginRight: spacing.md,
+    gap: 4,
   },
   profileAvatarWrap: {
     flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.sm,
-    paddingTop: spacing.xs,
+    marginRight: 30,
   },
+  /* Nickname: Bold 24px #0C1015 */
   nickname: {
-    ...typography.headlineSmall,
-    color: colors.onSurface,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
+    fontSize: 24,
+    lineHeight: 32,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
   },
+  /* Figma 9:849: Regular 14px, lineHeight:20, #4E5969 */
   meta: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    marginTop: 6,
   },
   bio: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.lg,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
     fontStyle: 'italic',
+    marginTop: 4,
   },
+  /* Figma 9:850: stats row gap:16, pt:4, h:27 */
   miniStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: spacing.lg,
+    columnGap: 16,
     rowGap: spacing.sm,
+    paddingTop: 10,
+    height: 27 + 10,
   },
+  /* Figma 9:851: number + label baseline aligned, gap:4 */
   miniStatItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    minHeight: 24,
+    alignItems: 'baseline',
+    gap: 4,
+    height: 23,
   },
+  /* Figma 9:852: D-DIN Bold 18px, h:20, #0C1015 */
   miniStatValue: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    fontWeight: '700',
+    fontSize: 18,
+    lineHeight: 20,
+    fontFamily: 'DINExp-Bold',
+    color: '#0C1015',
   },
+  /* Figma 9:853: Regular 14px, h:23, lineHeight:22.5, #86909C */
   miniStatLabel: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    fontSize: 14,
+    lineHeight: 22.5,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+
+  /* ==================== Published items (forum card style) ==================== */
+  publishedCard: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
+  },
+  publishedCardDimmed: {
+    opacity: 0.5,
+  },
+  publishedImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F5',
+  },
+  publishedContent: {
+    flex: 1,
+    gap: 4,
+  },
+  publishedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  publishedKindBadge: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  publishedKindText: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#86909C',
+  },
+  publishedSoldBadge: {
+    backgroundColor: '#ED4956',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  publishedSoldText: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#FFFFFF',
+  },
+  publishedExpiredBadge: {
+    backgroundColor: '#C7C7CC',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  publishedExpiredText: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#FFFFFF',
+  },
+  publishedTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
+  },
+  publishedDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  publishedPrice: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
+  },
+  publishedFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  publishedTime: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#9CA3AF',
+  },
+  publishedActionOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  publishedActionSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    paddingBottom: 36,
+  },
+  publishedActionHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  publishedActionRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  publishedActionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
 
   /* ==================== Lower: Content section ==================== */
   contentSection: {
     flex: 1,
+    backgroundColor: colors.white,
   },
 
-  /* Action row */
+  /* Figma 9:861: action buttons — gap:12, h:36, centered, paddingTop:16 */
   actionRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 12,
+    backgroundColor: colors.white,
   },
+  /* Figma 9:862: w:169, bg:#EDF2F5, borderRadius:12, px:16 py:7.5, gap:4 */
   actionBtn: {
-    flex: 1,
+    width: 169,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    height: 42,
-    borderRadius: borderRadius.md,
+    gap: 4,
+    height: 36,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   actionBtnPrimary: {
-    backgroundColor: colors.onSurface,
+    backgroundColor: '#EDF2F5',
   },
   actionBtnSecondary: {
-    backgroundColor: colors.onSurface,
+    backgroundColor: '#EDF2F5',
   },
+  /* Figma: Medium 15px #0C1015 */
   actionBtnText: {
-    ...typography.labelMedium,
-    fontWeight: '600',
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
-  actionBtnTextPrimary: {
-    color: colors.onPrimary,
-  },
-  actionBtnTextSecondary: {
-    color: colors.onPrimary,
-  },
+  actionBtnTextPrimary: {},
+  actionBtnTextSecondary: {},
 
   /* Tab content */
   tabContent: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
 
@@ -1270,8 +1668,9 @@ const styles = StyleSheet.create({
   commentItem: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: colors.white,
   },
   commentHeader: {
     flexDirection: 'row',

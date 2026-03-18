@@ -1,0 +1,6 @@
+{
+  "NSCameraUsageDescription": "UHUB needs camera access to take photos for posts, avatars, and messages.",
+  "NSPhotoLibraryUsageDescription": "UHUB needs photo library access to select images for posts, avatars, and messages.",
+  "NSMicrophoneUsageDescription": "UHUB needs microphone access to record voice messages.",
+  "NSSpeechRecognitionUsageDescription": "UHUB needs speech recognition access to convert voice to text."
+}

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Linking } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { uploadService } from '../api/services/upload.service';
 
 interface UseImagePickerOptions {
   allowsMultiple?: boolean;
@@ -15,8 +16,10 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
   const [images, setImages] = useState<string[]>(initialImages);
 
   const pickImages = useCallback(async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
+    const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (existing.status === 'denied') {
+      // Permission permanently denied — direct user to Settings
       Alert.alert(
         t('permissionNeededTitle'),
         t('photoPermissionMessage'),
@@ -33,6 +36,27 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
       return;
     }
 
+    if (existing.status !== 'granted') {
+      // First time — request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          t('permissionNeededTitle'),
+          t('photoPermissionMessage'),
+          [
+            { text: t('cancel'), style: 'cancel' },
+            {
+              text: t('settings'),
+              onPress: () => {
+                void Linking.openSettings().catch(() => {});
+              },
+            },
+          ]
+        );
+        return;
+      }
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: allowsMultiple,
@@ -47,6 +71,11 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
       } else {
         setImages(uris.slice(0, 1));
       }
+
+      // Pre-compress in background so upload is faster when user hits send
+      uploadService.preCompressImages(
+        uris.map((uri, i) => ({ uri, type: 'image/jpeg', name: `precomp-${i}.jpg` }))
+      ).catch(() => {});
     }
   }, [allowsMultiple, maxImages, images.length, t]);
 
