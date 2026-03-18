@@ -470,11 +470,14 @@ const styles = StyleSheet.create({
   },
   fieldInput: {
     flex: 1,
-    ...typography.bodyLarge,
+    fontFamily: typography.bodyLarge.fontFamily,
+    fontSize: typography.bodyLarge.fontSize,
     color: colors.onSurface,
     textAlign: 'right',
     paddingHorizontal: 0,
     paddingVertical: spacing.sm,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   fieldSelect: {
     flex: 1,

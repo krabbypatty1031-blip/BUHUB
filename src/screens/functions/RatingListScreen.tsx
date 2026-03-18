@@ -617,11 +617,10 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.bodyMedium,
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
     color: colors.onSurface,
     marginLeft: spacing.sm,
-    height: 24,
-    lineHeight: 18,
     paddingVertical: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,

@@ -343,8 +343,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? spacing.md : spacing.sm,
     paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.sm,
     fontSize: 14,
-    lineHeight: 20,
     color: colors.onSurface,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   sendBtn: {
     width: 44,

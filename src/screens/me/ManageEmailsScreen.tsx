@@ -429,9 +429,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   input: {
-    ...typography.bodyLarge,
+    fontFamily: typography.bodyLarge.fontFamily,
+    fontSize: typography.bodyLarge.fontSize,
     color: colors.onSurface,
-    height: 48,
+    paddingVertical: 14,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   primaryButton: {
     backgroundColor: colors.primary,

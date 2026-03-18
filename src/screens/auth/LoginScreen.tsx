@@ -234,7 +234,8 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   input: {
-    ...typography.bodyLarge,
+    fontFamily: typography.bodyLarge.fontFamily,
+    fontSize: typography.bodyLarge.fontSize,
     color: colors.onSurface,
     flex: 1,
     paddingVertical: 14,

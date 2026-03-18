@@ -5254,11 +5254,13 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    ...typography.bodyMedium,
-    lineHeight: CHAT_INPUT_LINE_HEIGHT,
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
     color: PURE_BLACK,
     padding: 0,
     margin: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   sendBtn: {
     width: 40,

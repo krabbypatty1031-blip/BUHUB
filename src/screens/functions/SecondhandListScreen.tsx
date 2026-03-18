@@ -583,6 +583,8 @@ const styles = StyleSheet.create({
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#0C1015',
     padding: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 
   /* Figma: category tabs — px:16 py:8 */
