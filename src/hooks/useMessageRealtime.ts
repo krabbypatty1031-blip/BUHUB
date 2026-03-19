@@ -16,6 +16,7 @@ import {
   appendMessageToHistory,
   markMessageAsReadInHistory,
   markMessageAsRecalledInHistory,
+  replaceMessageInHistory,
   patchChatQueries,
   patchContactsQueries,
   upsertContact,
@@ -68,7 +69,7 @@ export function useMessageRealtime() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const queryClient = useQueryClient();
-  const setTyping = useMessageRealtimeStore((s) => s.setTyping);
+  const setTyping = useMessageRealtimeStore((s: any) => s.setTyping);
   const handleIncomingMessage = useMessageStore((s) => s.handleIncomingMessage);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,15 +149,29 @@ export function useMessageRealtime() {
               if (nextMessage) {
                 const isSenderEcho = event.fromUserId === currentUserId;
                 if (isSenderEcho) {
-                  // For our own message echo: the optimistic message was already
-                  // replaced with the real message by useSendMessage.onSuccess.
-                  // appendMessageToHistory has dedup by id, so this is a safe no-op
-                  // if onSuccess already ran. If onSuccess hasn't run yet (rare race),
-                  // this append will add the real message; onSuccess will then replace
-                  // the optimistic one, and the next poll will reconcile.
-                  patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
-                    appendMessageToHistory(current, nextMessage, language)
-                  );
+                  // If we have local pending sends for this contact, prefer
+                  // to avoid appending the server echo (it would duplicate the
+                  // local optimistic UI). If server provides a clientKey, try
+                  // to replace by that key; otherwise skip append so the
+                  // local pending flow can resolve and reconcile the cache.
+                  const hasPending = useMessageRealtimeStore.getState().hasPendingForContact(contactId);
+                  const serverClientKey = (event.message && ((event.message as any).clientKey as string | undefined)) || undefined;
+                  if (hasPending) {
+                    if (serverClientKey) {
+                      patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
+                        replaceMessageInHistory(current, serverClientKey, nextMessage) ?? appendMessageToHistory(current, nextMessage, language)
+                      );
+                    } else {
+                      // Skip append when a local pending send exists to avoid
+                      // a brief duplicate flash; the local flow will resolve
+                      // and update cache when server response arrives.
+                    }
+                  } else {
+                    // No local pending — safe to append server echo normally
+                    patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
+                      appendMessageToHistory(current, nextMessage, language)
+                    );
+                  }
                 } else {
                   // Incoming message from the other party — always append
                   patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>

@@ -2341,6 +2341,8 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const removeLocalPendingMessage = useCallback((messageId: string) => {
     delete pendingRequestsRef.current[messageId];
+    // Remove global pending key so WS handler knows there's no longer a pending send
+    useMessageRealtimeStore.getState().removePendingClientKey(contactId, messageId);
     setLocalPendingMessages((current) => current.filter((item) => item.id !== messageId));
   }, []);
 
@@ -2353,12 +2355,16 @@ export default function ChatScreen({ navigation, route }: Props) {
         if (resolvedMessage.id) {
           renderKeyByServerIdRef.current[resolvedMessage.id] = resolvedMessage.clientKey!;
         }
+        // Clear pending key when resolved
+        useMessageRealtimeStore.getState().removePendingClientKey(contactId, messageId);
         return sortMessagesByCreatedAt([...current, resolvedMessage]);
       }
       const resolvedMessage = mergeResolvedMessageWithPreview(messageId, nextMessage);
       if (resolvedMessage.id) {
         renderKeyByServerIdRef.current[resolvedMessage.id] = resolvedMessage.clientKey!;
       }
+      // Clear pending key when resolved
+      useMessageRealtimeStore.getState().removePendingClientKey(contactId, messageId);
       const next = [...current];
       next[index] = resolvedMessage;
       return sortMessagesByCreatedAt(next);
@@ -2374,6 +2380,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const queueLocalPendingMessage = useCallback((message: ChatMessage, request: PendingSendRequest) => {
     if (!message.id) return;
     pendingRequestsRef.current[message.id] = request;
+    // Mark global pending key so WS handler can avoid appending echoes
+    useMessageRealtimeStore.getState().addPendingClientKey(contactId, message.id);
     upsertLocalPendingMessage(message);
   }, [upsertLocalPendingMessage]);
 
@@ -2591,7 +2599,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     try {
       let sentMessage: ChatMessage | undefined;
       if (request.kind === 'direct') {
-        const result = await messageService.sendMessage(contactId, request.payload, request.images);
+        const result = await messageService.sendMessage(contactId, request.payload, request.images, messageId);
         sentMessage = result.message;
       } else if (request.kind === 'image-batch') {
         const uploadStartedAt = Date.now();
@@ -2607,7 +2615,8 @@ export default function ChatScreen({ navigation, route }: Props) {
               imageAlbum: { count: uploaded.urls.length },
               ...(request.replyTo ? { replyTo: request.replyTo } : {}),
             },
-            uploaded.urls
+            uploaded.urls,
+            messageId
           );
           sentMessage = result.message;
         } else {
@@ -2617,7 +2626,8 @@ export default function ChatScreen({ navigation, route }: Props) {
               text: '',
               ...(request.replyTo ? { replyTo: request.replyTo } : {}),
             },
-            uploaded.urls
+            uploaded.urls,
+            messageId
           );
           sentMessage = result.message;
         }
@@ -2634,7 +2644,8 @@ export default function ChatScreen({ navigation, route }: Props) {
             text: '',
             ...(request.replyTo ? { replyTo: request.replyTo } : {}),
           },
-          [uploaded.url]
+          [uploaded.url],
+          messageId
         );
         sentMessage = result.message;
       } else {
@@ -2649,7 +2660,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             url: uploaded.url,
             ...(typeof request.durationMs === 'number' ? { durationMs: request.durationMs } : {}),
           },
-        });
+        }, undefined, messageId);
         sentMessage = result.message;
       }
 

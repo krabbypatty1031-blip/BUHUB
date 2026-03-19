@@ -43,7 +43,7 @@ const LANGUAGE_OPTIONS = [
   { value: 'en' as const, labelKey: 'english' },
 ];
 
-const APP_VERSION = '0.1.8';
+const APP_VERSION = '0.1.9';
 
 export default function SettingsScreen({ navigation }: Props) {
   const { t } = useTranslation();

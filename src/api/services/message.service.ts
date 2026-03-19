@@ -827,7 +827,7 @@ export const messageService = {
     };
   },
 
-  async sendMessage(receiverId: string, payload: SendMessagePayload, images?: string[]): Promise<SendMessageResult> {
+  async sendMessage(receiverId: string, payload: SendMessagePayload, images?: string[], clientKey?: string): Promise<SendMessageResult> {
     const content = normalizeSendContent(payload);
     if (!content && (!images || images.length === 0)) return { success: false };
 
@@ -838,6 +838,7 @@ export const messageService = {
       const createdAt = now.toISOString();
       const newMsg = {
         id: `mock-msg-${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
+        clientKey: clientKey,
         createdAt,
         type: 'sent' as const,
         text: parsed.text,
@@ -858,8 +859,14 @@ export const messageService = {
       }
       return { success: true, message: newMsg };
     }
-    const { data } = await apiClient.post(ENDPOINTS.MESSAGE.SEND, { receiverId, content, images: images ?? [] });
+    const body: Record<string, unknown> = { receiverId, content, images: images ?? [] };
+    if (clientKey) body.clientKey = clientKey;
+    const { data } = await apiClient.post(ENDPOINTS.MESSAGE.SEND, body);
     const message = buildSentChatMessage(data as PersistedDirectMessage) ?? undefined;
+    // If server did not echo back clientKey, preserve it so client can reconcile
+    if (message && clientKey && !message.clientKey) {
+      message.clientKey = clientKey;
+    }
     return { success: true, ...(message ? { message } : {}) };
   },
 

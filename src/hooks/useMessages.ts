@@ -77,8 +77,10 @@ function buildOptimisticMessage(
 ): ChatMessage | null {
   const now = new Date();
   const createdAt = now.toISOString();
+  const optimisticId = `optimistic-${createdAt}-${Math.random().toString(36).slice(2, 8)}`;
   const baseMessage: ChatMessage = {
-    id: `optimistic-${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
+    id: optimisticId,
+    clientKey: optimisticId,
     createdAt,
     type: 'sent',
     text: '',
