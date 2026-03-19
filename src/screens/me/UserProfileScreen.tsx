@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -31,23 +30,21 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import {
   BackIcon,
-  UsersIcon,
-  MessageIcon,
-  MoreHorizontalIcon,
-  MaleIcon,
-  FemaleIcon,
   EditIcon,
   ImageIcon,
   BarChartIcon,
   ChevronRightIcon,
   CloseIcon,
 } from '../../components/common/icons';
+import { ChatBubbleIcon, FollowPersonIcon, FollowedCheckIcon } from '../../components/functions/DetailInfoIcons';
+import { MoreHorizontalIcon } from '../../components/common/icons';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
@@ -297,15 +294,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           />
         </TouchableOpacity>
 
-        <View style={styles.userNameRow}>
-          <Text style={styles.userName}>{profile?.nickname || userName}</Text>
-          {profile?.gender === 'male' ? (
-            <MaleIcon size={14} color={colors.genderMale} />
-          ) : null}
-          {profile?.gender === 'female' ? (
-            <FemaleIcon size={14} color={colors.genderFemale} />
-          ) : null}
-        </View>
+        <Text style={styles.userName}>{profile?.nickname || userName}</Text>
 
         {profileMeta ? (
           <Text style={styles.profileMeta} numberOfLines={1}>
@@ -341,7 +330,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             onPress={handleMessage}
             disabled={!profile?.id}
           >
-            <MessageIcon size={18} color={colors.onPrimary} />
+            <ChatBubbleIcon size={18} color="#FFFFFF" />
             <Text style={styles.messageBtnText}>{t('message')}</Text>
           </TouchableOpacity>
 
@@ -357,14 +346,15 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             {followUser.isPending ? (
               <ActivityIndicator
                 size="small"
-                color={isFollowing ? colors.primary : colors.onPrimary}
+                color={isFollowing ? '#0C1015' : '#FFFFFF'}
               />
             ) : (
               <>
-                <UsersIcon
-                  size={18}
-                  color={isFollowing ? colors.primary : colors.onPrimary}
-                />
+                {isFollowing ? (
+                  <FollowedCheckIcon size={18} color="#0C1015" />
+                ) : (
+                  <FollowPersonIcon size={18} color="#FFFFFF" />
+                )}
                 <Text
                   style={[
                     styles.followBtnText,
@@ -459,13 +449,13 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
+          style={styles.backBtn}
         >
-          <BackIcon size={24} color={colors.onSurface} />
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <View style={styles.topBarCenterSpacer} />
-        <TouchableOpacity onPress={handleOpenActions} style={styles.iconBtn}>
-          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+        <Text style={styles.topBarTitle} />
+        <TouchableOpacity onPress={handleOpenActions} style={styles.backBtn}>
+          <MoreHorizontalIcon size={24} color="#0C1015" />
         </TouchableOpacity>
       </View>
 
@@ -510,19 +500,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         onClose={() => setAvatarPreviewVisible(false)}
       />
 
-      <Modal
-        visible={composeSheetVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeComposeSheet}
-      >
-        <TouchableOpacity
-          style={styles.composeOverlay}
-          activeOpacity={1}
-          onPress={closeComposeSheet}
-        >
-          <View style={styles.composeSheet}>
-            <View style={styles.composeSheetHandle} />
+      <SwipeableBottomSheet visible={composeSheetVisible} onClose={closeComposeSheet}>
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>
                 {quotePostId ? t('quotePost') : t('newPost')}
@@ -573,9 +551,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
               </View>
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       <ForwardSheet
         visible={!!forwardPost}
@@ -590,138 +566,156 @@ export default function UserProfileScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F6F9',
+    backgroundColor: '#FFFFFF',
   },
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#DEE2E5',
-    backgroundColor: colors.white,
+    justifyContent: 'space-between',
+    paddingLeft: 12,
+    paddingRight: 16,
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topBarCenterSpacer: {
-    flex: 1,
+  topBarTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
   listContent: {
     paddingBottom: 100,
   },
   profileHeader: {
     alignItems: 'center',
-    padding: spacing.xxl,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#DEE2E5',
-    backgroundColor: colors.white,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
-    marginBottom: spacing.xxs,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
   },
   userName: {
-    ...typography.headlineSmall,
-    color: colors.onSurface,
-    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 2,
+    fontSize: 24,
+    lineHeight: 32,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
   },
   profileMeta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.sm,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   bio: {
-    ...typography.bodyMedium,
-    color: colors.onSurfaceVariant,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    fontStyle: 'italic',
     textAlign: 'center',
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: spacing.lg,
+    marginBottom: 16,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statValue: {
-    ...typography.titleLarge,
-    color: colors.onSurface,
-    fontWeight: '700',
+    fontSize: 18,
+    lineHeight: 20,
+    fontFamily: 'DINExp-Bold',
+    color: '#0C1015',
   },
   statLabel: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
     marginTop: 2,
   },
   statDivider: {
     width: 1,
     height: 32,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: '#DEE2E5',
   },
   actionRow: {
     flexDirection: 'row',
-    width: '80%',
-    gap: spacing.sm,
+    width: '100%',
+    gap: 10,
+    paddingHorizontal: 20,
   },
   messageBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.onSurface,
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#0C1015',
   },
   messageBtnDisabled: {
     opacity: 0.5,
   },
   messageBtnText: {
-    ...typography.labelLarge,
-    color: colors.onPrimary,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
   },
   followBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#0C1015',
   },
   followBtnFollowing: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: '#DEE2E5',
   },
   followBtnText: {
-    ...typography.labelLarge,
-    color: colors.onPrimary,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
   },
   followBtnTextFollowing: {
-    color: colors.primary,
+    color: '#0C1015',
   },
   sectionHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#DEE2E5',
   },
   sectionTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    fontWeight: '700',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
   },
   popoverOverlay: {
     position: 'absolute',
@@ -734,11 +728,11 @@ const styles = StyleSheet.create({
   },
   popoverBubble: {
     position: 'absolute',
-    top: 52,
-    right: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.xs,
+    top: 58,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 4,
     minWidth: 140,
     shadowColor: '#000',
     shadowOpacity: 0.12,
@@ -748,31 +742,13 @@ const styles = StyleSheet.create({
     zIndex: 101,
   },
   popoverItem: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   popoverItemText: {
-    ...typography.bodyMedium,
-    color: colors.error,
-  },
-  composeOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  composeSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
-  },
-  composeSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#ED4956',
   },
   composeSheetHeader: {
     flexDirection: 'row',

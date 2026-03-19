@@ -382,8 +382,12 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
           );
         });
       }
-      // Force background refetch to reconcile cache with server after send
-      queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
+      // Delay background refetch to avoid race with optimistic replace
+      // The replace above already put the correct message in cache;
+      // refetch too early can cause a brief duplicate flash.
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
+      }, 1500);
       queryClient.invalidateQueries({ queryKey: ['chat-can-send', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });

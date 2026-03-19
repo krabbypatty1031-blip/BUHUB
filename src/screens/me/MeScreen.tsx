@@ -21,10 +21,8 @@ import { useMyErrands, useDeleteErrand, useCloseErrand } from '../../hooks/useEr
 import { useMySecondhand, useDeleteSecondhand, useCloseSecondhand } from '../../hooks/useSecondhand';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
-import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
-import { Image as ExpoImage } from 'expo-image';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLikePost, useBookmarkPost, useVotePost, useDeletePost, useDeleteComment, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
+import { useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
@@ -33,18 +31,16 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { ProfileSkeleton } from '../../components/common/Skeleton';
 import TabBar, { type TabOption } from '../../components/common/TabBar';
 import PostCard from '../../components/common/PostCard';
-import TranslatableText from '../../components/common/TranslatableText';
+import CommentCard from '../../components/common/CommentCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import PressScaleButton from '../../components/common/PressScaleButton';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
-import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import {
   EditIcon,
-  ShareIcon,
   SettingsIcon,
   HelpCircleIcon,
   LockIcon,
@@ -54,13 +50,9 @@ import {
   CloseIcon,
   QrCodeIcon,
   ShoppingBagIcon,
-  MaleIcon,
-  FemaleIcon,
-  TrashIcon,
   ImageIcon,
   BarChartIcon,
   ChevronRightIcon,
-  MoreHorizontalIcon,
 } from '../../components/common/icons';
 import {
   FigmaHelpIcon,
@@ -68,9 +60,11 @@ import {
   FigmaEditIcon,
   FigmaShareIcon,
 } from '../../components/me/MeFigmaIcons';
-import { getRelativeTime, buildPostMeta } from '../../utils/formatTime';
+import { getRelativeTime, buildGradeMajorMeta } from '../../utils/formatTime';
+import PartnerCard from '../../components/functions/PartnerCard';
+import ErrandCard from '../../components/functions/ErrandCard';
+import SecondhandCard from '../../components/functions/SecondhandCard';
 import { getVotedOptionIndex } from '../../utils/forum';
-import { hapticLight } from '../../utils/haptics';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
@@ -101,185 +95,6 @@ const TAB_DEFS: TabDef[] = [
  *   [Body text]      main content, max 3 lines
  *   [Footer]         left: metrics/author info, right: time
  */
-
-const CommentItem = React.memo(function CommentItem({
-  comment,
-  t,
-  lang,
-  onPress,
-  onAvatarPress,
-  onUpdate,
-  onComment,
-  onForward,
-  onLikeUpdate,
-  onBookmarkUpdate,
-  showDelete = true,
-}: {
-  comment: UserComment;
-  t: (key: string) => string;
-  lang: Language;
-  onPress: () => void;
-  onAvatarPress?: () => void;
-  onUpdate: () => void;
-  onComment?: () => void;
-  onForward?: () => void;
-  onLikeUpdate?: (liked: boolean) => void;
-  onBookmarkUpdate?: (bookmarked: boolean) => void;
-  showDelete?: boolean;
-}) {
-  const deleteCommentMutation = useDeleteComment(comment.postId);
-  const likeCommentMutation = useLikeComment(comment.postId);
-  const bookmarkCommentMutation = useBookmarkComment(comment.postId);
-  const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const showModal = useUIStore((s) => s.showModal);
-
-  const commentMeta = useMemo(
-    () => buildPostMeta(t, lang, {
-      gradeKey: comment.isAnonymous ? undefined : comment.gradeKey,
-      majorKey: comment.isAnonymous ? undefined : comment.majorKey,
-      createdAt: comment.time,
-      isAnonymous: comment.isAnonymous,
-    }),
-    [t, lang, comment.gradeKey, comment.majorKey, comment.time, comment.isAnonymous]
-  );
-
-  const handleCommentPress = useCallback(() => {
-    hapticLight();
-    onComment?.();
-  }, [onComment]);
-
-  const handleDelete = useCallback(() => {
-    showModal({
-      title: t('deleteCommentTitle'),
-      message: t('deleteCommentMessage'),
-      onConfirm: () => {
-        deleteCommentMutation.mutate(comment.commentId, {
-          onSuccess: () => {
-            showSnackbar({ message: t('commentDeleted'), type: 'success' });
-            onUpdate();
-          },
-          onError: () => {
-            showSnackbar({ message: t('deleteFailed'), type: 'error' });
-          },
-        });
-      },
-    });
-  }, [comment.commentId, deleteCommentMutation, showModal, showSnackbar, t, onUpdate]);
-
-  const handleLike = useCallback(() => {
-    hapticLight();
-    likeCommentMutation.mutate(comment.commentId, {
-      onSuccess: (res) => {
-        const liked = res?.liked ?? !comment.liked;
-        if (onLikeUpdate) {
-          onLikeUpdate(liked);
-        } else {
-          onUpdate();
-        }
-      },
-      onError: () => showSnackbar({ message: t('likeFailed'), type: 'error' }),
-    });
-  }, [comment.commentId, comment.liked, likeCommentMutation, showSnackbar, t, onLikeUpdate, onUpdate]);
-
-  const handleBookmark = useCallback(() => {
-    hapticLight();
-    bookmarkCommentMutation.mutate(comment.commentId, {
-      onSuccess: (res) => {
-        const bookmarked = res?.bookmarked ?? !comment.bookmarked;
-        if (onBookmarkUpdate) {
-          onBookmarkUpdate(bookmarked);
-        } else {
-          onUpdate();
-        }
-      },
-      onError: () => showSnackbar({ message: t('bookmarkFailed'), type: 'error' }),
-    });
-  }, [comment.commentId, comment.bookmarked, bookmarkCommentMutation, showSnackbar, t, onBookmarkUpdate, onUpdate]);
-
-  return (
-    <PageTranslationProvider>
-    <TouchableOpacity style={styles.commentItem} activeOpacity={0.7} onPress={onPress}>
-      <View style={styles.commentHeader}>
-        {onAvatarPress && !comment.isAnonymous ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={(event) => {
-              event.stopPropagation();
-              onAvatarPress();
-            }}
-          >
-            <Avatar
-              text={comment.name}
-              uri={comment.avatar}
-              defaultAvatar={comment.defaultAvatar}
-              size="sm"
-              gender={comment.gender}
-            />
-          </TouchableOpacity>
-        ) : (
-          <Avatar
-            text={comment.name}
-            uri={comment.avatar}
-            defaultAvatar={comment.defaultAvatar}
-            size="sm"
-            gender={comment.gender}
-          />
-        )}
-        <View style={styles.commentUserInfo}>
-          <View style={styles.commentNameRow}>
-            <Text style={styles.commentName}>{comment.name}</Text>
-            {!comment.isAnonymous && comment.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-            {!comment.isAnonymous && comment.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-            <Text style={styles.commentDot}> · </Text>
-            <Text style={styles.commentMeta} numberOfLines={1}>{commentMeta}</Text>
-          </View>
-        </View>
-      </View>
-
-      <Text style={styles.replyToLabel}>
-        {t('replyTo')} @{comment.replyToName || comment.postAuthor}
-      </Text>
-
-      <TranslatableText
-        entityType="comment"
-        entityId={comment.commentId}
-        fieldName="content"
-        sourceText={comment.comment}
-        sourceLanguage={comment.sourceLanguage}
-        textStyle={styles.commentBody}
-        numberOfLines={3}
-      />
-
-      <View style={styles.commentActionsRow}>
-        <View style={styles.itemActions}>
-          <PressScaleButton style={styles.itemActionBtn} onPress={handleLike}>
-            <HeartIcon size={14} color={comment.liked ? colors.error : colors.onSurface} fill={comment.liked ? colors.error : undefined} />
-            <Text style={[styles.itemActionText, comment.liked && { color: colors.error }]}>{comment.likes}</Text>
-          </PressScaleButton>
-          <PressScaleButton style={styles.itemActionBtn} onPress={handleCommentPress}>
-            <CommentIcon size={14} color={colors.onSurface} />
-            {comment.replyCount !== undefined && comment.replyCount > 0 && (
-              <Text style={styles.replyCountBadge}>{comment.replyCount}</Text>
-            )}
-          </PressScaleButton>
-          <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
-            <ShareIcon size={14} color={colors.onSurface} />
-          </TouchableOpacity>
-          <PressScaleButton style={styles.itemActionBtn} onPress={handleBookmark}>
-            <BookmarkIcon size={14} color={comment.bookmarked ? colors.primary : colors.onSurface} fill={comment.bookmarked ? colors.primary : undefined} />
-          </PressScaleButton>
-          {showDelete && (
-            <TouchableOpacity style={styles.itemActionBtn} onPress={handleDelete}>
-              <TrashIcon size={14} color={colors.onSurface} />
-            </TouchableOpacity>
-          )}
-        </View>
-        <PageTranslationToggle style={styles.commentTranslationToggle} />
-      </View>
-    </TouchableOpacity>
-    </PageTranslationProvider>
-  );
-});
 
 export default function MeScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
@@ -337,7 +152,12 @@ export default function MeScreen({ navigation }: Props) {
     myPartners?.forEach((p) => { if (p.user === nickname) items.push({ kind: 'partner', data: p, id: p.id }); });
     myErrands?.forEach((e) => { if (e.user === nickname) items.push({ kind: 'errand', data: e, id: e.id }); });
     mySecondhand?.forEach((s) => { if (s.user === nickname) items.push({ kind: 'secondhand', data: s, id: s.id }); });
-    items.sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
+    const kindOrder: Record<string, number> = { partner: 0, errand: 1, secondhand: 2 };
+    items.sort((a, b) => {
+      const kindDiff = kindOrder[a.kind] - kindOrder[b.kind];
+      if (kindDiff !== 0) return kindDiff;
+      return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
+    });
     return items;
   }, [myPartners, myErrands, mySecondhand, nickname]);
 
@@ -544,83 +364,67 @@ export default function MeScreen({ navigation }: Props) {
       return (
         <>
           {publishedItems.map((item) => {
-            const isExpired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
-            const isSold = item.kind === 'secondhand' && item.data.sold;
-            const dimmed = isExpired || isSold;
-            const kindLabel = t(item.kind === 'partner' ? 'partnerLabel' : item.kind === 'errand' ? 'errandLabel' : 'secondhandLabel');
-            const title = item.data.title;
-            const desc = item.data.desc;
-            const time = getRelativeTime(item.data.createdAt, lang);
-            const primaryImage = item.kind === 'secondhand' ? item.data.images?.[0] : undefined;
+            const expired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
+            const d = item.data;
+            const displayAcademicMeta = buildGradeMajorMeta(t, {
+              gradeKey: d.gradeKey,
+              majorKey: d.majorKey,
+            });
+            const displayTime = getRelativeTime(d.createdAt, lang);
+            const nav = navigation.getParent();
+            const backTo = { tab: 'MeTab' as const, screen: 'MeHome' as const };
 
-            return (
-              <TouchableOpacity
-                key={`${item.kind}-${item.id}`}
-                style={[styles.publishedCard, dimmed && styles.publishedCardDimmed]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  const nav = navigation.getParent();
-                  if (!nav) return;
-                  const backTo = { tab: 'MeTab' as const, screen: 'MeHome' as const };
-                  switch (item.kind) {
-                    case 'partner': nav.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: item.id, backTo } }); break;
-                    case 'errand': nav.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: item.id, backTo } }); break;
-                    case 'secondhand': nav.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id: item.id, backTo } }); break;
-                  }
-                }}
-              >
-                {/* Image thumbnail (secondhand only) */}
-                {primaryImage && (
-                  <ExpoImage
-                    source={primaryImage}
-                    style={styles.publishedImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={0}
+            switch (item.kind) {
+              case 'partner':
+                return (
+                  <PartnerCard
+                    key={`partner-${item.id}`}
+                    item={item.data}
+                    expired={expired}
+                    displayAcademicMeta={displayAcademicMeta}
+                    displayTime={displayTime}
+                    onPress={() => nav?.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: item.id, backTo } })}
+                    onAvatarPress={() => {}}
+                    onMore={() => setPublishedActionItem(item)}
+                    expiredLabel={t('partnerExpired')}
+                    categoryColor="#3B82F6"
                   />
-                )}
-                <View style={styles.publishedContent}>
-                  {/* Kind badge + title */}
-                  <View style={styles.publishedHeader}>
-                    <View style={styles.publishedKindBadge}>
-                      <Text style={styles.publishedKindText}>{kindLabel}</Text>
-                    </View>
-                    {isSold && (
-                      <View style={styles.publishedSoldBadge}>
-                        <Text style={styles.publishedSoldText}>{t('sold')}</Text>
-                      </View>
-                    )}
-                    {isExpired && !isSold && (
-                      <View style={styles.publishedExpiredBadge}>
-                        <Text style={styles.publishedExpiredText}>{t('secondhandExpired')}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.publishedTitle} numberOfLines={2}>{title}</Text>
-                  {desc ? <Text style={styles.publishedDesc} numberOfLines={1}>{desc}</Text> : null}
-                  {/* Price (errand/secondhand) */}
-                  {item.kind === 'secondhand' && item.data.price && (
-                    <Text style={styles.publishedPrice}>{item.data.price}</Text>
-                  )}
-                  {item.kind === 'errand' && item.data.price && (
-                    <Text style={styles.publishedPrice}>{item.data.price}</Text>
-                  )}
-                  <View style={styles.publishedFooter}>
-                    <Text style={styles.publishedTime}>{time}</Text>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setPublishedActionItem(item);
-                      }}
-                    >
-                      <MoreHorizontalIcon size={20} color="#86909C" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
+                );
+              case 'errand':
+                return (
+                  <ErrandCard
+                    key={`errand-${item.id}`}
+                    item={item.data}
+                    expired={expired}
+                    displayAcademicMeta={displayAcademicMeta}
+                    displayTime={displayTime}
+                    onPress={() => nav?.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: item.id, backTo } })}
+                    onAvatarPress={() => {}}
+                    onMore={() => setPublishedActionItem(item)}
+                    expiredLabel={t('errandExpired')}
+                    categoryColor="#F97316"
+                  />
+                );
+              case 'secondhand':
+                return (
+                  <SecondhandCard
+                    key={`secondhand-${item.id}`}
+                    item={item.data}
+                    id={item.id}
+                    onPress={(id) => nav?.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id, backTo } })}
+                    onAvatarPress={() => {}}
+                    onMore={(sh, id) => setPublishedActionItem({ kind: 'secondhand', data: sh, id })}
+                    onImagePress={(images, index) => {
+                      setPostPreviewImages(images);
+                      setPostPreviewIndex(index);
+                      setPostPreviewVisible(true);
+                    }}
+                    now={now}
+                    t={t}
+                    categoryColor="#02AF4A"
+                  />
+                );
+            }
           })}
         </>
       );
@@ -718,7 +522,7 @@ export default function MeScreen({ navigation }: Props) {
                 comments: c.replyCount ?? 0,
               };
               return (
-                <CommentItem
+                <CommentCard
                   key={c.commentId}
                   comment={likedCommentAsUser}
                   t={t}
@@ -843,7 +647,7 @@ export default function MeScreen({ navigation }: Props) {
                 comments: c.replyCount ?? 0,
               };
               return (
-                <CommentItem
+                <CommentCard
                   key={c.commentId}
                   comment={bookmarkedCommentAsUser}
                   t={t}
@@ -911,7 +715,7 @@ export default function MeScreen({ navigation }: Props) {
           comments: c.replyCount ?? 0,
         };
         return (
-          <CommentItem
+          <CommentCard
             key={i}
             comment={c}
             t={t}
@@ -1153,19 +957,7 @@ export default function MeScreen({ navigation }: Props) {
       </Modal>
 
       {/* Compose Type Sheet */}
-      <Modal
-        visible={composeSheetVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeComposeSheet}
-      >
-        <TouchableOpacity
-          style={styles.composeOverlay}
-          activeOpacity={1}
-          onPress={closeComposeSheet}
-        >
-          <View style={styles.composeSheet}>
-            <View style={styles.composeSheetHandle} />
+      <SwipeableBottomSheet visible={composeSheetVisible} onClose={closeComposeSheet}>
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>
                 {quotePostId ? t('quotePost') : t('newPost')}
@@ -1216,9 +1008,7 @@ export default function MeScreen({ navigation }: Props) {
               </View>
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       <ImagePreviewModal
         visible={postPreviewVisible}
@@ -1242,19 +1032,7 @@ export default function MeScreen({ navigation }: Props) {
       />
 
       {/* Published item action sheet */}
-      <Modal
-        visible={!!publishedActionItem}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPublishedActionItem(null)}
-      >
-        <TouchableOpacity
-          style={styles.publishedActionOverlay}
-          activeOpacity={1}
-          onPress={() => setPublishedActionItem(null)}
-        >
-          <View style={styles.publishedActionSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.publishedActionHandle} />
+      <SwipeableBottomSheet visible={!!publishedActionItem} onClose={() => setPublishedActionItem(null)}>
             {/* Forward to contact */}
             <TouchableOpacity
               style={styles.publishedActionRow}
@@ -1354,9 +1132,7 @@ export default function MeScreen({ navigation }: Props) {
             >
               <Text style={[styles.publishedActionText, { color: '#ED4956' }]}>{t('deletePost')}</Text>
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       {/* Published item forward sheet */}
       <FunctionForwardSheet
@@ -1431,7 +1207,6 @@ const styles = StyleSheet.create({
   },
   profileAvatarWrap: {
     flexShrink: 0,
-    marginRight: 30,
   },
   /* Nickname: Bold 24px #0C1015 */
   nickname: {
@@ -1487,115 +1262,7 @@ const styles = StyleSheet.create({
     color: '#86909C',
   },
 
-  /* ==================== Published items (forum card style) ==================== */
-  publishedCard: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#DEE2E5',
-    backgroundColor: colors.white,
-  },
-  publishedCardDimmed: {
-    opacity: 0.5,
-  },
-  publishedImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: '#F5F5F5',
-  },
-  publishedContent: {
-    flex: 1,
-    gap: 4,
-  },
-  publishedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  publishedKindBadge: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  publishedKindText: {
-    fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#86909C',
-  },
-  publishedSoldBadge: {
-    backgroundColor: '#ED4956',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  publishedSoldText: {
-    fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#FFFFFF',
-  },
-  publishedExpiredBadge: {
-    backgroundColor: '#C7C7CC',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  publishedExpiredText: {
-    fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#FFFFFF',
-  },
-  publishedTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#0C1015',
-  },
-  publishedDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#86909C',
-  },
-  publishedPrice: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontFamily: 'DINExp-Bold',
-    color: '#FF2538',
-  },
-  publishedFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  publishedTime: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#9CA3AF',
-  },
-  publishedActionOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  publishedActionSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    paddingBottom: 36,
-  },
-  publishedActionHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 12,
-  },
+  /* ==================== Published action sheet ==================== */
   publishedActionRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1664,103 +1331,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
-  /* ==================== Comment item (same style as PostDetailScreen) ==================== */
-  commentItem: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#DEE2E5',
-    backgroundColor: colors.white,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  commentTranslationToggle: {
-    marginLeft: 'auto',
-    alignSelf: 'center',
-  },
-  commentUserInfo: {
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
-  commentNameRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center',
-    gap: 3,
-  },
-  commentName: {
-    ...typography.titleSmall,
-    fontSize: 13,
-    color: colors.onSurface,
-  },
-  commentDot: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-  },
-  replyToLabel: {
-    ...typography.bodySmall,
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-    marginLeft: 40,
-    marginBottom: spacing.xxs,
-  },
-  commentGradeMajor: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    marginTop: 1,
-  },
-  commentContext: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xs,
-    marginLeft: 32 + spacing.sm,
-  },
-  commentBody: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    marginBottom: spacing.xs,
-    marginLeft: 40,
-  },
   cardBody: {
     ...typography.bodyMedium,
     color: colors.onSurface,
     marginBottom: spacing.xs,
-  },
-  commentActionsRow: {
-    marginLeft: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  itemActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-    paddingVertical: spacing.xxs,
-    minHeight: 28,
-  },
-  itemActionText: {
-    fontSize: 12,
-    color: colors.onSurface,
-    marginLeft: 2,
-  },
-  replyCountBadge: {
-    fontSize: 10,
-    color: colors.primary,
-    fontWeight: '600',
-    marginLeft: 2,
-  },
-  commentMeta: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -1862,25 +1436,6 @@ const styles = StyleSheet.create({
   },
 
   /* Compose Sheet */
-  composeOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  composeSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
-  },
-  composeSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-  },
   composeSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',

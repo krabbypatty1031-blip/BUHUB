@@ -26,6 +26,8 @@ export default function App() {
     'SourceHanSansCN-Heavy': require('./assets/fonts/source-han/SourceHanSansCN-Heavy.otf'),
     'SourceHanSansCN-Light': require('./assets/fonts/source-han/SourceHanSansCN-Light.otf'),
     'DINExp-Bold': require('./assets/fonts/d-din/D-DINExp-Bold.otf'),
+    'Poppins-Medium': require('@expo-google-fonts/poppins/500Medium/Poppins_500Medium.ttf'),
+    'Poppins-SemiBold': require('@expo-google-fonts/poppins/600SemiBold/Poppins_600SemiBold.ttf'),
   });
 
   if (fontError && __DEV__) {

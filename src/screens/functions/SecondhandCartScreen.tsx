@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Modal,
   SectionList,
   StyleSheet,
   Text,
@@ -20,6 +19,7 @@ import { colors } from '../../theme/colors';
 import { borderRadius, elevation, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import Avatar from '../../components/common/Avatar';
@@ -327,11 +327,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
         }
       />
 
-      <Modal visible={!!actionItem} transparent animationType="fade" onRequestClose={() => setActionItem(null)}>
-        <TouchableOpacity style={styles.actionOverlay} activeOpacity={1} onPress={() => setActionItem(null)}>
-          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.actionHandle} />
-
+      <SwipeableBottomSheet visible={!!actionItem} onClose={() => setActionItem(null)}>
             {!isActionItemOwnPost ? (
               <TouchableOpacity
                 style={styles.actionRow}
@@ -372,9 +368,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
             >
               <Text style={styles.actionTextDanger}>{t('notWantAnymore')}</Text>
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       <FunctionForwardSheet
         visible={!!shareSheetItem}
@@ -409,10 +403,15 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
   iconBtn: {
     width: 48,
@@ -574,26 +573,6 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onSurfaceVariant,
     fontWeight: '600',
-  },
-  actionOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 36,
-  },
-  actionHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
   },
   actionRow: {
     alignItems: 'center',

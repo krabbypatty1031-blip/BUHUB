@@ -10,7 +10,6 @@ import {
   Platform,
   ScrollView,
   Animated,
-  Modal,
   UIManager,
   findNodeHandle,
   Keyboard,
@@ -36,6 +35,7 @@ import PostImageGallery from '../../components/common/PostImageGallery';
 import Tag from '../../components/common/Tag';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import PressScaleButton from '../../components/common/PressScaleButton';
 import TranslatableText from '../../components/common/TranslatableText';
@@ -51,6 +51,7 @@ import {
   TrashIcon,
   MaleIcon,
   FemaleIcon,
+  CheckIcon,
 } from '../../components/common/icons';
 import {
   LikeActionIcon,
@@ -223,7 +224,7 @@ function ItemActions({
   onForward,
   onBookmark,
   bookmarked,
-  size = 16,
+  size = 18,
   replyCount,
 }: {
   likes: number;
@@ -397,7 +398,7 @@ function ReplyItem({
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
       ]}
     >
-      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(reply.id)}>
+      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(reply.id)} style={styles.commentMainWrap}>
         <View style={styles.commentHeader}>
           {onAvatarPress && !reply.isAnonymous ? (
             <TouchableOpacity
@@ -408,7 +409,7 @@ function ReplyItem({
                 text={reply.name}
                 uri={reply.avatar}
                 defaultAvatar={reply.defaultAvatar}
-                size="xs"
+                size="sm"
                 gender={reply.gender}
               />
             </TouchableOpacity>
@@ -417,7 +418,7 @@ function ReplyItem({
               text={reply.name}
               uri={reply.avatar}
               defaultAvatar={reply.defaultAvatar}
-              size="xs"
+              size="sm"
               gender={reply.gender}
             />
           )}
@@ -425,12 +426,13 @@ function ReplyItem({
             <View style={styles.replyNameRow}>
               <View style={styles.replyNameLeft}>
                 <Text style={styles.replyName}>{reply.name}</Text>
-                {reply.gender === 'male' && <MaleIcon size={10} color={colors.genderMale} />}
-                {reply.gender === 'female' && <FemaleIcon size={10} color={colors.genderFemale} />}
+                {reply.gender === 'male' && <MaleIcon size={14} color={colors.genderMale} />}
+                {reply.gender === 'female' && <FemaleIcon size={14} color={colors.genderFemale} />}
               </View>
-              <Text style={styles.replyTimeText}>· {replyTime}</Text>
             </View>
-            {replyAcademicMeta ? <Text style={styles.replyAcademicMeta}>{replyAcademicMeta}</Text> : null}
+            <Text style={styles.replyAcademicMeta} numberOfLines={1}>
+              {replyAcademicMeta ? `${replyAcademicMeta} · ${replyTime}` : replyTime}
+            </Text>
           </View>
         </View>
         <View style={styles.replyBodyContainer}>
@@ -638,7 +640,7 @@ function CommentItem({
       ]}
     >
       {/* Comment main */}
-      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(comment.id)}>
+      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(comment.id)} style={styles.commentMainWrap}>
         <View style={styles.commentHeader}>
           {onAvatarPress && !comment.isAnonymous ? (
             <TouchableOpacity
@@ -667,15 +669,16 @@ function CommentItem({
               <View style={styles.commentNameLeft}>
                 <Text style={styles.commentName}>{comment.name}</Text>
                 {!comment.isAnonymous && comment.gender === 'male' && (
-                  <MaleIcon size={12} color={colors.genderMale} />
+                  <MaleIcon size={14} color={colors.genderMale} />
                 )}
                 {!comment.isAnonymous && comment.gender === 'female' && (
-                  <FemaleIcon size={12} color={colors.genderFemale} />
+                  <FemaleIcon size={14} color={colors.genderFemale} />
                 )}
               </View>
-              <Text style={styles.commentTimeText}>· {commentTime}</Text>
             </View>
-            {commentAcademicMeta ? <Text style={styles.commentMeta}>{commentAcademicMeta}</Text> : null}
+            <Text style={styles.commentMeta} numberOfLines={1}>
+              {commentAcademicMeta ? `${commentAcademicMeta} · ${commentTime}` : commentTime}
+            </Text>
           </View>
         </View>
         <TranslatableText
@@ -1376,7 +1379,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               <Avatar
                 text="匿名"
                 uri={post.avatar}
-                size="md"
+                size="sm"
                 gender="other"
               />
             ) : (
@@ -1389,7 +1392,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                   text={post.name}
                   uri={post.avatar}
                   defaultAvatar={post.defaultAvatar}
-                  size="md"
+                  size="sm"
                   gender={post.gender}
                 />
               </TouchableOpacity>
@@ -1411,11 +1414,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                     <FemaleIcon size={14} color={colors.genderFemale} />
                   )}
                 </View>
-                <Text style={styles.postTimeText}>· {displayTime}</Text>
               </View>
-              {displayAcademicMeta ? <Text style={styles.postMeta}>{displayAcademicMeta}</Text> : null}
+              <Text style={styles.postMeta} numberOfLines={1}>
+                {displayAcademicMeta ? `${displayAcademicMeta} · ${displayTime}` : displayTime}
+              </Text>
             </View>
-            <PageTranslationToggle style={styles.postTranslationToggle} />
           </View>
           <TranslatableText
             entityType="post"
@@ -1480,9 +1483,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                   >
                     <AnimatedPollBar percent={opt.percent} isVoted={i === votedOptionIndex} />
                     <View style={styles.pollOptionContent}>
-                      <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
-                        {opt.text}
-                      </Text>
+                      <View style={styles.pollOptionLeft}>
+                        <Text style={[styles.pollText, votedOptionIndex === i && styles.pollTextVoted]} numberOfLines={1} ellipsizeMode="tail">
+                          {opt.text}
+                        </Text>
+                        {i === votedOptionIndex && (
+                          <CheckIcon size={16} color="#0463E2" />
+                        )}
+                      </View>
+                      <Text style={styles.pollVoteCount}>{opt.voteCount ?? 0}</Text>
                     </View>
                   </View>
                 ) : (
@@ -1505,9 +1514,15 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 )
               )}
-              <Text style={styles.pollTotal}>
-                {lang === 'en' ? `Total ${totalPollVotes} votes` : `共${totalPollVotes}人投票`}
-              </Text>
+              <View style={styles.pollFooter}>
+                {hasVoted ? (
+                  <Text style={styles.pollFooterText}>
+                    {t('totalVotes', { count: totalPollVotes })}
+                  </Text>
+                ) : (
+                  <Text style={styles.pollHintText}>{t('pollHint')}</Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -1518,7 +1533,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               onPress={handleLikePostPress}
             >
               <LikeActionIcon
-                size={20}
+                size={18}
                 color={isLiked ? colors.error : '#86909C'}
                 fill={isLiked ? colors.error : undefined}
               />
@@ -1531,7 +1546,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleComment}
             >
-              <CommentActionIcon size={20} color="#86909C" />
+              <CommentActionIcon size={18} color="#86909C" />
               <Text style={styles.postActionText}>{post.comments}</Text>
             </PressScaleButton>
 
@@ -1539,7 +1554,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleForward}
             >
-              <ShareActionIcon size={20} color="#86909C" />
+              <ShareActionIcon size={18} color="#86909C" />
             </TouchableOpacity>
 
             <PressScaleButton
@@ -1547,7 +1562,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               onPress={handleBookmarkPostPress}
             >
               <BookmarkActionIcon
-                size={20}
+                size={18}
                 color={isBookmarked ? colors.primary : '#86909C'}
                 fill={isBookmarked ? colors.primary : undefined}
               />
@@ -1557,15 +1572,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               style={styles.postActionBtn}
               onPress={handleQuote}
             >
-              <QuoteActionIcon size={20} color="#86909C" />
+              <QuoteActionIcon size={18} color="#86909C" />
             </TouchableOpacity>
+
+            <PageTranslationToggle />
 
             {isOwnPost && (
               <TouchableOpacity
                 style={styles.postActionBtn}
                 onPress={handleDeletePost}
               >
-                <TrashIcon size={20} color="#86909C" />
+                <TrashIcon size={18} color="#86909C" />
               </TouchableOpacity>
             )}
           </View>
@@ -1600,12 +1617,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   if (isLoading || !post) {
     return (
       <View style={styles.container}>
-        <View style={[styles.topBar, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <BackIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
-          <View style={styles.iconBtn} />
+        <View style={[styles.topBarWrap, { paddingTop: insets.top }]}>
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+              <BackIcon size={24} color={colors.onSurface} />
+            </TouchableOpacity>
+            <Text style={styles.topBarTitle}>{t('postDetail')}</Text>
+            <View style={styles.iconBtn} />
+          </View>
         </View>
       </View>
     );
@@ -1614,7 +1633,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   return (
       <View style={styles.container}>
       {/* Top Bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
+      <View style={[styles.topBarWrap, { paddingTop: insets.top }]}>
+      <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.iconBtn}
@@ -1629,6 +1649,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <MoreHorizontalIcon size={24} color={colors.onSurface} />
           </TouchableOpacity>
         )}
+      </View>
       </View>
 
       {!isOwnPost && popoverVisible && (
@@ -1752,25 +1773,13 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       />
 
       {/* Comment Action Sheet */}
-      <Modal
+      <SwipeableBottomSheet
         visible={commentActionVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        onClose={() => {
           setCommentActionVisible(false);
           setReportTargetCommentId(null);
         }}
       >
-        <TouchableOpacity
-          style={styles.actionSheetOverlay}
-          activeOpacity={1}
-          onPress={() => {
-            setCommentActionVisible(false);
-            setReportTargetCommentId(null);
-          }}
-        >
-          <View style={styles.actionSheet}>
-            <View style={styles.actionSheetHandle} />
             {selectedCommentIsOwn ? (
               <TouchableOpacity
                 style={styles.actionSheetItem}
@@ -1830,9 +1839,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             >
               <Text style={styles.actionSheetItemText}>{t('cancel')}</Text>
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       {/* Report Modal */}
       <ReportModal
@@ -1863,14 +1870,16 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
+  topBarWrap: {
+    backgroundColor: colors.white,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
-    paddingBottom: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#DEE2E5',
-    backgroundColor: colors.white,
+    height: 44,
   },
   iconBtn: {
     width: 48,
@@ -1881,8 +1890,10 @@ const styles = StyleSheet.create({
   topBarTitle: {
     flex: 1,
     textAlign: 'center',
-    ...typography.titleMedium,
-    color: colors.onSurface,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
   },
   listContent: {
     paddingBottom: spacing.lg,
@@ -1890,18 +1901,18 @@ const styles = StyleSheet.create({
 
   /* === Post Section === */
   postSection: {
-    padding: spacing.lg,
+    padding: 16,
+    gap: 16,
     backgroundColor: colors.white,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: 5,
   },
   postAvatarTouch: {},
   postNameTouch: { alignSelf: 'flex-start' },
   postUserInfo: {
-    marginLeft: spacing.md,
     flex: 1,
   },
   postNameRow: {
@@ -1917,13 +1928,13 @@ const styles = StyleSheet.create({
   },
   postTimeText: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: '#86909C',
     marginLeft: 4,
   },
   postName: {
     ...typography.titleSmall,
-    fontWeight: '700',
-    color: colors.onSurface,
+    fontWeight: '400',
+    color: '#0C1015',
   },
   postDot: {
     ...typography.bodySmall,
@@ -1931,28 +1942,22 @@ const styles = StyleSheet.create({
   },
   postMeta: {
     ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    color: '#86909C',
     marginTop: 2,
     flexShrink: 1,
   },
   postContent: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    lineHeight: 24,
-    marginBottom: spacing.md,
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
   postTranslateBlock: {
-    marginBottom: spacing.md,
-  },
-  postTranslationToggle: {
-    marginLeft: spacing.sm,
-    alignSelf: 'flex-start',
-    paddingTop: 2,
   },
   postTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: spacing.md,
+    gap: 4,
   },
   quotedPostCard: {
     backgroundColor: colors.surface2,
@@ -1961,11 +1966,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   postImageWrap: {
-    marginBottom: spacing.md,
   },
   pollContainer: {
-    marginBottom: spacing.md,
-    gap: spacing.xs,
+    gap: 8,
   },
   pollOption: {
     height: 34,
@@ -1983,8 +1986,20 @@ const styles = StyleSheet.create({
   pollOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
+  },
+  pollOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 1,
+    flexShrink: 1,
+  },
+  pollVoteCount: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
   },
   pollBar: {
     position: 'absolute',
@@ -2011,45 +2026,54 @@ const styles = StyleSheet.create({
     color: '#0463E2',
   },
   pollOptionUnvoted: {
-    height: 40,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1.5,
-    borderColor: colors.outlineVariant,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9CD7FF',
+    backgroundColor: '#E8F3FF',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 20,
   },
   pollTextUnvoted: {
-    ...typography.bodyMedium,
-    fontSize: 13,
-    color: colors.onSurface,
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 12 * 1.4,
+    color: '#0C1015',
   },
-  pollTotal: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+  pollFooter: {
+    flexDirection: 'row',
     marginTop: spacing.xxs,
-    textAlign: 'right',
+  },
+  pollFooterText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
+    marginLeft: 'auto',
+  },
+  pollHintText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#9CA3AF',
   },
 
-  /* Post actions: 5 buttons evenly spaced */
+  /* Post actions: gap-based layout matching PostCard */
   postActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
-    paddingTop: spacing.sm,
+    gap: 24,
+    paddingLeft: 4,
   },
   postActionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.xs,
-    minHeight: 44,
+    paddingVertical: spacing.sm,
   },
   postActionText: {
-    fontSize: 14,
-    color: colors.onSurface,
+    fontSize: 12,
+    color: '#86909C',
   },
 
   divider: {
@@ -2068,88 +2092,76 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   commentItem: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    padding: 16,
+    gap: 16,
     backgroundColor: colors.white,
     borderBottomWidth: 0.5,
     borderBottomColor: '#DEE2E5',
   },
+  commentMainWrap: {
+    gap: 16,
+  },
   commentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    gap: 5,
   },
   commentTranslationToggle: {
-    marginLeft: 'auto',
-    alignSelf: 'center',
   },
   commentUserInfo: {
-    marginLeft: spacing.sm,
     flex: 1,
   },
   commentNameRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    columnGap: 6,
+    columnGap: 8,
   },
   commentNameLeft: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 3,
+    gap: 4,
     flexShrink: 1,
-  },
-  commentTimeText: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    marginLeft: 2,
   },
   commentName: {
     ...typography.titleSmall,
-    fontSize: 13,
-    color: colors.onSurface,
-  },
-  commentDot: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
+    fontWeight: '400',
+    color: '#0C1015',
   },
   commentMeta: {
     ...typography.bodySmall,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    marginTop: 1,
+    color: '#86909C',
+    marginTop: 2,
     flexShrink: 1,
   },
   commentBody: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
   commentTranslateBlock: {
-    marginLeft: 40,
-    marginBottom: spacing.xs,
   },
 
   /* Comment-level actions */
   commentActionsRow: {
-    marginLeft: 40,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 24,
+    paddingLeft: 4,
   },
   itemActions: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    gap: 24,
   },
   itemActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
-    paddingVertical: spacing.xxs,
-    minHeight: 32,
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   itemActionText: {
     fontSize: 12,
-    color: colors.onSurface,
+    color: '#86909C',
   },
   replyCountBadge: {
     fontSize: 10,
@@ -2162,7 +2174,6 @@ const styles = StyleSheet.create({
   toggleReplies: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 40,
     marginTop: spacing.xs,
     gap: spacing.xxs,
   },
@@ -2171,7 +2182,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   replyItem: {
-    marginLeft: 40,
     marginTop: spacing.sm,
     paddingLeft: spacing.md,
     borderLeftWidth: 2,
@@ -2187,45 +2197,28 @@ const styles = StyleSheet.create({
   replyNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    columnGap: 4,
+    columnGap: 8,
   },
   replyNameLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
     flexShrink: 1,
   },
   replyName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.onSurface,
+    ...typography.titleSmall,
+    fontWeight: '400',
+    color: '#0C1015',
     fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
-  },
-  replyTimeText: {
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
-    marginLeft: 2,
   },
   replyAcademicMeta: {
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
-    marginTop: 1,
+    ...typography.bodySmall,
+    color: '#86909C',
+    marginTop: 2,
   },
   replyTranslationToggle: {
-    marginLeft: 'auto',
-    alignSelf: 'center',
-  },
-  replyToLabel: {
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
-  },
-  replyTime: {
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
   },
   replyBodyContainer: {
-    marginLeft: 28,
     marginTop: 2,
     marginBottom: spacing.xxs,
   },
@@ -2233,21 +2226,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxs,
   },
   replyBody: {
-    fontSize: 13,
-    color: colors.onSurface,
-    lineHeight: 18,
+    ...typography.bodyMedium,
+    color: '#0C1015',
     fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyToAt: {
-    fontSize: 13,
+    ...typography.bodyMedium,
     color: colors.primary,
     fontWeight: '500',
     fontFamily: MULTILINGUAL_TEXT_FONT_FAMILY,
   },
   replyActions: {
-    marginLeft: 28,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 24,
+    paddingLeft: 4,
   },
 
   /* 鈹€鈹€ Mention Suggestions 鈹€鈹€ */
@@ -2334,26 +2327,6 @@ const styles = StyleSheet.create({
   },
 
   /* 鈹€鈹€ Comment Action Sheet 鈹€鈹€ */
-  actionSheetOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
-  },
-  actionSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
   actionSheetItem: {
     paddingVertical: spacing.lg,
     alignItems: 'center',

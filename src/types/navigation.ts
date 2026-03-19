@@ -176,7 +176,6 @@ export type FunctionsStackParamList = {
   RatingDetail: { category?: RatingCategory; id: string; backToChat?: ChatContactParams; backTo?: ChatBackTarget };
   RatingShare: RatingShareParams;
   RatingForm: { category: RatingCategory; id: string };
-  MyPosts: undefined;
   FacilityBooking: undefined;
   LibraryDetail: undefined;
   UserProfile: UserProfileParams;

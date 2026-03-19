@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +26,7 @@ import { typography } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import SearchFigmaIcon from '../../components/common/SearchFigmaIcon';
@@ -470,19 +470,7 @@ export default function ForumScreen({ navigation, route }: Props) {
       </Animated.View>
 
       {/* Compose Type Sheet */}
-      <Modal
-        visible={composeSheetVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeSheet}
-      >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={closeSheet}
-        >
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
+      <SwipeableBottomSheet visible={composeSheetVisible} onClose={closeSheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{quotePostId ? t('quotePost') : t('newPost')}</Text>
               <TouchableOpacity onPress={closeSheet}>
@@ -531,9 +519,7 @@ export default function ForumScreen({ navigation, route }: Props) {
               </View>
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       {/* Forward Sheet */}
       <ForwardSheet
@@ -643,25 +629,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   // Compose Sheet
-  overlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-  },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
