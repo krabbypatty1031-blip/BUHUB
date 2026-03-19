@@ -14,8 +14,17 @@ export function isLifeHkbuEmail(email?: string | null): boolean {
   return normalizedEmail.endsWith(LIFE_HKBU_EMAIL_DOMAIN);
 }
 
+function isPrivilegedRole(role?: string | null): boolean {
+  return role === 'ADMIN' || role === 'MODERATOR';
+}
+
 export function canPublishCommunityContent(user?: User | null): boolean {
-  return Boolean(user?.isHKBUVerified || isLifeHkbuEmail(user?.hkbuEmail) || isLifeHkbuEmail(user?.email));
+  return Boolean(
+    isPrivilegedRole(user?.role) ||
+      user?.isHKBUVerified ||
+      isLifeHkbuEmail(user?.hkbuEmail) ||
+      isLifeHkbuEmail(user?.email)
+  );
 }
 
 export function isPublishPermissionError(error?: PublishPermissionErrorLike | null): boolean {
