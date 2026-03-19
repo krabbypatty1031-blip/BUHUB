@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -32,16 +32,13 @@ import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
+import { PinCheckIcon, HomeDeliverIcon, ClockDeadlineIcon, CategoryListIcon } from '../../components/functions/DetailInfoIcons';
+import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
 import {
   BackIcon,
-  DollarIcon,
-  ClockIcon,
-  MapPinIcon,
-  PackageIcon,
+  TruckIcon,
   MessageIcon,
   AlertTriangleIcon,
-  TruckIcon,
-  MoreHorizontalIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
@@ -179,10 +176,11 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
         <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
-          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+          <FigmaMoreDotsIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>
 
+      {/* Popover Menu */}
       {popoverVisible && (
         <TouchableOpacity
           style={styles.popoverOverlay}
@@ -224,22 +222,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ----- Header: Title & Tags ----- */}
+        {/* ----- Header: Title ----- */}
         <View style={styles.headerSection}>
-          <View style={styles.tagRow}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{t(errand.category)}</Text>
-            </View>
-            {isExpired && (
-              <>
-                <View style={styles.tagDot} />
-                <View style={styles.statusTag}>
-                  <Text style={styles.statusTagText}>{t('errandExpired')}</Text>
-                </View>
-              </>
-            )}
-            <PageTranslationToggle style={styles.headerTranslationToggle} />
-          </View>
           <TranslatableText
             entityType="errand"
             entityId={errand.id}
@@ -252,25 +236,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.divider} />
 
-        {/* ----- Reward ----- */}
+        {/* ----- Content: Description, Price, Info Items ----- */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('reward')}</Text>
-          <View style={styles.rewardRow}>
-            <View style={styles.detailIcon}>
-              <DollarIcon size={16} color={colors.onSurface} />
-            </View>
-            <View style={styles.rewardContent}>
-              <Text style={styles.rewardPrice}>{errand.price}</Text>
-              <Text style={styles.rewardHint}>{t('paidOnComplete')}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* ----- Description ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
           <TranslatableText
             entityType="errand"
             entityId={errand.id}
@@ -279,93 +246,61 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             sourceLanguage={errand.sourceLanguage}
             textStyle={styles.descriptionText}
           />
-        </View>
 
-        <View style={styles.divider} />
-
-        {/* ----- Route ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('pickupLocation')}</Text>
-          <View style={styles.routeWrap}>
-            {/* From */}
-            <View style={styles.routeRow}>
-              <View style={styles.routeIndicator}>
-                <View style={styles.routeDotFrom} />
-                <View style={styles.routeLine} />
-              </View>
-              <View style={styles.routeContent}>
-                <Text style={styles.routeLabel}>{t('pickupLocation')}</Text>
-                <TranslatableText
-                  entityType="errand"
-                  entityId={errand.id}
-                  fieldName="from"
-                  sourceText={errand.from}
-                  sourceLanguage={errand.sourceLanguage}
-                  textStyle={styles.routeValue}
-                  containerStyle={styles.routeTextBlock}
-                />
-              </View>
-            </View>
-
-            {/* To */}
-            <View style={styles.routeRow}>
-              <View style={styles.routeIndicator}>
-                <View style={styles.routeDotTo} />
-              </View>
-              <View style={styles.routeContent}>
-                <Text style={styles.routeLabel}>{t('deliveryLocation')}</Text>
-                <TranslatableText
-                  entityType="errand"
-                  entityId={errand.id}
-                  fieldName="to"
-                  sourceText={errand.to}
-                  sourceLanguage={errand.sourceLanguage}
-                  textStyle={styles.routeValue}
-                  containerStyle={styles.routeTextBlock}
-                />
-              </View>
-            </View>
+          {/* Price */}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceCurrency}>HK¥</Text>
+            <Text style={styles.priceValue}>{errand.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
           </View>
-        </View>
 
-        <View style={styles.divider} />
-
-        {/* ----- Details: Item & Deadline ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('itemLabel')}</Text>
-          <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <PackageIcon size={16} color={colors.onSurface} />
-            </View>
+          {/* Info items */}
+          <View style={styles.infoItem}>
+            <PinCheckIcon size={16} color="#86909C" />
+            <Text style={styles.infoLabel}>{t('pickupLocation')}</Text>
             <TranslatableText
               entityType="errand"
               entityId={errand.id}
-              fieldName="item"
-              sourceText={errand.item}
+              fieldName="from"
+              sourceText={errand.from}
               sourceLanguage={errand.sourceLanguage}
-              textStyle={styles.detailValue}
-              containerStyle={styles.detailTextBlock}
+              textStyle={styles.infoValue}
+              containerStyle={styles.infoValueContainer}
             />
           </View>
-        </View>
 
-        <View style={styles.divider} />
+          <View style={styles.infoItem}>
+            <HomeDeliverIcon size={16} color="#86909C" />
+            <Text style={styles.infoLabel}>{t('deliveryLocation')}</Text>
+            <TranslatableText
+              entityType="errand"
+              entityId={errand.id}
+              fieldName="to"
+              sourceText={errand.to}
+              sourceLanguage={errand.sourceLanguage}
+              textStyle={styles.infoValue}
+              containerStyle={styles.infoValueContainer}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('deadline')}</Text>
-          <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <ClockIcon size={16} color={colors.onSurface} />
-            </View>
+          <View style={styles.infoItem}>
+            <ClockDeadlineIcon size={16} color="#86909C" />
+            <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
             <TranslatableText
               entityType="errand"
               entityId={errand.id}
               fieldName="time"
               sourceText={errand.time}
               sourceLanguage={errand.sourceLanguage}
-              textStyle={styles.detailValue}
-              containerStyle={styles.detailTextBlock}
+              textStyle={styles.infoValue}
+              containerStyle={styles.infoValueContainer}
             />
+          </View>
+
+          {/* Category */}
+          <View style={styles.infoItem}>
+            <CategoryListIcon size={16} color="#86909C" />
+            <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
+            <Text style={styles.infoValue}>{t(errand.category)}</Text>
           </View>
         </View>
 
@@ -382,12 +317,13 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               <View style={styles.posterNameRow}>
                 <View style={styles.posterNameLeft}>
                   <Text style={styles.posterName}>{errand.user}</Text>
-                  {errand.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                  {errand.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
+                  {errand.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+                  {errand.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
                 </View>
-                <Text style={styles.timeText}>{posterTime}</Text>
               </View>
-              {posterMeta ? <Text style={styles.meta} numberOfLines={1}>{posterMeta}</Text> : null}
+              <Text style={styles.meta} numberOfLines={1}>
+                {posterMeta ? `${posterMeta} · ${posterTime}` : posterTime}
+              </Text>
             </View>
           </View>
         </View>
@@ -469,10 +405,15 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.outlineVariant,
   },
   topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
   iconBtn: {
     width: 48,
@@ -504,47 +445,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.md,
   },
-  headerTranslationToggle: {
-    marginLeft: 'auto',
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  tag: {
-    backgroundColor: colors.surface2,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 1,
-    borderRadius: borderRadius.full,
-  },
-  tagText: {
-    ...typography.labelSmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  tagDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.outline,
-  },
-  statusTag: {
-    backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 1,
-    borderRadius: borderRadius.full,
-  },
-  statusTagText: {
-    ...typography.labelSmall,
-    color: colors.onErrorContainer,
-    fontWeight: '600',
-  },
   title: {
-    ...typography.headlineSmall,
-    color: colors.onSurface,
-    lineHeight: 32,
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
+    marginBottom: 10,
   },
 
   /* ----- Shared ----- */
@@ -565,107 +471,58 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  /* ----- Reward ----- */
-  rewardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  rewardContent: {
-    flex: 1,
-  },
-  rewardPrice: {
-    ...typography.headlineSmall,
-    color: colors.error,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  rewardHint: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginTop: spacing.xxs,
-  },
-
   /* ----- Description ----- */
   descriptionText: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    lineHeight: 26,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+    marginBottom: 12,
   },
 
-  /* ----- Route ----- */
-  routeWrap: {
-    gap: 0,
-  },
-  routeRow: {
+  /* ----- Price ----- */
+  priceRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    alignItems: 'flex-end',
+    gap: 2,
+    marginBottom: 16,
   },
-  routeIndicator: {
-    alignItems: 'center',
-    width: 20,
-    paddingTop: spacing.xs,
+  priceCurrency: {
+    fontSize: 12,
+    lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
+    letterSpacing: 0.6429,
   },
-  routeDotFrom: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.success,
-  },
-  routeLine: {
-    width: 1.5,
-    flex: 1,
-    minHeight: 24,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.xxs,
-  },
-  routeDotTo: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.error,
-  },
-  routeContent: {
-    flex: 1,
-    paddingBottom: spacing.md,
-  },
-  routeLabel: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xxs,
-  },
-  routeValue: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    fontWeight: '500',
-    lineHeight: 22,
-  },
-  routeTextBlock: {
-    flex: 1,
+  priceValue: {
+    fontSize: 19,
+    lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
+    letterSpacing: 1.5,
   },
 
-  /* ----- Detail rows ----- */
-  detailRow: {
+  /* ----- Info Items ----- */
+  infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 6,
+    marginBottom: 10,
   },
-  detailIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
+  infoLabel: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
-  detailValue: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    fontWeight: '500',
+  infoValue: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
     flex: 1,
-    lineHeight: 22,
   },
-  detailTextBlock: {
+  infoValueContainer: {
     flex: 1,
   },
 
@@ -741,15 +598,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  dmButtonDisabled: {
-    backgroundColor: colors.surfaceVariant,
-  },
   dmButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimary,
-  },
-  dmButtonTextDisabled: {
-    color: colors.onSurfaceVariant,
   },
 
   /* ----- Popover ----- */
@@ -788,4 +639,3 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
-

@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -22,27 +21,21 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
-import Avatar from '../../components/common/Avatar';
-import TranslatableText from '../../components/common/TranslatableText';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
+import PartnerCard from '../../components/functions/PartnerCard';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import {
   BackIcon,
   PlusIcon,
-  SearchIcon,
   UsersIcon,
-  MoreHorizontalIcon,
-  MessageIcon,
-  RepostIcon,
-  MaleIcon,
-  FemaleIcon,
 } from '../../components/common/icons';
+import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerList'>;
 
@@ -60,7 +53,6 @@ export default function PartnerListScreen({ navigation }: Props) {
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const selectedCategory = usePartnerStore((s) => s.selectedCategory);
   const setCategory = usePartnerStore((s) => s.setCategory);
-  const joinedActivities = usePartnerStore((s) => s.joinedActivities);
   const expiredNotified = usePartnerStore((s) => s.expiredNotified);
   const setExpiredNotified = usePartnerStore((s) => s.setExpiredNotified);
   const currentUser = useAuthStore((s) => s.user);
@@ -161,7 +153,6 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: PartnerPost }) => {
-      const isJoined = item.id in joinedActivities;
       const expired = isExpiredNow(item.expired, item.expiresAt, now);
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
@@ -169,117 +160,41 @@ export default function PartnerListScreen({ navigation }: Props) {
       });
       const displayTime = getRelativeTime(item.createdAt, lang);
       return (
-        <PageTranslationProvider>
-        <TouchableOpacity
-          style={[styles.card, expired && styles.cardExpired]}
-          activeOpacity={0.7}
+        <PartnerCard
+          item={item}
+          expired={expired}
+          displayAcademicMeta={displayAcademicMeta}
+          displayTime={displayTime}
           onPress={() => navigation.navigate('PartnerDetail', { id: item.id })}
-        >
-          {/* Row 1: Avatar + Name 路 Time + Ellipsis */}
-          <View style={styles.cardHeader}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={(event) => {
-                event.stopPropagation();
-                handleAvatarPress(item);
-              }}
-            >
-              <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
-            </TouchableOpacity>
-            <View style={styles.cardHeaderInfo}>
-              <View style={styles.nameRow}>
-                <View style={styles.nameLeft}>
-                  <Text style={styles.userName}>{item.user}</Text>
-                  {item.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                  {item.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                </View>
-                <Text style={styles.timeText}>· {displayTime}</Text>
-              </View>
-              {displayAcademicMeta ? (
-                <Text style={styles.meta} numberOfLines={1}>
-                  {displayAcademicMeta}
-                </Text>
-              ) : null}
-            </View>
-            {!expired && (
-              <TouchableOpacity
-                style={styles.moreBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => setActionItem({ post: item, id: item.id })}
-              >
-                <MoreHorizontalIcon size={20} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Row 2+: Title & Content, aligned with name */}
-          <View style={styles.cardBody}>
-            <TranslatableText
-              entityType="partner"
-              entityId={item.id}
-              fieldName="title"
-              sourceText={item.title}
-              sourceLanguage={item.sourceLanguage}
-              textStyle={styles.cardTitle}
-              numberOfLines={2}
-            />
-            <TranslatableText
-              entityType="partner"
-              entityId={item.id}
-              fieldName="description"
-              sourceText={item.desc}
-              sourceLanguage={item.sourceLanguage}
-              textStyle={styles.cardContent}
-              numberOfLines={3}
-            />
-
-            {/* Badges */}
-            {(isJoined || expired) && (
-              <View style={styles.badgeRow}>
-                {isJoined && (
-                  <View style={styles.joinedBadge}>
-                    <Text style={styles.joinedBadgeText}>{t('joined')}</Text>
-                  </View>
-                )}
-                {expired && (
-                  <View style={styles.expiredBadge}>
-                    <Text style={styles.expiredBadgeText}>{t('partnerExpired')}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-            <View style={styles.cardBottomRow}>
-              <PageTranslationToggle style={styles.cardTranslationToggle} />
-            </View>
-          </View>
-        </TouchableOpacity>
-        </PageTranslationProvider>
+          onAvatarPress={() => handleAvatarPress(item)}
+          onMore={() => setActionItem({ post: item, id: item.id })}
+          expiredLabel={t('partnerExpired')}
+        />
       );
     },
-    [joinedActivities, navigation, t, lang, now, handleAvatarPress]
+    [navigation, t, lang, now, handleAvatarPress]
   );
 
   return (
       <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
+      {/* Top Bar — matching Secondhand */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('findPartner')}</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => setShowSearch(!showSearch)}
-        >
-          <SearchIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
+            <FigmaSearchIcon26 size={30} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar (collapsible) */}
       {showSearch && (
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <SearchIcon size={18} color={colors.outline} />
+            <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
               style={styles.searchInput}
               placeholder={t('searchPartner')}
@@ -334,20 +249,7 @@ export default function PartnerListScreen({ navigation }: Props) {
       </TouchableOpacity>
 
       {/* Action Menu (ellipsis popover) */}
-      <Modal
-        visible={!!actionItem}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActionItem(null)}
-      >
-        <TouchableOpacity
-          style={styles.actionOverlay}
-          activeOpacity={1}
-          onPress={() => setActionItem(null)}
-        >
-          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.actionHandle} />
-
+      <SwipeableBottomSheet visible={!!actionItem} onClose={() => setActionItem(null)}>
             <TouchableOpacity
               style={styles.actionRowCenter}
               onPress={() => {
@@ -390,9 +292,7 @@ export default function PartnerListScreen({ navigation }: Props) {
                 <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
               </TouchableOpacity>
             ) : null}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       {/* Forward Sheet (contact picker) */}
       <FunctionForwardSheet
@@ -408,52 +308,62 @@ export default function PartnerListScreen({ navigation }: Props) {
   );
 }
 
-const AVATAR_SIZE = 32; // sm
-const AVATAR_GAP = spacing.md; // 12
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'space-between',
+    paddingLeft: 12,
+    paddingRight: 16,
   },
-  topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    flex: 1,
-    textAlign: 'center',
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  topBarTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   searchSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 9999,
+    paddingHorizontal: 16,
     height: 44,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    marginLeft: spacing.sm,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
+    padding: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   tabsContainer: {
     paddingHorizontal: spacing.lg,
@@ -461,112 +371,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
     paddingBottom: 100,
-  },
-
-  /* Card */
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
-  },
-  cardExpired: {
-    opacity: 0.5,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardHeaderInfo: {
-    flex: 1,
-    marginLeft: AVATAR_GAP,
-  },
-  cardTranslationToggle: {
-    alignSelf: 'flex-end',
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    columnGap: 8,
-  },
-  nameLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexShrink: 1,
-  },
-  userName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    fontWeight: '700',
-  },
-  timeText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginLeft: 4,
-  },
-  meta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    flexShrink: 1,
-    marginTop: 2,
-  },
-  moreBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.sm,
-  },
-
-  /* Card body 鈥?aligned with name */
-  cardBody: {
-    marginLeft: AVATAR_SIZE + AVATAR_GAP,
-    marginTop: spacing.xs,
-  },
-  cardTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    marginBottom: spacing.xs,
-  },
-  cardContent: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  cardBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: spacing.sm,
-  },
-  joinedBadge: {
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-  },
-  joinedBadgeText: {
-    ...typography.labelSmall,
-    color: colors.primary,
-  },
-  expiredBadge: {
-    backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.xs,
-  },
-  expiredBadgeText: {
-    ...typography.labelSmall,
-    color: colors.onErrorContainer,
   },
 
   /* FAB */
@@ -584,40 +389,6 @@ const styles = StyleSheet.create({
   },
 
   /* Action Menu */
-  actionOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 36,
-  },
-  actionHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   actionText: {
     ...typography.bodyLarge,
     color: colors.onSurface,

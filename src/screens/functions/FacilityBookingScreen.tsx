@@ -1,8 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-  ActionSheetIOS,
-  Platform,
-  Share,
   View,
   Text,
   TouchableOpacity,
@@ -31,22 +28,6 @@ export default function FacilityBookingScreen({ navigation }: Props) {
   }, [navigation]);
 
   const handleBook = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showShareActionSheetWithOptions(
-        {
-          url: BOOKING_URL,
-          message: BOOKING_URL,
-        },
-        () => {
-          void Share.share({ url: BOOKING_URL, message: BOOKING_URL }).catch(() => {
-            void openExternalBrowser(BOOKING_URL, 'system');
-          });
-        },
-        () => undefined,
-      );
-      return;
-    }
-
     void openExternalBrowser(BOOKING_URL, 'system');
   }, []);
 
@@ -127,10 +108,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topBarTitle: {
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
-    ...typography.titleMedium,
-    color: colors.onSurface,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
 
   /* ── Content ── */

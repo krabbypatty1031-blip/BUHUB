@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Modal,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,26 +18,22 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
-import Avatar from '../../components/common/Avatar';
-import { PageTranslationProvider, PageTranslationToggle, usePageTranslation } from '../../components/common/PageTranslation';
+import SecondhandCard from '../../components/functions/SecondhandCard';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
-import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import {
   BackIcon,
   ShoppingBagIcon,
-  MaleIcon,
-  FemaleIcon,
 } from '../../components/common/icons';
 import {
   FigmaSearchIcon26,
   FigmaCartIcon,
-  FigmaMoreDotsIcon,
   FigmaFabPlusIcon,
   FigmaInfoIcon,
 } from '../../components/functions/SecondhandFigmaIcons';
@@ -53,171 +47,6 @@ const CATEGORIES: Array<{ key: SecondhandCategory | 'all'; labelKey: string }> =
   { key: 'furniture', labelKey: 'furniture' },
   { key: 'other', labelKey: 'other' },
 ];
-
-/* ── Combined title text: registers for translation, always shows condition + desc ── */
-function CardCombinedText({
-  entityId,
-  item,
-  isSoldOrExpired,
-}: {
-  entityId: string;
-  item: SecondhandItem;
-  isSoldOrExpired: boolean;
-}) {
-  const { t } = useTranslation();
-  const pageCtx = usePageTranslation();
-  const registerItem = pageCtx?.registerItem;
-  const unregisterItem = pageCtx?.unregisterItem;
-  const keyRef = useRef(`sh-${entityId}`);
-
-  useEffect(() => {
-    if (!registerItem || !entityId || !item.title?.trim()) return;
-    registerItem(keyRef.current, {
-      entityType: 'secondhand',
-      entityId,
-      sourceText: item.title.trim(),
-      sourceLanguage: item.sourceLanguage,
-    });
-    return () => unregisterItem?.(keyRef.current);
-  }, [registerItem, unregisterItem, entityId, item.title, item.sourceLanguage]);
-
-  // When translated, only replace the title part; condition + desc stay as-is
-  const translatedTitle = pageCtx?.showTranslated
-    ? pageCtx.getTranslation('secondhand', entityId)?.fields?.title
-    : undefined;
-
-  const titlePart = translatedTitle ?? item.title?.trim() ?? '';
-  const conditionPart = getLocalizedSecondhandCondition(item.condition, t);
-  const descPart = item.desc?.trim() || t('noDescription');
-  const combined = [titlePart, conditionPart, descPart].filter(Boolean).join(' | ');
-
-  return (
-    <Text
-      style={[styles.itemTitle, styles.titleTextWrap, isSoldOrExpired && styles.textDimmed]}
-      numberOfLines={2}
-    >
-      {combined}
-    </Text>
-  );
-}
-
-/* ── Memoized Item Card (Figma horizontal layout) ── */
-const ItemCard = React.memo(function ItemCard({
-  item,
-  id,
-  onPress,
-  onAvatarPress,
-  onMore,
-  onImagePress,
-  now,
-  t,
-}: {
-  item: SecondhandItem;
-  id: string;
-  onPress: (id: string) => void;
-  onAvatarPress: (item: SecondhandItem) => void;
-  onMore: (item: SecondhandItem, id: string) => void;
-  onImagePress: (images: string[], index: number) => void;
-  now: number;
-  t: (key: string) => string;
-}) {
-  const isSoldOrExpired = item.sold || isExpiredNow(item.expired, item.expiresAt, now);
-  const primaryImage = item.images?.[0];
-
-  return (
-    <PageTranslationProvider>
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.7}
-      onPress={() => onPress(id)}
-    >
-      {/* Figma: image 105x105 borderRadius:10 */}
-      <View style={[styles.imageArea, isSoldOrExpired && styles.imageAreaDimmed]}>
-        {primaryImage ? (
-          <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
-            activeOpacity={0.9}
-            onPress={(e) => {
-              e.stopPropagation();
-              onImagePress(item.images ?? [primaryImage], 0);
-            }}
-          >
-            <ExpoImage
-              source={primaryImage}
-              style={styles.cardImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={0}
-              recyclingKey={primaryImage}
-            />
-          </TouchableOpacity>
-        ) : (
-          <ShoppingBagIcon size={32} color="#C7C7CC" />
-        )}
-        {/* Figma: condition badge top:8 left:8, bg rgba(0,0,0,0.4), 9px Medium white */}
-        <View style={styles.conditionBadge}>
-          <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
-        </View>
-        {/* Status overlay */}
-        {item.sold && (
-          <View style={styles.statusOverlay}>
-            <View style={styles.statusBadgeSold}>
-              <Text style={styles.statusBadgeText}>{t('sold')}</Text>
-            </View>
-          </View>
-        )}
-        {isSoldOrExpired && !item.sold && (
-          <View style={styles.statusOverlay}>
-            <View style={styles.statusBadgeExpired}>
-              <Text style={styles.statusBadgeText}>{t('secondhandExpired')}</Text>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Right content — 105px matches image, seller bottom aligns with image bottom */}
-      <View style={styles.cardContent}>
-        <View style={styles.cardMain}>
-          <View style={styles.titleRow}>
-            <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
-            <PageTranslationToggle style={styles.translateToggle} />
-          </View>
-          <View>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceCurrency}>HK¥</Text>
-              <Text style={styles.priceValue}>{item.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
-            </View>
-            <View style={styles.sellerRow}>
-              <TouchableOpacity
-                style={styles.sellerLeft}
-                activeOpacity={0.7}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onAvatarPress(item);
-                }}
-              >
-                <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
-                <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
-                {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
-                {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
-              </TouchableOpacity>
-              {!isSoldOrExpired && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => onMore(item, id)}
-                >
-                  <FigmaMoreDotsIcon size={20} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-    </PageTranslationProvider>
-  );
-});
 
 export default function SecondhandListScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -337,7 +166,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: SecondhandItem }) => (
-      <ItemCard
+      <SecondhandCard
         id={item.id}
         item={item}
         onPress={handleItemPress}
@@ -447,19 +276,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
       </TouchableOpacity>
 
       {/* Action Menu */}
-      <Modal
-        visible={!!actionItem}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActionItem(null)}
-      >
-        <TouchableOpacity
-          style={styles.actionOverlay}
-          activeOpacity={1}
-          onPress={() => setActionItem(null)}
-        >
-          <View style={styles.actionSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.actionHandle} />
+      <SwipeableBottomSheet visible={!!actionItem} onClose={() => setActionItem(null)}>
             <TouchableOpacity
               style={styles.actionRowCenter}
               onPress={() => {
@@ -502,9 +319,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
                 <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
               </TouchableOpacity>
             ) : null}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       <FunctionForwardSheet
         visible={!!shareSheetItem}
@@ -625,157 +440,6 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  /* Figma: horizontal card — px:16, image+content row, gap:12 */
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 16,
-  },
-
-  /* Figma: image 105x105, borderRadius:10 */
-  imageArea: {
-    width: 105,
-    height: 105,
-    borderRadius: 10,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  cardImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  imageAreaDimmed: {
-    opacity: 0.45,
-  },
-  /* Figma: condition badge — left:8 top:8, bg:rgba(0,0,0,0.4), px:4 py:1, borderRadius:4, 9px Medium white */
-  conditionBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  conditionBadgeText: {
-    fontSize: 9,
-    lineHeight: 13,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#FFFFFF',
-  },
-  statusOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  statusBadgeSold: {
-    backgroundColor: '#ED4956',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  statusBadgeExpired: {
-    backgroundColor: '#C7C7CC',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#FFFFFF',
-  },
-
-  /* Right content column */
-  cardContent: {
-    flex: 1,
-  },
-  /* All content fits within image height, seller bottom aligns with image bottom */
-  cardMain: {
-    height: 105,
-    justifyContent: 'space-between',
-  },
-  /* Figma 1:1646: title row — gap:10 */
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  /* Figma 1:1647: h:40 (2 lines max) */
-  titleTextWrap: {
-    flex: 1,
-    height: 40,
-    width: 0,
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  /* Figma: 思源黑体 CN Medium, 14px, lineHeight:20, #1F1F1F */
-  itemTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#1F1F1F',
-  },
-  textDimmed: {
-    color: '#C7C7CC',
-  },
-  translateToggle: {
-    marginTop: 0,
-    alignSelf: 'flex-start',
-    marginLeft: 'auto',
-  },
-
-  /* Figma 1:1651: D-DIN Exp Bold, #FF2538, gap:2, items-end */
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  /* Figma 1:1652: D-DIN Exp Bold, 12px, tracking:0.6429 */
-  priceCurrency: {
-    fontSize: 12,
-    lineHeight: 27,
-    fontFamily: 'DINExp-Bold',
-    color: '#FF2538',
-    letterSpacing: 0.6429,
-  },
-  /* Figma 1:1653: D-DIN Exp Bold, 19.064px, tracking:1.5, leading:27.234 */
-  priceValue: {
-    fontSize: 19,
-    lineHeight: 27,
-    fontFamily: 'DINExp-Bold',
-    color: '#FF2538',
-    letterSpacing: 1.5,
-  },
-
-  /* Figma 1:1654: seller row — gap:5, items-center */
-  sellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sellerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flex: 1,
-  },
-  /* Figma 1:1658: 思源黑体 CN Regular, 12px, leading:18, #999 */
-  sellerName: {
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#999999',
-    flexShrink: 1,
-  },
-
   /* Figma: FAB — 56x56, bg:black, borderRadius:16, right:24 bottom:24, shadow */
   fab: {
     position: 'absolute',
@@ -795,26 +459,6 @@ const styles = StyleSheet.create({
   },
 
   /* Action Menu */
-  actionOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    paddingBottom: 36,
-  },
-  actionHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 12,
-  },
   actionRowCenter: {
     alignItems: 'center',
     justifyContent: 'center',

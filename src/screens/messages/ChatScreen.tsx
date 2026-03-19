@@ -13,8 +13,6 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Modal,
-  Pressable,
   BackHandler,
   Keyboard,
   Linking,
@@ -39,6 +37,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import {
   CommonActions,
   useFocusEffect,
@@ -4322,17 +4321,8 @@ export default function ChatScreen({ navigation, route }: Props) {
         onClose={() => setPreviewVisible(false)}
       />
 
-      <Modal
-        visible={imageSendModeVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={clearPendingImageSelection}
-      >
-        <Pressable
-          style={styles.imageSendModeOverlay}
-          onPress={clearPendingImageSelection}
-        >
-          <Pressable style={styles.imageSendModeSheet} onPress={() => {}}>
+      <SwipeableBottomSheet visible={imageSendModeVisible} onClose={clearPendingImageSelection}>
+          <View style={styles.imageSendModeContentWrap}>
             <Text style={styles.imageSendModeTitle}>
               {t('imageSendModeTitle', { count: pendingImageAssets.length })}
             </Text>
@@ -4362,21 +4352,10 @@ export default function ChatScreen({ navigation, route }: Props) {
             >
               <Text style={styles.imageSendModeOptionText}>{t('sendImagesMerged')}</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </View>
+      </SwipeableBottomSheet>
 
-      <Modal
-        visible={!!actionTarget}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActionTarget(null)}
-      >
-        <Pressable
-          style={styles.actionOverlay}
-          onPress={() => setActionTarget(null)}
-        >
-          <Pressable style={styles.actionSheet} onPress={() => {}}>
+      <SwipeableBottomSheet visible={!!actionTarget} onClose={() => setActionTarget(null)}>
             {!actionTargetIsRecalled ? (
               <>
                 <View style={styles.actionEmojiRow}>
@@ -4485,9 +4464,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                 {t('cancel')}
               </Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </SwipeableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -4517,8 +4494,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
   topBarSubtitle: {
     ...typography.bodySmall,
@@ -5174,15 +5158,7 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: '#FFFFFF',
   },
-  imageSendModeOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  imageSendModeSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+  imageSendModeContentWrap: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
@@ -5349,17 +5325,6 @@ const styles = StyleSheet.create({
   },
   voiceActionTextActive: {
     color: colors.onPrimary,
-  },
-  actionOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    paddingBottom: 34,
   },
   actionEmojiRow: {
     flexDirection: 'row',

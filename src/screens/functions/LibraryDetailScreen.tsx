@@ -1,8 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-  ActionSheetIOS,
-  Platform,
-  Share,
   View,
   Text,
   TouchableOpacity,
@@ -53,22 +50,6 @@ export default function LibraryDetailScreen({ navigation }: Props) {
   const { t } = useTranslation();
 
   const handleBook = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showShareActionSheetWithOptions(
-        {
-          url: BOOKING_URL,
-          message: BOOKING_URL,
-        },
-        () => {
-          void Share.share({ url: BOOKING_URL, message: BOOKING_URL }).catch(() => {
-            void openExternalBrowser(BOOKING_URL, 'system');
-          });
-        },
-        () => undefined,
-      );
-      return;
-    }
-
     void openExternalBrowser(BOOKING_URL, 'system');
   }, []);
 

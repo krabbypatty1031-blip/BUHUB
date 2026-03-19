@@ -25,6 +25,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, CloseIcon, SearchIcon, StarIcon } from '../../components/common/icons';
+import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
 import Avatar from '../../components/common/Avatar';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
@@ -446,28 +447,24 @@ export default function RatingListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
+      {/* Top Bar — matching Secondhand */}
       <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
-        >
-          <BackIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('ratings')}</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => setShowSearch(!showSearch)}
-        >
-          <SearchIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
+            <FigmaSearchIcon26 size={30} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar (collapsible) */}
       {showSearch && (
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
-            <SearchIcon size={18} color={colors.outline} />
+            <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
               style={styles.searchInput}
               placeholder={t(SEARCH_PLACEHOLDERS[category])}
@@ -576,52 +573,61 @@ export default function RatingListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'space-between',
+    paddingLeft: 12,
+    paddingRight: 16,
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topBarTitle: {
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     textAlign: 'center',
-    ...typography.titleMedium,
-    color: colors.onSurface,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   tabsContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
   searchSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 9999,
+    paddingHorizontal: 16,
     height: 44,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontFamily: typography.bodyMedium.fontFamily,
-    fontSize: typography.bodyMedium.fontSize,
-    color: colors.onSurface,
-    marginLeft: spacing.sm,
-    paddingVertical: 0,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
+    padding: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
@@ -668,85 +674,89 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-    padding: spacing.lg,
     paddingBottom: 100,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DEE2E5',
+    backgroundColor: '#FFFFFF',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
   },
   cardTitleWrap: {
-    marginLeft: spacing.md,
     flex: 1,
-    gap: spacing.xxs,
   },
   cardName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
   },
   cardSubtitle: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+    marginTop: 2,
   },
   cardBody: {
-    marginLeft: 32 + spacing.md,
-    marginTop: spacing.md,
   },
   miniBarsColumn: {
     flexDirection: 'column',
-    gap: spacing.md,
+    gap: 6,
   },
   miniBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   miniBarLabel: {
     fontSize: 11,
-    color: colors.onSurface,
-    width: 60,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
+    width: 48,
     flexShrink: 0,
   },
   miniBarTrack: {
     flex: 1,
-    height: 6,
+    height: 5,
     borderRadius: 3,
-    backgroundColor: colors.surface2,
+    backgroundColor: '#F0F0F0',
     overflow: 'hidden',
   },
   miniBarFill: {
     height: '100%',
     borderRadius: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: '#0C1015',
   },
   cardBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.md,
+    gap: 4,
+    marginTop: 10,
   },
   tagChip: {
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: borderRadius.xs,
-    backgroundColor: colors.primaryContainer,
+    borderRadius: 3,
+    backgroundColor: '#F3F5F7',
   },
   tagChipText: {
     fontSize: 11,
-    color: colors.primary,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
   ratingCount: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#999999',
     marginLeft: 'auto',
   },
 });

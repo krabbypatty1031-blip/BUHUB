@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -31,6 +30,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
@@ -510,19 +510,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         onClose={() => setAvatarPreviewVisible(false)}
       />
 
-      <Modal
-        visible={composeSheetVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeComposeSheet}
-      >
-        <TouchableOpacity
-          style={styles.composeOverlay}
-          activeOpacity={1}
-          onPress={closeComposeSheet}
-        >
-          <View style={styles.composeSheet}>
-            <View style={styles.composeSheetHandle} />
+      <SwipeableBottomSheet visible={composeSheetVisible} onClose={closeComposeSheet}>
             <View style={styles.composeSheetHeader}>
               <Text style={styles.composeSheetTitle}>
                 {quotePostId ? t('quotePost') : t('newPost')}
@@ -573,9 +561,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
               </View>
               <ChevronRightIcon size={20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      </SwipeableBottomSheet>
 
       <ForwardSheet
         visible={!!forwardPost}
@@ -754,25 +740,6 @@ const styles = StyleSheet.create({
   popoverItemText: {
     ...typography.bodyMedium,
     color: colors.error,
-  },
-  composeOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'flex-end',
-  },
-  composeSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    paddingBottom: 32,
-  },
-  composeSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
   },
   composeSheetHeader: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -35,13 +35,11 @@ import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import {
   BackIcon,
   UsersIcon,
-  ClockIcon,
-  MapPinIcon,
-  MessageIcon,
-  MoreHorizontalIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
+import { LocationPinIcon, CalendarDotIcon, ClockDeadlineIcon } from '../../components/functions/DetailInfoIcons';
+import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'PartnerDetail'>;
 
@@ -139,18 +137,18 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       <PageTranslationProvider>
         <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-            <BackIcon size={24} color={colors.onSurface} />
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+            <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
-          <View style={styles.iconBtn} />
+          <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
           {isPartnerLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
           ) : (
             <>
-              <UsersIcon size={48} color={colors.outlineVariant} />
+              <UsersIcon size={48} color="#86909C" />
               <Text style={styles.emptyText}>{t('notFound')}</Text>
             </>
           )}
@@ -171,12 +169,12 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-          <BackIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
-          <MoreHorizontalIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity onPress={() => setPopoverVisible(true)}>
+          <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
       </View>
 
@@ -222,22 +220,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ----- Header: Title & Tags ----- */}
-        <View style={styles.headerSection}>
-          <View style={styles.tagRow}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{t(partner.category)}</Text>
-            </View>
-            {isExpired && (
-              <>
-                <View style={styles.tagDot} />
-                <View style={styles.statusTag}>
-                  <Text style={styles.statusTagText}>{t('partnerExpired')}</Text>
-                </View>
-              </>
-            )}
-            <PageTranslationToggle style={styles.headerTranslationToggle} />
-          </View>
+        <View style={styles.contentArea}>
+          {/* Title */}
           <TranslatableText
             entityType="partner"
             entityId={partner.id}
@@ -246,106 +230,115 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             sourceLanguage={partner.sourceLanguage}
             textStyle={styles.title}
           />
-        </View>
 
-        <View style={styles.divider} />
-
-        {/* ----- Description ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('itemDescription')}</Text>
+          {/* Description */}
           <TranslatableText
             entityType="partner"
             entityId={partner.id}
             fieldName="description"
             sourceText={partner.desc}
             sourceLanguage={partner.sourceLanguage}
-            textStyle={styles.descriptionText}
+            textStyle={styles.description}
           />
-        </View>
 
-        <View style={styles.divider} />
-
-        {/* ----- Time ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('activityTime')}</Text>
-          <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <ClockIcon size={16} color={colors.onSurface} />
-            </View>
-            <TranslatableText
-              entityType="partner"
-              entityId={partner.id}
-              fieldName="time"
-              sourceText={partner.time}
-              sourceLanguage={partner.sourceLanguage}
-              textStyle={styles.detailValue}
-              containerStyle={styles.detailTextBlock}
-            />
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* ----- Location ----- */}
-        {partner.location ? (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>{t('locationLabel')}</Text>
-              <View style={styles.detailRow}>
-                <View style={styles.detailIcon}>
-                  <MapPinIcon size={16} color={colors.onSurface} />
+          {/* Info items */}
+          <View style={styles.infoItems}>
+            {/* Location */}
+            {partner.location ? (
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <LocationPinIcon size={16} color="#86909C" />
                 </View>
+                <View style={styles.infoTextBlock}>
+                  <Text style={styles.infoLabel}>{t('location')}</Text>
+                  <TranslatableText
+                    entityType="partner"
+                    entityId={partner.id}
+                    fieldName="location"
+                    sourceText={partner.location}
+                    sourceLanguage={partner.sourceLanguage}
+                    textStyle={styles.infoValue}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            {/* Activity Time */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconContainer}>
+                <CalendarDotIcon size={16} color="#86909C" />
+              </View>
+              <View style={styles.infoTextBlock}>
+                <Text style={styles.infoLabel}>{t('activityTime')}</Text>
                 <TranslatableText
                   entityType="partner"
                   entityId={partner.id}
-                  fieldName="location"
-                  sourceText={partner.location}
+                  fieldName="time"
+                  sourceText={partner.time}
                   sourceLanguage={partner.sourceLanguage}
-                  textStyle={styles.detailValue}
-                  containerStyle={styles.detailTextBlock}
+                  textStyle={styles.infoValue}
                 />
               </View>
             </View>
-            <View style={styles.divider} />
-          </>
-        ) : null}
 
-        {/* ----- Organizer ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('organizer')}</Text>
-          <View style={styles.organizerRow}>
-            <TouchableOpacity activeOpacity={0.7} onPress={handleOrganizerAvatarPress}>
-              <Avatar text={partner.user} uri={partner.avatar} size="lg" gender={partner.gender} />
-            </TouchableOpacity>
-            <View style={styles.organizerInfo}>
-              <View style={styles.organizerNameRow}>
-                <View style={styles.organizerNameLeft}>
-                  <Text style={styles.organizerName}>{partner.user}</Text>
-                  {partner.gender === 'male' && <MaleIcon size={12} color={colors.genderMale} />}
-                  {partner.gender === 'female' && <FemaleIcon size={12} color={colors.genderFemale} />}
-                </View>
-                <Text style={styles.timeText}>{organizerTime}</Text>
+            {/* Deadline Time */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconContainer}>
+                <ClockDeadlineIcon size={16} color="#86909C" />
               </View>
-              {organizerMeta ? <Text style={styles.meta} numberOfLines={1}>{organizerMeta}</Text> : null}
+              <View style={styles.infoTextBlock}>
+                <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
+                <Text style={styles.infoValue}>{partner.expiresAt}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* ----- Action Bar ----- */}
-        {!isOwnPost && (
-          <View style={[styles.actionBar, isExpired && styles.actionBarDisabled]}>
-            <TouchableOpacity
-              style={styles.dmButton}
-              activeOpacity={0.7}
-              onPress={handleDmOrganizer}
-              disabled={isExpired}
-            >
-              <MessageIcon size={18} color={colors.onPrimary} />
-              <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* User row */}
+          <TouchableOpacity style={styles.userRow} activeOpacity={0.7} onPress={handleOrganizerAvatarPress}>
+            <Avatar text={partner.user} uri={partner.avatar} size="sm" gender={partner.gender} />
+            <View style={styles.userInfo}>
+              <View style={styles.userNameRow}>
+                <Text style={styles.userName}>{partner.user}</Text>
+                {partner.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+                {partner.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
+              </View>
+              <Text style={styles.userMeta} numberOfLines={1}>
+                {organizerMeta ? `${organizerMeta} \u00B7 ${organizerTime}` : organizerTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <PageTranslationToggle style={styles.translationToggle} />
+
+          {/* Expired stamp overlay */}
+          {isExpired && (
+            <View style={styles.expiredOverlay}>
+              <View style={styles.expiredStamp}>
+                <Text style={styles.expiredStampText}>{t('partnerExpired')}</Text>
+              </View>
+              <View style={styles.cornerTR} />
+              <View style={styles.cornerBL} />
+            </View>
+          )}
+        </View>
       </ScrollView>
+
+      {/* Bottom action bar */}
+      {!isOwnPost && (
+        <View style={[styles.bottomBar, isExpired && styles.bottomBarDisabled]}>
+          <TouchableOpacity
+            style={styles.dmButton}
+            activeOpacity={0.7}
+            onPress={handleDmOrganizer}
+            disabled={isExpired}
+          >
+            <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Report Modal */}
       <ReportModal
@@ -387,29 +380,34 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
 
   /* ----- Top Bar ----- */
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'space-between',
+    paddingLeft: 12,
+    paddingRight: 16,
   },
-  topBarTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    flex: 1,
-    textAlign: 'center',
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topBarTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    pointerEvents: 'none',
   },
 
   /* ----- Empty ----- */
@@ -417,188 +415,188 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
+    gap: 12,
   },
   emptyText: {
-    ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
 
+  /* ----- Scroll ----- */
   scrollContent: {
-    paddingBottom: 120,
+    padding: 16,
+    paddingBottom: 100,
+  },
+  contentArea: {
+    position: 'relative',
   },
 
-  /* ----- Header ----- */
-  headerSection: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  headerTranslationToggle: {
-    marginLeft: 'auto',
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  tag: {
-    backgroundColor: colors.surface2,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 1,
-    borderRadius: borderRadius.full,
-  },
-  tagText: {
-    ...typography.labelSmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  tagDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.outline,
-  },
-  statusTag: {
-    backgroundColor: colors.errorContainer,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 1,
-    borderRadius: borderRadius.full,
-  },
-  statusTagText: {
-    ...typography.labelSmall,
-    color: colors.onErrorContainer,
-    fontWeight: '600',
-  },
+  /* ----- Title & Description ----- */
   title: {
-    ...typography.headlineSmall,
-    color: colors.onSurface,
-    lineHeight: 32,
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
+    marginBottom: 10,
+  },
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+    marginBottom: 16,
   },
 
-  /* ----- Shared ----- */
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginHorizontal: spacing.xl,
+  /* ----- Info items ----- */
+  infoItems: {
+    gap: 12,
+    marginBottom: 16,
   },
-  section: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-  },
-  sectionLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.md,
-  },
-
-  /* ----- Description ----- */
-  descriptionText: {
-    ...typography.bodyLarge,
-    color: colors.onSurface,
-    lineHeight: 26,
-  },
-
-  /* ----- Detail rows ----- */
-  detailRow: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 10,
   },
-  detailIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface2,
+  infoIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F3F5F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  detailValue: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-    fontWeight: '500',
+  infoTextBlock: {
     flex: 1,
-    lineHeight: 22,
   },
-  detailTextBlock: {
-    flex: 1,
+  infoLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
 
-  /* ----- Organizer ----- */
-  organizerRow: {
+  /* ----- Divider ----- */
+  divider: {
+    height: 0.5,
+    backgroundColor: '#DEE2E5',
+    marginBottom: 16,
+  },
+
+  /* ----- User row ----- */
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
-  organizerInfo: {
+  userInfo: {
     flex: 1,
-    marginLeft: spacing.md,
   },
-  organizerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    columnGap: 8,
-  },
-  organizerNameLeft: {
+  userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexShrink: 1,
   },
-  organizerName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
+  userName: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
-  timeText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginLeft: 4,
-  },
-  meta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    flexShrink: 1,
+  userMeta: {
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
     marginTop: 2,
   },
 
-  /* ----- Action Bar ----- */
-  actionBar: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    gap: spacing.md,
+  /* ----- Translation toggle ----- */
+  translationToggle: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
   },
-  actionBarDisabled: {
+
+  /* ----- Expired stamp overlay ----- */
+  expiredOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expiredStamp: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: '#ED4956',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-15deg' }],
+    shadowColor: '#ED4956',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  expiredStampText: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#ED4956',
+    letterSpacing: 2,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: 'rgba(237,73,86,0.15)',
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: 'rgba(237,73,86,0.15)',
+  },
+
+  /* ----- Bottom action bar ----- */
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: '#DEE2E5',
+    backgroundColor: '#FFFFFF',
+  },
+  bottomBarDisabled: {
     opacity: 0.5,
   },
   dmButton: {
     flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    height: 48,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#0C1015',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  dmButtonDisabled: {
-    backgroundColor: colors.surfaceVariant,
   },
   dmButtonText: {
-    ...typography.labelLarge,
-    color: colors.onPrimary,
-  },
-  dmButtonTextDisabled: {
-    color: colors.onSurfaceVariant,
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
   },
 
   /* ----- Popover ----- */
   popoverOverlay: {
     position: 'absolute' as const,
-    top: 56,
+    top: 62,
     left: 0,
     right: 0,
     bottom: 0,
@@ -609,7 +607,7 @@ const styles = StyleSheet.create({
     position: 'absolute' as const,
     top: spacing.sm,
     right: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
     minWidth: 160,
@@ -624,11 +622,10 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: '#0C1015',
   },
   popoverItemTextDanger: {
     ...typography.bodyMedium,
     color: colors.error,
   },
 });
-

@@ -20,7 +20,6 @@ import RatingDetailScreen from '../screens/functions/RatingDetailScreen';
 import RatingShareScreen from '../screens/functions/RatingShareScreen';
 import RatingFormScreen from '../screens/functions/RatingFormScreen';
 import SecondhandShareScreen from '../screens/functions/SecondhandShareScreen';
-import MyPostsScreen from '../screens/functions/MyPostsScreen';
 import FacilityBookingScreen from '../screens/functions/FacilityBookingScreen';
 import LibraryDetailScreen from '../screens/functions/LibraryDetailScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
@@ -54,7 +53,6 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="RatingDetail" component={RatingDetailScreen} />
       <Stack.Screen name="RatingShare" component={RatingShareScreen} />
       <Stack.Screen name="RatingForm" component={RatingFormScreen} />
-      <Stack.Screen name="MyPosts" component={MyPostsScreen} />
       <Stack.Screen name="FacilityBooking" component={FacilityBookingScreen} />
       <Stack.Screen name="LibraryDetail" component={LibraryDetailScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />

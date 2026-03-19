@@ -8,8 +8,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Modal,
-  Pressable,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +26,7 @@ import { useForumStore } from '../../store/forumStore';
 import { useUIStore } from '../../store/uiStore';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
+import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
 import {
   CloseIcon,
@@ -517,17 +516,7 @@ export default function MessagesScreen({ navigation }: Props) {
       )}
 
       {/* Long-press Action Sheet Modal */}
-      <Modal
-        visible={!!actionSheetContact}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActionSheetContact(null)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setActionSheetContact(null)}
-        >
-          <View style={styles.actionSheet}>
+      <SwipeableBottomSheet visible={!!actionSheetContact} onClose={() => setActionSheetContact(null)}>
             {actionSheetContact && (
               <Text style={styles.actionSheetTitle}>
                 {actionSheetContact.name}
@@ -591,9 +580,7 @@ export default function MessagesScreen({ navigation }: Props) {
                 {t('cancel')}
               </Text>
             </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
+      </SwipeableBottomSheet>
     </SafeAreaView>
   );
 }
@@ -769,17 +756,6 @@ const styles = StyleSheet.create({
   },
 
   /* Action Sheet Modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  actionSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
   actionSheetTitle: {
     fontSize: 14,
     fontFamily: 'SourceHanSansCN-Medium',
