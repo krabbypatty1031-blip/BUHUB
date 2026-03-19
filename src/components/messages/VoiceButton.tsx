@@ -8,7 +8,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { MicIcon } from '../common/icons';
+import { ChatMicIcon } from '../functions/DetailInfoIcons';
 
 type ButtonState = 'idle' | 'pressing' | 'recording';
 
@@ -80,9 +80,9 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
       onResponderTerminate={handlePressOut}
     >
       {showIcon ? (
-        <MicIcon
+        <ChatMicIcon
           size={20}
-          color={disabled ? '#7A7A7A' : (isPressed ? '#FFFFFF' : '#000000')}
+          color={disabled ? '#86909C' : (isPressed ? '#FFFFFF' : '#0C1015')}
         />
       ) : null}
       <Text style={[styles.text, isPressed && styles.textPressed, disabled && styles.textDisabled]}>
@@ -98,33 +98,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    gap: spacing.xs,
-    height: 40,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#000000',
+    gap: 6,
+    height: 38,
+    borderRadius: 19,
+    paddingHorizontal: 16,
+    backgroundColor: '#F5F5F5',
   },
   containerPressed: {
-    backgroundColor: '#000000',
+    backgroundColor: '#0C1015',
   },
   containerDisabled: {
     backgroundColor: '#F5F5F5',
-    borderColor: '#BDBDBD',
-    opacity: 0.6,
+    opacity: 0.4,
   },
   text: {
-    ...typography.labelLarge,
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
   textPressed: {
     color: '#FFFFFF',
   },
   textDisabled: {
-    color: '#7A7A7A',
+    color: '#86909C',
   },
 });
 

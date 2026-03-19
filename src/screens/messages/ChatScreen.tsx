@@ -85,6 +85,16 @@ import {
   StarIcon,
   EditIcon,
 } from '../../components/common/icons';
+import {
+  ChatCameraIcon,
+  ChatMicIcon,
+  ChatKeyboardIcon,
+  ChatSendIcon,
+  ChatImageIcon,
+  ChatPlusIcon,
+  GridFourIcon,
+  AlbumMergeIcon,
+} from '../../components/functions/DetailInfoIcons';
 import { showTabBar } from '../../hooks/TabBarAnimationContext';
 import { hapticLight } from '../../utils/haptics';
 import { transcribeAudioFileWithNativeSpeech } from '../../utils/nativeSpeechToText';
@@ -122,7 +132,7 @@ const OLDER_HISTORY_TRIGGER_COOLDOWN_MS = 420;
 const LATEST_PROXIMITY_PX = 96;
 const MAX_NEW_MESSAGE_HINT_COUNT = 99;
 const PURE_BLACK = '#000000';
-const CHAT_INPUT_MIN_HEIGHT = 40;
+const CHAT_INPUT_MIN_HEIGHT = 38;
 const CHAT_INPUT_MAX_HEIGHT = 120;
 const CHAT_INPUT_EXTRA_HEIGHT = 18;
 const CHAT_INPUT_LINE_HEIGHT = 20;
@@ -619,7 +629,7 @@ const GRID_MEDIA_MAX_WIDTH = 110;
 const GRID_MEDIA_MAX_HEIGHT = 140;
 const CHAT_MEDIA_SIZE_CACHE_MAX = 800;
 const chatMediaSizeCache = new Map<string, { width: number; height: number }>();
-const CHAT_ITEM_VERTICAL_SPACING = spacing.lg;
+const CHAT_ITEM_VERTICAL_SPACING = 8;
 
 const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
   uri,
@@ -737,7 +747,6 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
   onLongPress?: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
-  const coverImage = images[0];
   const longPressTriggeredRef = useRef(false);
   const handleLongPress = useCallback(() => {
     longPressTriggeredRef.current = true;
@@ -751,32 +760,84 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
     onPress();
   }, [onPress]);
 
+  const totalImages = count || images.length;
+  const displayImages = images.slice(0, 4);
+  const extraCount = totalImages - 3;
+  const showOverlay = totalImages > 4;
+
+  const renderImage = (uri: string, index: number, style: any) => (
+    <ExpoImage
+      key={uri || index}
+      source={uri}
+      style={style}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      transition={0}
+      recyclingKey={mediaIdentity ? `${mediaIdentity}-${index}` : uri}
+    />
+  );
+
+  const renderGrid = () => {
+    const n = displayImages.length;
+
+    if (n === 2) {
+      return (
+        <View style={styles.albumGrid2}>
+          {renderImage(displayImages[0], 0, styles.albumImg2Left)}
+          {renderImage(displayImages[1], 1, styles.albumImg2Right)}
+        </View>
+      );
+    }
+
+    if (n === 3) {
+      return (
+        <View style={styles.albumGrid3}>
+          {renderImage(displayImages[0], 0, styles.albumImg3Large)}
+          <View style={styles.albumGrid3Right}>
+            {renderImage(displayImages[1], 1, styles.albumImg3SmallTop)}
+            {renderImage(displayImages[2], 2, styles.albumImg3SmallBottom)}
+          </View>
+        </View>
+      );
+    }
+
+    // 4+ images: 2x2 grid
+    return (
+      <View style={styles.albumGrid4}>
+        {displayImages.map((uri, i) => {
+          const isLast = i === 3 && showOverlay;
+          const cornerStyle =
+            i === 0 ? styles.albumCornerTL :
+            i === 1 ? styles.albumCornerTR :
+            i === 2 ? styles.albumCornerBL :
+            styles.albumCornerBR;
+          return (
+            <View key={uri || i} style={[styles.albumImg4, cornerStyle]}>
+              {renderImage(uri, i, StyleSheet.absoluteFillObject)}
+              {isLast && (
+                <View style={styles.albumOverlay}>
+                  <Text style={styles.albumOverlayText}>+{extraCount}</Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <TouchableOpacity
-      style={[styles.albumBubble, isMine ? styles.albumBubbleMine : styles.albumBubbleTheirs]}
+      style={[
+        styles.albumBubble,
+        isMine ? styles.albumBubbleMine : styles.albumBubbleTheirs,
+      ]}
       activeOpacity={0.85}
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={300}
     >
-      {coverImage ? (
-        <ExpoImage
-          source={coverImage}
-          style={styles.albumCoverImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={0}
-          recyclingKey={mediaIdentity || coverImage}
-        />
-      ) : null}
-      <View style={styles.albumBubbleContent}>
-        <Text style={[styles.albumBubbleTitle, isMine ? styles.albumBubbleTitleMine : styles.albumBubbleTitleTheirs]}>
-          {t('messageAlbumTitle')}
-        </Text>
-        <Text style={[styles.albumBubbleMeta, isMine ? styles.albumBubbleMetaMine : styles.albumBubbleMetaTheirs]}>
-          {t('messageAlbumPreview', { count })}
-        </Text>
-      </View>
+      {renderGrid()}
     </TouchableOpacity>
   );
 });
@@ -1064,12 +1125,18 @@ const ImageMessageContent = React.memo(function ImageMessageContent({
   const displayImages = images.map((uri, index) => mediaMetas[index]?.uri ?? uri);
 
   return (
-    <View style={styles.mediaBubble}>
+    <View
+      style={[
+        styles.mediaBubbleWrap,
+        isMine ? styles.mediaBubbleWrapMine : styles.mediaBubbleWrapTheirs,
+      ]}
+    >
       {message.text ? (
         <Text
           style={[
             styles.bubbleText,
             isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs,
+            { paddingHorizontal: 10, paddingTop: 6 },
           ]}
         >
           {message.text}
@@ -1398,7 +1465,7 @@ const ChatBubble = React.memo(function ChatBubble({
     >
       {!isMine && (
         <View style={styles.avatarWrap}>
-          <Avatar text={theirAvatarText} uri={theirAvatarUri} size="sm" />
+          <Avatar text={theirAvatarText} uri={theirAvatarUri} size="chat" />
         </View>
       )}
       <Animated.View
@@ -1464,7 +1531,7 @@ const ChatBubble = React.memo(function ChatBubble({
       </Animated.View>
       {isMine && (
         <View style={styles.avatarWrap}>
-          <Avatar text={myAvatarText} uri={myAvatarUri} size="sm" />
+          <Avatar text={myAvatarText} uri={myAvatarUri} size="chat" />
         </View>
       )}
     </View>
@@ -1735,6 +1802,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const [inputText, setInputText] = useState('');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceReleaseAction, setVoiceReleaseActionState] = useState<VoiceReleaseAction>('send');
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
@@ -4047,15 +4115,15 @@ export default function ChatScreen({ navigation, route }: Props) {
             {contactName}
           </Text>
           <View style={styles.topBarStatusRow}>
-            <Text style={[styles.topBarSubtitle, isContactTyping ? styles.topBarSubtitleTyping : undefined]}>
-              {statusText}
-            </Text>
             <View
               style={[
                 styles.topBarStatusDot,
                 isOnlineStatus ? styles.topBarStatusDotOnline : styles.topBarStatusDotOffline,
               ]}
             />
+            <Text style={[styles.topBarSubtitle, isContactTyping ? styles.topBarSubtitleTyping : undefined]}>
+              {statusText}
+            </Text>
           </View>
         </View>
         <View style={styles.iconBtn} />
@@ -4203,17 +4271,17 @@ export default function ChatScreen({ navigation, route }: Props) {
                 </View>
               </View>
             ) : null}
-          <View style={[styles.inputBar, { paddingBottom: composerBottomInset }]}>
+          <View style={[styles.inputBar, { paddingBottom: plusMenuOpen ? 8 : composerBottomInset }]}>
             {isVoiceMode ? (
               <>
                 <TouchableOpacity
-                  style={[styles.mediaBtn, styles.voiceModeBtn]}
+                  style={styles.inputSideBtn}
                   activeOpacity={0.7}
                   onPress={handleToggleVoiceMode}
                   accessibilityLabel={t('switchToKeyboard')}
                   accessibilityRole="button"
                 >
-                  <KeyboardIcon size={22} color={PURE_BLACK} />
+                  <ChatKeyboardIcon size={22} color="#0C1015" />
                 </TouchableOpacity>
                 <VoiceButton
                   state={isRecording ? 'recording' : 'idle'}
@@ -4224,44 +4292,48 @@ export default function ChatScreen({ navigation, route }: Props) {
                   showIcon={false}
                 />
                 <TouchableOpacity
-                  style={styles.mediaBtn}
+                  style={styles.inputSideBtn}
                   activeOpacity={0.6}
-                  onPress={handlePickImage}
-                  accessibilityLabel={t('pickImage')}
+                  onPress={() => setPlusMenuOpen(!plusMenuOpen)}
+                  accessibilityLabel={t('more')}
                   accessibilityRole="button"
                 >
-                  <ImageIcon size={22} color={PURE_BLACK} />
+                  <View style={plusMenuOpen ? styles.plusIconRotated : undefined}>
+                    <ChatPlusIcon size={22} color="#0C1015" />
+                  </View>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                {!hasText && (
-                  <TouchableOpacity
-                    style={styles.mediaBtn}
-                    activeOpacity={0.6}
-                    onPress={handleCamera}
-                    accessibilityLabel={t('camera')}
-                    accessibilityRole="button"
-                  >
-                    <CameraIcon size={22} color={PURE_BLACK} />
-                  </TouchableOpacity>
-                )}
+                {/* Mic button on left */}
+                <TouchableOpacity
+                  style={styles.inputSideBtn}
+                  activeOpacity={0.6}
+                  onPress={handleToggleVoiceMode}
+                  accessibilityLabel={t('voiceMessage')}
+                  accessibilityRole="button"
+                >
+                  <ChatMicIcon size={22} color="#0C1015" />
+                </TouchableOpacity>
 
-                <View style={[styles.textInputShell, { height: chatInputHeight }]}>
+                {/* Input field */}
+                <View style={[styles.textInputShell, { minHeight: Math.max(38, chatInputHeight) }]}>
                   <TextInput
                     ref={textInputRef}
                     style={styles.textInput}
                     placeholder={t('inputMessage')}
-                    placeholderTextColor={PURE_BLACK}
+                    placeholderTextColor="#86909C"
                     value={inputText}
                     onChangeText={handleChatInputTextChange}
                     onContentSizeChange={handleChatInputContentSizeChange}
                     multiline
                     scrollEnabled={isChatInputScrollEnabled}
-                    textAlignVertical="top"
+                    textAlignVertical="center"
+                    onFocus={() => setPlusMenuOpen(false)}
                   />
                 </View>
 
+                {/* Send button (only when has text) */}
                 {canSubmitComposer ? (
                   <TouchableOpacity
                     style={styles.sendBtn}
@@ -4270,33 +4342,48 @@ export default function ChatScreen({ navigation, route }: Props) {
                     accessibilityLabel={t('send')}
                     accessibilityRole="button"
                   >
-                    <SendIcon size={20} color="#FFFFFF" />
+                    <ChatSendIcon size={18} color="#FFFFFF" />
                   </TouchableOpacity>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={styles.mediaBtn}
-                      activeOpacity={0.6}
-                      onPress={handleToggleVoiceMode}
-                      accessibilityLabel={t('voiceMessage')}
-                      accessibilityRole="button"
-                    >
-                      <MicIcon size={22} color={PURE_BLACK} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.mediaBtn}
-                      activeOpacity={0.6}
-                      onPress={handlePickImage}
-                      accessibilityLabel={t('pickImage')}
-                      accessibilityRole="button"
-                    >
-                      <ImageIcon size={22} color={PURE_BLACK} />
-                    </TouchableOpacity>
-                  </>
-                )}
+                ) : null}
+
+                {/* Plus button on right */}
+                <TouchableOpacity
+                  style={styles.inputSideBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setPlusMenuOpen(!plusMenuOpen)}
+                >
+                  <View style={plusMenuOpen ? styles.plusIconRotated : undefined}>
+                    <ChatPlusIcon size={22} color="#0C1015" />
+                  </View>
+                </TouchableOpacity>
               </>
             )}
           </View>
+          {/* Plus menu grid below input bar */}
+          {plusMenuOpen && (
+            <View style={[styles.plusMenuGrid, { paddingBottom: composerBottomInset }]}>
+              <TouchableOpacity
+                style={styles.plusMenuItem}
+                activeOpacity={0.7}
+                onPress={() => { setPlusMenuOpen(false); handlePickImage(); }}
+              >
+                <View style={styles.plusMenuIconWrap}>
+                  <ChatImageIcon size={22} color="#0C1015" />
+                </View>
+                <Text style={styles.plusMenuLabel}>{t('pickImage')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.plusMenuItem}
+                activeOpacity={0.7}
+                onPress={() => { setPlusMenuOpen(false); handleCamera(); }}
+              >
+                <View style={styles.plusMenuIconWrap}>
+                  <ChatCameraIcon size={22} color="#0C1015" />
+                </View>
+                <Text style={styles.plusMenuLabel}>{t('camera')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           </View>
         )}
       </KeyboardAvoidingView>
@@ -4322,36 +4409,50 @@ export default function ChatScreen({ navigation, route }: Props) {
       />
 
       <SwipeableBottomSheet visible={imageSendModeVisible} onClose={clearPendingImageSelection}>
-          <View style={styles.imageSendModeContentWrap}>
+          <View style={styles.imageSendModeWrap}>
             <Text style={styles.imageSendModeTitle}>
               {t('imageSendModeTitle', { count: pendingImageAssets.length })}
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.imageSendModeOption,
-                isSendingSelectedImages ? styles.imageSendModeOptionDisabled : undefined,
-              ]}
-              activeOpacity={0.7}
-              disabled={isSendingSelectedImages}
-              onPress={() => {
-                void sendSelectedImages('separate');
-              }}
-            >
-              <Text style={styles.imageSendModeOptionText}>{t('sendImagesSeparately')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.imageSendModeOption,
-                isSendingSelectedImages ? styles.imageSendModeOptionDisabled : undefined,
-              ]}
-              activeOpacity={0.7}
-              disabled={isSendingSelectedImages}
-              onPress={() => {
-                void sendSelectedImages('merged');
-              }}
-            >
-              <Text style={styles.imageSendModeOptionText}>{t('sendImagesMerged')}</Text>
-            </TouchableOpacity>
+            <View style={styles.imageSendModeOptions}>
+              {/* Separate */}
+              <TouchableOpacity
+                style={[
+                  styles.imageSendModeRow,
+                  isSendingSelectedImages ? styles.imageSendModeRowDisabled : undefined,
+                ]}
+                activeOpacity={0.7}
+                disabled={isSendingSelectedImages}
+                onPress={() => { void sendSelectedImages('separate'); }}
+              >
+                <View style={styles.imageSendModeIconWrap}>
+                  <GridFourIcon size={20} color="#0C1015" />
+                </View>
+                <View style={styles.imageSendModeTextWrap}>
+                  <Text style={styles.imageSendModeRowTitle}>{t('sendImagesSeparately')}</Text>
+                  <Text style={styles.imageSendModeRowDesc}>{t('sendImagesSeparatelyDesc')}</Text>
+                </View>
+                <ChevronRightIcon size={16} color="#C7C7CC" />
+              </TouchableOpacity>
+              {/* Merged */}
+              <TouchableOpacity
+                style={[
+                  styles.imageSendModeRow,
+                  isSendingSelectedImages ? styles.imageSendModeRowDisabled : undefined,
+                ]}
+                activeOpacity={0.7}
+                disabled={isSendingSelectedImages}
+                onPress={() => { void sendSelectedImages('merged'); }}
+              >
+                <View style={styles.imageSendModeIconWrap}>
+                  <AlbumMergeIcon size={20} color="#0C1015" />
+                </View>
+                <View style={styles.imageSendModeTextWrap}>
+                  <Text style={styles.imageSendModeRowTitle}>{t('sendImagesMerged')}</Text>
+                  <Text style={styles.imageSendModeRowDesc}>{t('sendImagesMergedDesc')}</Text>
+                </View>
+                <ChevronRightIcon size={16} color="#C7C7CC" />
+              </TouchableOpacity>
+            </View>
           </View>
       </SwipeableBottomSheet>
 
@@ -4494,15 +4595,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
-    pointerEvents: 'none',
   },
   topBarSubtitle: {
     ...typography.bodySmall,
@@ -4601,8 +4697,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
   },
@@ -4617,33 +4711,27 @@ const styles = StyleSheet.create({
   },
   minuteTimeWrap: {
     alignSelf: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(60,60,67,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   minuteTimeText: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    fontWeight: '600',
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#C7C7CC',
   },
 
   /* ----- Date separator ----- */
   dateSeparator: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.md,
-    gap: spacing.sm,
+    marginVertical: 12,
   },
   dateLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
+    display: 'none',
   },
   dateText: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    paddingHorizontal: spacing.sm,
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#C7C7CC',
   },
   recalledNoticeRow: {
     alignItems: 'center',
@@ -4664,7 +4752,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 0,
-    maxWidth: '85%',
+    maxWidth: '72%',
   },
   bubbleRowRight: {
     alignSelf: 'flex-end',
@@ -4673,7 +4761,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   avatarWrap: {
-    marginBottom: 14,
+    marginBottom: 0,
   },
   bubbleCol: {
     position: 'relative',
@@ -4725,9 +4813,9 @@ const styles = StyleSheet.create({
     minHeight: 16,
   },
   bubble: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
   mediaBubble: {
     gap: spacing.xs,
@@ -4746,77 +4834,160 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   albumBubble: {
-    width: SINGLE_MEDIA_MAX_WIDTH,
-    minHeight: 88,
-    borderRadius: borderRadius.lg,
+    padding: 4,
+    borderRadius: 18,
     overflow: 'hidden',
-    flexDirection: 'row',
   },
   albumBubbleMine: {
-    backgroundColor: '#D9FDD3',
+    backgroundColor: '#0C1015',
+    borderBottomRightRadius: 4,
   },
   albumBubbleTheirs: {
-    backgroundColor: colors.surface2,
+    backgroundColor: '#F5F5F5',
+    borderBottomLeftRadius: 4,
   },
-  albumCoverImage: {
-    width: 88,
-    height: 88,
+  // 2 images: side by side
+  albumGrid2: {
+    flexDirection: 'row',
+    gap: 3,
   },
-  albumBubbleContent: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  albumImg2Left: {
+    width: 92,
+    height: 110,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  albumImg2Right: {
+    width: 92,
+    height: 110,
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  // 3 images: 1 large + 2 stacked
+  albumGrid3: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  albumImg3Large: {
+    width: 120,
+    height: 150,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  albumGrid3Right: {
+    gap: 3,
+  },
+  albumImg3SmallTop: {
+    width: 72,
+    height: 73.5,
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 4,
+  },
+  albumImg3SmallBottom: {
+    width: 72,
+    height: 73.5,
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 14,
+  },
+  // 4+ images: 2x2 grid
+  albumGrid4: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+    width: 92 * 2 + 3, // 187
+  },
+  albumImg4: {
+    width: 92,
+    height: 72,
+    overflow: 'hidden',
+  },
+  albumCornerTL: {
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  albumCornerTR: {
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  albumCornerBL: {
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 4,
+  },
+  albumCornerBR: {
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 14,
+  },
+  albumOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xxs,
   },
-  albumBubbleTitle: {
-    ...typography.titleSmall,
+  albumOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Bold',
     fontWeight: '700',
-  },
-  albumBubbleTitleMine: {
-    color: colors.onSurface,
-  },
-  albumBubbleTitleTheirs: {
-    color: colors.onSurface,
-  },
-  albumBubbleMeta: {
-    ...typography.bodySmall,
-  },
-  albumBubbleMetaMine: {
-    color: colors.onSurfaceVariant,
-  },
-  albumBubbleMetaTheirs: {
-    color: colors.onSurfaceVariant,
   },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: 3,
     maxWidth: SINGLE_MEDIA_MAX_WIDTH,
+  },
+  mediaBubbleWrap: {
+    borderRadius: 18,
+    padding: 4,
+    overflow: 'hidden',
+  },
+  mediaBubbleWrapMine: {
+    backgroundColor: '#0C1015',
+  },
+  mediaBubbleWrapTheirs: {
+    backgroundColor: '#F5F5F5',
   },
   mediaPressTarget: {
     alignSelf: 'flex-start',
   },
   mediaImage: {
-    borderRadius: borderRadius.md,
+    borderRadius: 14,
   },
   bubbleMine: {
-    backgroundColor: colors.primary,
-    borderBottomRightRadius: borderRadius.xs,
+    backgroundColor: '#0C1015',
+    borderBottomRightRadius: 4,
   },
   bubbleTheirs: {
-    backgroundColor: colors.surface2,
-    borderBottomLeftRadius: borderRadius.xs,
+    backgroundColor: '#F5F5F5',
+    borderBottomLeftRadius: 4,
   },
   bubbleText: {
-    ...typography.bodyMedium,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: 'SourceHanSansCN-Medium',
   },
   bubbleTextMine: {
-    color: colors.onPrimary,
+    color: '#FFFFFF',
   },
   bubbleTextTheirs: {
-    color: colors.onSurface,
+    color: '#0C1015',
   },
   bubbleTextRecalled: {
     fontStyle: 'italic',
@@ -4893,9 +5064,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   audioBubble: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
     minWidth: 150,
   },
   audioRow: {
@@ -5158,38 +5329,56 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: '#FFFFFF',
   },
-  imageSendModeContentWrap: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.md,
+  imageSendModeWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   imageSendModeTitle: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
     textAlign: 'center',
-    fontWeight: '700',
+    marginBottom: 16,
   },
-  imageSendModeOption: {
-    width: '100%',
-    minHeight: 52,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: PURE_BLACK,
+  imageSendModeOptions: {
+    gap: 10,
+  },
+  imageSendModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#F0F0F0',
+  },
+  imageSendModeRowDisabled: {
+    opacity: 0.5,
+  },
+  imageSendModeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F3F5F7',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
   },
-  imageSendModeOptionDisabled: {
-    opacity: 0.6,
+  imageSendModeTextWrap: {
+    flex: 1,
   },
-  imageSendModeOptionText: {
-    ...typography.titleSmall,
-    color: PURE_BLACK,
-    textAlign: 'center',
-    fontWeight: '600',
+  imageSendModeRowTitle: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+  },
+  imageSendModeRowDesc: {
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+    marginTop: 2,
   },
 
   /* ----- Input bar ----- */
@@ -5198,35 +5387,36 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#D9D9D9',
+    borderTopWidth: 0.5,
+    borderTopColor: '#F0F0F0',
     backgroundColor: '#FFFFFF',
     gap: spacing.xs,
   },
   mediaBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: PURE_BLACK,
-    backgroundColor: '#FFFFFF',
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   voiceModeBtn: {
-    borderRadius: borderRadius.full,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textInputShell: {
     flex: 1,
-    minHeight: CHAT_INPUT_MIN_HEIGHT,
+    minHeight: 38,
     maxHeight: CHAT_INPUT_MAX_HEIGHT,
-    borderRadius: borderRadius.xl,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: PURE_BLACK,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    justifyContent: 'center',
+    borderRadius: 19,
+    backgroundColor: '#F5F5F5',
+    paddingLeft: 14,
+    paddingRight: 5,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textInput: {
     flex: 1,
@@ -5238,15 +5428,59 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
+  inputEmbeddedBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 4,
+    marginBottom: 2,
+  },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: PURE_BLACK,
-    backgroundColor: PURE_BLACK,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0C1015',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /* Side buttons (mic left, plus right) — unified style */
+  inputSideBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plusIconRotated: {
+    transform: [{ rotate: '45deg' }],
+  },
+  /* Plus menu grid */
+  plusMenuGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
+  },
+  plusMenuItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  plusMenuIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#F3F5F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plusMenuLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
   holdToTalkBtn: {
     flex: 1,

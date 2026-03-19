@@ -300,7 +300,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <View style={styles.infoItem}>
             <CategoryListIcon size={16} color="#86909C" />
             <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
-            <Text style={styles.infoValue}>{t(errand.category)}</Text>
+            <Text style={styles.infoValue}>{t(errand.category.toLowerCase())}</Text>
           </View>
         </View>
 
@@ -400,6 +400,7 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,

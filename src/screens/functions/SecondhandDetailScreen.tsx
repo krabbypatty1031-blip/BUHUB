@@ -253,55 +253,51 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ----- Hero Image ----- */}
-        <View
-          style={[
-            styles.heroImage,
-            { width: screenWidth, height: screenWidth * 0.65 },
-            isListingInactive && styles.heroImageDimmed,
-          ]}
-        >
-          {primaryImage ? (
-            <>
-              <TouchableOpacity
-                style={styles.heroImageTouch}
-                activeOpacity={0.9}
-                onPress={() => {
-                  setPreviewIndex(0);
-                  setPreviewVisible(true);
-                }}
-              >
-                <ExpoImage
-                  source={primaryImage}
-                  style={styles.heroImageAsset}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  transition={0}
-                  recyclingKey={primaryImage}
-                />
-              </TouchableOpacity>
-              {previewImages.length > 1 ? (
-                <View style={styles.imageCountBadge}>
-                  <Text style={styles.imageCountBadgeText}>{`1/${previewImages.length}`}</Text>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <ShoppingBagIcon size={56} color={colors.outlineVariant} />
-          )}
-
-          {/* Status overlay */}
-          {isSold && (
-            <View style={styles.statusOverlay}>
-              <View style={styles.statusBadgeSold}>
-                <Text style={styles.statusBadgeText}>{t('sold')}</Text>
-              </View>
-            </View>
-          )}
+        <View style={{ width: screenWidth, height: screenWidth * 0.65 }}>
+          <View
+            style={[
+              styles.heroImage,
+              { width: screenWidth, height: screenWidth * 0.65 },
+              isListingInactive && styles.heroImageDimmed,
+            ]}
+          >
+            {primaryImage ? (
+              <>
+                <TouchableOpacity
+                  style={styles.heroImageTouch}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setPreviewIndex(0);
+                    setPreviewVisible(true);
+                  }}
+                >
+                  <ExpoImage
+                    source={primaryImage}
+                    style={styles.heroImageAsset}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={0}
+                    recyclingKey={primaryImage}
+                  />
+                </TouchableOpacity>
+                {previewImages.length > 1 ? (
+                  <View style={styles.imageCountBadge}>
+                    <Text style={styles.imageCountBadgeText}>{`1/${previewImages.length}`}</Text>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <ShoppingBagIcon size={56} color={colors.outlineVariant} />
+            )}
+          </View>
+          {/* Expired stamp overlay — above heroImage */}
           {isExpired && (
-            <View style={styles.statusOverlay}>
-              <View style={styles.statusBadgeExpired}>
-                <Text style={styles.statusBadgeText}>{t('secondhandExpired')}</Text>
+            <View style={styles.expiredOverlay}>
+              <View style={styles.expiredStamp}>
+                <Text style={styles.expiredStampText}>{t('secondhandExpired')}</Text>
               </View>
+              <View style={styles.cornerTR} />
+              <View style={styles.cornerBL} />
             </View>
           )}
         </View>
@@ -350,8 +346,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             </View>
             <View style={styles.infoRow}>
               <CategoryListIcon size={16} color="#86909C" />
-              <Text style={styles.infoLabel}>{t('category')}</Text>
-              <Text style={styles.infoValue}>{t(item.category)}</Text>
+              <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
+              <Text style={styles.infoValue}>{t(item.category.toLowerCase())}</Text>
             </View>
           </View>
 
@@ -455,6 +451,7 @@ const styles = StyleSheet.create({
     height: 62,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.sm,
   },
   topBarTitle: {
@@ -524,28 +521,52 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  statusOverlay: {
+  expiredOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.scrim,
+    zIndex: 10,
   },
-  statusBadgeSold: {
-    backgroundColor: colors.error,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
+  expiredStamp: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: '#ED4956',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-15deg' }],
+    shadowColor: '#ED4956',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
-  statusBadgeExpired: {
-    backgroundColor: colors.outline,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
+  expiredStampText: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#ED4956',
+    letterSpacing: 2,
   },
-  statusBadgeText: {
-    ...typography.titleSmall,
-    color: '#FFFFFF',
-    fontWeight: '700',
+  cornerTR: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: 'rgba(237,73,86,0.15)',
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: 'rgba(237,73,86,0.15)',
   },
 
   /* ----- Content ----- */
