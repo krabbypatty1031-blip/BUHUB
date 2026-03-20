@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension } from '../../types';
+import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension, MyRating } from '../../types';
 import { mockRatings, mockScoreDimensions, mockTagOptions } from '../../data/mock/ratings';
 
 const USE_MOCK = false;
@@ -172,6 +172,20 @@ export const ratingService = {
       return mockScoreDimensions.canteen;
     }
     return mapped;
+  },
+
+  async getMyRating(category: RatingCategory, id: string): Promise<MyRating | null> {
+    if (USE_MOCK) return null;
+    try {
+      const { data } = await apiClient.get(
+        ENDPOINTS.RATING.MY_RATING(toApiCategory(category), id)
+      );
+      // After response interceptor unwrap, data is already the inner value (MyRating | null)
+      return (data as MyRating | null) ?? null;
+    } catch {
+      // 401 (not logged in) or any error — treat as "no rating"
+      return null;
+    }
   },
 
   async getTagOptions(category: RatingCategory): Promise<string[]> {

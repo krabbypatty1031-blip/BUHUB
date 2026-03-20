@@ -128,19 +128,23 @@ export default function MainTabNavigator() {
             showTabBar();
             return;
           }
-          e.preventDefault();
-          showTabBar();
-          navigation.dispatch(
-            CommonActions.reset({
-              ...state,
-              index: targetIndex,
-              routes: state.routes.map((r) =>
-                r.name === route.name
-                  ? { ...r, state: undefined }
-                  : r,
-              ),
-            }),
-          );
+          // Only reset if the stack has depth > 0
+          const nestedState = state.routes.find(r => r.key === route.key)?.state;
+          if ((nestedState?.index ?? 0) > 0) {
+            e.preventDefault();
+            showTabBar();
+            navigation.dispatch(
+              CommonActions.reset({
+                ...state,
+                index: targetIndex,
+                routes: state.routes.map((r) =>
+                  r.name === route.name
+                    ? { ...r, state: undefined }
+                    : r,
+                ),
+              }),
+            );
+          }
         },
       })}
       screenOptions={{

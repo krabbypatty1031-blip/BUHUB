@@ -1,9 +1,10 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSequence,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, typography } from '../../theme';
@@ -96,6 +97,10 @@ function PostCard({
     [post.pollOptions],
   );
   const [minuteTick, setMinuteTick] = useState(() => Math.floor(Date.now() / 60000));
+  const likePulse = useSharedValue(1);
+  const bookmarkPulse = useSharedValue(1);
+  const didMountLikeRef = useRef(false);
+  const didMountBookmarkRef = useRef(false);
 
   useEffect(() => {
     const updateTick = () => setMinuteTick(Math.floor(Date.now() / 60000));
@@ -112,10 +117,40 @@ function PostCard({
     };
   }, []);
 
+  useEffect(() => {
+    if (!didMountLikeRef.current) {
+      didMountLikeRef.current = true;
+      return;
+    }
+    likePulse.value = withSequence(
+      withTiming(1.18, { duration: 140 }),
+      withTiming(1, { duration: 180 }),
+    );
+  }, [isLiked, likePulse]);
+
+  useEffect(() => {
+    if (!didMountBookmarkRef.current) {
+      didMountBookmarkRef.current = true;
+      return;
+    }
+    bookmarkPulse.value = withSequence(
+      withTiming(1.14, { duration: 140 }),
+      withTiming(1, { duration: 180 }),
+    );
+  }, [isBookmarked, bookmarkPulse]);
+
   const displayTime = useMemo(
     () => getRelativeTime(post.createdAt, lang),
     [post.createdAt, lang, minuteTick],
   );
+
+  const likePulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: likePulse.value }],
+  }));
+
+  const bookmarkPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: bookmarkPulse.value }],
+  }));
 
   const displayAcademicMeta = useMemo(
     () =>
@@ -312,14 +347,18 @@ function PostCard({
         {/* Actions */}
         <View style={styles.actions}>
           <PressScaleButton style={styles.actionBtn} onPress={handleLike}>
-            <LikeActionIcon
-              size={18}
-              color={isLiked ? colors.error : '#86909C'}
-              fill={isLiked ? colors.error : undefined}
-            />
-            <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
-              {post.likes}
-            </Text>
+            <Animated.View style={likePulseStyle}>
+              <LikeActionIcon
+                size={18}
+                color={isLiked ? colors.error : '#86909C'}
+                fill={isLiked ? colors.error : undefined}
+              />
+            </Animated.View>
+            <Animated.View style={likePulseStyle}>
+              <Text style={[styles.actionText, isLiked && { color: colors.error }]}>
+                {post.likes}
+              </Text>
+            </Animated.View>
           </PressScaleButton>
 
           <PressScaleButton style={styles.actionBtn} onPress={handleComment}>
@@ -332,11 +371,13 @@ function PostCard({
           </TouchableOpacity>
 
           <PressScaleButton style={styles.actionBtn} onPress={handleBookmark}>
-            <BookmarkActionIcon
-              size={18}
-              color={isBookmarked ? colors.primary : '#86909C'}
-              fill={isBookmarked ? colors.primary : undefined}
-            />
+            <Animated.View style={bookmarkPulseStyle}>
+              <BookmarkActionIcon
+                size={18}
+                color={isBookmarked ? colors.primary : '#86909C'}
+                fill={isBookmarked ? colors.primary : undefined}
+              />
+            </Animated.View>
           </PressScaleButton>
 
           <TouchableOpacity style={styles.actionBtn} onPress={onQuote}>
@@ -546,5 +587,4 @@ const styles = StyleSheet.create({
     color: '#86909C',
   },
 });
-
 

@@ -225,6 +225,63 @@ export function ChatSendIcon({ size = 18, color = '#FFFFFF' }: IconProps) {
   );
 }
 
+/* ======== Rating Category Avatars ======== */
+
+/** 教师 — 带博士帽的人物 */
+export function TeacherAvatarIcon({ size = 40, color = '#6366F1' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <Circle cx={20} cy={20} r={20} fill={`${color}18`} />
+      {/* 博士帽 */}
+      <Path d="M20 8L10 13l10 5 10-5-10-5z" stroke={color} strokeWidth={1.5} strokeLinejoin="round" fill={`${color}15`} />
+      <Rect x={17} y={8} width={6} height={2} rx={0.5} fill={color} opacity={0.5} />
+      <Line x1={30} y1={13} x2={30} y2={18} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Circle cx={30} cy={19} r={1} fill={color} opacity={0.4} />
+      {/* 人物 */}
+      <Circle cx={20} cy={22} r={3.5} stroke={color} strokeWidth={1.8} />
+      <Path d="M12 33c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** 课程 — 打开的书本 */
+export function CourseAvatarIcon({ size = 40, color = '#3B82F6' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <Circle cx={20} cy={20} r={20} fill={`${color}18`} />
+      <Path d="M20 12v18" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M20 12c-2-2-5-3-8-3v16c3 0 6 1 8 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill={`${color}0A`} />
+      <Path d="M20 12c2-2 5-3 8-3v16c-3 0-6 1-8 3" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill={`${color}0A`} />
+    </Svg>
+  );
+}
+
+/** 餐厅 — 刀叉+盘子 */
+export function CanteenAvatarIcon({ size = 40, color = '#F97316' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <Circle cx={20} cy={20} r={20} fill={`${color}18`} />
+      <Circle cx={20} cy={20} r={7} stroke={color} strokeWidth={1.8} fill={`${color}0A`} />
+      <Circle cx={20} cy={20} r={3.5} stroke={color} strokeWidth={1} opacity={0.4} />
+      <Path d="M10 12v16M10 12c0 3 1.5 4 1.5 7s-1.5 4-1.5 4" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M30 12v3c0 2-1.5 3-1.5 3L30 28" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1={28} y1={12} x2={28} y2={17} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** 专业 — 学士帽 */
+export function MajorAvatarIcon({ size = 40, color = '#10B981' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <Circle cx={20} cy={20} r={20} fill={`${color}18`} />
+      <Path d="M20 11L8 17l12 6 12-6-12-6z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" fill={`${color}0A`} />
+      <Path d="M12 19v7c0 2 3.5 4 8 4s8-2 8-4v-7" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1={32} y1={17} x2={32} y2={27} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** 加号 — 圆圈+圆头十字，圆润风格 */
 export function ChatPlusIcon({ size = 20, color = '#0C1015' }: IconProps) {
   return (

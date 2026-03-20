@@ -26,6 +26,7 @@ import ErrandCard from '../../components/functions/ErrandCard';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
+import { filterWithExpiredVisibility } from '../../utils/expiredFilter';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -59,7 +60,7 @@ export default function ErrandListScreen({ navigation }: Props) {
   const errands = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const now = useExpirationTick(30000);
   const visibleErrands = useMemo(
-    () => errands.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    () => filterWithExpiredVisibility(errands, now),
     [errands, now]
   );
 

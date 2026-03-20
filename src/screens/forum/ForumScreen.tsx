@@ -110,6 +110,9 @@ export default function ForumScreen({ navigation, route }: Props) {
     const pendingSelection = route.params?.pendingComposeSelection;
     if (!pendingSelection) return;
 
+    // Clear the param FIRST to avoid double-navigation in concurrent mode
+    navigation.setParams({ pendingComposeSelection: undefined });
+
     if (pendingSelection.functionType && pendingSelection.functionTitle && pendingSelection.functionId) {
       navigation.navigate('Compose', {
         type: 'text',
@@ -119,14 +122,12 @@ export default function ForumScreen({ navigation, route }: Props) {
         functionId: pendingSelection.functionId,
         ratingCategory: pendingSelection.ratingCategory,
       });
-      navigation.setParams({ pendingComposeSelection: undefined });
       return;
     } else {
       setQuotePostId(pendingSelection.quotePostId);
       setFunctionRef(undefined);
     }
     setComposeSheetVisible(true);
-    navigation.setParams({ pendingComposeSelection: undefined });
   }, [navigation, route.params?.pendingComposeSelection]);
 
   const fabAnimatedStyle = useAnimatedStyle(() => ({

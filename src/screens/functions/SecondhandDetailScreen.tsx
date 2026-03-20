@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
   useWindowDimensions,
   BackHandler,
   ActivityIndicator,
@@ -36,7 +37,7 @@ import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigat
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
-import { ConditionIcon, TradeMethodIcon, CategoryListIcon } from '../../components/functions/DetailInfoIcons';
+import { ConditionIcon, TradeMethodIcon } from '../../components/functions/DetailInfoIcons';
 import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
 import {
   BackIcon,
@@ -159,9 +160,9 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   }, [id, isWanted, showSnackbar, t, wantMutation]);
 
   /** Strip currency prefix from price string (e.g. "HK$100" -> "100") */
-  const priceValue = useMemo(() => {
+  const strippedPrice = useMemo(() => {
     if (!item?.price) return '';
-    return item.price.replace(/^[A-Za-z$¥€£\s]+/, '').trim();
+    return item.price.replace(/^HK\$?\s*|^HKD?\s*/i, '').trim();
   }, [item?.price]);
 
   if (!item) {
@@ -169,18 +170,18 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       <PageTranslationProvider>
         <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-            <BackIcon size={24} color="#0C1015" />
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+            <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
-          <View style={styles.iconBtn} />
+          <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
           {isItemLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
           ) : (
             <>
-              <ShoppingBagIcon size={48} color={colors.outlineVariant} />
+              <ShoppingBagIcon size={48} color="#86909C" />
               <Text style={styles.emptyText}>{t('notFound')}</Text>
             </>
           )}
@@ -201,12 +202,12 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-          <BackIcon size={24} color="#0C1015" />
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
-          <FigmaMoreDotsIcon size={20} color="#86909C" />
+        <TouchableOpacity onPress={() => setPopoverVisible(true)}>
+          <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
       </View>
 
@@ -252,102 +253,121 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ----- Hero Image ----- */}
-        <View style={{ width: screenWidth, height: screenWidth * 0.65 }}>
-          <View
-            style={[
-              styles.heroImage,
-              { width: screenWidth, height: screenWidth * 0.65 },
-              isListingInactive && styles.heroImageDimmed,
-            ]}
-          >
-            {primaryImage ? (
-              <>
-                <TouchableOpacity
-                  style={styles.heroImageTouch}
-                  activeOpacity={0.9}
-                  onPress={() => {
-                    setPreviewIndex(0);
-                    setPreviewVisible(true);
-                  }}
-                >
-                  <ExpoImage
-                    source={primaryImage}
-                    style={styles.heroImageAsset}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={0}
-                    recyclingKey={primaryImage}
-                  />
-                </TouchableOpacity>
-                {previewImages.length > 1 ? (
-                  <View style={styles.imageCountBadge}>
-                    <Text style={styles.imageCountBadgeText}>{`1/${previewImages.length}`}</Text>
-                  </View>
-                ) : null}
-              </>
-            ) : (
-              <ShoppingBagIcon size={56} color={colors.outlineVariant} />
-            )}
-          </View>
-          {/* Expired stamp overlay — above heroImage */}
-          {isExpired && (
-            <View style={styles.expiredOverlay}>
-              <View style={styles.expiredStamp}>
-                <Text style={styles.expiredStampText}>{t('secondhandExpired')}</Text>
-              </View>
-              <View style={styles.cornerTR} />
-              <View style={styles.cornerBL} />
-            </View>
+        {/* ----- Hero Image Carousel ----- */}
+        <View style={[styles.heroImage, { width: screenWidth, height: screenWidth * 0.65 }, isListingInactive && styles.heroImageDimmed]}>
+          {previewImages.length > 0 ? (
+            <>
+              <FlatList
+                data={previewImages}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(uri, i) => `${uri}-${i}`}
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                  setPreviewIndex(Math.min(Math.max(idx, 0), previewImages.length - 1));
+                }}
+                renderItem={({ item: uri, index }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setPreviewIndex(index);
+                      setPreviewVisible(true);
+                    }}
+                    style={{ width: screenWidth, height: screenWidth * 0.65 }}
+                  >
+                    <ExpoImage
+                      source={uri}
+                      style={styles.heroImageAsset}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={0}
+                      recyclingKey={uri}
+                    />
+                  </TouchableOpacity>
+                )}
+                getItemLayout={(_, index) => ({
+                  length: screenWidth,
+                  offset: screenWidth * index,
+                  index,
+                })}
+              />
+              {previewImages.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {previewImages.map((_, i) => (
+                    <View key={i} style={[styles.dot, i === previewIndex && styles.dotActive]} />
+                  ))}
+                </View>
+              )}
+            </>
+          ) : (
+            <ShoppingBagIcon size={56} color="#86909C" />
           )}
         </View>
 
         {/* ----- Content below image ----- */}
-        <View style={styles.contentPadding}>
-          {/* Title */}
-          <TranslatableText
-            entityType="secondhand"
-            entityId={item.id}
-            fieldName="title"
-            sourceText={item.title}
-            sourceLanguage={item.sourceLanguage}
-            textStyle={styles.title}
-          />
-
-          {/* Price */}
-          <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>HK¥</Text>
-            <Text style={styles.priceValue}>{priceValue}</Text>
+        <View style={styles.contentContainer}>
+          {/* Title + Price block */}
+          <View style={styles.titlePriceBlock}>
+            <View style={styles.titleRow}>
+              <TranslatableText
+                entityType="secondhand"
+                entityId={item.id}
+                fieldName="title"
+                sourceText={item.title}
+                sourceLanguage={item.sourceLanguage}
+                textStyle={styles.contentTitle}
+                containerStyle={styles.titleFlex}
+              />
+              {isSold && (
+                <View style={styles.expiredTag}>
+                  <Text style={styles.expiredTagText}>{t('secondhandSold')}</Text>
+                </View>
+              )}
+              {isExpired && (
+                <View style={styles.expiredTag}>
+                  <Text style={styles.expiredTagText}>{t('secondhandExpired')}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceCurrency}>HK¥</Text>
+              <Text style={styles.priceValue}>{strippedPrice}</Text>
+            </View>
           </View>
 
-          {/* Description */}
-          <TranslatableText
-            entityType="secondhand"
-            entityId={item.id}
-            fieldName="description"
-            sourceText={item.desc}
-            sourceLanguage={item.sourceLanguage}
-            textStyle={styles.descriptionText}
-          />
+          {/* Description Section */}
+          <View style={styles.descSection}>
+            <Text style={styles.descLabel}>{t('details')}</Text>
+            <TranslatableText
+              entityType="secondhand"
+              entityId={item.id}
+              fieldName="description"
+              sourceText={item.desc}
+              sourceLanguage={item.sourceLanguage}
+              textStyle={styles.descText}
+            />
+          </View>
 
-          <PageTranslationToggle style={styles.translationToggle} />
-
-          {/* Info items */}
-          <View style={styles.infoColumn}>
-            <View style={styles.infoRow}>
-              <ConditionIcon size={16} color="#86909C" />
+          {/* Condition */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <ConditionIcon size={18} color="#0C1015" />
+            </View>
+            <View>
               <Text style={styles.infoLabel}>{t('condition')}</Text>
               <Text style={styles.infoValue}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <TradeMethodIcon size={16} color="#86909C" />
-              <Text style={styles.infoLabel}>{t('tradeLocation')}</Text>
-              <Text style={styles.infoValue} numberOfLines={1}>{item.location || '—'}</Text>
+          </View>
+
+          {/* Trade method */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <TradeMethodIcon size={18} color="#0C1015" />
             </View>
-            <View style={styles.infoRow}>
-              <CategoryListIcon size={16} color="#86909C" />
-              <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
-              <Text style={styles.infoValue}>{t(item.category.toLowerCase())}</Text>
+            <View>
+              <Text style={styles.infoLabel}>{t('tradeLocation')}</Text>
+              <Text style={styles.infoValue}>{item.location || '\u2014'}</Text>
             </View>
           </View>
 
@@ -355,42 +375,42 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           {/* Seller row */}
-          <View style={styles.sellerRow}>
-            <TouchableOpacity activeOpacity={0.7} onPress={handleSellerAvatarPress}>
-              <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
-            </TouchableOpacity>
-            <View style={styles.sellerInfo}>
-              <View style={styles.sellerNameRow}>
-                <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
+          <TouchableOpacity style={styles.userRow} activeOpacity={0.7} onPress={handleSellerAvatarPress}>
+            <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
+            <View>
+              <View style={styles.userNameRow}>
+                <Text style={styles.userName}>{item.user}</Text>
                 {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
                 {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
               </View>
-              <Text style={styles.sellerMeta} numberOfLines={1}>
-                {[sellerMeta, sellerTime].filter(Boolean).join(' · ')}
+              <Text style={styles.userMeta} numberOfLines={1}>
+                {sellerMeta ? `${sellerMeta} \u00B7 ${sellerTime}` : sellerTime}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
+
+          <PageTranslationToggle />
         </View>
       </ScrollView>
 
-      {/* ----- Bottom Action Bar ----- */}
+      {/* Bottom action bar: two buttons */}
       {!isOwnPost && (
         <View style={[styles.bottomBar, isListingInactive && styles.bottomBarDisabled]}>
           <TouchableOpacity
-            style={styles.dmButton}
+            style={styles.bottomBtn}
             activeOpacity={0.7}
             onPress={handleContact}
             disabled={isContactDisabled}
           >
-            <Text style={styles.dmButtonText}>{t('secondhandDmSeller')}</Text>
+            <Text style={styles.bottomBtnText}>{t('secondhandDmSeller')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.wantButton, isWanted && styles.wantedButtonActive]}
+            style={[styles.bottomBtnWant, isWanted && styles.wantedButtonActive]}
             activeOpacity={0.7}
             onPress={handleWant}
             disabled={isWantDisabled}
           >
-            <Text style={styles.wantButtonText}>
+            <Text style={styles.bottomBtnText}>
               {isWanted ? t('wanted') : t('iWant')}
             </Text>
           </TouchableOpacity>
@@ -452,7 +472,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
+    paddingLeft: 12,
+    paddingRight: 16,
+  },
+  backBtn: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBarTitle: {
     position: 'absolute',
@@ -465,32 +492,28 @@ const styles = StyleSheet.create({
     color: '#0C1015',
     pointerEvents: 'none',
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   /* ----- Empty ----- */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
+    gap: 12,
   },
   emptyText: {
-    ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
 
+  /* ----- Scroll ----- */
   scrollContent: {
-    paddingBottom: 120,
+    gap: 0,
   },
 
   /* ----- Hero Image ----- */
   heroImage: {
-    backgroundColor: colors.surface2,
+    backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -498,242 +521,190 @@ const styles = StyleSheet.create({
   heroImageDimmed: {
     opacity: 0.5,
   },
-  heroImageTouch: {
-    width: '100%',
-    height: '100%',
-  },
   heroImageAsset: {
-    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
   },
-  imageCountBadge: {
+  dotsRow: {
     position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  imageCountBadgeText: {
-    ...typography.labelSmall,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  expiredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
     justifyContent: 'center',
-    zIndex: 10,
+    gap: 6,
   },
-  expiredStamp: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#ED4956',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-15deg' }],
-    shadowColor: '#ED4956',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
-  expiredStampText: {
-    fontSize: 14,
+  dotActive: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  /* ----- Expired / Sold tag ----- */
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  titleFlex: {
+    flex: 1,
+  },
+  expiredTag: {
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  expiredTagText: {
+    fontSize: 11,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#ED4956',
-    letterSpacing: 2,
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
-  },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
   },
 
-  /* ----- Content ----- */
-  contentPadding: {
+  /* ----- Content below image ----- */
+  contentContainer: {
     padding: 16,
+    gap: 24,
   },
 
-  /* Title */
-  title: {
-    fontSize: 18,
-    fontFamily: 'SourceHanSansCN-Medium',
-    fontWeight: '500',
+  /* ----- Title + Price block ----- */
+  titlePriceBlock: {
+    gap: 6,
+  },
+  contentTitle: {
+    fontSize: 20,
+    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
-    lineHeight: 21,
-    marginBottom: 8,
+    lineHeight: 26,
   },
-
-  /* Price */
   priceRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 2,
-    marginBottom: 12,
   },
   priceCurrency: {
     fontSize: 12,
-    fontFamily: 'DINExp-Bold',
-    fontWeight: '700',
-    color: '#FF2538',
     lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
     letterSpacing: 0.6429,
   },
   priceValue: {
-    fontSize: 19,
-    fontFamily: 'DINExp-Bold',
-    fontWeight: '700',
-    color: '#FF2538',
+    fontSize: 22,
     lineHeight: 27,
+    fontFamily: 'DINExp-Bold',
+    color: '#FF2538',
     letterSpacing: 1.5,
   },
 
-  /* Description */
-  descriptionText: {
-    fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
-    fontWeight: '400',
+  /* ----- Description Section ----- */
+  descSection: {
+    gap: 4,
+  },
+  descLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
     color: '#86909C',
-    lineHeight: 20,
-    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
+  descText: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    lineHeight: 22,
   },
 
-  translationToggle: {
-    marginBottom: 16,
-  },
-
-  /* Info items */
-  infoColumn: {
-    gap: 12,
-    marginBottom: 16,
-  },
+  /* ----- Info rows ----- */
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  infoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 11,
     fontFamily: 'SourceHanSansCN-Regular',
-    fontWeight: '400',
     color: '#86909C',
-    lineHeight: 20,
   },
   infoValue: {
-    fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
-    fontWeight: '400',
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Medium',
     color: '#0C1015',
-    lineHeight: 20,
-    flex: 1,
-    textAlign: 'right',
   },
 
-  /* Divider */
+  /* ----- Divider ----- */
   divider: {
     height: 0.5,
-    backgroundColor: '#DEE2E5',
-    marginBottom: 16,
+    backgroundColor: '#F0F0F0',
   },
 
-  /* Seller */
-  sellerRow: {
+  /* ----- User row ----- */
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  sellerInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  sellerNameRow: {
+  userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  sellerName: {
-    fontSize: 14,
+  userName: {
+    fontSize: 15,
     fontFamily: 'SourceHanSansCN-Medium',
-    fontWeight: '500',
     color: '#0C1015',
-    lineHeight: 20,
-    flexShrink: 1,
   },
-  sellerMeta: {
+  userMeta: {
     fontSize: 12,
     fontFamily: 'SourceHanSansCN-Regular',
-    fontWeight: '400',
     color: '#86909C',
-    lineHeight: 17,
-    marginTop: 2,
   },
 
-  /* ----- Bottom Action Bar ----- */
+  /* ----- Bottom action bar ----- */
   bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 34,
-    gap: 10,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 24,
     borderTopWidth: 0.5,
-    borderTopColor: '#DEE2E5',
+    borderTopColor: '#F0F0F0',
+    gap: 10,
   },
   bottomBarDisabled: {
     opacity: 0.5,
   },
-  dmButton: {
+  bottomBtn: {
     flex: 1,
-    height: 40,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 22,
     backgroundColor: '#0C1015',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  dmButtonText: {
-    fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Bold',
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  wantButton: {
+  bottomBtnWant: {
     flex: 1,
-    height: 40,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 22,
     backgroundColor: '#FF2538',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   wantedButtonActive: {
     opacity: 0.7,
   },
-  wantButtonText: {
-    fontSize: 14,
+  bottomBtnText: {
+    fontSize: 15,
     fontFamily: 'SourceHanSansCN-Bold',
-    fontWeight: '700',
     color: '#FFFFFF',
   },
 
@@ -751,7 +722,7 @@ const styles = StyleSheet.create({
     position: 'absolute' as const,
     top: spacing.sm,
     right: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
     minWidth: 160,
@@ -766,7 +737,7 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: '#0C1015',
   },
   popoverItemTextDanger: {
     ...typography.bodyMedium,

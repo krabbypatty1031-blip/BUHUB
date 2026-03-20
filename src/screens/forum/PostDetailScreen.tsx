@@ -2134,9 +2134,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   commentBody: {
-    fontSize: 18,
+    fontSize: 15,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: 'SourceHanSansCN-Regular',
     color: '#0C1015',
   },
   commentTranslateBlock: {

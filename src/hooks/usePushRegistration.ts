@@ -100,7 +100,7 @@ function buildPushNavigationTarget(data: Record<string, unknown>): PushNavigatio
             screen: 'Chat',
             params: {
               contactId: id,
-              contactName: readPushDataString(data, 'contactName') ?? '',
+              contactName: readPushDataString(data, 'contactName') || readPushDataString(data, 'senderName') || 'User',
               contactAvatar: readPushDataString(data, 'contactAvatar') ?? '',
             },
           }

@@ -25,7 +25,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime, formatDeadline } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -220,122 +220,111 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.contentArea}>
-          {/* Title */}
+        {/* Title + expired tag */}
+        <View style={styles.titleRow}>
           <TranslatableText
             entityType="partner"
             entityId={partner.id}
             fieldName="title"
             sourceText={partner.title}
             sourceLanguage={partner.sourceLanguage}
-            textStyle={styles.title}
+            textStyle={styles.contentTitle}
+            containerStyle={styles.titleFlex}
           />
+          {isExpired && (
+            <View style={styles.expiredTag}>
+              <Text style={styles.expiredTagText}>{t('partnerExpired')}</Text>
+            </View>
+          )}
+        </View>
 
-          {/* Description */}
+        {/* Description Section */}
+        <View style={styles.descSection}>
+          <Text style={styles.descLabel}>{t('details')}</Text>
           <TranslatableText
             entityType="partner"
             entityId={partner.id}
             fieldName="description"
             sourceText={partner.desc}
             sourceLanguage={partner.sourceLanguage}
-            textStyle={styles.description}
+            textStyle={styles.descText}
           />
+        </View>
 
-          {/* Info items */}
-          <View style={styles.infoItems}>
-            {/* Location */}
-            {partner.location ? (
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconContainer}>
-                  <LocationPinIcon size={16} color="#86909C" />
-                </View>
-                <View style={styles.infoTextBlock}>
-                  <Text style={styles.infoLabel}>{t('location')}</Text>
-                  <TranslatableText
-                    entityType="partner"
-                    entityId={partner.id}
-                    fieldName="location"
-                    sourceText={partner.location}
-                    sourceLanguage={partner.sourceLanguage}
-                    textStyle={styles.infoValue}
-                  />
-                </View>
-              </View>
-            ) : null}
-
-            {/* Activity Time */}
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <CalendarDotIcon size={16} color="#86909C" />
-              </View>
-              <View style={styles.infoTextBlock}>
-                <Text style={styles.infoLabel}>{t('activityTime')}</Text>
-                <TranslatableText
-                  entityType="partner"
-                  entityId={partner.id}
-                  fieldName="time"
-                  sourceText={partner.time}
-                  sourceLanguage={partner.sourceLanguage}
-                  textStyle={styles.infoValue}
-                />
-              </View>
+        {/* Location */}
+        {partner.location ? (
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <LocationPinIcon size={18} color="#0C1015" />
             </View>
-
-            {/* Deadline Time */}
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <ClockDeadlineIcon size={16} color="#86909C" />
-              </View>
-              <View style={styles.infoTextBlock}>
-                <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
-                <Text style={styles.infoValue}>{partner.expiresAt}</Text>
-              </View>
+            <View>
+              <Text style={styles.infoLabel}>{t('location')}</Text>
+              <TranslatableText
+                entityType="partner"
+                entityId={partner.id}
+                fieldName="location"
+                sourceText={partner.location}
+                sourceLanguage={partner.sourceLanguage}
+                textStyle={styles.infoValue}
+              />
             </View>
           </View>
+        ) : null}
 
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* User row */}
-          <TouchableOpacity style={styles.userRow} activeOpacity={0.7} onPress={handleOrganizerAvatarPress}>
-            <Avatar text={partner.user} uri={partner.avatar} size="sm" gender={partner.gender} />
-            <View style={styles.userInfo}>
-              <View style={styles.userNameRow}>
-                <Text style={styles.userName}>{partner.user}</Text>
-                {partner.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
-                {partner.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
-              </View>
-              <Text style={styles.userMeta} numberOfLines={1}>
-                {organizerMeta ? `${organizerMeta} \u00B7 ${organizerTime}` : organizerTime}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <PageTranslationToggle style={styles.translationToggle} />
-
-          {/* Expired stamp overlay */}
-          {isExpired && (
-            <View style={styles.expiredOverlay}>
-              <View style={styles.expiredStamp}>
-                <Text style={styles.expiredStampText}>{t('partnerExpired')}</Text>
-              </View>
-              <View style={styles.cornerTR} />
-              <View style={styles.cornerBL} />
-            </View>
-          )}
+        {/* Activity Time */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <CalendarDotIcon size={18} color="#0C1015" />
+          </View>
+          <View>
+            <Text style={styles.infoLabel}>{t('activityTime')}</Text>
+            <Text style={styles.infoValue}>{formatDeadline(partner.time, lang)}</Text>
+          </View>
         </View>
+
+        {/* Deadline Time */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <ClockDeadlineIcon size={18} color="#0C1015" />
+          </View>
+          <View>
+            <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
+            <Text style={styles.infoValue}>{formatDeadline(partner.expiresAt, lang)}</Text>
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* User row */}
+        <TouchableOpacity style={styles.userRow} activeOpacity={0.7} onPress={handleOrganizerAvatarPress}>
+          <Avatar text={partner.user} uri={partner.avatar} size="sm" gender={partner.gender} />
+          <View>
+            <View style={styles.userNameRow}>
+              <Text style={styles.userName}>{partner.user}</Text>
+              {partner.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+              {partner.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
+            </View>
+            <Text style={styles.userMeta} numberOfLines={1}>
+              {organizerMeta ? `${organizerMeta} \u00B7 ${organizerTime}` : organizerTime}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <PageTranslationToggle />
+
       </ScrollView>
 
       {/* Bottom action bar */}
       {!isOwnPost && (
         <View style={[styles.bottomBar, isExpired && styles.bottomBarDisabled]}>
           <TouchableOpacity
-            style={styles.dmButton}
+            style={styles.bottomBtn}
             activeOpacity={0.7}
             onPress={handleDmOrganizer}
             disabled={isExpired}
           >
-            <Text style={styles.dmButtonText}>{t('partnerDmOrganizer')}</Text>
+            <Text style={styles.bottomBtnText}>{t('partnerDmOrganizer')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -426,48 +415,47 @@ const styles = StyleSheet.create({
   /* ----- Scroll ----- */
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
-  },
-  contentArea: {
-    position: 'relative',
+    gap: 24,
   },
 
-  /* ----- Title & Description ----- */
-  title: {
-    fontSize: 18,
-    lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+  /* ----- Title ----- */
+  contentTitle: {
+    fontSize: 20,
+    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#86909C',
-    marginBottom: 16,
+    lineHeight: 26,
   },
 
-  /* ----- Info items ----- */
-  infoItems: {
-    gap: 12,
-    marginBottom: 16,
+  /* ----- Description Section ----- */
+  descSection: {
+    gap: 4,
   },
+  descLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#86909C',
+    letterSpacing: 0.5,
+  },
+  descText: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    lineHeight: 22,
+  },
+
+  /* ----- Info rows ----- */
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  infoIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F3F5F7',
+  infoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  infoTextBlock: {
-    flex: 1,
   },
   infoLabel: {
     fontSize: 11,
@@ -475,26 +463,22 @@ const styles = StyleSheet.create({
     color: '#86909C',
   },
   infoValue: {
-    fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Medium',
     color: '#0C1015',
   },
 
   /* ----- Divider ----- */
   divider: {
     height: 0.5,
-    backgroundColor: '#DEE2E5',
-    marginBottom: 16,
+    backgroundColor: '#F0F0F0',
   },
 
   /* ----- User row ----- */
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  userInfo: {
-    flex: 1,
+    gap: 12,
   },
   userNameRow: {
     flexDirection: 'row',
@@ -502,7 +486,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   userName: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'SourceHanSansCN-Medium',
     color: '#0C1015',
   },
@@ -510,85 +494,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
-    marginTop: 2,
-  },
-
-  /* ----- Translation toggle ----- */
-  translationToggle: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
   },
 
   /* ----- Expired stamp overlay ----- */
-  expiredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
   },
-  expiredStamp: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#ED4956',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-15deg' }],
-    shadowColor: '#ED4956',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+  titleFlex: {
+    flex: 1,
   },
-  expiredStampText: {
-    fontSize: 14,
+  expiredTag: {
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  expiredTagText: {
+    fontSize: 11,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#ED4956',
-    letterSpacing: 2,
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
-  },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
   },
 
   /* ----- Bottom action bar ----- */
   bottomBar: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: 24,
     borderTopWidth: 0.5,
-    borderTopColor: '#DEE2E5',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: '#F0F0F0',
   },
   bottomBarDisabled: {
     opacity: 0.5,
   },
-  dmButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+  bottomBtn: {
+    paddingVertical: 12,
+    borderRadius: 22,
     backgroundColor: '#0C1015',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  dmButtonText: {
-    fontSize: 14,
+  bottomBtnText: {
+    fontSize: 15,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#FFFFFF',
   },

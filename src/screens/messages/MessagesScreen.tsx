@@ -198,11 +198,17 @@ export default function MessagesScreen({ navigation }: Props) {
     setUnreadMessages,
   ]);
 
+  const lastRefetchRef = useRef(0);
+
   useFocusEffect(
     useCallback(() => {
       shouldSnapshotInboxSeenRef.current = true;
       void queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'], type: 'active' });
-      void refetch();
+      const now = Date.now();
+      if (now - lastRefetchRef.current > 10_000) {
+        lastRefetchRef.current = now;
+        void refetch();
+      }
       return () => {
         shouldSnapshotInboxSeenRef.current = false;
       };

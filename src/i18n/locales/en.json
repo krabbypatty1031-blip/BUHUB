@@ -329,6 +329,7 @@
   "ended": "Ended",
   "recruiting": "Recruiting",
   "partnerDetail": "Partner Detail",
+  "details": "Details",
   "activityEnded": "Activity ended",
   "organizer": "Organizer",
   "joinActivity": "Join",
@@ -872,5 +873,10 @@
   "rateLimited": "Too many requests, please try again later",
   "serviceUnavailable": "Service temporarily unavailable, please try again later",
   "sessionExpired": "Session expired, please log in again",
-  "cannotReportOwnContent": "You cannot report your own content"
+  "cannotReportOwnContent": "You cannot report your own content",
+  "editMyRating": "Edit My Rating",
+  "rateThis": "Rate",
+  "reviews": "Reviews",
+  "editingNotice": "You submitted a rating on {{date}}. This will update your rating.",
+  "updateRating": "Update Rating"
 }

@@ -171,6 +171,7 @@ export function useMyContent() {
   return useQuery({
     queryKey: ['myContent'],
     queryFn: () => userService.getMyContent(),
+    staleTime: 30 * 1000,
   });
 }
 

@@ -25,6 +25,7 @@ import SecondhandCard from '../../components/functions/SecondhandCard';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
+import { filterWithExpiredVisibility } from '../../utils/expiredFilter';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import {
@@ -60,7 +61,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const now = useExpirationTick(30000);
   const visibleItems = useMemo(
-    () => items.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    () => filterWithExpiredVisibility(items, now),
     [items, now]
   );
 

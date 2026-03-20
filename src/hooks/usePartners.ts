@@ -11,7 +11,7 @@ export function usePartners(category?: PartnerCategory) {
   return useInfiniteQuery<PartnerPage, Error, PartnerInfiniteData, (string | undefined)[], number>({
     queryKey: ['partners', category],
     queryFn: async ({ pageParam }) => {
-      const items = await partnerService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT });
+      const items = await partnerService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT, includeExpired: true });
       return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
     },
     initialPageParam: 1,
@@ -26,11 +26,12 @@ export function flattenPartnerPages(data: PartnerInfiniteData | undefined): Part
   return data.pages.flatMap((p) => p.items);
 }
 
-export function useMyPartners(category?: PartnerCategory) {
+export function useMyPartners(category?: PartnerCategory, enabled = true) {
   return useQuery({
     queryKey: ['partners', 'all', category],
     queryFn: () => partnerService.getList(category || undefined, { includeExpired: true }),
     refetchInterval: 2 * 60 * 1000,
+    enabled,
   });
 }
 

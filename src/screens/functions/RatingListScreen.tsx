@@ -27,7 +27,7 @@ import { typography } from '../../theme/typography';
 import { BackIcon, CloseIcon, SearchIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
-import Avatar from '../../components/common/Avatar';
+import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingList'>;
@@ -200,6 +200,7 @@ function MiniScoreBar({ label, value }: { label: string; value: number }) {
       <View style={styles.miniBarTrack}>
         <View style={[styles.miniBarFill, { width: `${value}%` }]} />
       </View>
+      <Text style={styles.miniBarValue}>{value}</Text>
     </View>
   );
 }
@@ -213,7 +214,8 @@ export default function RatingListScreen({ navigation }: Props) {
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
-  const deferredSearchQuery = useDeferredValue(searchQuery);
+  // Use searchQuery directly — client-side filtering is fast enough, no need for useDeferredValue
+  const deferredSearchQuery = searchQuery;
   const [showSearch, setShowSearch] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<RatingCategory, string>>({
     course: ALL_FILTER_VALUE,
@@ -399,6 +401,9 @@ export default function RatingListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: RatingItem }) => {
       const topTags = getTopTags(item);
+      const overallScore = item.scores.length > 0
+        ? Math.round(item.scores.reduce((sum, s) => sum + s.value, 0) / item.scores.length)
+        : 0;
       return (
         <TouchableOpacity
           style={styles.card}
@@ -408,14 +413,21 @@ export default function RatingListScreen({ navigation }: Props) {
           }
         >
           <View style={styles.cardHeader}>
-            <Avatar text={item.name} uri={item.avatar} size="sm" />
+            {category === 'teacher' ? <TeacherAvatarIcon size={40} /> :
+             category === 'course' ? <CourseAvatarIcon size={40} /> :
+             category === 'canteen' ? <CanteenAvatarIcon size={40} /> :
+             <MajorAvatarIcon size={40} />}
             <View style={styles.cardTitleWrap}>
               <Text style={styles.cardName} numberOfLines={1}>
                 {translateLabel(item.name, lang)}
               </Text>
-              <Text style={styles.cardSubtitle} numberOfLines={2}>
+              <Text style={styles.cardSubtitle} numberOfLines={1}>
                 {getSubtitle(item)}
               </Text>
+            </View>
+            <View style={styles.overallScoreWrap}>
+              <Text style={styles.overallScoreText}>{overallScore}</Text>
+              <Text style={styles.ratingCountSmall}>{item.ratingCount}{t('personRated')}</Text>
             </View>
           </View>
           <View style={styles.cardBody}>
@@ -434,15 +446,12 @@ export default function RatingListScreen({ navigation }: Props) {
                   <Text style={styles.tagChipText}>{translateLabel(tag, lang)}</Text>
                 </View>
               ))}
-              <Text style={styles.ratingCount}>
-                {item.ratingCount} {t('personRated')}
-              </Text>
             </View>
           </View>
         </TouchableOpacity>
       );
     },
-    [category, navigation, getTopTags, t, lang]
+    [category, navigation, getTopTags, t, lang, getSubtitle]
   );
 
   return (
@@ -606,8 +615,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   tabsContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -644,28 +653,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   filterRow: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: 16,
+    gap: 6,
   },
   filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F5F7',
   },
   filterChipActive: {
-    backgroundColor: colors.primaryContainer,
-    borderColor: colors.primary,
+    backgroundColor: '#0C1015',
   },
   filterChipText: {
-    ...typography.labelMedium,
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
   filterChipTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -711,29 +718,49 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 6,
   },
+  overallScoreWrap: {
+    alignItems: 'flex-end',
+  },
+  overallScoreText: {
+    fontSize: 20,
+    fontFamily: 'DINExp-Bold',
+    color: '#0C1015',
+  },
+  ratingCountSmall: {
+    fontSize: 10,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
   miniBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   miniBarLabel: {
     fontSize: 11,
     fontFamily: 'SourceHanSansCN-Regular',
-    color: '#0C1015',
+    color: '#86909C',
     width: 48,
     flexShrink: 0,
   },
   miniBarTrack: {
     flex: 1,
-    height: 5,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: '#F0F0F0',
     overflow: 'hidden',
   },
   miniBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
     backgroundColor: '#0C1015',
+  },
+  miniBarValue: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    width: 22,
+    textAlign: 'right',
   },
   cardBottom: {
     flexDirection: 'row',
@@ -744,19 +771,13 @@ const styles = StyleSheet.create({
   },
   tagChip: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 3,
+    paddingVertical: 3,
+    borderRadius: 10,
     backgroundColor: '#F3F5F7',
   },
   tagChipText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#0C1015',
-  },
-  ratingCount: {
-    fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#999999',
-    marginLeft: 'auto',
   },
 });

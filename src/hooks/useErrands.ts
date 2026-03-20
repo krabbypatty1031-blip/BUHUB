@@ -11,7 +11,7 @@ export function useErrands(category?: ErrandCategory) {
   return useInfiniteQuery<ErrandPage, Error, ErrandInfiniteData, (string | undefined)[], number>({
     queryKey: ['errands', category],
     queryFn: async ({ pageParam }) => {
-      const items = await errandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT });
+      const items = await errandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT, includeExpired: true });
       return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
     },
     initialPageParam: 1,
@@ -26,11 +26,12 @@ export function flattenErrandPages(data: ErrandInfiniteData | undefined): Errand
   return data.pages.flatMap((p) => p.items);
 }
 
-export function useMyErrands(category?: ErrandCategory) {
+export function useMyErrands(category?: ErrandCategory, enabled = true) {
   return useQuery({
     queryKey: ['errands', 'all', category],
     queryFn: () => errandService.getList(category || undefined, { includeExpired: true }),
     refetchInterval: 2 * 60 * 1000,
+    enabled,
   });
 }
 

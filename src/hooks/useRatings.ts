@@ -2,12 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ratingService } from '../api/services/rating.service';
 import type { RatingCategory, RatingSortMode } from '../types';
 
+export function useMyRating(category: RatingCategory, id: string) {
+  return useQuery({
+    queryKey: ['myRating', category, id],
+    queryFn: () => ratingService.getMyRating(category, id),
+    enabled: id.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useRatings(category: RatingCategory, sortMode: RatingSortMode = 'recent') {
   return useQuery({
     queryKey: ['ratings', category, sortMode],
     queryFn: () => ratingService.getList(category, sortMode),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 30 * 1000,
+    gcTime: 10 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -32,7 +42,7 @@ export function useRatingDimensions(category: RatingCategory) {
   return useQuery({
     queryKey: ['ratingDimensions', category],
     queryFn: () => ratingService.getDimensions(category),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -53,6 +63,7 @@ export function useSubmitRating(category: RatingCategory, id: string) {
       queryClient.invalidateQueries({ queryKey: ['ratings', category] });
       queryClient.invalidateQueries({ queryKey: ['rating', category, id] });
       queryClient.invalidateQueries({ queryKey: ['ratingTagOptions', category] });
+      queryClient.invalidateQueries({ queryKey: ['myRating', category, id] });
     },
   });
 }

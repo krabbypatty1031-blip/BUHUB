@@ -79,12 +79,9 @@ import {
   ImageIcon,
   CloseIcon,
   ChevronRightIcon,
-  UsersIcon,
-  TruckIcon,
-  ShoppingBagIcon,
-  StarIcon,
   EditIcon,
 } from '../../components/common/icons';
+import { PartnerFnIcon, ErrandFnIcon, SecondhandFnIcon, RatingFnIcon } from '../../components/functions/FunctionHubIcons';
 import {
   ChatCameraIcon,
   ChatMicIcon,
@@ -612,16 +609,27 @@ const DateSeparator = React.memo(function DateSeparator({
 /* ----- Type label keys ----- */
 const TYPE_LABEL_KEYS: Record<string, string> = { partner: 'findPartner', errand: 'errands', secondhand: 'secondhand', rating: 'ratings', post: 'forum' };
 
-/* ----- Card theme: unified monochrome ----- */
+/* ----- Card theme: sent / received ----- */
 const CARD_THEME = {
-  bg: '#FFFFFF',
-  iconBg: '#F5F5F5',
-  iconColor: '#000000',
-  accent: '#999999',
-  divider: 'rgba(0,0,0,0.06)',
+  sentBg: '#0C1015',
+  sentText: '#FFFFFF',
+  sentSubtext: 'rgba(255,255,255,0.45)',
+  sentDivider: 'rgba(255,255,255,0.08)',
+  sentIconBg: 'rgba(255,255,255,0.12)',
+  receivedBg: '#F5F5F5',
+  receivedText: '#0C1015',
+  receivedSubtext: '#86909C',
+  receivedDivider: 'rgba(0,0,0,0.06)',
+  receivedIconBg: 'rgba(0,0,0,0.06)',
 };
 
-const TYPE_ICONS = { partner: UsersIcon, errand: TruckIcon, secondhand: ShoppingBagIcon, rating: StarIcon, post: EditIcon };
+const TYPE_ICONS: Record<string, React.FC<{ size?: number; color?: string }>> = {
+  partner: PartnerFnIcon,
+  errand: ErrandFnIcon,
+  secondhand: SecondhandFnIcon,
+  rating: RatingFnIcon,
+  post: EditIcon,
+};
 
 const SINGLE_MEDIA_MAX_WIDTH = 220;
 const SINGLE_MEDIA_MAX_HEIGHT = 280;
@@ -1384,30 +1392,43 @@ const ChatBubble = React.memo(function ChatBubble({
     <View style={styles.bubbleBodyWrap}>
       {card ? (() => {
         const IconComp = TYPE_ICONS[card.type];
+        const cardTheme = isMine ? {
+          bg: CARD_THEME.sentBg,
+          text: CARD_THEME.sentText,
+          subtext: CARD_THEME.sentSubtext,
+          divider: CARD_THEME.sentDivider,
+          iconBg: CARD_THEME.sentIconBg,
+          iconColor: '#FFFFFF',
+          arrowColor: 'rgba(255,255,255,0.3)',
+        } : {
+          bg: CARD_THEME.receivedBg,
+          text: CARD_THEME.receivedText,
+          subtext: CARD_THEME.receivedSubtext,
+          divider: CARD_THEME.receivedDivider,
+          iconBg: CARD_THEME.receivedIconBg,
+          iconColor: '#0C1015',
+          arrowColor: '#C7C7CC',
+        };
         return (
           <TouchableOpacity
-            style={styles.cardBubble}
+            style={[styles.cardBubble, { backgroundColor: cardTheme.bg }]}
             activeOpacity={0.8}
             onPress={() => onCardPress?.(card)}
             onLongPress={() => onLongPressMessage?.(message)}
             delayLongPress={300}
           >
-            <View style={styles.cardContent}>
-              <View style={styles.cardTopRow}>
-                <View style={styles.cardIconCircle}>
-                  <IconComp size={13} color={CARD_THEME.iconColor} />
-                </View>
-                <Text style={styles.cardTypeText}>
-                  {t(TYPE_LABEL_KEYS[card.type]) || card.type}
-                </Text>
-                <ChevronRightIcon size={12} color="#CCCCCC" />
+            <View style={styles.cardTopRow}>
+              <View style={[styles.cardIconCircle, { backgroundColor: cardTheme.iconBg }]}>
+                <IconComp size={13} color={cardTheme.iconColor} />
               </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>{card.title}</Text>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardFooter}>
-                <Text style={styles.cardPosterText} numberOfLines={1}>{card.posterName}</Text>
-              </View>
+              <Text style={[styles.cardTypeText, { color: cardTheme.subtext }]}>
+                {t(TYPE_LABEL_KEYS[card.type]) || card.type}
+              </Text>
+              <ChevronRightIcon size={14} color={cardTheme.arrowColor} />
             </View>
+            <Text style={[styles.cardTitle, { color: cardTheme.text }]} numberOfLines={2}>{card.title}</Text>
+            <View style={[styles.cardDivider, { backgroundColor: cardTheme.divider }]} />
+            <Text style={[styles.cardPosterText, { color: cardTheme.subtext }]} numberOfLines={1}>{card.posterName}</Text>
           </TouchableOpacity>
         );
       })() : hasImages ? (
@@ -4264,7 +4285,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                     <View style={styles.pendingForwardIconCircle}>
                       {(() => {
                         const IconComp = TYPE_ICONS[pendingForwardPreview.type];
-                        return <IconComp size={16} color={CARD_THEME.iconColor} />;
+                        return <IconComp size={16} color={CARD_THEME.receivedText} />;
                       })()}
                     </View>
                     <Text style={styles.pendingForwardLabel}>{pendingForwardPreview.typeLabel}</Text>
@@ -4965,15 +4986,11 @@ const styles = StyleSheet.create({
     maxWidth: SINGLE_MEDIA_MAX_WIDTH,
   },
   mediaBubbleWrap: {
-    borderRadius: 18,
-    padding: 4,
     overflow: 'hidden',
   },
   mediaBubbleWrapMine: {
-    backgroundColor: '#0C1015',
   },
   mediaBubbleWrapTheirs: {
-    backgroundColor: '#F5F5F5',
   },
   mediaPressTarget: {
     alignSelf: 'flex-start',
@@ -5171,72 +5188,42 @@ const styles = StyleSheet.create({
   cardBubble: {
     borderRadius: 16,
     overflow: 'hidden',
-    maxWidth: 264,
-    minWidth: 224,
-    backgroundColor: CARD_THEME.bg,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.12)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  cardContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    maxWidth: 240,
+    minWidth: 200,
+    padding: 14,
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 6,
+    marginBottom: 8,
   },
   cardIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: CARD_THEME.iconBg,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTypeText: {
-    ...typography.labelSmall,
-    color: CARD_THEME.accent,
-    fontWeight: '600',
-    flex: 1,
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    flex: 1,
   },
   cardTitle: {
-    ...typography.titleSmall,
-    color: '#000000',
-    fontWeight: '700',
-    lineHeight: 22,
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Bold',
+    lineHeight: 20,
+    marginBottom: 6,
   },
   cardDivider: {
-    height: 1,
-    backgroundColor: CARD_THEME.divider,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    height: 0.5,
+    marginBottom: 6,
   },
   cardPosterText: {
-    ...typography.bodySmall,
     fontSize: 11,
-    color: '#AAAAAA',
-    flexShrink: 1,
-  },
-  cardDot: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: '#CCCCCC',
-  },
-  cardFooterText: {
-    ...typography.bodySmall,
-    fontSize: 11,
-    color: '#CCCCCC',
+    fontFamily: 'SourceHanSansCN-Regular',
   },
 
   replyComposer: {
@@ -5286,7 +5273,7 @@ const styles = StyleSheet.create({
   pendingForwardCard: {
     flex: 1,
     borderRadius: 16,
-    backgroundColor: CARD_THEME.bg,
+    backgroundColor: CARD_THEME.receivedBg,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
     paddingHorizontal: spacing.md,
@@ -5307,13 +5294,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: CARD_THEME.iconBg,
+    backgroundColor: CARD_THEME.receivedIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pendingForwardLabel: {
     ...typography.labelSmall,
-    color: CARD_THEME.accent,
+    color: CARD_THEME.receivedSubtext,
     fontWeight: '700',
     flex: 1,
     letterSpacing: 0.4,

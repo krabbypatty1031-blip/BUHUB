@@ -28,14 +28,20 @@ export function handleFunctionDetailBack({
   }
 
   if (backTo) {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'FunctionsHub' }],
-    });
-    parentNavigation?.navigate(backTo.tab, {
-      ...(backTo.screen ? { screen: backTo.screen } : {}),
-      ...(backTo.params ? { params: backTo.params } : {}),
-    });
+    if (backTo.tab === 'FunctionsTab' && backTo.screen) {
+      // Same tab — navigate within the stack directly
+      navigation.navigate(backTo.screen as any, backTo.params);
+    } else {
+      // Different tab — reset FunctionsTab stack, then switch tab
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'FunctionsHub' }],
+      });
+      parentNavigation?.navigate(backTo.tab, {
+        ...(backTo.screen ? { screen: backTo.screen } : {}),
+        ...(backTo.params ? { params: backTo.params } : {}),
+      });
+    }
     return;
   }
 

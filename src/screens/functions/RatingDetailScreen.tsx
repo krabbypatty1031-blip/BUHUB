@@ -15,10 +15,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingCategory, RatingItem } from '../../types';
-import { useRatingDetail } from '../../hooks/useRatings';
+import { useRatingDetail, useMyRating } from '../../hooks/useRatings';
 import { ratingService } from '../../api/services/rating.service';
 import { useAuthStore } from '../../store/authStore';
 import { translateLabel } from '../../utils/translate';
+import { getRelativeTime } from '../../utils/formatTime';
 import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../utils/ratingMeta';
 import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { colors } from '../../theme/colors';
@@ -26,7 +27,7 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import { BackIcon, MoreHorizontalIcon, StarIcon } from '../../components/common/icons';
-import Avatar from '../../components/common/Avatar';
+import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingDetail'>;
 const RATE_LABEL_KEYS = {
@@ -67,6 +68,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const [isResolvingCategory, setIsResolvingCategory] = useState(!initialCategory);
   const activeCategory = initialCategory ?? resolvedCategory;
   const { data: item, isLoading, refetch } = useRatingDetail(activeCategory, id, { enabled: !!activeCategory });
+  const { data: myRating } = useMyRating(activeCategory ?? 'course', id);
   const rateLabelKey = activeCategory ? RATE_LABEL_KEYS[activeCategory] : 'rate';
 
   React.useEffect(() => {
@@ -240,7 +242,10 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* ── Profile Header ── */}
         <View style={styles.headerSection}>
-          <Avatar text={item.name} uri={item.avatar} size="xl" />
+          {activeCategory === 'teacher' ? <TeacherAvatarIcon size={80} /> :
+           activeCategory === 'course' ? <CourseAvatarIcon size={80} /> :
+           activeCategory === 'canteen' ? <CanteenAvatarIcon size={80} /> :
+           <MajorAvatarIcon size={80} />}
           <Text style={styles.itemName}>{translateLabel(item.name, lang)}</Text>
           <Text style={styles.itemSubtitle}>{getSubtitle(item)}</Text>
         </View>
@@ -310,6 +315,24 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           </>
         )}
 
+        {/* ── Anonymous Comments ── */}
+        {item.comments && item.comments.length > 0 && (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>
+                {t('reviews')} ({item.comments.length})
+              </Text>
+              {item.comments.map((c, i) => (
+                <View key={i} style={[styles.commentCard, i > 0 && { marginTop: spacing.sm }]}>
+                  <Text style={styles.commentText}>{c.comment}</Text>
+                  <Text style={styles.commentTime}>{getRelativeTime(c.createdAt, lang)}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.divider} />
+          </>
+        )}
+
         {/* ── Rate Button ── */}
         <View style={styles.actionBar}>
           <TouchableOpacity
@@ -323,7 +346,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           >
             <StarIcon size={18} color={colors.onPrimary} />
             <Text style={styles.rateButtonText}>
-              {t(rateLabelKey) || t('rate')}
+              {myRating ? t('editMyRating') : t('rateThis')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -550,6 +573,25 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.onSurfaceVariant,
     fontSize: 10,
+  },
+
+  /* ── Comments ── */
+  commentCard: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F7',
+  },
+  commentText: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  commentTime: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#C7C7CC',
   },
 
   /* ── Action Bar ── */

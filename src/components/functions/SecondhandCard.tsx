@@ -22,13 +22,16 @@ import { isExpiredNow } from '../../hooks/useExpirationTick';
 export interface SecondhandCardProps {
   item: SecondhandItem;
   id: string;
+  displayTime?: string;
+  footerMode?: 'default' | 'time-only';
   onPress: (id: string) => void;
   onAvatarPress: (item: SecondhandItem) => void;
   onMore: (item: SecondhandItem, id: string) => void;
   onImagePress: (images: string[], index: number) => void;
   now: number;
   t: (key: string) => string;
-  categoryColor?: string;
+  /** Optional category label tag shown next to title in mixed lists */
+  categoryLabel?: string;
 }
 
 /* ── Combined title text: registers for translation, always shows condition + desc ── */
@@ -82,13 +85,15 @@ function CardCombinedText({
 const SecondhandCard = React.memo(function SecondhandCard({
   item,
   id,
+  displayTime,
+  footerMode = 'default',
   onPress,
   onAvatarPress,
   onMore,
   onImagePress,
   now,
   t,
-  categoryColor,
+  categoryLabel,
 }: SecondhandCardProps) {
   const isSoldOrExpired = item.sold || isExpiredNow(item.expired, item.expiresAt, now);
   const primaryImage = item.images?.[0];
@@ -96,10 +101,7 @@ const SecondhandCard = React.memo(function SecondhandCard({
   return (
     <PageTranslationProvider>
     <TouchableOpacity
-      style={[
-        styles.card,
-        categoryColor ? { borderLeftWidth: 3, borderLeftColor: categoryColor } : undefined,
-      ]}
+      style={styles.card}
       activeOpacity={0.7}
       onPress={() => onPress(id)}
     >
@@ -130,6 +132,12 @@ const SecondhandCard = React.memo(function SecondhandCard({
         <View style={styles.conditionBadge}>
           <Text style={styles.conditionBadgeText}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
         </View>
+        {/* Multi-image count badge */}
+        {(item.images?.length ?? 0) > 1 && (
+          <View style={styles.imageCountBadge}>
+            <Text style={styles.imageCountBadgeText}>1/{item.images!.length}</Text>
+          </View>
+        )}
       </View>
 
       {/* Right content */}
@@ -137,6 +145,20 @@ const SecondhandCard = React.memo(function SecondhandCard({
         <View style={styles.cardMain}>
           <View style={styles.titleRow}>
             <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
+            {categoryLabel ? (
+              <View style={styles.categoryTag}>
+                <Text style={styles.categoryTagText}>{categoryLabel}</Text>
+              </View>
+            ) : null}
+            {item.sold ? (
+              <View style={styles.expiredTag}>
+                <Text style={styles.expiredTagText}>{t('sold')}</Text>
+              </View>
+            ) : isSoldOrExpired ? (
+              <View style={styles.expiredTag}>
+                <Text style={styles.expiredTagText}>{t('secondhandExpired')}</Text>
+              </View>
+            ) : null}
             <PageTranslationToggle style={styles.translateToggle} />
           </View>
           <View>
@@ -145,19 +167,25 @@ const SecondhandCard = React.memo(function SecondhandCard({
               <Text style={styles.priceValue}>{item.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
             </View>
             <View style={styles.sellerRow}>
-              <TouchableOpacity
-                style={styles.sellerLeft}
-                activeOpacity={0.7}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onAvatarPress(item);
-                }}
-              >
-                <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
-                <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
-                {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
-                {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
-              </TouchableOpacity>
+              {footerMode === 'time-only' ? (
+                <View style={styles.sellerLeft}>
+                  <Text style={styles.sellerName} numberOfLines={1}>{displayTime ?? ''}</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.sellerLeft}
+                  activeOpacity={0.7}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onAvatarPress(item);
+                  }}
+                >
+                  <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
+                  <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
+                  {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+                  {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -169,25 +197,6 @@ const SecondhandCard = React.memo(function SecondhandCard({
           </View>
         </View>
       </View>
-      {/* Expired/Sold stamp overlay — matching PartnerCard */}
-      {item.sold && (
-        <View style={styles.expiredOverlay}>
-          <View style={styles.expiredStamp}>
-            <Text style={styles.expiredStampText}>{t('sold')}</Text>
-          </View>
-          <View style={styles.cornerTR} />
-          <View style={styles.cornerBL} />
-        </View>
-      )}
-      {isSoldOrExpired && !item.sold && (
-        <View style={styles.expiredOverlay}>
-          <View style={styles.expiredStamp}>
-            <Text style={styles.expiredStampText}>{t('secondhandExpired')}</Text>
-          </View>
-          <View style={styles.cornerTR} />
-          <View style={styles.cornerBL} />
-        </View>
-      )}
     </TouchableOpacity>
     </PageTranslationProvider>
   );
@@ -239,58 +248,52 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 4,
   },
+  imageCountBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  imageCountBadgeText: {
+    fontSize: 10,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
+  },
   conditionBadgeText: {
     fontSize: 9,
     lineHeight: 13,
     fontFamily: 'SourceHanSansCN-Medium',
     color: '#FFFFFF',
   },
-  /* Expired/Sold stamp overlay — matching PartnerCard */
-  expiredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
+  categoryTag: {
+    backgroundColor: '#F3F5F7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
   },
-  expiredStamp: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#ED4956',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-15deg' }],
-    shadowColor: '#ED4956',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+  categoryTagText: {
+    fontSize: 10,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
-  expiredStampText: {
-    fontSize: 14,
+  expiredTag: {
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  expiredTagText: {
+    fontSize: 10,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#ED4956',
-    letterSpacing: 2,
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
-  },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
   },
 
   /* Right content column */

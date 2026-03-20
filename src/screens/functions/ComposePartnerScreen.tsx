@@ -281,6 +281,25 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             </View>
           </View>
 
+          {/* ----- Location (moved after content) ----- */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>
+              <MapPinIcon size={14} color={colors.primary} />{' '}
+              {t('locationLabel')}
+            </Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={t('placeholderLocation')}
+                placeholderTextColor={colors.outline}
+                value={location}
+                onChangeText={setLocation}
+                maxLength={50}
+                selectionColor={colors.primary}
+              />
+            </View>
+          </View>
+
           {/* ----- Activity Time ----- */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
@@ -335,24 +354,6 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             )}
           </View>
 
-          {/* ----- Location ----- */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>
-              <MapPinIcon size={14} color={colors.primary} />{' '}
-              {t('locationLabel')}
-            </Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder={t('placeholderLocation')}
-                placeholderTextColor={colors.outline}
-                value={location}
-                onChangeText={setLocation}
-                maxLength={50}
-                selectionColor={colors.primary}
-              />
-            </View>
-          </View>
         </View>
 
         <DateTimePickerSheet

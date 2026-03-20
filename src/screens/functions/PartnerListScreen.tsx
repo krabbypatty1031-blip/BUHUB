@@ -26,6 +26,7 @@ import PartnerCard from '../../components/functions/PartnerCard';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
+import { filterWithExpiredVisibility } from '../../utils/expiredFilter';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
@@ -61,7 +62,7 @@ export default function PartnerListScreen({ navigation }: Props) {
   const partners = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const now = useExpirationTick(30000);
   const visiblePartners = useMemo(
-    () => partners.filter((item) => !isExpiredNow(item.expired, item.expiresAt, now)),
+    () => filterWithExpiredVisibility(partners, now),
     [partners, now]
   );
 

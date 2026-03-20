@@ -69,6 +69,7 @@ export default function ForumListScreen({ navigation }: Props) {
         onPress={() => navigation.getParent()?.navigate('ForumTab', {
           screen: 'CircleDetail',
           params: { tag: item.name },
+          initial: false,
         })}
       />
     );

@@ -24,24 +24,25 @@ export default React.memo(Chip);
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface2,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
-    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F5F7',
+    marginRight: 6,
+    marginBottom: 6,
+    minHeight: 32,
     justifyContent: 'center',
   },
   selected: {
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: '#0C1015',
   },
   label: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
   },
   selectedLabel: {
-    color: colors.onPrimaryContainer,
+    color: '#FFFFFF',
     fontWeight: '500',
   },
 });

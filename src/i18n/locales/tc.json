@@ -343,6 +343,7 @@
   "ended": "已結束",
   "recruiting": "招募中",
   "partnerDetail": "搭子詳情",
+  "details": "詳情",
   "activityEnded": "活動已結束",
   "organizer": "發起人",
   "joinActivity": "加入活動",
@@ -872,5 +873,10 @@
   "rateLimited": "請求過於頻繁，請稍後再試",
   "serviceUnavailable": "服務暫時不可用，請稍後再試",
   "sessionExpired": "登入已過期，請重新登入",
-  "cannotReportOwnContent": "無法舉報自己的內容"
+  "cannotReportOwnContent": "無法舉報自己的內容",
+  "editMyRating": "修改我的評分",
+  "rateThis": "去評分",
+  "reviews": "評價",
+  "editingNotice": "你已於 {{date}} 提交過評分，本次將更新你的評分",
+  "updateRating": "更新評分"
 }

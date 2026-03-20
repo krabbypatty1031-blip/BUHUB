@@ -108,9 +108,10 @@ export default function MeScreen({ navigation }: Props) {
   const shouldLoadFollowLists = Object.keys(blockedUsers).length > 0;
   const { data: followingData } = useFollowingList({ enabled: shouldLoadFollowLists });
   const { data: followersData } = useFollowersList({ enabled: shouldLoadFollowLists });
-  const { data: myPartners } = useMyPartners();
-  const { data: myErrands } = useMyErrands();
-  const { data: mySecondhand } = useMySecondhand();
+  const isPublishedTab = activeTab === 'myPublished';
+  const { data: myPartners } = useMyPartners(undefined, isPublishedTab);
+  const { data: myErrands } = useMyErrands(undefined, isPublishedTab);
+  const { data: mySecondhand } = useMySecondhand(isPublishedTab);
   const now = useExpirationTick(30000);
   const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
@@ -153,13 +154,22 @@ export default function MeScreen({ navigation }: Props) {
     myErrands?.forEach((e) => { if (e.user === nickname) items.push({ kind: 'errand', data: e, id: e.id }); });
     mySecondhand?.forEach((s) => { if (s.user === nickname) items.push({ kind: 'secondhand', data: s, id: s.id }); });
     const kindOrder: Record<string, number> = { partner: 0, errand: 1, secondhand: 2 };
+    const getAvailabilityRank = (item: PublishedItem) => {
+      const expired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
+      if (item.kind === 'secondhand') {
+        return item.data.sold || expired ? 1 : 0;
+      }
+      return expired ? 1 : 0;
+    };
     items.sort((a, b) => {
+      const availabilityDiff = getAvailabilityRank(a) - getAvailabilityRank(b);
+      if (availabilityDiff !== 0) return availabilityDiff;
       const kindDiff = kindOrder[a.kind] - kindOrder[b.kind];
       if (kindDiff !== 0) return kindDiff;
       return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
     });
     return items;
-  }, [myPartners, myErrands, mySecondhand, nickname]);
+  }, [myPartners, myErrands, mySecondhand, nickname, now]);
 
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
@@ -251,6 +261,7 @@ export default function MeScreen({ navigation }: Props) {
     navigation.getParent()?.navigate('ForumTab', {
       screen: 'CircleDetail',
       params: { tag },
+      initial: false,
     });
   }, [navigation]);
 
@@ -383,11 +394,12 @@ export default function MeScreen({ navigation }: Props) {
                     expired={expired}
                     displayAcademicMeta={displayAcademicMeta}
                     displayTime={displayTime}
+                    footerMode="time-only"
                     onPress={() => nav?.navigate('FunctionsTab', { screen: 'PartnerDetail', params: { id: item.id, backTo } })}
                     onAvatarPress={() => {}}
                     onMore={() => setPublishedActionItem(item)}
                     expiredLabel={t('partnerExpired')}
-                    categoryColor="#3B82F6"
+                    categoryLabel={t('findPartner')}
                   />
                 );
               case 'errand':
@@ -398,11 +410,12 @@ export default function MeScreen({ navigation }: Props) {
                     expired={expired}
                     displayAcademicMeta={displayAcademicMeta}
                     displayTime={displayTime}
+                    footerMode="time-only"
                     onPress={() => nav?.navigate('FunctionsTab', { screen: 'ErrandDetail', params: { id: item.id, backTo } })}
                     onAvatarPress={() => {}}
                     onMore={() => setPublishedActionItem(item)}
                     expiredLabel={t('errandExpired')}
-                    categoryColor="#F97316"
+                    categoryLabel={t('errands')}
                   />
                 );
               case 'secondhand':
@@ -411,6 +424,8 @@ export default function MeScreen({ navigation }: Props) {
                     key={`secondhand-${item.id}`}
                     item={item.data}
                     id={item.id}
+                    displayTime={displayTime}
+                    footerMode="time-only"
                     onPress={(id) => nav?.navigate('FunctionsTab', { screen: 'SecondhandDetail', params: { id, backTo } })}
                     onAvatarPress={() => {}}
                     onMore={(sh, id) => setPublishedActionItem({ kind: 'secondhand', data: sh, id })}
@@ -421,7 +436,7 @@ export default function MeScreen({ navigation }: Props) {
                     }}
                     now={now}
                     t={t}
-                    categoryColor="#02AF4A"
+                    categoryLabel={t('secondhand')}
                   />
                 );
             }

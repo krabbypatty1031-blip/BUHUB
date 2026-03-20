@@ -25,7 +25,7 @@ import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
-import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
+import { buildGradeMajorMeta, getRelativeTime, formatDeadline } from '../../utils/formatTime';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
@@ -37,8 +37,6 @@ import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIco
 import {
   BackIcon,
   TruckIcon,
-  MessageIcon,
-  AlertTriangleIcon,
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
@@ -139,18 +137,18 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       <PageTranslationProvider>
         <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-            <BackIcon size={24} color={colors.onSurface} />
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+            <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
-          <View style={styles.iconBtn} />
+          <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
           {isErrandLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
           ) : (
             <>
-              <TruckIcon size={48} color={colors.outlineVariant} />
+              <TruckIcon size={48} color="#86909C" />
               <Text style={styles.emptyText}>{t('notFound')}</Text>
             </>
           )}
@@ -171,12 +169,12 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
-          <BackIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+          <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setPopoverVisible(true)}>
-          <FigmaMoreDotsIcon size={24} color={colors.onSurface} />
+        <TouchableOpacity onPress={() => setPopoverVisible(true)}>
+          <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
       </View>
 
@@ -222,40 +220,57 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ----- Header: Title ----- */}
-        <View style={styles.headerSection}>
+        {/* Title + expired tag */}
+        <View style={styles.titleRow}>
           <TranslatableText
             entityType="errand"
             entityId={errand.id}
             fieldName="title"
             sourceText={errand.title}
             sourceLanguage={errand.sourceLanguage}
-            textStyle={styles.title}
+            textStyle={styles.contentTitle}
+            containerStyle={styles.titleFlex}
           />
+          {isExpired && (
+            <View style={styles.expiredTag}>
+              <Text style={styles.expiredTagText}>{t('errandExpired')}</Text>
+            </View>
+          )}
         </View>
 
-        <View style={styles.divider} />
-
-        {/* ----- Content: Description, Price, Info Items ----- */}
-        <View style={styles.section}>
+        {/* Description Section */}
+        <View style={styles.descSection}>
+          <Text style={styles.descLabel}>{t('details')}</Text>
           <TranslatableText
             entityType="errand"
             entityId={errand.id}
             fieldName="description"
             sourceText={errand.desc}
             sourceLanguage={errand.sourceLanguage}
-            textStyle={styles.descriptionText}
+            textStyle={styles.descText}
           />
+        </View>
 
-          {/* Price */}
-          <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>HK¥</Text>
-            <Text style={styles.priceValue}>{errand.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
+        {/* Price */}
+        <View style={styles.infoRow}>
+          <View style={[styles.infoIconWrap, { backgroundColor: '#FFF5F5' }]}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FF2538' }}>¥</Text>
           </View>
+          <View>
+            <Text style={styles.infoLabel}>{t('reward')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
+              <Text style={styles.priceCurrency}>HK¥</Text>
+              <Text style={styles.priceValue}>{errand.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
+            </View>
+          </View>
+        </View>
 
-          {/* Info items */}
-          <View style={styles.infoItem}>
-            <PinCheckIcon size={16} color="#86909C" />
+        {/* Pickup Location */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <PinCheckIcon size={18} color="#0C1015" />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.infoLabel}>{t('pickupLocation')}</Text>
             <TranslatableText
               entityType="errand"
@@ -264,12 +279,16 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               sourceText={errand.from}
               sourceLanguage={errand.sourceLanguage}
               textStyle={styles.infoValue}
-              containerStyle={styles.infoValueContainer}
             />
           </View>
+        </View>
 
-          <View style={styles.infoItem}>
-            <HomeDeliverIcon size={16} color="#86909C" />
+        {/* Delivery Location */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <HomeDeliverIcon size={18} color="#0C1015" />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.infoLabel}>{t('deliveryLocation')}</Text>
             <TranslatableText
               entityType="errand"
@@ -278,79 +297,67 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
               sourceText={errand.to}
               sourceLanguage={errand.sourceLanguage}
               textStyle={styles.infoValue}
-              containerStyle={styles.infoValueContainer}
             />
           </View>
+        </View>
 
-          <View style={styles.infoItem}>
-            <ClockDeadlineIcon size={16} color="#86909C" />
+        {/* Deadline */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <ClockDeadlineIcon size={18} color="#0C1015" />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
-            <TranslatableText
-              entityType="errand"
-              entityId={errand.id}
-              fieldName="time"
-              sourceText={errand.time}
-              sourceLanguage={errand.sourceLanguage}
-              textStyle={styles.infoValue}
-              containerStyle={styles.infoValueContainer}
-            />
+            <Text style={styles.infoValue}>{formatDeadline(errand.time, lang)}</Text>
           </View>
+        </View>
 
-          {/* Category */}
-          <View style={styles.infoItem}>
-            <CategoryListIcon size={16} color="#86909C" />
+        {/* Category */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <CategoryListIcon size={18} color="#0C1015" />
+          </View>
+          <View>
             <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
             <Text style={styles.infoValue}>{t(errand.category.toLowerCase())}</Text>
           </View>
         </View>
 
+        {/* Divider */}
         <View style={styles.divider} />
 
-        {/* ----- Poster ----- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t('poster')}</Text>
-          <View style={styles.posterRow}>
-            <TouchableOpacity activeOpacity={0.7} onPress={handlePosterAvatarPress}>
-              <Avatar text={errand.user} uri={errand.avatar} size="lg" gender={errand.gender} />
-            </TouchableOpacity>
-            <View style={styles.posterInfo}>
-              <View style={styles.posterNameRow}>
-                <View style={styles.posterNameLeft}>
-                  <Text style={styles.posterName}>{errand.user}</Text>
-                  {errand.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
-                  {errand.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
-                </View>
-              </View>
-              <Text style={styles.meta} numberOfLines={1}>
-                {posterMeta ? `${posterMeta} · ${posterTime}` : posterTime}
-              </Text>
+        {/* User row */}
+        <TouchableOpacity style={styles.userRow} activeOpacity={0.7} onPress={handlePosterAvatarPress}>
+          <Avatar text={errand.user} uri={errand.avatar} size="sm" gender={errand.gender} />
+          <View>
+            <View style={styles.userNameRow}>
+              <Text style={styles.userName}>{errand.user}</Text>
+              {errand.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+              {errand.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
             </View>
+            <Text style={styles.userMeta} numberOfLines={1}>
+              {posterMeta ? `${posterMeta} \u00B7 ${posterTime}` : posterTime}
+            </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.divider} />
+        <PageTranslationToggle />
 
-        {/* ----- Disclaimer ----- */}
-        <View style={styles.disclaimerSection}>
-          <AlertTriangleIcon size={14} color={colors.onSurfaceVariant} />
-          <Text style={styles.disclaimerText}>{t('errandDisclaimer')}</Text>
-        </View>
-
-        {/* ----- Action Bar ----- */}
-        {!isOwnPost && (
-          <View style={[styles.actionBar, isExpired && styles.actionBarDisabled]}>
-            <TouchableOpacity
-              style={styles.dmButton}
-              activeOpacity={0.7}
-              onPress={handleDmPoster}
-              disabled={isExpired}
-            >
-              <MessageIcon size={18} color={colors.onPrimary} />
-              <Text style={styles.dmButtonText}>{t('errandDmPoster')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
+
+      {/* Bottom action bar */}
+      {!isOwnPost && (
+        <View style={[styles.bottomBar, isExpired && styles.bottomBarDisabled]}>
+          <TouchableOpacity
+            style={styles.bottomBtn}
+            activeOpacity={0.7}
+            onPress={handleDmPoster}
+            disabled={isExpired}
+          >
+            <Text style={styles.bottomBtnText}>{t('errandDmPoster')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Report Modal */}
       <ReportModal
@@ -392,18 +399,23 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
 
   /* ----- Top Bar ----- */
   topBar: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
+    paddingLeft: 12,
+    paddingRight: 16,
+  },
+  backBtn: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBarTitle: {
     position: 'absolute',
@@ -416,198 +428,167 @@ const styles = StyleSheet.create({
     color: '#0C1015',
     pointerEvents: 'none',
   },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   /* ----- Empty ----- */
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
+    gap: 12,
   },
   emptyText: {
-    ...typography.bodyLarge,
-    color: colors.onSurfaceVariant,
-  },
-
-  scrollContent: {
-    paddingBottom: 120,
-  },
-
-  /* ----- Header ----- */
-  headerSection: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  title: {
-    fontSize: 18,
-    lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
-    color: '#0C1015',
-    marginBottom: 10,
-  },
-
-  /* ----- Shared ----- */
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginHorizontal: spacing.xl,
-  },
-  section: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-  },
-  sectionLabel: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.md,
-  },
-
-  /* ----- Description ----- */
-  descriptionText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
-    marginBottom: 12,
+  },
+
+  /* ----- Scroll ----- */
+  scrollContent: {
+    padding: 16,
+    gap: 24,
+  },
+
+  /* ----- Title ----- */
+  contentTitle: {
+    fontSize: 20,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
+    lineHeight: 26,
+  },
+
+  /* ----- Description Section ----- */
+  descSection: {
+    gap: 4,
+  },
+  descLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#86909C',
+    letterSpacing: 0.5,
+  },
+  descText: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#4E5969',
+    lineHeight: 22,
+  },
+
+  /* ----- Info rows ----- */
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  infoValue: {
+    fontSize: 16,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
 
   /* ----- Price ----- */
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 2,
-    marginBottom: 16,
-  },
   priceCurrency: {
     fontSize: 12,
-    lineHeight: 27,
     fontFamily: 'DINExp-Bold',
     color: '#FF2538',
     letterSpacing: 0.6429,
   },
   priceValue: {
-    fontSize: 19,
-    lineHeight: 27,
+    fontSize: 20,
     fontFamily: 'DINExp-Bold',
     color: '#FF2538',
     letterSpacing: 1.5,
   },
 
-  /* ----- Info Items ----- */
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  infoLabel: {
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#86909C',
-  },
-  infoValue: {
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#0C1015',
-    flex: 1,
-  },
-  infoValueContainer: {
-    flex: 1,
+  /* ----- Divider ----- */
+  divider: {
+    height: 0.5,
+    backgroundColor: '#F0F0F0',
   },
 
-  /* ----- Poster ----- */
-  posterRow: {
+  /* ----- User row ----- */
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  posterInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  posterNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    columnGap: 8,
-  },
-  posterNameLeft: {
+  userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexShrink: 1,
   },
-  posterName: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
+  userName: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
   },
-  timeText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    marginLeft: 4,
-  },
-  meta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    flexShrink: 1,
-    marginTop: 2,
+  userMeta: {
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
   },
 
-  /* ----- Disclaimer ----- */
-  disclaimerSection: {
+  /* ----- Expired tag ----- */
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    gap: 8,
   },
-  disclaimerText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
+  titleFlex: {
     flex: 1,
-    lineHeight: 18,
+  },
+  expiredTag: {
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  expiredTagText: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#ED4956',
   },
 
-  /* ----- Action Bar ----- */
-  actionBar: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    gap: spacing.md,
+  /* ----- Bottom action bar ----- */
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 24,
+    borderTopWidth: 0.5,
+    borderTopColor: '#F0F0F0',
   },
-  actionBarDisabled: {
+  bottomBarDisabled: {
     opacity: 0.5,
   },
-  dmButton: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    height: 48,
+  bottomBtn: {
+    paddingVertical: 12,
+    borderRadius: 22,
+    backgroundColor: '#0C1015',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
   },
-  dmButtonText: {
-    ...typography.labelLarge,
-    color: colors.onPrimary,
+  bottomBtnText: {
+    fontSize: 15,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#FFFFFF',
   },
 
   /* ----- Popover ----- */
   popoverOverlay: {
     position: 'absolute' as const,
-    top: 56,
+    top: 62,
     left: 0,
     right: 0,
     bottom: 0,
@@ -618,7 +599,7 @@ const styles = StyleSheet.create({
     position: 'absolute' as const,
     top: spacing.sm,
     right: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
     minWidth: 160,
@@ -633,7 +614,7 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     ...typography.bodyMedium,
-    color: colors.onSurface,
+    color: '#0C1015',
   },
   popoverItemTextDanger: {
     ...typography.bodyMedium,

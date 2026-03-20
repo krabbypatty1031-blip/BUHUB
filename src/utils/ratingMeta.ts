@@ -40,6 +40,7 @@ const RATING_META_TRANSLATIONS: Record<'tc' | 'sc' | 'en', Record<string, string
     'School of Chinese Medicine': '中医药学院',
     'School of Communication': '传理学院',
     'School of Creative Arts': '创意艺术学院',
+    'Transdisciplinary Programmes': '跨学科课程',
     'Whole Person Development': '全人发展',
   },
   sc: {
@@ -80,6 +81,7 @@ const RATING_META_TRANSLATIONS: Record<'tc' | 'sc' | 'en', Record<string, string
     'School of Chinese Medicine': '中医药学院',
     'School of Communication': '传理学院',
     'School of Creative Arts': '创意艺术学院',
+    'Transdisciplinary Programmes': '跨学科课程',
     'Whole Person Development': '全人发展',
   },
   en: {},

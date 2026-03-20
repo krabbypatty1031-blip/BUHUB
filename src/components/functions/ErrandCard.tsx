@@ -20,12 +20,13 @@ export interface ErrandCardProps {
   expired: boolean;
   displayAcademicMeta: string;
   displayTime: string;
+  footerMode?: 'default' | 'time-only';
   onPress: () => void;
   onAvatarPress: () => void;
   onMore?: () => void;
   expiredLabel: string;
-  /** Optional left color bar for category indication in mixed lists */
-  categoryColor?: string;
+  /** Optional category label tag shown next to title in mixed lists */
+  categoryLabel?: string;
 }
 
 const ErrandCard = React.memo(function ErrandCard({
@@ -33,32 +34,43 @@ const ErrandCard = React.memo(function ErrandCard({
   expired,
   displayAcademicMeta,
   displayTime,
+  footerMode = 'default',
   onPress,
   onAvatarPress,
   onMore,
   expiredLabel,
-  categoryColor,
+  categoryLabel,
 }: ErrandCardProps) {
   return (
     <PageTranslationProvider>
       <TouchableOpacity
-        style={[
-          styles.card,
-          categoryColor ? { borderLeftWidth: 3, borderLeftColor: categoryColor } : undefined,
-        ]}
+        style={styles.card}
         activeOpacity={0.7}
         onPress={onPress}
       >
-        {/* Title */}
-        <TranslatableText
-          entityType="errand"
-          entityId={item.id}
-          fieldName="title"
-          sourceText={item.title}
-          sourceLanguage={item.sourceLanguage}
-          textStyle={[styles.cardTitle, expired && styles.textDimmed]}
-          numberOfLines={2}
-        />
+        {/* Title row: title + category tag + expired tag */}
+        <View style={styles.titleRow}>
+          <TranslatableText
+            entityType="errand"
+            entityId={item.id}
+            fieldName="title"
+            sourceText={item.title}
+            sourceLanguage={item.sourceLanguage}
+            textStyle={[styles.cardTitle, expired && styles.textDimmed]}
+            numberOfLines={2}
+            containerStyle={styles.titleFlex}
+          />
+          {categoryLabel ? (
+            <View style={styles.categoryTag}>
+              <Text style={styles.categoryTagText}>{categoryLabel}</Text>
+            </View>
+          ) : null}
+          {expired ? (
+            <View style={styles.expiredTag}>
+              <Text style={styles.expiredTagText}>{expiredLabel}</Text>
+            </View>
+          ) : null}
+        </View>
         {/* Description */}
         <TranslatableText
           entityType="errand"
@@ -77,23 +89,29 @@ const ErrandCard = React.memo(function ErrandCard({
         {/* Bottom user row */}
         <View style={[styles.userRow, expired && styles.textDimmed]}>
           <View style={styles.userLeft}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={(e) => { e.stopPropagation(); onAvatarPress(); }}
-            >
-              <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
-            </TouchableOpacity>
-            <Text style={styles.userName}>{item.user}</Text>
-            {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
-            {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
-            {displayAcademicMeta ? (
+            {footerMode === 'time-only' ? (
+              <Text style={styles.metaText}>{displayTime}</Text>
+            ) : (
               <>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={(e) => { e.stopPropagation(); onAvatarPress(); }}
+                >
+                  <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
+                </TouchableOpacity>
+                <Text style={styles.userName}>{item.user}</Text>
+                {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
+                {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
+                {displayAcademicMeta ? (
+                  <>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Text style={styles.metaText} numberOfLines={1}>{displayAcademicMeta}</Text>
+                  </>
+                ) : null}
                 <Text style={styles.metaDot}>·</Text>
-                <Text style={styles.metaText} numberOfLines={1}>{displayAcademicMeta}</Text>
+                <Text style={styles.metaText}>{displayTime}</Text>
               </>
-            ) : null}
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>{displayTime}</Text>
+            )}
           </View>
           <View style={styles.userRight}>
             <PageTranslationToggle />
@@ -107,16 +125,6 @@ const ErrandCard = React.memo(function ErrandCard({
             )}
           </View>
         </View>
-        {/* Expired stamp overlay */}
-        {expired && (
-          <View style={styles.expiredOverlay}>
-            <View style={styles.expiredStamp}>
-              <Text style={styles.expiredStampText}>{expiredLabel}</Text>
-            </View>
-            <View style={styles.cornerTR} />
-            <View style={styles.cornerBL} />
-          </View>
-        )}
       </TouchableOpacity>
     </PageTranslationProvider>
   );
@@ -132,12 +140,44 @@ const styles = StyleSheet.create({
     borderBottomColor: '#DEE2E5',
     backgroundColor: '#FFFFFF',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
+  },
+  titleFlex: {
+    flex: 1,
+  },
   cardTitle: {
     fontSize: 18,
     lineHeight: 21,
     fontFamily: 'SourceHanSansCN-Medium',
     color: '#0C1015',
-    marginBottom: 8,
+  },
+  categoryTag: {
+    backgroundColor: '#F3F5F7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  categoryTagText: {
+    fontSize: 10,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  expiredTag: {
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  expiredTagText: {
+    fontSize: 10,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#ED4956',
   },
   cardDesc: {
     fontSize: 14,
@@ -199,51 +239,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#C7C7CC',
     flexShrink: 1,
-  },
-  expiredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  expiredStamp: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#ED4956',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-15deg' }],
-    shadowColor: '#ED4956',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-  },
-  expiredStampText: {
-    fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#ED4956',
-    letterSpacing: 2,
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
-  },
-  cornerBL: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(237,73,86,0.15)',
   },
 });

@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
 import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
@@ -24,6 +24,46 @@ function mapPostsPages(
     ...data,
     pages: data.pages.map((page) => ({ ...page, posts: page.posts.map(fn) })),
   };
+}
+
+function filterPostsPages(
+  data: PostsInfiniteData | undefined,
+  predicate: (post: ForumPost) => boolean,
+): PostsInfiniteData | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({ ...page, posts: page.posts.filter(predicate) })),
+  };
+}
+
+function getAllPostLists(queryClient: QueryClient) {
+  return queryClient.getQueriesData<PostsInfiniteData>({ queryKey: ['posts'] });
+}
+
+function setAllPostLists(
+  queryClient: QueryClient,
+  updater: (data: PostsInfiniteData | undefined) => PostsInfiniteData | undefined,
+) {
+  queryClient.setQueriesData<PostsInfiniteData>({ queryKey: ['posts'] }, updater);
+}
+
+function restoreAllPostLists(
+  queryClient: QueryClient,
+  previousPostLists: Array<[readonly unknown[], PostsInfiniteData | undefined]> | undefined,
+) {
+  previousPostLists?.forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, data);
+  });
+}
+
+function findPostInPostLists(
+  postLists: Array<[readonly unknown[], PostsInfiniteData | undefined]>,
+  postId: string,
+) {
+  return postLists
+    .flatMap(([, data]) => flattenPostPages(data))
+    .find((post) => post.id === postId);
 }
 
 function updateCommentTreeById(
@@ -405,7 +445,13 @@ export function useEditPost() {
   return useMutation({
     mutationFn: ({ postId, post }: { postId: string; post: { content: string; tags?: string[] } }) =>
       forumService.editPost(postId, post),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
+      setAllPostLists(queryClient, (old) =>
+        mapPostsPages(old, (post) => (post.id === variables.postId ? { ...post, ...data } : post))
+      );
+      queryClient.setQueryData<ForumPost>(['post', variables.postId], (old) =>
+        old ? { ...old, ...data } : data
+      );
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
     },
@@ -416,7 +462,9 @@ export function useDeletePost() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (postId: string) => forumService.deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (_data, postId) => {
+      setAllPostLists(queryClient, (old) => filterPostsPages(old, (post) => post.id !== postId));
+      queryClient.setQueryData(['post', postId], undefined);
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
@@ -440,7 +488,7 @@ export function useCreateComment(postId: string) {
             }
           : old
       );
-      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+      setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) =>
           post.id === postId
             ? {
@@ -477,7 +525,7 @@ export function useDeleteComment(postId: string) {
       queryClient.invalidateQueries({ queryKey: ['comments', postId] });
       queryClient.invalidateQueries({ queryKey: ['post', postId] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
-      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+      setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) =>
           post.id === postId
             ? { ...post, comments: Math.max(0, post.comments - 1) }
@@ -496,7 +544,7 @@ export function useLikePost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previousList = queryClient.getQueryData<PostsInfiniteData>(['posts']);
+      const previousPostLists = getAllPostLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({
@@ -512,7 +560,7 @@ export function useLikePost() {
               likes: p.liked ? Math.max(0, p.likes - 1) : p.likes + 1,
             }
           : p;
-      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+      setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
@@ -527,14 +575,14 @@ export function useLikePost() {
             }
           : old
       );
-      return { previousList, previousDetail, previousMyContent };
+      return { previousPostLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
       if (typeof res.likeCount === 'number') {
         const update = (p: ForumPost) => (p.id === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p);
         const updateUserPost = (p: UserPost) =>
           p.postId === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p;
-        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+        setAllPostLists(queryClient, (old) =>
           mapPostsPages(old, update)
         );
         const detail = queryClient.getQueryData<ForumPost>(['post', postId]);
@@ -553,7 +601,7 @@ export function useLikePost() {
       }
     },
     onError: (_err, postId, context) => {
-      if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
+      restoreAllPostLists(queryClient, context?.previousPostLists);
       if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
@@ -634,7 +682,7 @@ export function useVotePost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
 
-      const previousPosts = queryClient.getQueryData<PostsInfiniteData>(['posts']);
+      const previousPostLists = getAllPostLists(queryClient);
       const previousPostDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousOptionIndex = useForumStore.getState().votedPolls[postId];
       setVotedPoll(postId, optionIndex);
@@ -664,21 +712,19 @@ export function useVotePost() {
         };
       };
 
-      const listPost = flattenPostPages(previousPosts).find((p) => p.id === postId);
+      const listPost = findPostInPostLists(previousPostLists, postId);
       const optimisticPost = listPost ? applyVote(listPost) : null;
 
-      if (previousPosts != null) {
-        queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
-          mapPostsPages(old, applyVote)
-        );
-      }
+      setAllPostLists(queryClient, (old) =>
+        mapPostsPages(old, applyVote)
+      );
       if (optimisticPost) {
         queryClient.setQueryData<ForumPost>(['post', postId], optimisticPost);
       } else if (previousPostDetail) {
         queryClient.setQueryData<ForumPost>(['post', postId], applyVote(previousPostDetail));
       }
 
-      return { previousOptionIndex, previousPosts, previousPostDetail };
+      return { previousOptionIndex, previousPostLists, previousPostDetail };
     },
     onError: (_err, variables, context) => {
       if (typeof context?.previousOptionIndex === 'number') {
@@ -686,9 +732,7 @@ export function useVotePost() {
       } else {
         clearVotedPoll(variables.postId);
       }
-      if (context?.previousPosts) {
-        queryClient.setQueryData(['posts'], context.previousPosts);
-      }
+      restoreAllPostLists(queryClient, context?.previousPostLists);
       if (context?.previousPostDetail) {
         queryClient.setQueryData(['post', variables.postId], context.previousPostDetail);
       }
@@ -755,17 +799,17 @@ export function useBookmarkPost() {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previousList = queryClient.getQueryData<PostsInfiniteData>(['posts']);
+      const previousPostLists = getAllPostLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
-      const listSourcePost = flattenPostPages(previousList).find((item) => item.id === postId);
+      const listSourcePost = findPostInPostLists(previousPostLists, postId);
       const sourcePost = previousDetail ?? listSourcePost;
       const nextBookmarked =
         sourcePost?.bookmarked != null
           ? !sourcePost.bookmarked
           : !previousMyContent?.myBookmarks.posts.some((item) => item.postId === postId);
       const toggle = (p: ForumPost) => ({ ...p, bookmarked: !p.bookmarked });
-      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+      setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
@@ -774,10 +818,10 @@ export function useBookmarkPost() {
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
       );
-      return { previousList, previousDetail, previousMyContent };
+      return { previousPostLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
-      queryClient.setQueryData<PostsInfiniteData>(['posts'], (old) =>
+      setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) =>
           post.id === postId
             ? {
@@ -801,12 +845,12 @@ export function useBookmarkPost() {
           postId,
           res.bookmarked,
           queryClient.getQueryData<ForumPost>(['post', postId]) ??
-            flattenPostPages(queryClient.getQueryData<PostsInfiniteData>(['posts'])).find((item) => item.id === postId)
+            findPostInPostLists(getAllPostLists(queryClient), postId)
         )
       );
     },
     onError: (_err, postId, context) => {
-      if (context?.previousList) queryClient.setQueryData(['posts'], context.previousList);
+      restoreAllPostLists(queryClient, context?.previousPostLists);
       if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },

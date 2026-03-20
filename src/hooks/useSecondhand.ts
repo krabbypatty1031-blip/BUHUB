@@ -11,7 +11,7 @@ export function useSecondhand(category?: SecondhandCategory) {
   return useInfiniteQuery<SecondhandPage, Error, SecondhandInfiniteData, (string | undefined)[], number>({
     queryKey: ['secondhand', category],
     queryFn: async ({ pageParam }) => {
-      const items = await secondhandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT });
+      const items = await secondhandService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT, includeExpired: true });
       return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
     },
     initialPageParam: 1,
@@ -26,11 +26,12 @@ export function flattenSecondhandPages(data: SecondhandInfiniteData | undefined)
   return data.pages.flatMap((p) => p.items);
 }
 
-export function useMySecondhand(category?: SecondhandCategory) {
+export function useMySecondhand(enabled = true) {
   return useQuery({
-    queryKey: ['secondhand', 'all', category],
-    queryFn: () => secondhandService.getList(category || undefined, { includeExpired: true }),
+    queryKey: ['secondhand', 'all'],
+    queryFn: () => secondhandService.getList(undefined, { includeExpired: true }),
     refetchInterval: 2 * 60 * 1000,
+    enabled,
   });
 }
 

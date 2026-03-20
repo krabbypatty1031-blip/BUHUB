@@ -3,16 +3,13 @@ import {
   FlatList,
   Image as RNImage,
   type ImageResizeMode,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { borderRadius, colors, spacing, typography } from '../../theme';
+import { spacing } from '../../theme';
 
 /* ── Shared aspect-ratio cache (also used by AutoRatioImage) ── */
 const ratioCache = new Map<string, number>();
@@ -54,8 +51,6 @@ function useImageRatios(images: string[]) {
   return ratios;
 }
 
-/* ── AutoRatioImage import for single-image path ── */
-import AutoRatioImage from './AutoRatioImage';
 
 type PostImageGalleryProps = {
   images: string[];
@@ -81,113 +76,103 @@ function PostImageGallery({
 }: PostImageGalleryProps) {
   const windowWidth = useWindowDimensions().width;
   const [containerWidth, setContainerWidth] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const imagesKey = useMemo(() => images.join('|'), [images]);
   const ratios = useImageRatios(images);
 
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [imagesKey]);
-
   const pageWidth = containerWidth > 0 ? containerWidth : Math.max(windowWidth - spacing.xl, 1);
-  const safeCurrentIndex = useMemo(
-    () => Math.min(Math.max(currentIndex, 0), Math.max(images.length - 1, 0)),
-    [currentIndex, images.length],
-  );
-
   const effectiveMin = minHeight ?? GALLERY_MIN_HEIGHT;
-
-  // Current slide's height based on its real aspect ratio — no max cap
-  const currentHeight = useMemo(() => {
-    const ratio = ratios[safeCurrentIndex] ?? DEFAULT_RATIO;
-    const raw = pageWidth / ratio;
-    return Math.max(raw, effectiveMin);
-  }, [ratios, safeCurrentIndex, pageWidth, effectiveMin]);
 
   const handleLayout = useCallback((event: { nativeEvent: { layout: { width: number } } }) => {
     const nextWidth = event.nativeEvent.layout.width;
     setContainerWidth((prev) => (Math.abs(prev - nextWidth) > 0.5 ? nextWidth : prev));
   }, []);
 
-  const handleMomentumEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
-      setCurrentIndex(Math.min(Math.max(nextIndex, 0), Math.max(images.length - 1, 0)));
-    },
-    [images.length, pageWidth],
-  );
-
   if (images.length === 0) {
     return null;
   }
 
+  // Single image: 70% width, max height 300, auto ratio
   if (images.length === 1) {
+    const singleMaxH = maxHeight ?? 300;
+    const ratio = ratios[0] ?? DEFAULT_RATIO;
+    const singleWidth = pageWidth * 0.7;
+    const rawHeight = singleWidth / ratio;
+    const singleHeight = Math.min(Math.max(rawHeight, effectiveMin), singleMaxH);
+
     return (
       <View onLayout={handleLayout}>
         <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(0)}>
-          <AutoRatioImage
-            uri={images[0]}
-            minHeight={minHeight}
-            maxHeight={maxHeight}
-            borderRadius={borderRadiusValue}
-            backgroundColor={backgroundColor}
-            resizeMode={resizeMode}
+          <ExpoImage
+            source={images[0]}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={0}
+            recyclingKey={images[0]}
+            style={{
+              width: singleWidth,
+              height: singleHeight,
+              borderRadius: borderRadiusValue ?? 14,
+              backgroundColor,
+            }}
           />
         </TouchableOpacity>
       </View>
     );
   }
 
+  // 2 images: side by side, fixed height 150
+  if (images.length === 2) {
+    const halfWidth = (pageWidth - 3) / 2;
+    return (
+      <View onLayout={handleLayout} style={styles.twoImageRow}>
+        {images.map((uri, index) => (
+          <TouchableOpacity key={uri} activeOpacity={0.9} onPress={() => onImagePress?.(index)}>
+            <ExpoImage
+              source={uri}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              recyclingKey={uri}
+              style={{
+                width: halfWidth,
+                height: 150,
+                borderRadius: borderRadiusValue ?? 14,
+                backgroundColor,
+              }}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  }
+
+  // 3+ images: horizontal scroll thumbnails (130x130 squares)
+  const thumbSize = 130;
   return (
-    <View onLayout={handleLayout} style={[styles.wrap, { height: currentHeight }]}>
+    <View onLayout={handleLayout}>
       <FlatList
         data={images}
         horizontal
-        pagingEnabled
-        nestedScrollEnabled
-        directionalLockEnabled
-        decelerationRate="fast"
-        disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        initialNumToRender={2}
-        maxToRenderPerBatch={2}
-        windowSize={5}
-        removeClippedSubviews={false}
         keyExtractor={(item, index) => `${item}-${index}`}
-        renderItem={({ item, index }) => {
-          const ratio = ratios[index] ?? DEFAULT_RATIO;
-          const slideHeight = Math.max(pageWidth / ratio, effectiveMin);
-          return (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => onImagePress?.(index)}
-              style={{ width: pageWidth, height: slideHeight }}
-            >
-              <ExpoImage
-                source={item}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={0}
-                recyclingKey={item}
-                style={[
-                  styles.slideImage,
-                  { borderRadius: borderRadiusValue, backgroundColor },
-                ]}
-              />
-            </TouchableOpacity>
-          );
-        }}
-        onMomentumScrollEnd={handleMomentumEnd}
-        getItemLayout={(_, index) => ({
-          length: pageWidth,
-          offset: pageWidth * index,
-          index,
-        })}
+        contentContainerStyle={styles.thumbScrollContent}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(index)}>
+            <ExpoImage
+              source={item}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              recyclingKey={item}
+              style={{
+                width: thumbSize,
+                height: thumbSize,
+                borderRadius: borderRadiusValue ?? 14,
+                backgroundColor,
+              }}
+            />
+          </TouchableOpacity>
+        )}
       />
-      <View style={styles.imageCountBadge}>
-        <Text style={styles.imageCountBadgeText}>{`${safeCurrentIndex + 1}/${images.length}`}</Text>
-      </View>
     </View>
   );
 }
@@ -211,27 +196,11 @@ function arePropsEqual(prev: PostImageGalleryProps, next: PostImageGalleryProps)
 export default React.memo(PostImageGallery, arePropsEqual);
 
 const styles = StyleSheet.create({
-  wrap: {
-    position: 'relative',
-    width: '100%',
-    overflow: 'hidden',
+  twoImageRow: {
+    flexDirection: 'row',
+    gap: 3,
   },
-  slideImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageCountBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: borderRadius.full,
-  },
-  imageCountBadgeText: {
-    ...typography.labelSmall,
-    color: colors.white,
-    fontWeight: '700',
+  thumbScrollContent: {
+    gap: 6,
   },
 });

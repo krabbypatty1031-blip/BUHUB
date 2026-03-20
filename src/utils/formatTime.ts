@@ -104,3 +104,39 @@ export function buildGradeMajorMeta(
   return parts.join(' · ');
 }
 
+const WEEKDAY_ZH: Record<number, { tc: string; sc: string }> = {
+  0: { tc: '週日', sc: '周日' },
+  1: { tc: '週一', sc: '周一' },
+  2: { tc: '週二', sc: '周二' },
+  3: { tc: '週三', sc: '周三' },
+  4: { tc: '週四', sc: '周四' },
+  5: { tc: '週五', sc: '周五' },
+  6: { tc: '週六', sc: '周六' },
+};
+const WEEKDAY_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * Format an ISO date string into a readable deadline, e.g.:
+ * zh: "3月21日 周五 22:00"
+ * en: "Mar 21 Fri 22:00"
+ */
+export function formatDeadline(isoDate: string | undefined | null, language: Language): string {
+  if (!isoDate) return '—';
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekday = d.getDay();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+
+  if (language === 'en') {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[d.getMonth()]} ${day} ${WEEKDAY_EN[weekday]} ${hours}:${minutes}`;
+  }
+
+  const wdLabel = language === 'sc' ? WEEKDAY_ZH[weekday].sc : WEEKDAY_ZH[weekday].tc;
+  return `${month}月${day}日 ${wdLabel} ${hours}:${minutes}`;
+}
+

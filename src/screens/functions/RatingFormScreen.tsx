@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  LayoutChangeEvent,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { RatingItem, ScoreDimension } from '../../types';
-import { useRatingDetail, useSubmitRating, useRatingDimensions, useRatingTagOptions } from '../../hooks/useRatings';
+import type { ScoreDimension } from '../../types';
+import { useRatingDetail, useSubmitRating, useRatingDimensions, useRatingTagOptions, useMyRating } from '../../hooks/useRatings';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { translateLabel } from '../../utils/translate';
@@ -28,73 +27,20 @@ import { hapticSelection, hapticMedium } from '../../utils/haptics';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingForm'>;
 
-function CustomSlider({
-  value,
-  onValueChange,
-  leftLabel,
-  rightLabel,
-}: {
-  value: number;
-  onValueChange: (v: number) => void;
-  leftLabel: string;
-  rightLabel: string;
-}) {
-  const trackWidth = useRef(0);
-  const trackPageX = useRef(0);
-
-  const handleLayout = useCallback((e: LayoutChangeEvent) => {
-    trackWidth.current = e.nativeEvent.layout.width;
-  }, []);
-
-  const computeValue = useCallback((pageX: number) => {
-    if (trackWidth.current <= 0) return;
-    const x = pageX - trackPageX.current;
-    const ratio = Math.max(0, Math.min(1, x / trackWidth.current));
-    const newValue = Math.round(ratio * 100);
-    onValueChange(newValue);
-  }, [onValueChange]);
-
-  return (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderLabelsRow}>
-        <Text style={styles.sliderEndLabel} numberOfLines={1}>{leftLabel}</Text>
-        <Text style={styles.sliderEndLabel} numberOfLines={1}>{rightLabel}</Text>
-      </View>
-      <View
-        style={styles.sliderTouchArea}
-        onLayout={handleLayout}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderTerminationRequest={() => false}
-        onResponderGrant={(e) => {
-          trackPageX.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
-          hapticSelection();
-          computeValue(e.nativeEvent.pageX);
-        }}
-        onResponderMove={(e) => computeValue(e.nativeEvent.pageX)}
-      >
-        <View style={styles.sliderTrack} pointerEvents="none">
-          <View style={[styles.sliderFill, { width: `${value}%` }]} />
-        </View>
-        <View style={[styles.sliderThumb, { left: `${value}%` }]} pointerEvents="none" />
-      </View>
-      <Text style={styles.sliderValueText}>{value}</Text>
-    </View>
-  );
-}
-
 export default function RatingFormScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
-  const insets = useSafeAreaInsets();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const { category, id } = route.params;
   const { data: item, isLoading } = useRatingDetail(category, id);
   const { data: dimensions } = useRatingDimensions(category);
   const { data: tagOptions } = useRatingTagOptions(category);
+  const { data: myRating } = useMyRating(category, id);
   const submitRating = useSubmitRating(category, id);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+
+  const isEditing = !!myRating;
 
   // Tab bar visibility is now handled by MainTabNavigator's screenListeners
 
@@ -106,10 +52,10 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   }, [dimensions]);
 
   const [scores, setScores] = useState<Record<string, number>>({});
-
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
 
+  // Initialize scores from item defaults (50 for each dimension)
   useEffect(() => {
     if (!item) return;
     const initial: Record<string, number> = {};
@@ -119,18 +65,58 @@ export default function RatingFormScreen({ navigation, route }: Props) {
     setScores(initial);
   }, [item?.id]);
 
+  // Pre-populate from existing rating if available
+  useEffect(() => {
+    if (myRating?.scores) {
+      const converted: Record<string, number> = {};
+      for (const [key, value] of Object.entries(myRating.scores)) {
+        // Backend stores 0-5, convert to 0-100
+        converted[key] = Math.round(value * 20);
+      }
+      setScores(converted);
+    }
+    if (myRating?.tags) {
+      setSelectedTags(myRating.tags);
+    }
+    if (myRating?.comment) {
+      setComment(myRating.comment);
+    }
+  }, [myRating]);
+
   const itemNameForShare = translateLabel(item?.name || 'Untitled', lang);
   const senderDisplayName = user?.nickname || user?.name || t('meLabel');
 
-  const handleScoreChange = useCallback((key: string, value: number) => {
-    setScores((prev) => ({ ...prev, [key]: value }));
+  const adjustScore = useCallback((key: string, delta: number) => {
+    hapticSelection();
+    setScores((prev) => {
+      const current = prev[key] ?? 50;
+      const next = Math.max(0, Math.min(100, current + delta));
+      return { ...prev, [key]: next };
+    });
+  }, []);
+
+  const setScoreValue = useCallback((key: string, text: string) => {
+    const num = parseInt(text, 10);
+    if (text === '') {
+      setScores((prev) => ({ ...prev, [key]: 0 }));
+      return;
+    }
+    if (!isNaN(num)) {
+      setScores((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, num)) }));
+    }
   }, []);
 
   const toggleTag = useCallback((tag: string) => {
     hapticSelection();
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((t) => t !== tag);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, tag];
+    });
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -209,18 +195,49 @@ export default function RatingFormScreen({ navigation, route }: Props) {
           <Text style={styles.targetCategory}>{t(category)}</Text>
         </View>
 
-        {/* Custom Slider Inputs */}
+        {/* Editing Notice */}
+        {isEditing && myRating?.updatedAt && (
+          <View style={styles.editNotice}>
+            <Text style={styles.editNoticeText}>
+              {t('editingNotice', { date: new Date(myRating.updatedAt).toLocaleDateString() })}
+            </Text>
+          </View>
+        )}
+
+        {/* Number Input per Dimension */}
         <View style={styles.section}>
           {item.scores.map((score) => {
             const dim = dimensionMap[score.key];
             return (
-              <CustomSlider
-                key={score.key}
-                value={scores[score.key] ?? 50}
-                onValueChange={(v) => handleScoreChange(score.key, v)}
-                leftLabel={dim ? translateLabel(dim.left, lang) : ''}
-                rightLabel={dim ? translateLabel(dim.right, lang) : ''}
-              />
+              <View key={score.key} style={styles.scoreRow}>
+                <View style={styles.scoreLabel}>
+                  <Text style={styles.scoreName}>
+                    {dim ? translateLabel(dim.label, lang) : translateLabel(score.label, lang)}
+                  </Text>
+                  {dim && (dim.left || dim.right) && (
+                    <Text style={styles.scoreRange}>
+                      {translateLabel(dim.left, lang)} {'<'}- -{'>'} {translateLabel(dim.right, lang)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.scoreInput}>
+                  <TouchableOpacity style={styles.stepBtn} onPress={() => adjustScore(score.key, -5)}>
+                    <Text style={styles.stepBtnText}>{'\u2212'}</Text>
+                  </TouchableOpacity>
+                  <View style={styles.numberBox}>
+                    <TextInput
+                      style={styles.numberText}
+                      value={String(scores[score.key] ?? 50)}
+                      onChangeText={(text) => setScoreValue(score.key, text)}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                    />
+                  </View>
+                  <TouchableOpacity style={styles.stepBtn} onPress={() => adjustScore(score.key, 5)}>
+                    <Text style={styles.stepBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             );
           })}
         </View>
@@ -277,7 +294,7 @@ export default function RatingFormScreen({ navigation, route }: Props) {
             <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
             <Text style={styles.submitButtonText}>
-              {t('submitBtn')}
+              {isEditing ? t('updateRating') : t('submitBtn')}
             </Text>
           )}
         </TouchableOpacity>
@@ -349,52 +366,75 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     marginBottom: spacing.md,
   },
-  sliderContainer: {
-    marginBottom: spacing.sm,
-  },
-  sliderLabelsRow: {
+  scoreRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  sliderEndLabel: {
-    ...typography.labelSmall,
-    color: colors.onSurfaceVariant,
-    maxWidth: '45%',
+  scoreLabel: {
+    flex: 1,
   },
-  sliderTouchArea: {
-    height: 44,
+  scoreName: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#0C1015',
+  },
+  scoreRange: {
+    fontSize: 11,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#86909C',
+  },
+  scoreInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F7F7F7',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  sliderTrack: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.surface2,
+  stepBtnText: {
+    fontSize: 16,
+    color: '#86909C',
+    fontFamily: 'SourceHanSansCN-Medium',
   },
-  sliderFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
+  numberBox: {
+    width: 52,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#DEE2E5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sliderThumb: {
-    position: 'absolute',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
-    marginLeft: -11,
-    top: 11,
-    borderWidth: 2,
-    borderColor: colors.onPrimary,
-  },
-  sliderValueText: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
+  numberText: {
+    fontSize: 18,
+    fontFamily: 'SourceHanSansCN-Bold',
+    color: '#0C1015',
     textAlign: 'center',
-    marginTop: spacing.sm,
+    padding: 0,
+  },
+  editNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#FFF8E1',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  editNoticeText: {
+    fontSize: 12,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#8B6914',
+    flex: 1,
   },
   tagSection: {
     paddingVertical: spacing.lg,

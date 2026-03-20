@@ -82,6 +82,7 @@ const ENDPOINTS = {
     SUBMIT: (category: string, id: string) => `/ratings/${category}/${id}/rate`,
     DIMENSIONS: (category: string) => `/ratings/${category}/dimensions`,
     TAGS: (category: string) => `/ratings/${category}/tags`,
+    MY_RATING: (category: string, id: string) => `/ratings/${category}/${id}/my-rating`,
   },
 
   // Messages (backend: conversations, chat/:userId, POST /messages)
