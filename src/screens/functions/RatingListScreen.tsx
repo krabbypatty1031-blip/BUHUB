@@ -556,11 +556,11 @@ export default function RatingListScreen({ navigation }: Props) {
       ) : (
         <FlashList
           ref={listRef}
-          key={`${category}:${effectiveQuickFilter}`}
           data={filteredRatings}
-          extraData={`${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}:${filteredRatings.length}:${filteredRatings[0]?.id ?? 'empty'}`}
+          extraData={`${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}`}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
+          estimatedItemSize={160}
           contentContainerStyle={styles.listContent}
           refreshing={isRefetching}
           onRefresh={refetch}
