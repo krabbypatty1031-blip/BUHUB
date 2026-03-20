@@ -344,7 +344,7 @@ export default function RatingListScreen({ navigation }: Props) {
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
     return () => cancelAnimationFrame(frameId);
-  }, [category, effectiveQuickFilter]);
+  }, [category, effectiveQuickFilter, deferredSearchQuery]);
 
   const searchQueryIndex = useMemo(() => buildSearchQueryIndex(deferredSearchQuery), [deferredSearchQuery]);
 
