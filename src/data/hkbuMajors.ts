@@ -420,3 +420,48 @@ export function getLocalizedMajorLabel(
   const translated = t(majorKey, { defaultValue: fallback });
   return translated === majorKey ? fallback : translated;
 }
+
+const ENGLISH_MAJOR_SHORT_OVERRIDES: Record<string, string> = {
+  majorHKBUGovernmentAndInternationalStudies: 'Govt. & Intl. Studies',
+  majorHKBUTranslation: 'Translation & Intercultural Studies',
+  majorHKBUInformationSystemsAndAnalytics: 'Info Systems & Analytics',
+  majorHKBUInformationSystemsAndBusinessIntelligence: 'IS & Business Intelligence',
+  majorHKBUStrategicRetailManagementAndInnovation: 'Retail Mgmt & Innovation',
+  majorHKBUCreativeIndustriesPopularMusicPerformanceAndSongwriting: 'Popular Music Performance',
+  majorHKBUCreativeIndustriesScoringForFilmTelevisionAndVideoGames: 'Scoring for Film & Games',
+  majorHKBUChineseMedicineAndBiomedicalScience: 'Chinese Medicine & Biomedical Sci.',
+  majorHKBUInnovationInHealthAndSocialWellBeing: 'Health & Social Well-Being',
+  majorHKBUDigitalFuturesAndHumanities: 'Digital Futures & Humanities',
+};
+
+function shortenEnglishMajorLabel(label: string) {
+  return label
+    .replace(/\s+and\s+/gi, ' & ')
+    .replace(/\bInternational\b/g, 'Intl.')
+    .replace(/\bInformation\b/g, 'Info')
+    .replace(/\bManagement\b/g, 'Mgmt')
+    .replace(/\bCommunication\b/g, 'Comm.')
+    .replace(/\bTechnology\b/g, 'Tech')
+    .replace(/\bTechnologies\b/g, 'Tech')
+    .replace(/\bScience\b/g, 'Sci.')
+    .replace(/\bSciences\b/g, 'Sci.')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function getLocalizedMajorShortLabel(
+  majorKey: string | null | undefined,
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  language?: string | null,
+): string {
+  const label = getLocalizedMajorLabel(majorKey, t);
+  if (!label) {
+    return '';
+  }
+
+  if (!(language ?? '').toLowerCase().startsWith('en')) {
+    return label;
+  }
+
+  return ENGLISH_MAJOR_SHORT_OVERRIDES[majorKey ?? ''] ?? shortenEnglishMajorLabel(label);
+}

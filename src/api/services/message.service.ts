@@ -14,6 +14,15 @@ const MESSAGE_ALBUM_PREFIX = '[BUHUB_ALBUM]';
 const CARD_TITLE_MAX_LEN = 240;
 const CARD_POSTER_MAX_LEN = 80;
 
+export type MessageEvent = {
+  type: 'message' | 'typing' | 'recall' | 'read';
+  contactId?: string;
+  message?: ChatMessage;
+  isTyping?: boolean;
+  messageId?: string;
+  timestamp: number;
+};
+
 type FunctionCardPayload = Pick<ChatFunctionCard, 'type' | 'id' | 'title' | 'posterName' | 'postId' | 'ratingCategory'>;
 
 type ReplyPayload = {
@@ -880,5 +889,14 @@ export const messageService = {
     if (USE_MOCK) return { success: true };
     await apiClient.delete(ENDPOINTS.MESSAGE.MESSAGE_DETAIL(messageId));
     return { success: true };
+  },
+
+  async getUpdates(since: number, signal?: AbortSignal): Promise<{ events: MessageEvent[]; now: number }> {
+    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.UPDATES, {
+      params: { since },
+      signal,
+      timeout: 30000,
+    });
+    return data as { events: MessageEvent[]; now: number };
   },
 };

@@ -326,8 +326,10 @@ function ReplyItem({
         gradeKey: reply.gradeKey,
         majorKey: reply.majorKey,
         isAnonymous: false,
+        language: lang,
+        abbreviateForumGrade: true,
       }),
-    [t, reply.gradeKey, reply.majorKey],
+    [t, lang, reply.gradeKey, reply.majorKey],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -602,8 +604,10 @@ function CommentItem({
             gradeKey: comment.gradeKey,
             majorKey: comment.majorKey,
             isAnonymous: false,
+            language: lang,
+            abbreviateForumGrade: true,
           }),
-    [t, comment.gradeKey, comment.majorKey, comment.isAnonymous],
+    [t, lang, comment.gradeKey, comment.majorKey, comment.isAnonymous],
   );
 
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -1101,9 +1105,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             gradeKey: post.gradeKey,
             majorKey: post.majorKey,
             isAnonymous: post.isAnonymous,
+            language: lang,
+            abbreviateForumGrade: true,
           })
         : '',
-    [post?.gradeKey, post?.majorKey, post?.isAnonymous, t],
+    [post?.gradeKey, post?.majorKey, post?.isAnonymous, t, lang],
   );
 
   const isLiked = post?.liked ?? false;
@@ -1434,6 +1440,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <FunctionRefCard
               functionType={post.functionType}
               title={post.functionTitle}
+              preview={post.functionRefPreview}
               onPress={handleFunctionPress}
             />
           )}
@@ -2393,4 +2400,3 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceVariant,
   },
 });
-

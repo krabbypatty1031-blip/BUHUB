@@ -25,7 +25,7 @@ import { useNotificationSettings, useUpdateNotificationSettings } from '../../ho
 import { useProfile } from '../../hooks/useUser';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import { BackIcon, ChevronRightIcon } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import ScrollPickerSheet from '../../components/common/ScrollPickerSheet';
@@ -46,7 +46,8 @@ const LANGUAGE_OPTIONS = [
 const APP_VERSION = '0.1.9';
 
 export default function SettingsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLanguage = i18n.language;
   const user = useAuthStore((s) => s.user);
   const language = useAuthStore((s) => s.language);
   const logout = useAuthStore((s) => s.logout);
@@ -296,66 +297,66 @@ export default function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('settings')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(currentLanguage, 'bold')]}>{t('settings')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* ── Section 1: Account & Security ── */}
-        <Text style={styles.sectionHeader}>{t('accountSecurity')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('accountSecurity')}</Text>
         <View style={styles.sectionCard}>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>{currentLoginEmailLabel}</Text>
-            <Text style={styles.rowValueMuted}>{currentLoginEmailAddress}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{currentLoginEmailLabel}</Text>
+            <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>{currentLoginEmailAddress}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('ManageEmails')}>
-            <Text style={styles.rowLabel}>{t('manageEmails')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('manageEmails')}</Text>
             <View style={styles.rowRight}>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.rowHint}>{t('bindHkbuEmailHint')}</Text>
+          <Text style={[styles.rowHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('bindHkbuEmailHint')}</Text>
 
           <View style={styles.divider} />
 
           {/* Delete Account */}
           <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
-            <Text style={styles.rowLabelWarning}>{t('delete')}</Text>
+            <Text style={[styles.rowLabelWarning, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('delete')}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider} />
 
           {/* Logout */}
           <TouchableOpacity style={styles.row} onPress={handleLogout}>
-            <Text style={styles.rowLabelError}>{t('logout')}</Text>
+            <Text style={[styles.rowLabelError, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionHeader}>{t('myInviteCodes')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('myInviteCodes')}</Text>
         <View style={styles.sectionCard}>
           <View style={styles.sectionHintBlock}>
-            <Text style={styles.sectionHint}>{t('inviteCodesHint')}</Text>
+            <Text style={[styles.sectionHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('inviteCodesHint')}</Text>
           </View>
           <View style={styles.divider} />
           {inviteCodesLoading ? (
             <View style={styles.row}>
-              <Text style={styles.rowValueMuted}>...</Text>
+              <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>...</Text>
             </View>
           ) : inviteCodes.length === 0 ? (
             <View style={styles.row}>
-              <Text style={styles.rowValueMuted}>---</Text>
+              <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>---</Text>
             </View>
           ) : (
             inviteCodes.map((item) => (
               <View key={item.id}>
                 <View style={styles.row}>
                   <View style={styles.inviteCodeLeft}>
-                    <Text style={styles.inviteCodeText}>{item.code}</Text>
-                    <Text style={styles.inviteCodeMeta}>
+                    <Text style={[styles.inviteCodeText, getLocalizedFontStyle(currentLanguage, 'medium')]}>{item.code}</Text>
+                    <Text style={[styles.inviteCodeMeta, getLocalizedFontStyle(currentLanguage, 'regular')]}>
                       {item.status === 'used'
                         ? `${t('inviteCodeStatusUsed')} · ${t('inviteCodeUsedBy')}: ${item.usedBy?.nickname || item.usedBy?.userName || '---'}`
                         : t('inviteCodeStatusUnused')}
@@ -369,23 +370,23 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* ── Section 2: Privacy ── */}
-        <Text style={styles.sectionHeader}>{t('privacySettings')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('privacySettings')}</Text>
         <View style={styles.sectionCard}>
           {/* Profile Visibility */}
           <TouchableOpacity style={styles.row} onPress={() => showPicker('visibility')}>
-            <Text style={styles.rowLabel}>{t('profileVisibility')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('profileVisibility')}</Text>
             <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{visibilityLabels[visibility]}</Text>
+              <Text style={[styles.rowValue, getLocalizedFontStyle(currentLanguage, 'regular')]}>{visibilityLabels[visibility]}</Text>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.rowHint}>{t('profileVisibilityHint')}</Text>
+          <Text style={[styles.rowHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('profileVisibilityHint')}</Text>
 
           <View style={styles.divider} />
 
           {/* Blocklist */}
           <TouchableOpacity style={styles.row} onPress={handleBlocklist}>
-            <Text style={styles.rowLabel}>{t('blocklist')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('blocklist')}</Text>
             <View style={styles.rowRight}>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
@@ -395,37 +396,37 @@ export default function SettingsScreen({ navigation }: Props) {
 
           {/* Export Data */}
           <TouchableOpacity style={styles.row} onPress={handleExportData}>
-            <Text style={styles.rowLabel}>{t('exportMyData')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('exportMyData')}</Text>
             <View style={styles.rowRight}>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.rowHint}>{t('exportDataHint')}</Text>
+          <Text style={[styles.rowHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('exportDataHint')}</Text>
 
         </View>
 
         {/* ── Section 3: General ── */}
-        <Text style={styles.sectionHeader}>{t('generalSettings')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('generalSettings')}</Text>
         <View style={styles.sectionCard}>
           {/* System Language */}
           <TouchableOpacity style={styles.row} onPress={() => showPicker('language')}>
-            <Text style={styles.rowLabel}>{t('systemLanguage')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('systemLanguage')}</Text>
             <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{currentLangLabel}</Text>
+              <Text style={[styles.rowValue, getLocalizedFontStyle(currentLanguage, 'regular')]}>{currentLangLabel}</Text>
               <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.rowHint}>{t('languageHint')}</Text>
+          <Text style={[styles.rowHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('languageHint')}</Text>
         </View>
 
         {/* ── Section 4: Notifications ── */}
-        <Text style={styles.sectionHeader}>{t('notificationSettings')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('notificationSettings')}</Text>
         <View style={styles.sectionCard}>
           {/* Task Reminder */}
           <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
-              <Text style={styles.rowLabel}>{t('taskReminder')}</Text>
-              <Text style={styles.toggleDesc}>{t('taskReminderDesc')}</Text>
+              <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('taskReminder')}</Text>
+              <Text style={[styles.toggleDesc, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('taskReminderDesc')}</Text>
             </View>
             <IOSSwitch
               value={taskReminder}
@@ -440,8 +441,8 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* DM Notification */}
           <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
-              <Text style={styles.rowLabel}>{t('dmNotification')}</Text>
-              <Text style={styles.toggleDesc}>{t('dmNotificationDesc')}</Text>
+              <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('dmNotification')}</Text>
+              <Text style={[styles.toggleDesc, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('dmNotificationDesc')}</Text>
             </View>
             <IOSSwitch
               value={dmNotification}
@@ -455,7 +456,7 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* ── Section 5: About & Legal ── */}
-        <Text style={styles.sectionHeader}>{t('aboutLegal')}</Text>
+        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('aboutLegal')}</Text>
         <View style={styles.sectionCard}>
           {/* Privacy Policy */}
           <TouchableOpacity
@@ -463,7 +464,7 @@ export default function SettingsScreen({ navigation }: Props) {
             onPress={() => PRIVACY_URL && Linking.openURL(PRIVACY_URL).catch(() => {})}
             disabled={!PRIVACY_URL}
           >
-            <Text style={styles.rowLabel}>{t('privacyPolicy')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('privacyPolicy')}</Text>
             {PRIVACY_URL && (
               <View style={styles.rowRight}>
                 <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
@@ -479,7 +480,7 @@ export default function SettingsScreen({ navigation }: Props) {
             onPress={() => TERMS_URL && Linking.openURL(TERMS_URL).catch(() => {})}
             disabled={!TERMS_URL}
           >
-            <Text style={styles.rowLabel}>{t('termsOfService')}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('termsOfService')}</Text>
             {TERMS_URL && (
               <View style={styles.rowRight}>
                 <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
@@ -491,8 +492,8 @@ export default function SettingsScreen({ navigation }: Props) {
 
           {/* Version Info */}
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>{t('versionInfo')}</Text>
-            <Text style={styles.rowValueMuted}>{`v${APP_VERSION}`}</Text>
+            <Text style={[styles.rowLabel, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('versionInfo')}</Text>
+            <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>{`v${APP_VERSION}`}</Text>
           </View>
         </View>
       </ScrollView>
@@ -512,9 +513,9 @@ export default function SettingsScreen({ navigation }: Props) {
             <View style={styles.pickerSheet}>
               <View style={styles.pickerHeader}>
                 <View style={styles.pickerHeaderSide} />
-                <Text style={styles.pickerTitle}>{getPickerTitle()}</Text>
+                <Text style={[styles.pickerTitle, getLocalizedFontStyle(currentLanguage, 'medium')]}>{getPickerTitle()}</Text>
                 <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                  <Text style={styles.pickerCancel}>{t('cancel')}</Text>
+                  <Text style={[styles.pickerCancel, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('cancel')}</Text>
                 </TouchableOpacity>
               </View>
               <FlatList
@@ -531,6 +532,7 @@ export default function SettingsScreen({ navigation }: Props) {
                     <Text
                       style={[
                         styles.pickerItemText,
+                        getLocalizedFontStyle(currentLanguage, 'regular'),
                         getCurrentPickerValue() === item && styles.pickerItemTextSelected,
                       ]}
                     >
@@ -580,7 +582,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
   },
@@ -619,6 +620,8 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.onSurface,
     flex: 1,
+    minWidth: 0,
+    paddingRight: spacing.md,
   },
   rowLabelWarning: {
     ...typography.bodyMedium,
@@ -632,16 +635,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    flexShrink: 0,
-    maxWidth: '60%',
+    flexShrink: 1,
+    maxWidth: '68%',
+    minWidth: 0,
   },
   rowValue: {
     ...typography.bodyMedium,
     color: colors.onSurface,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   rowValueMuted: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   inviteCodeLeft: {
     flex: 1,
@@ -656,6 +664,7 @@ const styles = StyleSheet.create({
   inviteCodeMeta: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    lineHeight: 18,
   },
   rowHint: {
     ...typography.bodySmall,
@@ -692,6 +701,7 @@ const styles = StyleSheet.create({
   toggleLeft: {
     flex: 1,
     marginRight: spacing.md,
+    minWidth: 0,
   },
   toggleDesc: {
     ...typography.bodySmall,
@@ -752,4 +762,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

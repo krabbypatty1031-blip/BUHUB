@@ -21,6 +21,7 @@ import {
   peekCachedContacts,
   persistChatCache,
   persistContactsCache,
+  rememberRecentSentMessage,
   replaceMessageInHistory,
   upsertContact,
   writeChatSnapshot,
@@ -66,6 +67,167 @@ type SendMutationContext = {
 type RecallMutationContext = {
   previousChats: Array<[readonly unknown[], ChatHistory[] | undefined]>;
 };
+
+const RECENT_CONFIRMED_MESSAGE_GRACE_MS = 5 * 60 * 1000;
+const HISTORY_EDGE_TOLERANCE_MS = 15 * 1000;
+
+function resolveMessageCreatedAtMs(message: ChatMessage): number | null {
+  if (typeof message.createdAt !== 'string' || message.createdAt.length === 0) {
+    return null;
+  }
+  const parsed = Date.parse(message.createdAt);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function shouldPreserveMissingCachedMessage(
+  message: ChatMessage,
+  oldestFetchedTimestampMs: number | null
+): boolean {
+  if (!message.id) return false;
+  if (
+    message.id.startsWith('local-') ||
+    message.status === 'sending' ||
+    message.status === 'failed'
+  ) {
+    return true;
+  }
+  if (message.type !== 'sent' || !message.clientKey) return false;
+  const createdAtMs = resolveMessageCreatedAtMs(message);
+  if (createdAtMs == null) return false;
+  if (Date.now() - createdAtMs > RECENT_CONFIRMED_MESSAGE_GRACE_MS) return false;
+  if (oldestFetchedTimestampMs == null) return true;
+  return createdAtMs >= oldestFetchedTimestampMs - HISTORY_EDGE_TOLERANCE_MS;
+}
+
+function reconcileFetchedChatHistory(
+  currentHistory: ChatHistory[] | undefined,
+  fetchedHistory: ChatHistory[]
+): ChatHistory[] {
+  if (!Array.isArray(fetchedHistory)) return [];
+  if (!Array.isArray(currentHistory) || currentHistory.length === 0) return fetchedHistory;
+
+  const currentMessageById = new Map<string, ChatMessage>();
+  const currentMessageByClientKey = new Map<string, ChatMessage>();
+  const currentMessageClientKeys = new Set<string>();
+  currentHistory.forEach((group) => {
+    group.messages.forEach((message) => {
+      if (!message.id) return;
+      currentMessageById.set(message.id, message);
+      if (message.clientKey) {
+        currentMessageClientKeys.add(message.clientKey);
+        currentMessageByClientKey.set(message.clientKey, message);
+      }
+    });
+  });
+
+  // Collect IDs present in fetched data
+  const fetchedIds = new Set<string>();
+  const fetchedClientKeys = new Set<string>();
+  let oldestFetchedTimestampMs: number | null = null;
+  let hasFetchedMessageNotInCurrent = false;
+  fetchedHistory.forEach((group) => {
+    group.messages.forEach((message) => {
+      if (message.id) fetchedIds.add(message.id);
+      if (message.clientKey) fetchedClientKeys.add(message.clientKey);
+      const existsInCurrent =
+        (message.id ? currentMessageById.has(message.id) : false) ||
+        (message.clientKey ? currentMessageClientKeys.has(message.clientKey) : false);
+      if (!existsInCurrent) {
+        hasFetchedMessageNotInCurrent = true;
+      }
+      const createdAtMs = resolveMessageCreatedAtMs(message);
+      if (createdAtMs == null) return;
+      oldestFetchedTimestampMs =
+        oldestFetchedTimestampMs == null
+          ? createdAtMs
+          : Math.min(oldestFetchedTimestampMs, createdAtMs);
+    });
+  });
+
+  // Find optimistic/pending messages in cache that are absent from server response
+  // or recently confirmed local sends that the server history has not surfaced yet.
+  const missingCachedMessages: ChatMessage[] = [];
+  currentHistory.forEach((group) => {
+    group.messages.forEach((message) => {
+      if (!message.id) return;
+      if (fetchedIds.has(message.id)) return;
+      if (message.clientKey && fetchedClientKeys.has(message.clientKey)) return;
+      if (shouldPreserveMissingCachedMessage(message, oldestFetchedTimestampMs)) {
+        missingCachedMessages.push(message);
+      }
+    });
+  });
+
+  let changed = false;
+  const nextHistory = fetchedHistory.map((group) => {
+    let groupChanged = false;
+    const messages = group.messages.map((message) => {
+      const currentMessage =
+        (message.id ? currentMessageById.get(message.id) : undefined) ??
+        (message.clientKey ? currentMessageByClientKey.get(message.clientKey) : undefined);
+      if (!currentMessage) return message;
+
+      const nextClientKey = message.clientKey ?? currentMessage.clientKey;
+      const nextMediaMetas =
+        message.mediaMetas && message.mediaMetas.length > 0
+          ? message.mediaMetas
+          : currentMessage.mediaMetas;
+      const nextCreatedAt =
+        message.type === 'sent' && currentMessage.createdAt
+          ? currentMessage.createdAt
+          : message.createdAt;
+      const nextTime =
+        message.type === 'sent' && currentMessage.time
+          ? currentMessage.time
+          : message.time;
+      const idChanged = Boolean(
+        currentMessage.id &&
+        message.id &&
+        currentMessage.id !== message.id
+      );
+
+      if (
+        !idChanged &&
+        nextClientKey === message.clientKey &&
+        nextMediaMetas === message.mediaMetas &&
+        nextCreatedAt === message.createdAt &&
+        nextTime === message.time
+      ) {
+        return message;
+      }
+
+      changed = true;
+      groupChanged = true;
+      return {
+        ...message,
+        ...(nextClientKey ? { clientKey: nextClientKey } : {}),
+        ...(nextMediaMetas ? { mediaMetas: nextMediaMetas } : {}),
+        ...(nextCreatedAt ? { createdAt: nextCreatedAt } : {}),
+        ...(nextTime ? { time: nextTime } : {}),
+      };
+    });
+    return groupChanged ? { ...group, messages } : group;
+  });
+
+  // Keep transient local messages that should still belong to the latest page even if
+  // the server briefly returns stale history after a send succeeds.
+  if (missingCachedMessages.length > 0) {
+    changed = true;
+    const result = missingCachedMessages.reduce<ChatHistory[]>(
+      (history, message) => appendMessageToHistory(history, message),
+      nextHistory
+    );
+    return result;
+  }
+
+  if (hasFetchedMessageNotInCurrent) {
+    return nextHistory;
+  }
+
+  // Return currentHistory (same reference) when unchanged — prevents React Query
+  // from treating identical data as "new", which would re-render the entire FlashList
+  return changed ? nextHistory : currentHistory;
+}
 
 function formatMessageTime(date: Date) {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -255,13 +417,14 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
     let cancelled = false;
     void hydrateChatCache(currentUserId, normalizedLanguage, userId).then((cached) => {
       if (cancelled || !cached) return;
-      if (!queryClient.getQueryData(['chat', userId, normalizedLanguage])) {
+      const existing = queryClient.getQueryData<ChatHistory[]>(['chat', userId, normalizedLanguage]);
+      // Count messages in each source to determine which has more data
+      const existingCount = (existing ?? []).reduce((sum, g) => sum + g.messages.length, 0);
+      const cachedCount = cached.reduce((sum, g) => sum + g.messages.length, 0);
+      // Write cached snapshot if React Query has no data OR if the memory cache
+      // has more messages (e.g., optimistic message persisted before navigation)
+      if (!existing || cachedCount > existingCount) {
         writeChatSnapshot(queryClient, currentUserId, normalizedLanguage, userId, cached);
-        recordMessageMetric('chat_cache_hydrated', {
-          contactId: userId,
-          groups: cached.length,
-          language: normalizedLanguage,
-        });
       }
     });
     return () => {
@@ -274,24 +437,30 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
     queryFn: async () => {
       const startedAt = Date.now();
       const history = await messageService.getChatHistory(userId);
-      if (currentUserId) {
-        await persistChatCache(currentUserId, normalizedLanguage, userId, history);
+      const cachedHistory = queryClient.getQueryData<ChatHistory[]>(['chat', userId, normalizedLanguage]);
+      const reconciledHistory = reconcileFetchedChatHistory(cachedHistory, history);
+      // Only persist if data actually changed (same reference = unchanged)
+      if (currentUserId && reconciledHistory !== cachedHistory) {
+        await persistChatCache(currentUserId, normalizedLanguage, userId, reconciledHistory);
       }
       recordTimedMessageMetric('chat_fetch_duration', startedAt, {
         contactId: userId,
-        groups: history.length,
+        groups: reconciledHistory.length,
       });
-      return history;
+      return reconciledHistory;
     },
     enabled: enabled && userId.length > 0,
-    staleTime: polling ? 5 * 1000 : 30 * 1000,
+    staleTime: polling ? 5 * 1000 : 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchInterval: polling ? 8 * 1000 : false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    placeholderData: (prev) => prev,
     initialData:
       currentUserId && userId
         ? peekCachedChatHistory(currentUserId, normalizedLanguage, userId)
         : undefined,
+    initialDataUpdatedAt: Date.now(),
   });
 }
 
@@ -303,6 +472,7 @@ export function useCanSendMessage(userId: string) {
     staleTime: 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -376,6 +546,9 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
       }
 
       if (sentMessage) {
+        if (currentUserId) {
+          rememberRecentSentMessage(currentUserId, receiverId, sentMessage);
+        }
         patchContactsQueries(queryClient, currentUserId, (current) => {
           const existing = current?.find((contact) => contact.id === receiverId);
           return upsertContact(
@@ -384,11 +557,11 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
           );
         });
       }
-      // Delay background refetch to avoid race with optimistic replace
-      // The replace above already put the correct message in cache;
-      // refetch too early can cause a brief duplicate flash.
+      // Mark chat query stale so it refetches when next observed.
+      // Using refetchType 'none' — the patched cache already has the correct message;
+      // refetching inactive queries would overwrite it before AsyncStorage persists.
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'inactive' });
+        queryClient.invalidateQueries({ queryKey: ['chat', receiverId], refetchType: 'none' });
       }, 1500);
       queryClient.invalidateQueries({ queryKey: ['chat-can-send', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });

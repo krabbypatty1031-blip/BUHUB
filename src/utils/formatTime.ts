@@ -68,6 +68,31 @@ export function translateMeta(meta: string, language: Language): string {
   return parts.map((part) => translateTime(part.trim(), language)).join(' · ');
 }
 
+export function getDisplayGradeLabel(
+  gradeKey: string | undefined,
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  options?: {
+    language?: Language;
+    abbreviate?: boolean;
+  },
+): string | null {
+  if (!gradeKey) return null;
+  if (!options?.abbreviate || options.language !== 'en') {
+    return t(gradeKey);
+  }
+
+  const forumGradeMap: Record<string, string> = {
+    gradeUndergradY1: 'UG Y1',
+    gradeUndergradY2: 'UG Y2',
+    gradeUndergradY3: 'UG Y3',
+    gradeUndergradY4: 'UG Y4',
+    gradePostgrad: 'PG',
+    gradePhD: 'PhD',
+  };
+
+  return forumGradeMap[gradeKey] ?? t(gradeKey);
+}
+
 export function buildPostMeta(
   t: (key: string, options?: { defaultValue?: string }) => string,
   language: Language,
@@ -76,6 +101,7 @@ export function buildPostMeta(
     majorKey?: string;
     createdAt: string;
     isAnonymous?: boolean;
+    abbreviateForumGrade?: boolean;
   },
 ): string {
   const time = getRelativeTime(options.createdAt, language);
@@ -83,7 +109,15 @@ export function buildPostMeta(
     return time;
   }
   const parts: string[] = [];
-  if (options.gradeKey) parts.push(t(options.gradeKey));
+  const gradeLabel = getDisplayGradeLabel(
+    options.gradeKey,
+    t,
+    {
+      language,
+      abbreviate: options.abbreviateForumGrade,
+    },
+  );
+  if (gradeLabel) parts.push(gradeLabel);
   if (options.majorKey) parts.push(getLocalizedMajorLabel(options.majorKey, t));
   parts.push(time);
   return parts.join(' · ');
@@ -95,11 +129,21 @@ export function buildGradeMajorMeta(
     gradeKey?: string;
     majorKey?: string;
     isAnonymous?: boolean;
+    language?: Language;
+    abbreviateForumGrade?: boolean;
   },
 ): string {
   if (options.isAnonymous) return '';
   const parts: string[] = [];
-  if (options.gradeKey) parts.push(t(options.gradeKey));
+  const gradeLabel = getDisplayGradeLabel(
+    options.gradeKey,
+    t,
+    {
+      language: options.language,
+      abbreviate: options.abbreviateForumGrade,
+    },
+  );
+  if (gradeLabel) parts.push(gradeLabel);
   if (options.majorKey) parts.push(getLocalizedMajorLabel(options.majorKey, t));
   return parts.join(' · ');
 }
@@ -139,4 +183,3 @@ export function formatDeadline(isoDate: string | undefined | null, language: Lan
   const wdLabel = language === 'sc' ? WEEKDAY_ZH[weekday].sc : WEEKDAY_ZH[weekday].tc;
   return `${month}月${day}日 ${wdLabel} ${hours}:${minutes}`;
 }
-

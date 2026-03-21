@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +40,7 @@ import {
   FigmaCommentIcon,
 } from '../../components/messages/MessagesFigmaIcons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { peekCachedChatHistory } from '../../utils/messageCache';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'MessagesList'>;
 
@@ -139,6 +141,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const queryClient = useQueryClient();
   const isFocused = useIsFocused();
   const language = useAuthStore((s) => s.language);
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
   const { data: contacts, isLoading, isFetching, refetch } = useContacts({ polling: isFocused });
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
@@ -197,6 +200,44 @@ export default function MessagesScreen({ navigation }: Props) {
     inboxSeenContacts,
     setUnreadMessages,
   ]);
+
+  // Prefetch chat history + canSendMessage for top contacts
+  // so entering a chat feels instant
+  const prefetchedContactsRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!contacts || contacts.length === 0) return;
+    const topContacts = contacts.slice(0, 8);
+    for (const contact of topContacts) {
+      if (prefetchedContactsRef.current.has(contact.id)) continue;
+      const existingHistory = queryClient.getQueryData(['chat', contact.id, normalizedLanguage]);
+      const persistedHistory =
+        currentUserId
+          ? peekCachedChatHistory(currentUserId, normalizedLanguage, contact.id)
+          : undefined;
+      const existingHistoryCount = Array.isArray(existingHistory)
+        ? existingHistory.reduce((sum, group) => sum + group.messages.length, 0)
+        : 0;
+      const persistedHistoryCount = Array.isArray(persistedHistory)
+        ? persistedHistory.reduce((sum, group) => sum + group.messages.length, 0)
+        : 0;
+      if (existingHistoryCount > 0 || persistedHistoryCount > 0) {
+        continue;
+      }
+      prefetchedContactsRef.current.add(contact.id);
+      // Prefetch chat history
+      void queryClient.prefetchQuery({
+        queryKey: ['chat', contact.id, normalizedLanguage],
+        queryFn: () => messageService.getChatHistory(contact.id),
+        staleTime: 30 * 1000,
+      });
+      // Prefetch canSendMessage
+      void queryClient.prefetchQuery({
+        queryKey: ['chat-can-send', contact.id],
+        queryFn: () => messageService.canSendMessage(contact.id),
+        staleTime: 60 * 1000,
+      });
+    }
+  }, [contacts, currentUserId, normalizedLanguage, queryClient]);
 
   const lastRefetchRef = useRef(0);
 
@@ -518,6 +559,9 @@ export default function MessagesScreen({ navigation }: Props) {
             )
           }
           ItemSeparatorComponent={() => <View style={styles.contactSeparator} />}
+          ListFooterComponent={
+            filteredContacts.length === 1 ? <View style={styles.contactSeparator} /> : null
+          }
         />
       )}
 
@@ -609,8 +653,10 @@ const styles = StyleSheet.create({
   },
   topBarTitle: {
     fontSize: 32,
+    lineHeight: 32,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
+    includeFontPadding: false,
   },
   topBarIconBtn: {
     width: 30,
@@ -650,12 +696,12 @@ const styles = StyleSheet.create({
   },
   notifyCard: {
     width: 96,
-    height: 83,
     backgroundColor: '#F7F7F7',
     borderRadius: 16,
     alignItems: 'center',
-    paddingTop: 16,
-    gap: 6,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: Platform.OS === 'android' ? 4 : 6,
   },
   notifyIconWrap: {
     width: 30,
@@ -709,7 +755,6 @@ const styles = StyleSheet.create({
   contactSeparator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(0,0,0,0.15)',
-    marginLeft: 81,
   },
   /* Figma: avatar 50px with unread dot at right:4 top:2 */
   contactAvatarWrap: {
@@ -742,14 +787,18 @@ const styles = StyleSheet.create({
   /* Figma: 14px Bold #3F3F41 */
   contactName: {
     fontSize: 14,
+    lineHeight: 20,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#3F3F41',
+    includeFontPadding: false,
   },
   /* Figma: 12px Regular #999 */
   contactMessage: {
     fontSize: 12,
+    lineHeight: 16,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#999999',
+    includeFontPadding: false,
   },
   contactMessageMuted: {
     color: '#C7C7CC',

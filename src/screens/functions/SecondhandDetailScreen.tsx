@@ -22,7 +22,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -173,7 +173,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
+          <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhand')}</Text>
           <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
@@ -182,7 +182,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           ) : (
             <>
               <ShoppingBagIcon size={48} color="#86909C" />
-              <Text style={styles.emptyText}>{t('notFound')}</Text>
+              <Text style={[styles.emptyText, getLocalizedFontStyle(lang, 'regular')]}>{t('notFound')}</Text>
             </>
           )}
         </View>
@@ -195,6 +195,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const sellerMeta = buildGradeMajorMeta(t, {
     gradeKey: item.gradeKey,
     majorKey: item.majorKey,
+    language: lang,
+    abbreviateForumGrade: true,
   });
 
   return (
@@ -205,7 +207,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhand')}</Text>
         <TouchableOpacity onPress={() => setPopoverVisible(true)}>
           <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
@@ -226,15 +228,15 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
               <>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
-                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('editPost')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -245,7 +247,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                   setReportVisible(true);
                 }}
               >
-                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+                <Text style={[styles.popoverItemTextDanger, getLocalizedFontStyle(lang, 'regular')]}>{t('reportAction')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -321,12 +323,12 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
               />
               {isSold && (
                 <View style={styles.expiredTag}>
-                  <Text style={styles.expiredTagText}>{t('secondhandSold')}</Text>
+                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhandSold')}</Text>
                 </View>
               )}
               {isExpired && (
                 <View style={styles.expiredTag}>
-                  <Text style={styles.expiredTagText}>{t('secondhandExpired')}</Text>
+                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhandExpired')}</Text>
                 </View>
               )}
             </View>
@@ -338,7 +340,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
 
           {/* Description Section */}
           <View style={styles.descSection}>
-            <Text style={styles.descLabel}>{t('details')}</Text>
+            <Text style={[styles.descLabel, getLocalizedFontStyle(lang, 'bold')]}>{t('details')}</Text>
             <TranslatableText
               entityType="secondhand"
               entityId={item.id}
@@ -355,8 +357,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
               <ConditionIcon size={18} color="#0C1015" />
             </View>
             <View>
-              <Text style={styles.infoLabel}>{t('condition')}</Text>
-              <Text style={styles.infoValue}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
+              <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('condition')}</Text>
+              <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{getLocalizedSecondhandCondition(item.condition, t)}</Text>
             </View>
           </View>
 
@@ -365,9 +367,20 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             <View style={styles.infoIconWrap}>
               <TradeMethodIcon size={18} color="#0C1015" />
             </View>
-            <View>
-              <Text style={styles.infoLabel}>{t('tradeLocation')}</Text>
-              <Text style={styles.infoValue}>{item.location || '\u2014'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('tradeLocation')}</Text>
+              {item.location ? (
+                <TranslatableText
+                  entityType="secondhand"
+                  entityId={item.id}
+                  fieldName="location"
+                  sourceText={item.location}
+                  sourceLanguage={item.sourceLanguage}
+                  textStyle={styles.infoValue}
+                />
+              ) : (
+                <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{'\u2014'}</Text>
+              )}
             </View>
           </View>
 
@@ -379,11 +392,11 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             <Avatar text={item.user} uri={item.avatar} size="sm" gender={item.gender} />
             <View>
               <View style={styles.userNameRow}>
-                <Text style={styles.userName}>{item.user}</Text>
+                <Text style={[styles.userName, getLocalizedFontStyle(lang, 'medium')]}>{item.user}</Text>
                 {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
                 {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
               </View>
-              <Text style={styles.userMeta} numberOfLines={1}>
+              <Text style={[styles.userMeta, getLocalizedFontStyle(lang, 'regular')]} numberOfLines={2}>
                 {sellerMeta ? `${sellerMeta} \u00B7 ${sellerTime}` : sellerTime}
               </Text>
             </View>
@@ -402,7 +415,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             onPress={handleContact}
             disabled={isContactDisabled}
           >
-            <Text style={styles.bottomBtnText}>{t('secondhandDmSeller')}</Text>
+            <Text style={[styles.bottomBtnText, getLocalizedFontStyle(lang, 'bold')]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{t('secondhandDmSeller')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.bottomBtnWant, isWanted && styles.wantedButtonActive]}
@@ -410,7 +423,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
             onPress={handleWant}
             disabled={isWantDisabled}
           >
-            <Text style={styles.bottomBtnText}>
+            <Text style={[styles.bottomBtnText, getLocalizedFontStyle(lang, 'bold')]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
               {isWanted ? t('wanted') : t('iWant')}
             </Text>
           </TouchableOpacity>

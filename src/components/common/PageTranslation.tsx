@@ -1,11 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { translationService } from '../../api/services/translation.service';
 import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+import LoadingDots from './LoadingDots';
 import { TranslateActionIcon } from './PostActionIcons';
 import type { ContentEntityType, ContentTranslationResult } from '../../types';
 
@@ -20,16 +20,29 @@ type PageTranslationContextValue = {
   showTranslated: boolean;
   setShowTranslated: React.Dispatch<React.SetStateAction<boolean>>;
   toggleTranslated: () => void;
+  retryFailed: () => void;
   registerItem: (key: string, item: RegisteredTranslationItem) => void;
   unregisterItem: (key: string) => void;
   getTranslation: (entityType: ContentEntityType, entityId?: string) => ContentTranslationResult | undefined;
   hasRegisteredItems: boolean;
+  hasResolvedTranslations: boolean;
+  hasError: boolean;
+  isFetching: boolean;
 };
 
+const MAX_BATCH_ITEMS = 100;
 const PageTranslationContext = createContext<PageTranslationContextValue | null>(null);
 
 function buildEntityKey(entityType: ContentEntityType, entityId: string) {
   return `${entityType}:${entityId}`;
+}
+
+function chunkItems<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 export function PageTranslationProvider({
@@ -44,10 +57,14 @@ export function PageTranslationProvider({
   const [showTranslated, setShowTranslated] = useState(defaultTranslated);
   const [registeredItems, setRegisteredItems] = useState<Record<string, RegisteredTranslationItem>>({});
   const [batchResults, setBatchResults] = useState<Record<string, ContentTranslationResult>>({});
+  const [failedKeys, setFailedKeys] = useState<Record<string, true>>({});
+  const [isFetching, setIsFetching] = useState(false);
   const inFlightKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setBatchResults({});
+    setFailedKeys({});
+    setIsFetching(false);
   }, [language]);
 
   const registerItem = useCallback((key: string, item: RegisteredTranslationItem) => {
@@ -95,12 +112,10 @@ export function PageTranslationProvider({
       return undefined;
     }
 
-    const pendingItems = uniqueBatchItems.filter(
-      (item) => {
-        const entityKey = buildEntityKey(item.entityType, item.entityId);
-        return !batchResults[entityKey] && !inFlightKeysRef.current.has(entityKey);
-      },
-    );
+    const pendingItems = uniqueBatchItems.filter((item) => {
+      const entityKey = buildEntityKey(item.entityType, item.entityId);
+      return !batchResults[entityKey] && !failedKeys[entityKey] && !inFlightKeysRef.current.has(entityKey);
+    });
 
     if (pendingItems.length === 0) {
       return undefined;
@@ -113,42 +128,71 @@ export function PageTranslationProvider({
 
     const timeoutId = setTimeout(() => {
       requestStarted = true;
+      setIsFetching(true);
+
       (async () => {
-        try {
-          const results = await translationService.resolveBatch({
-            targetLanguage: language,
-            items: pendingItems.map((item) => ({
-              entityType: item.entityType,
-              entityId: item.entityId,
-            })),
-          });
+        const nextResults: Record<string, ContentTranslationResult> = {};
+        const successfulKeys = new Set<string>();
+        const failedChunkKeys = new Set<string>();
 
-          if (cancelled) {
-            return;
-          }
+        for (const chunk of chunkItems(pendingItems, MAX_BATCH_ITEMS)) {
+          try {
+            const results = await translationService.resolveBatch({
+              targetLanguage: language,
+              items: chunk.map((item) => ({
+                entityType: item.entityType,
+                entityId: item.entityId,
+              })),
+            });
 
-          results.forEach((result) => {
-            queryClient.setQueryData(
-              ['contentTranslation', result.entityType, result.entityId, language],
-              result,
-            );
-          });
-
-          setBatchResults((current) => {
-            const next = { ...current };
-            for (const result of results) {
-              next[buildEntityKey(result.entityType, result.entityId)] = result;
+            if (cancelled) {
+              return;
             }
-            return next;
-          });
-        } catch (error) {
-          if (__DEV__) {
-            console.log('[translation] batch request failed', error);
+
+            results.forEach((result) => {
+              const entityKey = buildEntityKey(result.entityType, result.entityId);
+              successfulKeys.add(entityKey);
+              nextResults[entityKey] = result;
+              queryClient.setQueryData(
+                ['contentTranslation', result.entityType, result.entityId, language],
+                result,
+              );
+            });
+          } catch (error) {
+            if (__DEV__) {
+              console.log('[translation] batch request failed', error);
+            }
+
+            chunk.forEach((item) => {
+              failedChunkKeys.add(buildEntityKey(item.entityType, item.entityId));
+            });
           }
-        } finally {
-          pendingKeys.forEach((key) => inFlightKeysRef.current.delete(key));
         }
-      })();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (Object.keys(nextResults).length > 0) {
+          setBatchResults((current) => ({ ...current, ...nextResults }));
+        }
+
+        setFailedKeys((current) => {
+          const next = { ...current };
+          successfulKeys.forEach((key) => {
+            delete next[key];
+          });
+          failedChunkKeys.forEach((key) => {
+            if (!successfulKeys.has(key)) {
+              next[key] = true;
+            }
+          });
+          return next;
+        });
+      })().finally(() => {
+        pendingKeys.forEach((key) => inFlightKeysRef.current.delete(key));
+        setIsFetching(inFlightKeysRef.current.size > 0);
+      });
     }, 40);
 
     return () => {
@@ -156,9 +200,10 @@ export function PageTranslationProvider({
       clearTimeout(timeoutId);
       if (!requestStarted) {
         pendingKeys.forEach((key) => inFlightKeysRef.current.delete(key));
+        setIsFetching(inFlightKeysRef.current.size > 0);
       }
     };
-  }, [batchResults, language, queryClient, showTranslated, uniqueBatchItems]);
+  }, [batchResults, failedKeys, language, queryClient, showTranslated, uniqueBatchItems]);
 
   const getTranslation = useCallback(
     (entityType: ContentEntityType, entityId?: string) => {
@@ -170,17 +215,60 @@ export function PageTranslationProvider({
     [batchResults],
   );
 
+  const hasResolvedTranslations = useMemo(
+    () => uniqueBatchItems.some((item) => Boolean(batchResults[buildEntityKey(item.entityType, item.entityId)])),
+    [batchResults, uniqueBatchItems],
+  );
+
+  const hasError = useMemo(
+    () => uniqueBatchItems.some((item) => Boolean(failedKeys[buildEntityKey(item.entityType, item.entityId)])),
+    [failedKeys, uniqueBatchItems],
+  );
+
+  const retryFailed = useCallback(() => {
+    setShowTranslated(true);
+    setFailedKeys((current) => {
+      const next = { ...current };
+      uniqueBatchItems.forEach((item) => {
+        delete next[buildEntityKey(item.entityType, item.entityId)];
+      });
+      return next;
+    });
+  }, [uniqueBatchItems]);
+
+  const toggleTranslated = useCallback(() => {
+    if (!showTranslated) {
+      setFailedKeys({});
+    }
+    setShowTranslated((current) => !current);
+  }, [showTranslated]);
+
   const value = useMemo<PageTranslationContextValue>(
     () => ({
       showTranslated,
       setShowTranslated,
-      toggleTranslated: () => setShowTranslated((current) => !current),
+      toggleTranslated,
+      retryFailed,
       registerItem,
       unregisterItem,
       getTranslation,
       hasRegisteredItems: Object.keys(registeredItems).length > 0,
+      hasResolvedTranslations,
+      hasError,
+      isFetching,
     }),
-    [getTranslation, registerItem, registeredItems, showTranslated, unregisterItem],
+    [
+      getTranslation,
+      hasError,
+      hasResolvedTranslations,
+      isFetching,
+      registerItem,
+      registeredItems,
+      retryFailed,
+      showTranslated,
+      toggleTranslated,
+      unregisterItem,
+    ],
   );
 
   return <PageTranslationContext.Provider value={value}>{children}</PageTranslationContext.Provider>;
@@ -204,26 +292,50 @@ export function PageTranslationToggle({
     return null;
   }
 
+  const shouldRetry = context.showTranslated && context.hasError && !context.hasResolvedTranslations;
+  const isLoading = context.showTranslated && context.isFetching && !context.hasResolvedTranslations;
+  const iconColor = shouldRetry
+    ? colors.error
+    : context.showTranslated
+      ? '#0463E2'
+      : '#86909C';
+  const accessibilityLabel = isLoading
+    ? t('translating')
+    : shouldRetry
+      ? t('retryTranslate')
+      : context.showTranslated
+        ? t('viewOriginal')
+        : t('translate');
+
   return (
     <View style={style}>
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={context.toggleTranslated}
+        onPress={shouldRetry ? context.retryFailed : context.toggleTranslated}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
       >
-        <TranslateActionIcon
-          size={18}
-          color={context.showTranslated ? '#0463E2' : '#86909C'}
-        />
+        {isLoading ? (
+          <View style={styles.loadingIndicator}>
+            <LoadingDots color="#0463E2" dotSize={4} gap={3} />
+          </View>
+        ) : (
+          <TranslateActionIcon
+            size={18}
+            color={iconColor}
+          />
+        )}
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  linkText: {
-    ...typography.labelSmall,
-    color: colors.onSurface,
-    fontWeight: '600',
+  loadingIndicator: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

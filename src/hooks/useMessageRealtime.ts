@@ -70,6 +70,7 @@ export function useMessageRealtime() {
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const queryClient = useQueryClient();
   const setTyping = useMessageRealtimeStore((s: any) => s.setTyping);
+  const setLastEventTimestamp = useMessageRealtimeStore((s) => s.setLastEventTimestamp);
   const handleIncomingMessage = useMessageStore((s) => s.handleIncomingMessage);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,6 +145,7 @@ export function useMessageRealtime() {
           }
 
           if (event.type === 'message:new') {
+            queryClient.invalidateQueries({ queryKey: ['chat-can-send', contactId] });
             if (event.message && currentUserId) {
               const nextMessage = buildChatMessageFromPersistedMessage(event.message, currentUserId);
               if (nextMessage) {
@@ -243,6 +245,7 @@ export function useMessageRealtime() {
         maxEventTs,
         Date.now() - 1000
       );
+      setLastEventTimestamp(sinceRef.current);
     };
 
     const connectSocket = async () => {
@@ -268,11 +271,18 @@ export function useMessageRealtime() {
           reconnectAttemptRef.current = 0;
           recordMessageMetric('message_ws_connected');
           if (wasReconnect) {
-            // After reconnect, refresh all active chats and contacts to catch missed messages
-            queryClient.invalidateQueries({
-              queryKey: ['chat'],
-              refetchType: 'active',
-            });
+            // After reconnect, refresh the active chat unless it still has a
+            // local optimistic send that the server has not acknowledged yet.
+            const activeChatContactId = useMessageStore.getState().activeChatContactId;
+            if (
+              activeChatContactId &&
+              !useMessageRealtimeStore.getState().hasPendingForContact(activeChatContactId)
+            ) {
+              queryClient.invalidateQueries({
+                queryKey: ['chat', activeChatContactId],
+                refetchType: 'active',
+              });
+            }
             queryClient.invalidateQueries({
               queryKey: ['contacts'],
               refetchType: 'active',
@@ -340,9 +350,16 @@ export function useMessageRealtime() {
         // Refresh active queries on foreground to catch missed messages
         queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
         const activeChatContactId = useMessageStore.getState().activeChatContactId;
-        if (activeChatContactId) {
+        if (
+          activeChatContactId &&
+          !useMessageRealtimeStore.getState().hasPendingForContact(activeChatContactId)
+        ) {
           queryClient.invalidateQueries({
             queryKey: ['chat', activeChatContactId],
+            refetchType: 'active',
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['chat-can-send', activeChatContactId],
             refetchType: 'active',
           });
         }
@@ -364,5 +381,5 @@ export function useMessageRealtime() {
         }
       }
     };
-  }, [handleIncomingMessage, hasHydrated, isLoggedIn, queryClient, setTyping]);
+  }, [handleIncomingMessage, hasHydrated, isLoggedIn, queryClient, setLastEventTimestamp, setTyping]);
 }

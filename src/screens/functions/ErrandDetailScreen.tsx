@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
@@ -140,7 +140,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
+          <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errandDetail')}</Text>
           <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
@@ -149,7 +149,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           ) : (
             <>
               <TruckIcon size={48} color="#86909C" />
-              <Text style={styles.emptyText}>{t('notFound')}</Text>
+              <Text style={[styles.emptyText, getLocalizedFontStyle(lang, 'regular')]}>{t('notFound')}</Text>
             </>
           )}
         </View>
@@ -162,6 +162,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
   const posterMeta = buildGradeMajorMeta(t, {
     gradeKey: errand.gradeKey,
     majorKey: errand.majorKey,
+    language: lang,
+    abbreviateForumGrade: true,
   });
 
   return (
@@ -172,7 +174,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('errandDetail')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errandDetail')}</Text>
         <TouchableOpacity onPress={() => setPopoverVisible(true)}>
           <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
@@ -193,15 +195,15 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
               <>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
-                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('editPost')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -212,7 +214,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
                   setReportVisible(true);
                 }}
               >
-                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+                <Text style={[styles.popoverItemTextDanger, getLocalizedFontStyle(lang, 'regular')]}>{t('reportAction')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -233,14 +235,14 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           />
           {isExpired && (
             <View style={styles.expiredTag}>
-              <Text style={styles.expiredTagText}>{t('errandExpired')}</Text>
+              <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('errandExpired')}</Text>
             </View>
           )}
         </View>
 
         {/* Description Section */}
         <View style={styles.descSection}>
-          <Text style={styles.descLabel}>{t('details')}</Text>
+          <Text style={[styles.descLabel, getLocalizedFontStyle(lang, 'bold')]}>{t('details')}</Text>
           <TranslatableText
             entityType="errand"
             entityId={errand.id}
@@ -257,7 +259,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#FF2538' }}>¥</Text>
           </View>
           <View>
-            <Text style={styles.infoLabel}>{t('reward')}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('reward')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
               <Text style={styles.priceCurrency}>HK¥</Text>
               <Text style={styles.priceValue}>{errand.price?.replace(/^HK\$?\s*|^HKD?\s*/i, '') || '0'}</Text>
@@ -271,7 +273,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <PinCheckIcon size={18} color="#0C1015" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoLabel}>{t('pickupLocation')}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('pickupLocation')}</Text>
             <TranslatableText
               entityType="errand"
               entityId={errand.id}
@@ -289,7 +291,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <HomeDeliverIcon size={18} color="#0C1015" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoLabel}>{t('deliveryLocation')}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('deliveryLocation')}</Text>
             <TranslatableText
               entityType="errand"
               entityId={errand.id}
@@ -307,8 +309,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <ClockDeadlineIcon size={18} color="#0C1015" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
-            <Text style={styles.infoValue}>{formatDeadline(errand.time, lang)}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('deadlineTime')}</Text>
+            <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{formatDeadline(errand.time, lang)}</Text>
           </View>
         </View>
 
@@ -318,8 +320,8 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             <CategoryListIcon size={18} color="#0C1015" />
           </View>
           <View>
-            <Text style={styles.infoLabel}>{t('categoryLabel')}</Text>
-            <Text style={styles.infoValue}>{t(errand.category.toLowerCase())}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('categoryLabel')}</Text>
+            <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{t(errand.category.toLowerCase())}</Text>
           </View>
         </View>
 
@@ -331,11 +333,11 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <Avatar text={errand.user} uri={errand.avatar} size="sm" gender={errand.gender} />
           <View>
             <View style={styles.userNameRow}>
-              <Text style={styles.userName}>{errand.user}</Text>
+              <Text style={[styles.userName, getLocalizedFontStyle(lang, 'medium')]}>{errand.user}</Text>
               {errand.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
               {errand.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
             </View>
-            <Text style={styles.userMeta} numberOfLines={1}>
+            <Text style={[styles.userMeta, getLocalizedFontStyle(lang, 'regular')]} numberOfLines={2}>
               {posterMeta ? `${posterMeta} \u00B7 ${posterTime}` : posterTime}
             </Text>
           </View>
@@ -354,7 +356,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             onPress={handleDmPoster}
             disabled={isExpired}
           >
-            <Text style={styles.bottomBtnText}>{t('errandDmPoster')}</Text>
+            <Text style={[styles.bottomBtnText, getLocalizedFontStyle(lang, 'bold')]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{t('errandDmPoster')}</Text>
           </TouchableOpacity>
         </View>
       )}

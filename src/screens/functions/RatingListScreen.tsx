@@ -23,7 +23,7 @@ import { translateLabel } from '../../utils/translate';
 import { getLocalizedRatingDepartment, getLocalizedRatingLocation, getLocalizedRatingMetaLabel } from '../../utils/ratingMeta';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import { BackIcon, CloseIcon, SearchIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
@@ -193,14 +193,31 @@ function getSearchScore(indexedItem: IndexedRatingItem, queryIndex: SearchQueryI
   return bestScore;
 }
 
-function MiniScoreBar({ label, value }: { label: string; value: number }) {
+function MiniScoreBar({
+  label,
+  value,
+  lang,
+}: {
+  label: string;
+  value: number;
+  lang: 'tc' | 'sc' | 'en';
+}) {
   return (
     <View style={styles.miniBarRow}>
-      <Text style={styles.miniBarLabel} numberOfLines={1}>{label}</Text>
+      <Text
+        style={[
+          styles.miniBarLabel,
+          getLocalizedFontStyle(lang, 'regular'),
+          lang === 'en' ? styles.miniBarLabelEnglish : null,
+        ]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
       <View style={styles.miniBarTrack}>
         <View style={[styles.miniBarFill, { width: `${value}%` }]} />
       </View>
-      <Text style={styles.miniBarValue}>{value}</Text>
+      <Text style={[styles.miniBarValue, getLocalizedFontStyle(lang, 'bold')]}>{value}</Text>
     </View>
   );
 }
@@ -210,12 +227,12 @@ export default function RatingListScreen({ navigation }: Props) {
   const queryClient = useQueryClient();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
   const listRef = useRef<any>(null);
+  const pendingScrollToTop = useRef(false);
   const selectedCategory = useRatingStore((s) => s.selectedCategory);
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
-  // Use searchQuery directly — client-side filtering is fast enough, no need for useDeferredValue
-  const deferredSearchQuery = searchQuery;
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showSearch, setShowSearch] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<RatingCategory, string>>({
     course: ALL_FILTER_VALUE,
@@ -334,17 +351,23 @@ export default function RatingListScreen({ navigation }: Props) {
 
   const handleQuickFilterChange = useCallback(
     (value: string) => {
+      pendingScrollToTop.current = true;
       setActiveFilters((prev) => ({ ...prev, [category]: value }));
     },
     [category]
   );
 
-  useEffect(() => {
-    const frameId = requestAnimationFrame(() => {
+  const handleContentSizeChange = useCallback(() => {
+    if (pendingScrollToTop.current) {
+      pendingScrollToTop.current = false;
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    });
-    return () => cancelAnimationFrame(frameId);
-  }, [category, effectiveQuickFilter, deferredSearchQuery]);
+    }
+  }, []);
+
+  // Scroll to top on category or search change
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [category, deferredSearchQuery]);
 
   const searchQueryIndex = useMemo(() => buildSearchQueryIndex(deferredSearchQuery), [deferredSearchQuery]);
 
@@ -375,14 +398,20 @@ export default function RatingListScreen({ navigation }: Props) {
       .map((entry) => entry.item);
   }, [effectiveQuickFilter, indexedRatings, searchQueryIndex]);
 
+  const listIdentityKey = useMemo(
+    () => `ratings:${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}`,
+    [category, effectiveQuickFilter, searchQueryIndex.trimmed]
+  );
+
   const getSubtitle = useCallback(
     (item: RatingItem) => {
       const translatedDepartment = getDepartmentLabel(item, lang);
       if ('code' in item && item.code) {
         return [item.code, translatedDepartment].filter(Boolean).join(' | ');
       }
-      if ('email' in item && item.email) {
-        return [translatedDepartment, item.email].filter(Boolean).join(' | ');
+      if ('email' in item) {
+        const emailDisplay = item.email || t('noEmail');
+        return [translatedDepartment, emailDisplay].filter(Boolean).join(' | ');
       }
       if ('location' in item && item.location) {
         return [getLocationLabel(item, lang), translatedDepartment].filter(Boolean).join(' | ');
@@ -418,16 +447,16 @@ export default function RatingListScreen({ navigation }: Props) {
              category === 'canteen' ? <CanteenAvatarIcon size={40} /> :
              <MajorAvatarIcon size={40} />}
             <View style={styles.cardTitleWrap}>
-              <Text style={styles.cardName} numberOfLines={1}>
+              <Text style={[styles.cardName, getLocalizedFontStyle(lang, 'bold')]} numberOfLines={lang === 'en' ? 2 : 1}>
                 {translateLabel(item.name, lang)}
               </Text>
-              <Text style={styles.cardSubtitle} numberOfLines={1}>
+              <Text style={[styles.cardSubtitle, getLocalizedFontStyle(lang, 'regular')]} numberOfLines={lang === 'en' ? 2 : 1}>
                 {getSubtitle(item)}
               </Text>
             </View>
             <View style={styles.overallScoreWrap}>
               <Text style={styles.overallScoreText}>{overallScore}</Text>
-              <Text style={styles.ratingCountSmall}>{item.ratingCount}{t('personRated')}</Text>
+              <Text style={[styles.ratingCountSmall, getLocalizedFontStyle(lang, 'regular')]}>{item.ratingCount}{t('personRated')}</Text>
             </View>
           </View>
           <View style={styles.cardBody}>
@@ -437,13 +466,14 @@ export default function RatingListScreen({ navigation }: Props) {
                   key={score.key}
                   label={translateLabel(score.label, lang)}
                   value={score.value}
+                  lang={lang}
                 />
               ))}
             </View>
             <View style={styles.cardBottom}>
               {topTags.map((tag) => (
                 <View key={tag} style={styles.tagChip}>
-                  <Text style={styles.tagChipText}>{translateLabel(tag, lang)}</Text>
+                  <Text style={[styles.tagChipText, getLocalizedFontStyle(lang, 'regular')]}>{translateLabel(tag, lang)}</Text>
                 </View>
               ))}
             </View>
@@ -461,7 +491,7 @@ export default function RatingListScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('ratings')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('ratings')}</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
             <FigmaSearchIcon26 size={30} />
@@ -475,7 +505,7 @@ export default function RatingListScreen({ navigation }: Props) {
           <View style={styles.searchBar}>
             <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, getLocalizedFontStyle(lang, 'regular')]}
               placeholder={t(SEARCH_PLACEHOLDERS[category])}
               placeholderTextColor={colors.outline}
               value={searchQuery}
@@ -523,6 +553,7 @@ export default function RatingListScreen({ navigation }: Props) {
               <Text
                 style={[
                   styles.filterChipText,
+                  getLocalizedFontStyle(lang, effectiveQuickFilter === ALL_FILTER_VALUE ? 'bold' : 'regular'),
                   effectiveQuickFilter === ALL_FILTER_VALUE && styles.filterChipTextActive,
                 ]}
               >
@@ -538,7 +569,7 @@ export default function RatingListScreen({ navigation }: Props) {
                   onPress={() => handleQuickFilterChange(option.value)}
                   style={[styles.filterChip, isActive && styles.filterChipActive]}
                 >
-                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                  <Text style={[styles.filterChipText, getLocalizedFontStyle(lang, isActive ? 'bold' : 'regular'), isActive && styles.filterChipTextActive]}>
                     {option.label}
                   </Text>
                 </TouchableOpacity>
@@ -554,26 +585,28 @@ export default function RatingListScreen({ navigation }: Props) {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <FlashList
-          ref={listRef}
-          data={filteredRatings}
-          extraData={`${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}`}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          estimatedItemSize={160}
-          contentContainerStyle={styles.listContent}
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          drawDistance={250}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          ListEmptyComponent={
-            <EmptyState
-              icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
-              title={deferredSearchQuery.trim() || effectiveQuickFilter !== ALL_FILTER_VALUE ? t('noSearchResults') : t('noRatingData')}
-            />
-          }
-        />
+        <View key={listIdentityKey} style={styles.listWrapper}>
+          <FlashList
+            ref={listRef}
+            data={filteredRatings}
+            extraData={`${listIdentityKey}:${filteredRatings.length}`}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            onContentSizeChange={handleContentSizeChange}
+            drawDistance={500}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListEmptyComponent={
+              <EmptyState
+                icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
+                title={deferredSearchQuery.trim() || effectiveQuickFilter !== ALL_FILTER_VALUE ? t('noSearchResults') : t('noRatingData')}
+              />
+            }
+          />
+        </View>
       )}
     </SafeAreaView>
   );
@@ -679,6 +712,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  listWrapper: {
+    flex: 1,
+  },
   listContent: {
     flexGrow: 1,
     paddingBottom: 100,
@@ -692,12 +728,14 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     marginBottom: 12,
   },
   cardTitleWrap: {
     flex: 1,
+    minWidth: 0,
+    paddingRight: 4,
   },
   cardName: {
     fontSize: 15,
@@ -720,6 +758,8 @@ const styles = StyleSheet.create({
   },
   overallScoreWrap: {
     alignItems: 'flex-end',
+    flexShrink: 0,
+    marginLeft: 8,
   },
   overallScoreText: {
     fontSize: 20,
@@ -740,8 +780,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
-    width: 48,
+    width: 56,
     flexShrink: 0,
+  },
+  miniBarLabelEnglish: {
+    width: 82,
+    lineHeight: 14,
   },
   miniBarTrack: {
     flex: 1,

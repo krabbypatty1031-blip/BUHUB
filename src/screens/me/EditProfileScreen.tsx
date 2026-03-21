@@ -24,7 +24,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import { normalizeAvatarUrl } from '../../utils/imageUrl';
 import Avatar from '../../components/common/Avatar';
 import {
@@ -118,7 +118,7 @@ export default function EditProfileScreen({ navigation }: Props) {
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(i18n.language, 'bold')]}>
           {t('editProfile')}
         </Text>
         <TouchableOpacity
@@ -130,7 +130,14 @@ export default function EditProfileScreen({ navigation }: Props) {
           {isSaving || updateProfile.isPending ? (
             <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
-            <Text style={styles.saveBtnText}>{t('save')}</Text>
+            <Text
+              style={[styles.saveBtnText, getLocalizedFontStyle(i18n.language, 'medium')]}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              numberOfLines={1}
+            >
+              {t('save')}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -166,7 +173,7 @@ export default function EditProfileScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={pickAvatar} activeOpacity={0.6}>
-            <Text style={styles.changeAvatarText}>
+            <Text style={[styles.changeAvatarText, getLocalizedFontStyle(i18n.language, 'medium')]}>
               {t('changeAvatar')}
             </Text>
           </TouchableOpacity>
@@ -176,10 +183,10 @@ export default function EditProfileScreen({ navigation }: Props) {
         <View style={styles.formSection}>
           {/* Nickname */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>{t('labelNickname')}</Text>
+            <Text style={[styles.fieldLabel, getLocalizedFontStyle(i18n.language, 'medium')]}>{t('labelNickname')}</Text>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={styles.fieldInput}
+                style={[styles.fieldInput, getLocalizedFontStyle(i18n.language, 'regular')]}
                 value={nickname}
                 onChangeText={setNickname}
                 placeholder={t('placeholderNickname')}
@@ -191,10 +198,10 @@ export default function EditProfileScreen({ navigation }: Props) {
 
           {/* Bio */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>{t('labelBio')}</Text>
+            <Text style={[styles.fieldLabel, getLocalizedFontStyle(i18n.language, 'medium')]}>{t('labelBio')}</Text>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={styles.fieldInput}
+                style={[styles.fieldInput, getLocalizedFontStyle(i18n.language, 'regular')]}
                 value={bio}
                 onChangeText={setBio}
                 placeholder={t('placeholderBio')}
@@ -203,18 +210,21 @@ export default function EditProfileScreen({ navigation }: Props) {
                 maxLength={bioMaxLength}
               />
             </View>
-            <Text style={styles.charCount}>{bio.length}/{bioMaxLength}</Text>
+            <Text style={[styles.charCount, getLocalizedFontStyle(i18n.language, 'regular')]}>{bio.length}/{bioMaxLength}</Text>
           </View>
 
           {/* Major */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>{t('labelMajor')}</Text>
+            <Text style={[styles.fieldLabel, getLocalizedFontStyle(i18n.language, 'medium')]}>{t('labelMajor')}</Text>
             <TouchableOpacity
               style={styles.selectWrapper}
               onPress={() => { setPickerType('major'); setPickerVisible(true); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.selectText, !major && styles.selectPlaceholder]}>
+              <Text
+                style={[styles.selectText, getLocalizedFontStyle(i18n.language, 'regular'), !major && styles.selectPlaceholder]}
+                numberOfLines={2}
+              >
                 {major ? getMajorLabel(major) : t('major')}
               </Text>
               <ChevronRightIcon size={18} color={colors.onSurface} />
@@ -223,13 +233,16 @@ export default function EditProfileScreen({ navigation }: Props) {
 
           {/* Grade */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>{t('labelGrade')}</Text>
+            <Text style={[styles.fieldLabel, getLocalizedFontStyle(i18n.language, 'medium')]}>{t('labelGrade')}</Text>
             <TouchableOpacity
               style={styles.selectWrapper}
               onPress={() => { setPickerType('grade'); setPickerVisible(true); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.selectText, !grade && styles.selectPlaceholder]}>
+              <Text
+                style={[styles.selectText, getLocalizedFontStyle(i18n.language, 'regular'), !grade && styles.selectPlaceholder]}
+                numberOfLines={2}
+              >
                 {grade ? t(grade) : t('grade')}
               </Text>
               <ChevronRightIcon size={18} color={colors.onSurface} />
@@ -253,11 +266,11 @@ export default function EditProfileScreen({ navigation }: Props) {
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <View style={styles.pickerHeaderSide} />
-              <Text style={styles.pickerTitle}>
+              <Text style={[styles.pickerTitle, getLocalizedFontStyle(i18n.language, 'medium')]}>
                 {pickerType === 'grade' ? t('labelGrade') : t('labelMajor')}
               </Text>
               <TouchableOpacity onPress={() => setPickerVisible(false)}>
-                <Text style={styles.pickerCancel}>{t('cancel')}</Text>
+                <Text style={[styles.pickerCancel, getLocalizedFontStyle(i18n.language, 'medium')]}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -275,7 +288,7 @@ export default function EditProfileScreen({ navigation }: Props) {
                       setPickerVisible(false);
                     }}
                   >
-                    <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextSelected]}>
+                    <Text style={[styles.pickerItemText, getLocalizedFontStyle(i18n.language, 'regular'), isSelected && styles.pickerItemTextSelected]}>
                       {pickerType === 'major' ? getMajorLabel(item) : t(item)}
                     </Text>
                   </TouchableOpacity>
@@ -318,7 +331,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
   },
@@ -332,7 +344,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     marginRight: spacing.xs,
-    minWidth: 48,
+    minWidth: 72,
     justifyContent: 'center',
   },
   saveBtnText: {
@@ -435,6 +447,8 @@ const styles = StyleSheet.create({
   selectText: {
     ...typography.bodyMedium,
     color: colors.onSurface,
+    flex: 1,
+    paddingRight: spacing.md,
   },
   selectPlaceholder: {
     color: colors.outline,

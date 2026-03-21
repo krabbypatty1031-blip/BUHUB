@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
@@ -140,7 +140,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <BackIcon size={26} color="#0C1015" />
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
+          <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('partnerDetail')}</Text>
           <View style={{ width: 20 }} />
         </View>
         <View style={styles.emptyContainer}>
@@ -149,7 +149,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           ) : (
             <>
               <UsersIcon size={48} color="#86909C" />
-              <Text style={styles.emptyText}>{t('notFound')}</Text>
+              <Text style={[styles.emptyText, getLocalizedFontStyle(lang, 'regular')]}>{t('notFound')}</Text>
             </>
           )}
         </View>
@@ -162,6 +162,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const organizerMeta = buildGradeMajorMeta(t, {
     gradeKey: partner.gradeKey,
     majorKey: partner.majorKey,
+    language: lang,
+    abbreviateForumGrade: true,
   });
 
   return (
@@ -172,7 +174,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('partnerDetail')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('partnerDetail')}</Text>
         <TouchableOpacity onPress={() => setPopoverVisible(true)}>
           <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
@@ -193,15 +195,15 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 setShareSheetVisible(true);
               }}
             >
-              <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
             {isOwnPost ? (
               <>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleForwardToForum}>
-                  <Text style={styles.popoverItemText}>{t('forwardToForum')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
-                  <Text style={styles.popoverItemText}>{t('editPost')}</Text>
+                  <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('editPost')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -212,7 +214,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                   setReportVisible(true);
                 }}
               >
-                <Text style={styles.popoverItemTextDanger}>{t('reportAction')}</Text>
+                <Text style={[styles.popoverItemTextDanger, getLocalizedFontStyle(lang, 'regular')]}>{t('reportAction')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -233,14 +235,14 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           />
           {isExpired && (
             <View style={styles.expiredTag}>
-              <Text style={styles.expiredTagText}>{t('partnerExpired')}</Text>
+              <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('partnerExpired')}</Text>
             </View>
           )}
         </View>
 
         {/* Description Section */}
         <View style={styles.descSection}>
-          <Text style={styles.descLabel}>{t('details')}</Text>
+          <Text style={[styles.descLabel, getLocalizedFontStyle(lang, 'bold')]}>{t('details')}</Text>
           <TranslatableText
             entityType="partner"
             entityId={partner.id}
@@ -258,7 +260,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
               <LocationPinIcon size={18} color="#0C1015" />
             </View>
             <View>
-              <Text style={styles.infoLabel}>{t('location')}</Text>
+              <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('location')}</Text>
               <TranslatableText
                 entityType="partner"
                 entityId={partner.id}
@@ -277,8 +279,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             <CalendarDotIcon size={18} color="#0C1015" />
           </View>
           <View>
-            <Text style={styles.infoLabel}>{t('activityTime')}</Text>
-            <Text style={styles.infoValue}>{formatDeadline(partner.time, lang)}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('activityTime')}</Text>
+            <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{formatDeadline(partner.time, lang)}</Text>
           </View>
         </View>
 
@@ -288,8 +290,8 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             <ClockDeadlineIcon size={18} color="#0C1015" />
           </View>
           <View>
-            <Text style={styles.infoLabel}>{t('deadlineTime')}</Text>
-            <Text style={styles.infoValue}>{formatDeadline(partner.expiresAt, lang)}</Text>
+            <Text style={[styles.infoLabel, getLocalizedFontStyle(lang, 'regular')]}>{t('deadlineTime')}</Text>
+            <Text style={[styles.infoValue, getLocalizedFontStyle(lang, 'medium')]}>{formatDeadline(partner.expiresAt, lang)}</Text>
           </View>
         </View>
 
@@ -301,11 +303,11 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           <Avatar text={partner.user} uri={partner.avatar} size="sm" gender={partner.gender} />
           <View>
             <View style={styles.userNameRow}>
-              <Text style={styles.userName}>{partner.user}</Text>
+              <Text style={[styles.userName, getLocalizedFontStyle(lang, 'medium')]}>{partner.user}</Text>
               {partner.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
               {partner.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
             </View>
-            <Text style={styles.userMeta} numberOfLines={1}>
+            <Text style={[styles.userMeta, getLocalizedFontStyle(lang, 'regular')]} numberOfLines={2}>
               {organizerMeta ? `${organizerMeta} \u00B7 ${organizerTime}` : organizerTime}
             </Text>
           </View>
@@ -324,7 +326,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
             onPress={handleDmOrganizer}
             disabled={isExpired}
           >
-            <Text style={styles.bottomBtnText}>{t('partnerDmOrganizer')}</Text>
+            <Text style={[styles.bottomBtnText, getLocalizedFontStyle(lang, 'bold')]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{t('partnerDmOrganizer')}</Text>
           </TouchableOpacity>
         </View>
       )}

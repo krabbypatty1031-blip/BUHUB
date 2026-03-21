@@ -144,6 +144,16 @@ const ENDPOINTS = {
     RESOLVE: '/translations/resolve',
     BATCH: '/translations/batch',
   },
+
+  // Schedule
+  SCHEDULE: {
+    GET: '/schedule',
+    SAVE: '/schedule',
+    PARSE: '/schedule/parse',
+    ADD_COURSE: '/schedule/courses',
+    EDIT_COURSE: (id: string) => `/schedule/courses/${id}`,
+    DELETE_COURSE: (id: string) => `/schedule/courses/${id}`,
+  },
 } as const;
 
 export default ENDPOINTS;

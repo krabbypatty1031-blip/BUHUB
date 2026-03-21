@@ -18,6 +18,7 @@ import {
 import { FigmaMoreDotsIcon } from './SecondhandFigmaIcons';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import { isExpiredNow } from '../../hooks/useExpirationTick';
+import { getLocalizedFontStyle } from '../../theme/typography';
 
 export interface SecondhandCardProps {
   item: SecondhandItem;
@@ -61,14 +62,14 @@ function CardCombinedText({
     return () => unregisterItem?.(keyRef.current);
   }, [registerItem, unregisterItem, entityId, item.title, item.sourceLanguage]);
 
-  // When translated, only replace the title part; condition + desc stay as-is
-  const translatedTitle = pageCtx?.showTranslated
-    ? pageCtx.getTranslation('secondhand', entityId)?.fields?.title
+  // When translated, replace title and description parts
+  const translatedFields = pageCtx?.showTranslated
+    ? pageCtx.getTranslation('secondhand', entityId)?.fields
     : undefined;
 
-  const titlePart = translatedTitle ?? item.title?.trim() ?? '';
+  const titlePart = translatedFields?.title ?? item.title?.trim() ?? '';
   const conditionPart = getLocalizedSecondhandCondition(item.condition, t);
-  const descPart = item.desc?.trim() || t('noDescription');
+  const descPart = translatedFields?.description ?? (item.desc?.trim() || t('noDescription'));
   const combined = [titlePart, conditionPart, descPart].filter(Boolean).join(' | ');
 
   return (
@@ -95,6 +96,8 @@ const SecondhandCard = React.memo(function SecondhandCard({
   t,
   categoryLabel,
 }: SecondhandCardProps) {
+  const { i18n } = useTranslation();
+  const language = i18n.language;
   const isSoldOrExpired = item.sold || isExpiredNow(item.expired, item.expiresAt, now);
   const primaryImage = item.images?.[0];
 
@@ -143,23 +146,25 @@ const SecondhandCard = React.memo(function SecondhandCard({
       {/* Right content */}
       <View style={[styles.cardContent, isSoldOrExpired && styles.contentDimmed]}>
         <View style={styles.cardMain}>
-          <View style={styles.titleRow}>
+          <View style={styles.titleBlock}>
             <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
-            {categoryLabel ? (
-              <View style={styles.categoryTag}>
-                <Text style={styles.categoryTagText}>{categoryLabel}</Text>
-              </View>
-            ) : null}
-            {item.sold ? (
-              <View style={styles.expiredTag}>
-                <Text style={styles.expiredTagText}>{t('sold')}</Text>
-              </View>
-            ) : isSoldOrExpired ? (
-              <View style={styles.expiredTag}>
-                <Text style={styles.expiredTagText}>{t('secondhandExpired')}</Text>
-              </View>
-            ) : null}
-            <PageTranslationToggle style={styles.translateToggle} />
+            <View style={styles.titleMetaRow}>
+              {categoryLabel ? (
+                <View style={styles.categoryTag}>
+                  <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
+                </View>
+              ) : null}
+              {item.sold ? (
+                <View style={styles.expiredTag}>
+                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('sold')}</Text>
+                </View>
+              ) : isSoldOrExpired ? (
+                <View style={styles.expiredTag}>
+                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('secondhandExpired')}</Text>
+                </View>
+              ) : null}
+              <PageTranslationToggle style={styles.translateToggle} />
+            </View>
           </View>
           <View>
             <View style={styles.priceRow}>
@@ -181,7 +186,7 @@ const SecondhandCard = React.memo(function SecondhandCard({
                   }}
                 >
                   <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
-                  <Text style={styles.sellerName} numberOfLines={1}>{item.user}</Text>
+                  <Text style={[styles.sellerName, getLocalizedFontStyle(language, 'regular')]} numberOfLines={1}>{item.user}</Text>
                   {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
                   {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
                 </TouchableOpacity>
@@ -305,17 +310,18 @@ const styles = StyleSheet.create({
     height: 105,
     justifyContent: 'space-between',
   },
-  /* Figma 1:1646: title row — gap:10 */
-  titleRow: {
+  titleBlock: {
+    gap: 6,
+  },
+  titleMetaRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   /* Figma 1:1647: h:40 (2 lines max) */
   titleTextWrap: {
-    flex: 1,
-    height: 40,
-    width: 0,
+    width: '100%',
     minWidth: 0,
     flexShrink: 1,
   },
@@ -330,9 +336,8 @@ const styles = StyleSheet.create({
     color: '#C7C7CC',
   },
   translateToggle: {
-    marginTop: 0,
-    alignSelf: 'flex-start',
     marginLeft: 'auto',
+    alignSelf: 'center',
   },
 
   /* Figma 1:1651: D-DIN Exp Bold, #FF2538, gap:2, items-end */

@@ -8,10 +8,13 @@ const MESSAGE_CACHE_VERSION = 1;
 const CONTACTS_CACHE_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:contacts`;
 const CHAT_CACHE_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:chat`;
 const HIDDEN_CHAT_MESSAGES_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:hidden-chat-messages`;
+const RECENT_SENT_MESSAGES_PREFIX = `message-cache:v${MESSAGE_CACHE_VERSION}:recent-sent`;
+const MAX_RECENT_SENT_MESSAGES_PER_CONTACT = 12;
 
 const contactsMemoryCache = new Map<string, Contact[]>();
 const chatMemoryCache = new Map<string, ChatHistory[]>();
 const hiddenChatMessagesMemoryCache = new Map<string, string[]>();
+const recentSentMessagesMemoryCache = new Map<string, ChatMessage[]>();
 
 function getNormalizedLanguage(language?: string | null): string {
   return normalizeLanguage(language ?? i18n.language) ?? 'tc';
@@ -27,6 +30,10 @@ function buildChatCacheKey(userId: string, language: string, contactId: string) 
 
 function buildHiddenChatMessagesKey(userId: string, contactId: string) {
   return `${HIDDEN_CHAT_MESSAGES_PREFIX}:${userId}:${contactId}`;
+}
+
+function buildRecentSentMessagesKey(userId: string, contactId: string) {
+  return `${RECENT_SENT_MESSAGES_PREFIX}:${userId}:${contactId}`;
 }
 
 function cloneContacts(contacts: Contact[]): Contact[] {
@@ -392,6 +399,40 @@ export function peekHiddenChatMessages(
   const cacheKey = buildHiddenChatMessagesKey(userId, contactId);
   const cached = hiddenChatMessagesMemoryCache.get(cacheKey);
   return cached ? cloneStringArray(cached) : undefined;
+}
+
+export function peekRecentSentMessages(
+  userId: string,
+  contactId: string
+): ChatMessage[] | undefined {
+  const cacheKey = buildRecentSentMessagesKey(userId, contactId);
+  const cached = recentSentMessagesMemoryCache.get(cacheKey);
+  return cached ? cloneMessages(cached) : undefined;
+}
+
+export function rememberRecentSentMessage(
+  userId: string,
+  contactId: string,
+  message: ChatMessage
+): void {
+  if (!userId || !contactId || !message.id) return;
+  const cacheKey = buildRecentSentMessagesKey(userId, contactId);
+  const current = recentSentMessagesMemoryCache.get(cacheKey) ?? [];
+  const next = [
+    ...current.filter(
+      (item) =>
+        item.id !== message.id &&
+        (!message.clientKey || item.clientKey !== message.clientKey)
+    ),
+    { ...message },
+  ]
+    .sort((a, b) => {
+      const aTs = Date.parse(a.createdAt ?? '') || 0;
+      const bTs = Date.parse(b.createdAt ?? '') || 0;
+      return aTs - bTs;
+    })
+    .slice(-MAX_RECENT_SENT_MESSAGES_PER_CONTACT);
+  recentSentMessagesMemoryCache.set(cacheKey, cloneMessages(next));
 }
 
 export async function persistContactsCache(

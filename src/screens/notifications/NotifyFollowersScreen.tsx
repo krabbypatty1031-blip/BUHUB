@@ -20,7 +20,7 @@ import { useFollowUser } from '../../hooks/useUser';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import { BackIcon, UsersIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
@@ -30,9 +30,11 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyFollowers'>;
 function FollowerItem({
   item,
   onAvatarPress,
+  language,
 }: {
   item: FollowerNotification;
   onAvatarPress: (userName: string) => void;
+  language: string;
 }) {
   const { t } = useTranslation();
   const followUser = useFollowUser();
@@ -62,7 +64,7 @@ function FollowerItem({
       <View style={styles.notificationContent}>
         <View style={styles.notificationHeader}>
           <View style={styles.notificationNameRow}>
-            <Text style={styles.notificationUser} numberOfLines={1}>
+            <Text style={[styles.notificationUser, getLocalizedFontStyle(language, 'medium')]} numberOfLines={1}>
               {item.user}
             </Text>
             {item.gender === 'male' ? (
@@ -72,11 +74,11 @@ function FollowerItem({
               <FemaleIcon size={12} color={colors.genderFemale} />
             ) : null}
           </View>
-          <Text style={styles.notificationTime}>{item.time}</Text>
+          <Text style={[styles.notificationTime, getLocalizedFontStyle(language, 'regular')]}>{item.time}</Text>
         </View>
         <View style={styles.actionRow}>
           <UsersIcon size={14} color={colors.primary} />
-          <Text style={styles.notificationAction}>
+          <Text style={[styles.notificationAction, getLocalizedFontStyle(language, 'regular')]}>
             {t('followedYou')}
           </Text>
         </View>
@@ -96,8 +98,12 @@ function FollowerItem({
           <Text
             style={[
               styles.followBackText,
+              getLocalizedFontStyle(language, 'medium'),
               followed && styles.followBackTextFollowed,
             ]}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            numberOfLines={1}
           >
             {followed
               ? t('alreadyFollowed')
@@ -110,7 +116,8 @@ function FollowerItem({
 }
 
 export default function NotifyFollowersScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { data: notifications, isLoading, refetch } = useFollowerNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadFollowers = useNotificationStore((s) => s.setUnreadFollowers);
@@ -144,9 +151,9 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
 
   const renderItem = useCallback(
     ({ item }: { item: FollowerNotification }) => (
-      <FollowerItem item={item} onAvatarPress={handleAvatarPress} />
+      <FollowerItem item={item} onAvatarPress={handleAvatarPress} language={language} />
     ),
-    [handleAvatarPress]
+    [handleAvatarPress, language]
   );
 
   return (
@@ -158,7 +165,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>
           {t('followerNotifications')}
         </Text>
         <View style={styles.iconBtn} />
@@ -215,7 +222,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
   },
@@ -248,6 +254,7 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
+    minWidth: 0,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -265,11 +272,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     flex: 1,
+    minWidth: 0,
     marginRight: spacing.sm,
   },
   notificationTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 0,
   },
   actionRow: {
     flexDirection: 'row',
@@ -286,7 +295,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
-    minWidth: 80,
+    minWidth: 96,
     alignItems: 'center',
   },
   followBackBtnFollowed: {

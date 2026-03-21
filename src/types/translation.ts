@@ -1,6 +1,6 @@
 import type { Language } from './common';
 
-export type ContentEntityType = 'post' | 'comment' | 'partner' | 'errand' | 'secondhand';
+export type ContentEntityType = 'post' | 'comment' | 'partner' | 'errand' | 'secondhand' | 'rating';
 
 export interface ContentTranslationResult {
   entityType: ContentEntityType;

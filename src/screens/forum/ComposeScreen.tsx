@@ -63,6 +63,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
         majorKey: quotedPost.majorKey,
         createdAt: quotedPost.createdAt,
         isAnonymous: quotedPost.isAnonymous,
+        abbreviateForumGrade: true,
       })
     : '';
   const functionType = route.params?.functionType;
@@ -645,4 +646,3 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 });
-

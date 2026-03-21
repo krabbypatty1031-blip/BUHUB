@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { spacing } from '../../theme';
+import { spacing, borderRadius, colors } from '../../theme';
 
 /* ── Shared aspect-ratio cache (also used by AutoRatioImage) ── */
 const ratioCache = new Map<string, number>();

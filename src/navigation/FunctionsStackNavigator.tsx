@@ -23,6 +23,8 @@ import SecondhandShareScreen from '../screens/functions/SecondhandShareScreen';
 import FacilityBookingScreen from '../screens/functions/FacilityBookingScreen';
 import LibraryDetailScreen from '../screens/functions/LibraryDetailScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
+import AIScheduleUploadScreen from '../screens/functions/AIScheduleUploadScreen';
+import AIScheduleViewScreen from '../screens/functions/AIScheduleViewScreen';
 
 const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
@@ -56,6 +58,8 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="FacilityBooking" component={FacilityBookingScreen} />
       <Stack.Screen name="LibraryDetail" component={LibraryDetailScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="AIScheduleUpload" component={AIScheduleUploadScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AIScheduleView" component={AIScheduleViewScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

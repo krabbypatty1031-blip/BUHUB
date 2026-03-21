@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
+    paddingVertical: 10,
     gap: 24,
   },
   feedTab: {

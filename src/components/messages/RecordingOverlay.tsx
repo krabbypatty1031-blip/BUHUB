@@ -46,7 +46,7 @@ const BAR_PHASES = Array.from({ length: WAVE_BAR_COUNT }, (_, i) => {
 });
 
 /* All bars driven by ONE shared progress value — minimal overhead */
-function WaveBarAnimated({ progress, index }: { progress: ReAnimated.SharedValue<number>; index: number }) {
+function WaveBarAnimated({ progress, index }: { progress: { value: number }; index: number }) {
   const { phase, amplitude } = BAR_PHASES[index];
 
   const animStyle = useAnimatedStyle(() => {

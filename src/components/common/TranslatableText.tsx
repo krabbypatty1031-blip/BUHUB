@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useContentTranslation } from '../../hooks/useContentTranslation';
-import { normalizeLanguage } from '../../i18n';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import type { ContentEntityType } from '../../types';
+import { resolveTranslationSourceLanguage, shouldAllowContentTranslation } from '../../utils/contentLanguage';
+import LoadingDots from './LoadingDots';
 import { usePageTranslation } from './PageTranslation';
 
 type Props = {
@@ -50,8 +51,14 @@ export default function TranslatableText({
   const registrationKeyRef = useRef(`translation-${Math.random().toString(36).slice(2)}`);
 
   const trimmedSourceText = sourceText?.trim() ?? '';
-  const normalizedSourceLanguage = normalizeLanguage(sourceLanguage);
-  const canTranslate = Boolean(entityId && trimmedSourceText) && normalizedSourceLanguage !== targetLanguage;
+  const resolvedSourceLanguage = resolveTranslationSourceLanguage(trimmedSourceText, sourceLanguage);
+  const canTranslate =
+    Boolean(entityId) &&
+    shouldAllowContentTranslation({
+      text: trimmedSourceText,
+      sourceLanguage: resolvedSourceLanguage ?? sourceLanguage,
+      targetLanguage,
+    });
   const showTranslated = pageTranslation?.showTranslated ?? localShowTranslated;
   const usesPageToggle = Boolean(pageTranslation);
   const shouldRequestTranslation = canTranslate && showTranslated;
@@ -68,6 +75,7 @@ export default function TranslatableText({
   const normalizedTranslatedText = typeof translatedText === 'string' ? translatedText.trim() : translatedText;
   const isShowingTranslated = showTranslated && (!shouldRequestTranslation || !!translatedText);
   const displayText = isShowingTranslated ? normalizedTranslatedText ?? trimmedSourceText : trimmedSourceText;
+  const isLoadingInline = showTranslated && translationQuery.isFetching && !translatedText;
 
   useEffect(() => {
     if (!usesPageToggle) {
@@ -81,19 +89,19 @@ export default function TranslatableText({
       entityType,
       entityId,
       sourceText: trimmedSourceText,
-      sourceLanguage,
+      sourceLanguage: resolvedSourceLanguage ?? sourceLanguage,
     });
 
     return () => {
       unregisterPageItem?.(registrationKeyRef.current);
     };
-  }, [canTranslate, entityId, entityType, registerPageItem, sourceLanguage, trimmedSourceText, unregisterPageItem, usesPageToggle]);
+  }, [canTranslate, entityId, entityType, registerPageItem, resolvedSourceLanguage, sourceLanguage, trimmedSourceText, unregisterPageItem, usesPageToggle]);
 
   useEffect(() => {
     if (!usesPageToggle) {
       setLocalShowTranslated(false);
     }
-  }, [entityId, fieldName, trimmedSourceText, sourceLanguage, usesPageToggle]);
+  }, [entityId, fieldName, trimmedSourceText, resolvedSourceLanguage, sourceLanguage, usesPageToggle]);
 
   const buttonLabel = useMemo(() => {
     if (showTranslated && translationQuery.isError && !translatedText) return t('retryTranslate');
@@ -127,7 +135,17 @@ export default function TranslatableText({
             accessibilityRole="button"
             accessibilityLabel={buttonLabel}
           >
-            <Text style={[styles.buttonText, buttonTextStyle]}>{buttonLabel}</Text>
+            <View style={styles.inlineButtonContent}>
+              <Text style={[styles.buttonText, buttonTextStyle]}>{buttonLabel}</Text>
+              {isLoadingInline ? (
+                <LoadingDots
+                  color={colors.onSurfaceVariant}
+                  dotSize={4}
+                  gap={3}
+                  style={styles.buttonLoader}
+                />
+              ) : null}
+            </View>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -150,9 +168,16 @@ const styles = StyleSheet.create({
   inlineButton: {
     paddingVertical: spacing.xxs,
   },
+  inlineButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   buttonText: {
     ...typography.labelMedium,
     color: colors.onSurfaceVariant,
     fontWeight: '600',
+  },
+  buttonLoader: {
+    marginLeft: spacing.xs,
   },
 });

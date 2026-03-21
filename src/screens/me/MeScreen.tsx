@@ -8,6 +8,7 @@ import {
   Modal,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -60,7 +61,7 @@ import {
   FigmaEditIcon,
   FigmaShareIcon,
 } from '../../components/me/MeFigmaIcons';
-import { getRelativeTime, buildGradeMajorMeta } from '../../utils/formatTime';
+import { getRelativeTime, buildGradeMajorMeta, getDisplayGradeLabel } from '../../utils/formatTime';
 import PartnerCard from '../../components/functions/PartnerCard';
 import ErrandCard from '../../components/functions/ErrandCard';
 import SecondhandCard from '../../components/functions/SecondhandCard';
@@ -108,12 +109,12 @@ export default function MeScreen({ navigation }: Props) {
   const shouldLoadFollowLists = Object.keys(blockedUsers).length > 0;
   const { data: followingData } = useFollowingList({ enabled: shouldLoadFollowLists });
   const { data: followersData } = useFollowersList({ enabled: shouldLoadFollowLists });
+  const now = useExpirationTick(30000);
+  const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const isPublishedTab = activeTab === 'myPublished';
   const { data: myPartners } = useMyPartners(undefined, isPublishedTab);
   const { data: myErrands } = useMyErrands(undefined, isPublishedTab);
   const { data: mySecondhand } = useMySecondhand(isPublishedTab);
-  const now = useExpirationTick(30000);
-  const [activeTab, setActiveTab] = useState<MeTab>('posts');
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [forwardComment, setForwardComment] = useState<ForumPost | null>(null);
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
@@ -350,6 +351,7 @@ export default function MeScreen({ navigation }: Props) {
     functionId: p.functionId,
     functionIndex: p.functionIndex,
     functionTitle: p.functionTitle,
+    functionRefPreview: p.functionRefPreview,
     ratingCategory: p.ratingCategory,
     quotedPost: p.quotedPost
       ? {
@@ -380,6 +382,8 @@ export default function MeScreen({ navigation }: Props) {
             const displayAcademicMeta = buildGradeMajorMeta(t, {
               gradeKey: d.gradeKey,
               majorKey: d.majorKey,
+              language: lang,
+              abbreviateForumGrade: true,
             });
             const displayTime = getRelativeTime(d.createdAt, lang);
             const nav = navigation.getParent();
@@ -833,7 +837,7 @@ export default function MeScreen({ navigation }: Props) {
                 {displayUser?.nickname || displayUser?.name || '---'}
               </Text>
               <Text style={styles.meta}>
-                {[displayUser?.major ? getLocalizedMajorLabel(displayUser.major, t) : undefined, displayUser?.grade ? t(displayUser.grade) : undefined]
+                {[displayUser?.major ? getLocalizedMajorLabel(displayUser.major, t) : undefined, getDisplayGradeLabel(displayUser?.grade, t, { language: lang, abbreviate: true })]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
@@ -1253,14 +1257,12 @@ const styles = StyleSheet.create({
     columnGap: 16,
     rowGap: spacing.sm,
     paddingTop: 10,
-    height: 27 + 10,
   },
   /* Figma 9:851: number + label baseline aligned, gap:4 */
   miniStatItem: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 4,
-    height: 23,
   },
   /* Figma 9:852: D-DIN Bold 18px, h:20, #0C1015 */
   miniStatValue: {
@@ -1310,11 +1312,11 @@ const styles = StyleSheet.create({
   /* Figma 9:862: w:169, bg:#EDF2F5, borderRadius:12, px:16 py:7.5, gap:4 */
   actionBtn: {
     width: 169,
+    height: 36,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    height: 36,
+    gap: Platform.OS === 'android' ? 3 : 4,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -1327,8 +1329,11 @@ const styles = StyleSheet.create({
   /* Figma: Medium 15px #0C1015 */
   actionBtnText: {
     fontSize: 15,
+    lineHeight: 20,
     fontFamily: 'SourceHanSansCN-Medium',
     color: '#0C1015',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   actionBtnTextPrimary: {},
   actionBtnTextSecondary: {},

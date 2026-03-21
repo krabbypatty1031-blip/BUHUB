@@ -1,6 +1,14 @@
 import type { Gender, Language, Translated, PollOption } from './common';
 import type { RatingCategory } from './rating';
 
+export interface FunctionRefPreview {
+  entityType: 'partner' | 'errand' | 'secondhand' | 'rating';
+  entityId: string;
+  title: string;
+  sourceLanguage?: Language;
+  isFallback?: boolean;
+}
+
 export interface ForumCircleSummary {
   name: string;
   usageCount: number;
@@ -42,6 +50,7 @@ export interface ForumPost {
   functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
+  functionRefPreview?: FunctionRefPreview;
   ratingCategory?: RatingCategory;
   sourcePostId?: string;
   quotedPost?: {

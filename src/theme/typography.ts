@@ -1,4 +1,4 @@
-import { TextStyle } from 'react-native';
+import { Platform, TextStyle } from 'react-native';
 
 // Source Han Sans CN weight-to-family mapping
 const sourceHan = {
@@ -15,6 +15,44 @@ export const dinExp = {
 } as const;
 
 export const fontFamily = sourceHan;
+export type LocalizedFontWeight = keyof typeof sourceHan;
+
+const latinSystemFont: Record<LocalizedFontWeight, string | undefined> = {
+  light: Platform.select({ android: 'sans-serif-light', default: undefined }),
+  regular: Platform.select({ android: 'sans-serif', default: undefined }),
+  medium: Platform.select({ android: 'sans-serif-medium', default: undefined }),
+  bold: Platform.select({ android: 'sans-serif-medium', default: undefined }),
+  heavy: Platform.select({ android: 'sans-serif-medium', default: undefined }),
+};
+
+const latinFontWeight: Record<LocalizedFontWeight, NonNullable<TextStyle['fontWeight']>> = {
+  light: '300',
+  regular: '400',
+  medium: '500',
+  bold: '700',
+  heavy: '800',
+};
+
+function isLatinPreferredLanguage(language?: string | null) {
+  return (language ?? '').toLowerCase().startsWith('en');
+}
+
+export function getLocalizedFontStyle(
+  language: string | null | undefined,
+  weight: LocalizedFontWeight = 'regular',
+): TextStyle {
+  if (isLatinPreferredLanguage(language)) {
+    const family = latinSystemFont[weight];
+    return {
+      ...(family ? { fontFamily: family } : {}),
+      fontWeight: latinFontWeight[weight],
+    };
+  }
+
+  return {
+    fontFamily: sourceHan[weight],
+  };
+}
 
 export const typography: Record<string, TextStyle> = {
   displayLarge: {

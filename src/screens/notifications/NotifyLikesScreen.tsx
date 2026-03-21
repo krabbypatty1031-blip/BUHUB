@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import { BackIcon, HeartIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
@@ -26,7 +26,8 @@ import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyLikes'>;
 
 export default function NotifyLikesScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { data: notifications, isLoading, refetch } = useLikeNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadLikes = useNotificationStore((s) => s.setUnreadLikes);
@@ -91,7 +92,7 @@ export default function NotifyLikesScreen({ navigation }: Props) {
         >
           <View style={styles.notificationHeader}>
             <View style={styles.notificationNameRow}>
-              <Text style={styles.notificationUser} numberOfLines={1}>
+              <Text style={[styles.notificationUser, getLocalizedFontStyle(language, 'medium')]} numberOfLines={1}>
                 {item.user}
               </Text>
               {item.gender === 'male' ? (
@@ -101,17 +102,17 @@ export default function NotifyLikesScreen({ navigation }: Props) {
                 <FemaleIcon size={12} color={colors.genderFemale} />
               ) : null}
             </View>
-            <Text style={styles.notificationTime}>{item.time}</Text>
+            <Text style={[styles.notificationTime, getLocalizedFontStyle(language, 'regular')]}>{item.time}</Text>
           </View>
           <View style={styles.actionRow}>
             <HeartIcon size={14} color={colors.error} fill={colors.error} />
-            <Text style={styles.notificationAction}>
+            <Text style={[styles.notificationAction, getLocalizedFontStyle(language, 'regular')]}>
               {t(item.action)}
             </Text>
           </View>
           {item.content ? (
             <View style={styles.previewContainer}>
-              <Text style={styles.previewText} numberOfLines={2}>
+              <Text style={[styles.previewText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
                 {item.content}
               </Text>
             </View>
@@ -131,7 +132,7 @@ export default function NotifyLikesScreen({ navigation }: Props) {
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>
           {t('likeNotifications')}
         </Text>
         <View style={styles.iconBtn} />
@@ -188,7 +189,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
   },
@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
+    minWidth: 0,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -237,11 +238,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     flex: 1,
+    minWidth: 0,
     marginRight: spacing.sm,
   },
   notificationTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 0,
   },
   actionRow: {
     flexDirection: 'row',

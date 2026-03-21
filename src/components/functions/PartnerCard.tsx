@@ -9,11 +9,13 @@ import type { PartnerPost } from '../../types';
 import Avatar from '../../components/common/Avatar';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
+import { useTranslation } from 'react-i18next';
 import {
   MaleIcon,
   FemaleIcon,
 } from '../../components/common/icons';
 import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
+import { getLocalizedFontStyle } from '../../theme/typography';
 
 export interface PartnerCardProps {
   item: PartnerPost;
@@ -41,6 +43,8 @@ const PartnerCard = React.memo(function PartnerCard({
   expiredLabel,
   categoryLabel,
 }: PartnerCardProps) {
+  const { i18n } = useTranslation();
+  const language = i18n.language;
   return (
     <PageTranslationProvider>
       <TouchableOpacity
@@ -62,12 +66,12 @@ const PartnerCard = React.memo(function PartnerCard({
           />
           {categoryLabel ? (
             <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{categoryLabel}</Text>
+              <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
             </View>
           ) : null}
           {expired ? (
             <View style={styles.expiredTag}>
-              <Text style={styles.expiredTagText}>{expiredLabel}</Text>
+              <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{expiredLabel}</Text>
             </View>
           ) : null}
         </View>
@@ -94,17 +98,17 @@ const PartnerCard = React.memo(function PartnerCard({
                 >
                   <Avatar text={item.user} uri={item.avatar} size="xxs" gender={item.gender} />
                 </TouchableOpacity>
-                <Text style={styles.userName}>{item.user}</Text>
+                <Text style={[styles.userName, getLocalizedFontStyle(language, 'regular')]} numberOfLines={1}>{item.user}</Text>
                 {item.gender === 'male' && <MaleIcon size={14} color="#1E40AF" />}
                 {item.gender === 'female' && <FemaleIcon size={14} color="#E91E8C" />}
                 {displayAcademicMeta ? (
                   <>
                     <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText} numberOfLines={1}>{displayAcademicMeta}</Text>
+                    <Text style={[styles.metaText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>{displayAcademicMeta}</Text>
                   </>
                 ) : null}
                 <Text style={styles.metaDot}>·</Text>
-                <Text style={styles.metaText}>{displayTime}</Text>
+                <Text style={[styles.metaText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={1}>{displayTime}</Text>
               </>
             )}
           </View>
@@ -143,6 +147,7 @@ const styles = StyleSheet.create({
   },
   titleFlex: {
     flex: 1,
+    minWidth: 0,
   },
   cardTitle: {
     fontSize: 18,
@@ -194,6 +199,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     flex: 1,
+    minWidth: 0,
+    flexWrap: 'wrap',
   },
   userRight: {
     flexDirection: 'row',

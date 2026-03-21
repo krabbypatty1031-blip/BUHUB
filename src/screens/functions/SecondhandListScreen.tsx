@@ -38,6 +38,7 @@ import {
   FigmaFabPlusIcon,
   FigmaInfoIcon,
 } from '../../components/functions/SecondhandFigmaIcons';
+import { getLocalizedFontStyle } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
 
@@ -50,7 +51,8 @@ const CATEGORIES: Array<{ key: SecondhandCategory | 'all'; labelKey: string }> =
 ];
 
 export default function SecondhandListScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const selectedCategory = useSecondhandStore((s) => s.selectedCategory);
   const setCategory = useSecondhandStore((s) => s.setCategory);
   const expiredNotified = useSecondhandStore((s) => s.expiredNotified);
@@ -189,12 +191,12 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const renderHeader = useCallback(() => (
     <View style={styles.disclaimerSection}>
       <View style={styles.disclaimerTitleRow}>
-        <Text style={styles.disclaimerTitle}>{t('secondhandDisclaimer')}</Text>
+        <Text style={[styles.disclaimerTitle, getLocalizedFontStyle(language, 'bold')]}>{t('secondhandDisclaimer')}</Text>
         <FigmaInfoIcon size={12} />
       </View>
-      <Text style={styles.disclaimerSubtext}>{t('disclaimer')}</Text>
+      <Text style={[styles.disclaimerSubtext, getLocalizedFontStyle(language, 'regular')]}>{t('disclaimer')}</Text>
     </View>
-  ), [t]);
+  ), [language, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -203,7 +205,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('secondhand')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>{t('secondhand')}</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity onPress={() => navigation.navigate('SecondhandCart')}>
             <FigmaCartIcon size={26} />
@@ -220,7 +222,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
           <View style={styles.searchBar}>
             <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, getLocalizedFontStyle(language, 'regular')]}
               placeholder={t('searchSecondhand')}
               placeholderTextColor="#999999"
               value={searchText}
@@ -286,7 +288,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
                 if (a) setShareSheetItem(a);
               }}
             >
-              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             {isActionItemOwnPost ? (
@@ -304,7 +306,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
                   });
                 }}
               >
-                <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular')]}>{t('forwardToForum')}</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -317,7 +319,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
                   if (a) handleDmSeller(a.item, a.id);
                 }}
               >
-                <Text style={styles.actionText}>{t('secondhandDmSeller')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular')]}>{t('secondhandDmSeller')}</Text>
               </TouchableOpacity>
             ) : null}
       </SwipeableBottomSheet>
@@ -432,7 +434,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
-    width: 266,
+    alignSelf: 'stretch',
+    paddingRight: 16,
   },
 
   /* Figma: item list gap:16, px:16 */

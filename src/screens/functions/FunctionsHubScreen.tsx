@@ -22,6 +22,9 @@ import {
   AIScheduleFnIcon,
   ArrowRightFnIcon,
 } from '../../components/functions/FunctionHubIcons';
+import { useSchedule } from '../../hooks/useSchedule';
+import { useScheduleStore } from '../../store/scheduleStore';
+import { getLocalizedFontStyle } from '../../theme/typography';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const headerBg = require('../../../assets/images/campus-header-bg.png');
@@ -65,13 +68,16 @@ const CARD_RADIUS = 16;
 const CARD_HEIGHT = 131;
 
 export default function FunctionsHubScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const schedule = useScheduleStore((s) => s.schedule);
+  const { data: fetchedSchedule, refetch: refetchSchedule } = useSchedule();
   const cardWidth = (screenWidth - GRID_PADDING * 2 - GRID_GAP) / 2;
 
   const handlePress = useCallback(
-    (targetRoute: FunctionsHubRouteName) => {
+    async (targetRoute: FunctionsHubRouteName) => {
       switch (targetRoute) {
         case 'PartnerList':
           navigation.navigate('PartnerList', {});
@@ -85,15 +91,30 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'RatingList':
           navigation.navigate('RatingList');
           return;
-        case 'AISchedule':
-          // TODO: Navigate to AI Schedule screen
+        case 'AISchedule': {
+          const existingSchedule = schedule ?? fetchedSchedule ?? null;
+          if ((existingSchedule?.courses?.length ?? 0) > 0) {
+            navigation.navigate('AIScheduleView');
+            return;
+          }
+          try {
+            const refreshed = await refetchSchedule();
+            if ((refreshed.data?.courses?.length ?? 0) > 0) {
+              navigation.navigate('AIScheduleView');
+              return;
+            }
+          } catch {
+            // Fall through to upload when schedule refresh fails.
+          }
+          navigation.navigate('AIScheduleUpload');
           return;
+        }
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');
           return;
       }
     },
-    [navigation],
+    [fetchedSchedule, navigation, refetchSchedule, schedule],
   );
 
   const renderCard = (entry: FunctionEntry, index: number) => {
@@ -106,7 +127,9 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           { width: cardWidth, marginLeft: isRight ? GRID_GAP : 0 },
         ]}
         activeOpacity={1}
-        onPress={() => handlePress(entry.route)}
+        onPress={() => {
+          void handlePress(entry.route);
+        }}
       >
         {/* Arrow pinned to top-right */}
         <View style={styles.cardArrow}>
@@ -116,10 +139,10 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         <entry.Icon size={28} color={entry.iconColor} />
         {/* Title + Subtitle */}
         <View style={styles.cardTextGroup}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={[styles.cardTitle, getLocalizedFontStyle(language, 'bold')]} numberOfLines={2}>
             {t(entry.titleKey)}
           </Text>
-          <Text style={styles.cardSubtitle} numberOfLines={1}>
+          <Text style={[styles.cardSubtitle, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
             {t(entry.subtitleKey)}
           </Text>
         </View>
@@ -150,8 +173,8 @@ export default function FunctionsHubScreen({ navigation }: Props) {
             resizeMode="cover"
           />
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>{t('campusTitle')}</Text>
-            <Text style={styles.headerSubtitle}>{t('campusSubtitle')}</Text>
+            <Text style={[styles.headerTitle, getLocalizedFontStyle(language, 'bold')]}>{t('campusTitle')}</Text>
+            <Text style={[styles.headerSubtitle, getLocalizedFontStyle(language, 'regular')]}>{t('campusSubtitle')}</Text>
           </View>
         </View>
 
@@ -202,13 +225,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 32,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#FFFFFF',
     lineHeight: 38,
   },
   headerSubtitle: {
     fontSize: 13,
-    fontFamily: 'SourceHanSansCN-Regular',
     color: 'rgba(255,255,255,0.5)',
     marginTop: 14,
     lineHeight: 18,
@@ -223,14 +244,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     marginBottom: GRID_GAP,
-    height: CARD_HEIGHT,
+    minHeight: CARD_HEIGHT,
   },
 
   /* ── Card ── */
   card: {
     backgroundColor: CARD_BG,
     borderRadius: CARD_RADIUS,
-    height: CARD_HEIGHT,
+    minHeight: CARD_HEIGHT,
     paddingTop: 22,
     paddingLeft: 20,
     paddingBottom: 16,
@@ -244,18 +265,17 @@ const styles = StyleSheet.create({
   },
   cardTextGroup: {
     gap: 4,
+    paddingRight: 8,
   },
   cardTitle: {
     fontSize: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: TITLE_COLOR,
     lineHeight: 29,
   },
   cardSubtitle: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
     color: SUBTITLE_COLOR,
-    letterSpacing: 0.5,
-    lineHeight: 15,
+    letterSpacing: 0.2,
+    lineHeight: 16,
   },
 });

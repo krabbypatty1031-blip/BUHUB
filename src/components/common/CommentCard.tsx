@@ -57,8 +57,10 @@ const CommentCard = React.memo(function CommentCard({
     () => buildGradeMajorMeta(t, {
       gradeKey: comment.isAnonymous ? undefined : comment.gradeKey,
       majorKey: comment.isAnonymous ? undefined : comment.majorKey,
+      language: lang,
+      abbreviateForumGrade: true,
     }),
-    [t, comment.isAnonymous, comment.gradeKey, comment.majorKey]
+    [t, lang, comment.isAnonymous, comment.gradeKey, comment.majorKey]
   );
 
   const displayTime = useMemo(

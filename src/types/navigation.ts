@@ -179,6 +179,8 @@ export type FunctionsStackParamList = {
   FacilityBooking: undefined;
   LibraryDetail: undefined;
   UserProfile: UserProfileParams;
+  AIScheduleUpload: undefined;
+  AIScheduleView: undefined;
 };
 
 // Messages Stack

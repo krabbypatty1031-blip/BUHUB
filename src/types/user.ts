@@ -1,5 +1,6 @@
 import { Gender, Language, PollOption } from './common';
 import type { RatingCategory } from './rating';
+import type { FunctionRefPreview } from './post';
 
 export interface LinkedEmail {
   id: string;
@@ -95,6 +96,7 @@ export interface UserPost {
   functionId?: string;
   functionIndex?: number;
   functionTitle?: string;
+  functionRefPreview?: FunctionRefPreview;
   ratingCategory?: RatingCategory;
   quotedPost?: {
     id: string;

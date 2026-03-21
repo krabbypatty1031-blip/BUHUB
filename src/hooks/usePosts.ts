@@ -233,6 +233,7 @@ function mapForumPostToUserPost(post: ForumPost): UserPost {
     functionId: post.functionId,
     functionIndex: post.functionIndex,
     functionTitle: post.functionTitle,
+    functionRefPreview: post.functionRefPreview,
     ratingCategory: post.ratingCategory,
     quotedPost: post.quotedPost
       ? {

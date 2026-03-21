@@ -204,16 +204,21 @@ async function uploadViaPresigned(
     throw new Error('Could not determine file size.');
   }
 
+  // Use the prepared file's type (post-compression), not the original type.
+  // After compression, images become JPEG — the Content-Type and mimeType
+  // must match the actual file bytes for backend magic-byte validation.
+  const uploadMimeType = preparedFile.type || normalizedType;
+
   const { data: presignedData } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
     fileName: preparedFile.name,
     fileSize,
-    mimeType: normalizedType,
+    mimeType: uploadMimeType,
   });
 
   const { uploadUrl, fileUrl, fileKey } = presignedData;
   const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
 
-  const headers: Record<string, string> = { 'Content-Type': normalizedType };
+  const headers: Record<string, string> = { 'Content-Type': uploadMimeType };
   const token = await AsyncStorage.getItem(TOKEN_KEY);
   if (token) {
     headers.Authorization = `Bearer ${token}`;

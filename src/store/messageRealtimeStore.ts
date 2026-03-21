@@ -14,11 +14,15 @@ interface MessageRealtimeState {
   addPendingClientKey: (contactId: string, key: string) => void;
   removePendingClientKey: (contactId: string, key: string) => void;
   hasPendingForContact: (contactId: string) => boolean;
+  lastEventTimestamp: number;
+  setLastEventTimestamp: (ts: number) => void;
 }
 
-export const useMessageRealtimeStore = create<MessageRealtimeState>()((set) => ({
+export const useMessageRealtimeStore = create<MessageRealtimeState>()((set, get) => ({
   typingByContact: {},
   pendingClientKeysByContact: {},
+  lastEventTimestamp: Date.now(),
+  setLastEventTimestamp: (ts) => set({ lastEventTimestamp: ts }),
   setTyping: (contactId, isTyping, updatedAt = Date.now()) =>
     set((state) => {
       if (!contactId) return state;
@@ -61,8 +65,8 @@ export const useMessageRealtimeStore = create<MessageRealtimeState>()((set) => (
       else next[contactId] = s;
       return { pendingClientKeysByContact: next } as unknown as MessageRealtimeState;
     }),
-  hasPendingForContact: (contactId) => {
-    const state = useMessageRealtimeStore.getState();
+  hasPendingForContact: (contactId: string): boolean => {
+    const state = get();
     return Boolean(contactId && state.pendingClientKeysByContact[contactId] && state.pendingClientKeysByContact[contactId].size > 0);
   },
 }));

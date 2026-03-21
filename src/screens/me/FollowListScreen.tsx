@@ -19,8 +19,10 @@ import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import { BackIcon, UsersIcon } from '../../components/common/icons';
-import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
+import { getLocalizedMajorShortLabel } from '../../data/hkbuMajors';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import { getLocalizedFontStyle } from '../../theme/typography';
+import { getDisplayGradeLabel } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'FollowList'>;
 
@@ -31,6 +33,7 @@ const FollowItem = React.memo(function FollowItem({
   followedLabel,
   followLabel,
   t,
+  language,
 }: {
   item: FollowListItem;
   onPress: () => void;
@@ -38,9 +41,10 @@ const FollowItem = React.memo(function FollowItem({
   followedLabel: string;
   followLabel: string;
   t: (key: string) => string;
+  language: string;
 }) {
-  const majorLabel = item.major ? getLocalizedMajorLabel(item.major, t) : '';
-  const gradeLabel = item.grade ? t(item.grade) : '';
+  const majorLabel = item.major ? getLocalizedMajorShortLabel(item.major, t, language) : '';
+  const gradeLabel = getDisplayGradeLabel(item.grade, t, { language: language as 'tc' | 'sc' | 'en', abbreviate: true }) ?? '';
   const subInfo = [majorLabel, gradeLabel].filter(Boolean).join(' / ');
   const displayName = item.nickname || item.userName;
 
@@ -48,9 +52,9 @@ const FollowItem = React.memo(function FollowItem({
     <TouchableOpacity style={styles.itemRow} activeOpacity={0.7} onPress={onPress}>
       <Avatar text={displayName} uri={item.avatar} size="md" gender={item.gender} />
       <View style={styles.itemInfo}>
-        <Text style={styles.itemName} numberOfLines={1}>{displayName}</Text>
+        <Text style={[styles.itemName, getLocalizedFontStyle(language, 'medium')]} numberOfLines={1}>{displayName}</Text>
         {subInfo ? (
-          <Text style={styles.itemSubInfo} numberOfLines={1}>{subInfo}</Text>
+          <Text style={[styles.itemSubInfo, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>{subInfo}</Text>
         ) : null}
       </View>
       <TouchableOpacity
@@ -58,7 +62,12 @@ const FollowItem = React.memo(function FollowItem({
         activeOpacity={0.7}
         onPress={onToggleFollow}
       >
-        <Text style={[styles.followBtnText, item.isFollowed && styles.followBtnTextFollowed]}>
+        <Text
+          style={[styles.followBtnText, getLocalizedFontStyle(language, 'medium'), item.isFollowed && styles.followBtnTextFollowed]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
           {item.isFollowed ? followedLabel : followLabel}
         </Text>
       </TouchableOpacity>
@@ -68,7 +77,8 @@ const FollowItem = React.memo(function FollowItem({
 
 export default function FollowListScreen({ navigation, route }: Props) {
   const { type } = route.params;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { data: followingData } = useFollowingList();
   const { data: followersData } = useFollowersList();
   const { mutate: followUser } = useFollowUser();
@@ -100,9 +110,10 @@ export default function FollowListScreen({ navigation, route }: Props) {
         followedLabel={followedLabel}
         followLabel={followLabel}
         t={t}
+        language={language}
       />
     );
-  }, [navigation, currentUser, handleToggleFollow, followedLabel, followLabel, t]);
+  }, [navigation, currentUser, handleToggleFollow, followedLabel, followLabel, language, t]);
 
   const title = type === 'following' ? t('followingListTitle') : t('followersListTitle');
   const emptyText = type === 'following' ? t('noFollowingYet') : t('noFollowersYet');
@@ -114,7 +125,7 @@ export default function FollowListScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.6} onPress={() => navigation.goBack()}>
           <BackIcon size={22} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{title}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>{title}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -173,6 +184,7 @@ const styles = StyleSheet.create({
   },
   itemInfo: {
     flex: 1,
+    minWidth: 0,
     marginLeft: spacing.md,
     marginRight: spacing.sm,
     justifyContent: 'center',
@@ -194,8 +206,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
-    minWidth: 80,
+    minWidth: 96,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   followBtnFollowed: {
     backgroundColor: colors.surface,
@@ -210,4 +224,3 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
-

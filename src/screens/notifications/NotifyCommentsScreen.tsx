@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import { BackIcon, CommentIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
@@ -26,7 +26,8 @@ import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyComments'>;
 
 export default function NotifyCommentsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { data: notifications, isLoading, refetch } = useCommentNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
@@ -87,7 +88,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
         >
           <View style={styles.notificationHeader}>
             <View style={styles.notificationNameRow}>
-              <Text style={styles.notificationUser} numberOfLines={1}>
+              <Text style={[styles.notificationUser, getLocalizedFontStyle(language, 'medium')]} numberOfLines={1}>
                 {item.user}
               </Text>
               {item.gender === 'male' ? (
@@ -97,17 +98,17 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
                 <FemaleIcon size={12} color={colors.genderFemale} />
               ) : null}
             </View>
-            <Text style={styles.notificationTime}>{item.time}</Text>
+            <Text style={[styles.notificationTime, getLocalizedFontStyle(language, 'regular')]}>{item.time}</Text>
           </View>
           <View style={styles.actionRow}>
             <CommentIcon size={14} color={colors.tertiary} />
-            <Text style={styles.notificationAction}>
+            <Text style={[styles.notificationAction, getLocalizedFontStyle(language, 'regular')]}>
               {t(item.action)}
             </Text>
           </View>
           {item.comment ? (
             <View style={styles.commentPreview}>
-              <Text style={styles.commentText} numberOfLines={2}>
+              <Text style={[styles.commentText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
                 {item.comment}
               </Text>
             </View>
@@ -115,7 +116,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
           {item.originalPost ? (
             <View style={styles.originalPostContainer}>
               <View style={styles.originalPostBar} />
-              <Text style={styles.originalPostText} numberOfLines={1}>
+              <Text style={[styles.originalPostText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
                 {item.originalPost}
               </Text>
             </View>
@@ -135,7 +136,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
         >
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>
           {t('commentNotifications')}
         </Text>
         <View style={styles.iconBtn} />
@@ -192,7 +193,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
   },
@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
+    minWidth: 0,
   },
   notificationHeader: {
     flexDirection: 'row',
@@ -241,11 +242,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     flex: 1,
+    minWidth: 0,
     marginRight: spacing.sm,
   },
   notificationTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
+    flexShrink: 0,
   },
   actionRow: {
     flexDirection: 'row',

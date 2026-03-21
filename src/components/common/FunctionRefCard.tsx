@@ -5,16 +5,19 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
 import { borderRadius, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
+import type { FunctionRefPreview } from '../../types';
 import {
   PartnerFnIcon,
   ErrandFnIcon,
   SecondhandFnIcon,
   RatingFnIcon,
 } from '../functions/FunctionHubIcons';
+import TranslatableText from './TranslatableText';
 
 type FunctionRefCardProps = {
   functionType: string;
   title?: string | null;
+  preview?: FunctionRefPreview | null;
   onPress?: () => void;
 };
 
@@ -47,9 +50,14 @@ function ChevronRightSmall({ size = 18, color = '#C1C1C1' }: { size?: number; co
   );
 }
 
-export default function FunctionRefCard({ functionType, title, onPress }: FunctionRefCardProps) {
+function getTranslationFieldName(entityType: FunctionRefPreview['entityType']) {
+  return entityType === 'rating' ? 'name' : 'title';
+}
+
+export default function FunctionRefCard({ functionType, title, preview, onPress }: FunctionRefCardProps) {
   const { t } = useTranslation();
   const isPressable = !!onPress;
+  const resolvedTitle = preview?.title ?? title;
 
   const typeLabel =
     functionType === 'partner'
@@ -84,10 +92,22 @@ export default function FunctionRefCard({ functionType, title, onPress }: Functi
           <ChevronRightSmall size={18} color="#C1C1C1" />
         </View>
 
-        {!!title && (
-          <Text style={styles.title} numberOfLines={2}>
-            {title}
-          </Text>
+        {!!resolvedTitle && (
+          preview ? (
+            <TranslatableText
+              entityType={preview.entityType}
+              entityId={preview.entityId}
+              fieldName={getTranslationFieldName(preview.entityType)}
+              sourceText={resolvedTitle}
+              sourceLanguage={preview.sourceLanguage}
+              textStyle={styles.title}
+              numberOfLines={2}
+            />
+          ) : (
+            <Text style={styles.title} numberOfLines={2}>
+              {resolvedTitle}
+            </Text>
+          )
         )}
       </View>
     </TouchableOpacity>

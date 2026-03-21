@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -157,6 +157,8 @@ export default function ErrandListScreen({ navigation }: Props) {
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
+        language: lang,
+        abbreviateForumGrade: true,
       });
       const displayTime = getRelativeTime(item.createdAt, lang);
       return (
@@ -182,7 +184,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('errands')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errands')}</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
             <FigmaSearchIcon26 size={30} />
@@ -196,7 +198,7 @@ export default function ErrandListScreen({ navigation }: Props) {
           <View style={styles.searchBar}>
             <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, getLocalizedFontStyle(lang, 'regular')]}
               placeholder={t('searchErrands')}
               placeholderTextColor={colors.outline}
               value={searchText}
@@ -220,10 +222,10 @@ export default function ErrandListScreen({ navigation }: Props) {
       {/* Disclaimer — matching Secondhand style */}
       <View style={styles.disclaimerSection}>
         <View style={styles.disclaimerTitleRow}>
-          <Text style={styles.disclaimerTitle}>{t('errandDisclaimerTitle')}</Text>
+          <Text style={[styles.disclaimerTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errandDisclaimerTitle')}</Text>
           <FigmaInfoIcon size={12} />
         </View>
-        <Text style={styles.disclaimerSubtext}>{t('errandDisclaimer')}</Text>
+        <Text style={[styles.disclaimerSubtext, getLocalizedFontStyle(lang, 'regular')]}>{t('errandDisclaimer')}</Text>
       </View>
 
       {/* Errand List */}
@@ -267,7 +269,7 @@ export default function ErrandListScreen({ navigation }: Props) {
                 if (a) setShareSheetItem(a);
               }}
             >
-              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             {isActionItemOwnPost ? (
@@ -285,7 +287,7 @@ export default function ErrandListScreen({ navigation }: Props) {
                   });
                 }}
               >
-                <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -298,7 +300,7 @@ export default function ErrandListScreen({ navigation }: Props) {
                   if (a) handleDmPoster(a.post, a.id);
                 }}
               >
-                <Text style={styles.actionText}>{t('errandDmPoster')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('errandDmPoster')}</Text>
               </TouchableOpacity>
             ) : null}
       </SwipeableBottomSheet>
@@ -401,6 +403,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
+    paddingRight: 16,
   },
   listContent: {
     flexGrow: 1,

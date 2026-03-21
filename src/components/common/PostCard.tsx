@@ -158,8 +158,10 @@ function PostCard({
         gradeKey: post.gradeKey,
         majorKey: post.majorKey,
         isAnonymous: post.isAnonymous,
+        language: lang,
+        abbreviateForumGrade: true,
       }),
-    [t, post.gradeKey, post.majorKey, post.isAnonymous],
+    [t, lang, post.gradeKey, post.majorKey, post.isAnonymous],
   );
 
   const quotedTime = useMemo(
@@ -314,6 +316,7 @@ function PostCard({
           <FunctionRefCard
             functionType={post.functionType}
             title={post.functionTitle}
+            preview={post.functionRefPreview}
             onPress={onFunctionPress}
           />
         )}
@@ -587,4 +590,3 @@ const styles = StyleSheet.create({
     color: '#86909C',
   },
 });
-

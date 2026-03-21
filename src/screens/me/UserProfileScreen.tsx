@@ -19,7 +19,7 @@ import type {
   MessagesStackParamList,
   FunctionsStackParamList,
 } from '../../types/navigation';
-import type { ForumPost } from '../../types';
+import type { ForumPost, Language } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
 import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
@@ -48,6 +48,9 @@ import { MoreHorizontalIcon } from '../../components/common/icons';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { isCurrentUserContentOwner } from '../../utils/contentOwnership';
+import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedMajorShortLabel } from '../../data/hkbuMajors';
+import { getDisplayGradeLabel } from '../../utils/formatTime';
 
 type UserProfileParamList =
   & MeStackParamList
@@ -62,7 +65,8 @@ function normalizeHandle(value?: string | null): string {
 }
 
 export default function UserProfileScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
   const { userName } = route.params;
   const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
@@ -86,9 +90,11 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   const isFollowing = profile?.isFollowedByMe ?? false;
-  const profileMeta = [profile?.major, profile?.grade]
+  const profileMeta = [
+    getLocalizedMajorShortLabel(profile?.major, t, language),
+    getDisplayGradeLabel(profile?.grade, t, { language: language as Language, abbreviate: true }) ?? '',
+  ]
     .filter((value): value is string => !!value && value.trim().length > 0)
-    .map((value) => t(value, { defaultValue: value }))
     .join(' / ');
 
   const profileHandles = useMemo(
@@ -294,32 +300,32 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           />
         </TouchableOpacity>
 
-        <Text style={styles.userName}>{profile?.nickname || userName}</Text>
+        <Text style={[styles.userName, getLocalizedFontStyle(language, 'bold')]}>{profile?.nickname || userName}</Text>
 
         {profileMeta ? (
-          <Text style={styles.profileMeta} numberOfLines={1}>
+          <Text style={[styles.profileMeta, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
             {profileMeta}
           </Text>
         ) : null}
 
         {profile?.bio ? (
-          <Text style={styles.bio}>{profile.bio}</Text>
+          <Text style={[styles.bio, getLocalizedFontStyle(language, 'regular')]}>{profile.bio}</Text>
         ) : null}
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile?.stats?.postCount ?? userPosts.length}</Text>
-            <Text style={styles.statLabel}>{t('postsStat')}</Text>
+            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('postsStat')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
-            <Text style={styles.statLabel}>{t('followingStat')}</Text>
+            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followingStat')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
-            <Text style={styles.statLabel}>{t('followersStat')}</Text>
+            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followersStat')}</Text>
           </View>
         </View>
 
@@ -331,7 +337,14 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             disabled={!profile?.id}
           >
             <ChatBubbleIcon size={18} color="#FFFFFF" />
-            <Text style={styles.messageBtnText}>{t('message')}</Text>
+            <Text
+              style={[styles.messageBtnText, getLocalizedFontStyle(language, 'bold')]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t('message')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -358,8 +371,12 @@ export default function UserProfileScreen({ navigation, route }: Props) {
                 <Text
                   style={[
                     styles.followBtnText,
+                    getLocalizedFontStyle(language, 'bold'),
                     isFollowing && styles.followBtnTextFollowing,
                   ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
                 >
                   {isFollowing ? t('alreadyFollowed') : t('follow')}
                 </Text>
@@ -370,10 +387,10 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('postsStat')}</Text>
+        <Text style={[styles.sectionTitle, getLocalizedFontStyle(language, 'bold')]}>{t('postsStat')}</Text>
       </View>
     </View>
-  ), [userName, profile, profileMeta, userPosts.length, t, handleMessage, isFollowing, handleFollow, followUser.isPending]);
+  ), [userName, profile, profileMeta, userPosts.length, t, language, handleMessage, isFollowing, handleFollow, followUser.isPending]);
 
   const renderPost = useCallback(
     ({ item }: { item: ForumPost }) => {

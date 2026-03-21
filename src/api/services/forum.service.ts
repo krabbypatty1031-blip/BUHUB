@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary, RatingCategory } from '../../types';
+import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary, RatingCategory, FunctionRefPreview } from '../../types';
 import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
 
 const USE_MOCK = false;
@@ -81,6 +81,13 @@ type ApiPostRecord = {
   quotedPost?: ApiQuotedPostRecord;
   sourcePostId?: string;
   translated?: ForumPost['translated'];
+  functionRefPreview?: {
+    entityType?: FunctionRefPreview['entityType'];
+    entityId?: string;
+    title?: string;
+    sourceLanguage?: ForumPost['sourceLanguage'];
+    isFallback?: boolean;
+  };
 } & Record<string, unknown>;
 
 type ApiCommentRecord = {
@@ -223,12 +230,29 @@ function normalizeTimestamp(value: unknown): string {
   return new Date().toISOString();
 }
 
+function mapFunctionRefPreview(
+  preview: ApiPostRecord['functionRefPreview']
+): FunctionRefPreview | undefined {
+  if (!preview?.entityType || !preview.entityId || !preview.title) {
+    return undefined;
+  }
+
+  return {
+    entityType: preview.entityType,
+    entityId: preview.entityId,
+    title: preview.title,
+    sourceLanguage: normalizeLanguageValue(preview.sourceLanguage),
+    isFallback: Boolean(preview.isFallback),
+  };
+}
+
 function mapPostRecord(p: ApiPostRecord): ForumPost {
   const author = p.author ?? {};
   const pollOpts = p.pollOptions;
   const pollOptions = mapPollOptions(pollOpts);
   const isPoll = (p.postType === 'poll') || (pollOpts?.length ?? 0) > 0;
   const functionRef = parseFunctionRef(p.content ?? '');
+  const functionRefPreview = mapFunctionRefPreview(p.functionRefPreview);
   const sourceLanguage = normalizeLanguageValue(p.sourceLanguage) ?? normalizeLanguageValue(p.lang) ?? 'tc';
   const rawImages: unknown[] = Array.isArray(p.images) ? p.images : [];
   const normalizedImages = rawImages
@@ -241,6 +265,14 @@ function mapPostRecord(p: ApiPostRecord): ForumPost {
 
   return {
     ...functionRef,
+    ...(functionRefPreview
+      ? {
+          isFunction: true as const,
+          functionType: functionRefPreview.entityType,
+          functionId: functionRefPreview.entityId,
+          functionTitle: functionRefPreview.title,
+        }
+      : {}),
     id: p.id ?? '',
     lang: sourceLanguage,
     sourceLanguage,
@@ -257,6 +289,7 @@ function mapPostRecord(p: ApiPostRecord): ForumPost {
     createdAt: normalizeTimestamp(p.createdAt),
     content: functionRef.content,
     translated: p.translated,
+    functionRefPreview,
     tags: p.tags,
     liked: p.liked ?? false,
     bookmarked: p.bookmarked ?? false,

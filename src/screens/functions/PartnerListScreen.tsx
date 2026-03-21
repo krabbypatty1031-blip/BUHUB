@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -158,6 +158,8 @@ export default function PartnerListScreen({ navigation }: Props) {
       const displayAcademicMeta = buildGradeMajorMeta(t, {
         gradeKey: item.gradeKey,
         majorKey: item.majorKey,
+        language: lang,
+        abbreviateForumGrade: true,
       });
       const displayTime = getRelativeTime(item.createdAt, lang);
       return (
@@ -183,7 +185,7 @@ export default function PartnerListScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('findPartner')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('findPartner')}</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
             <FigmaSearchIcon26 size={30} />
@@ -197,7 +199,7 @@ export default function PartnerListScreen({ navigation }: Props) {
           <View style={styles.searchBar}>
             <FigmaSearchIcon26 size={18} color="#999999" />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, getLocalizedFontStyle(lang, 'regular')]}
               placeholder={t('searchPartner')}
               placeholderTextColor={colors.outline}
               value={searchText}
@@ -259,7 +261,7 @@ export default function PartnerListScreen({ navigation }: Props) {
                 if (a) setShareSheetItem(a);
               }}
             >
-              <Text style={styles.actionText}>{t('forwardToContact')}</Text>
+              <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
 
             {isActionItemOwnPost ? (
@@ -277,7 +279,7 @@ export default function PartnerListScreen({ navigation }: Props) {
                   });
                 }}
               >
-                <Text style={styles.actionText}>{t('forwardToForum')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -290,7 +292,7 @@ export default function PartnerListScreen({ navigation }: Props) {
                   if (a) handleDmOrganizer(a.post, a.id);
                 }}
               >
-                <Text style={styles.actionText}>{t('partnerDmOrganizer')}</Text>
+                <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('partnerDmOrganizer')}</Text>
               </TouchableOpacity>
             ) : null}
       </SwipeableBottomSheet>

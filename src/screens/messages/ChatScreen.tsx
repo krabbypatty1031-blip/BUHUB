@@ -24,6 +24,7 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
+import { Clipboard } from 'react-native';
 import { Audio } from 'expo-av';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, {
@@ -52,6 +53,7 @@ import type {
 } from '../../types/navigation';
 import type { ChatMessage, ChatHistory, Contact, ForwardedCardDraft } from '../../types';
 import { useCanSendMessage, useChatHistory, usePresence, useRecallMessage, useSendMessage } from '../../hooks/useMessages';
+import { useMessageUpdates } from '../../hooks/useMessageUpdates';
 import { useAutoGrowingInput } from '../../hooks/useAutoGrowingInput';
 import { useAuthStore } from '../../store/authStore';
 import { useMessageStore } from '../../store/messageStore';
@@ -105,7 +107,10 @@ import {
   patchChatQueries,
   patchContactsQueries,
   peekHiddenChatMessages,
+  peekRecentSentMessages,
+  persistChatCache,
   persistHiddenChatMessages,
+  rememberRecentSentMessage,
   replaceMessageInHistory,
   upsertContact,
 } from '../../utils/messageCache';
@@ -133,6 +138,8 @@ const CHAT_INPUT_MIN_HEIGHT = 38;
 const CHAT_INPUT_MAX_HEIGHT = 120;
 const CHAT_INPUT_EXTRA_HEIGHT = 18;
 const CHAT_INPUT_LINE_HEIGHT = 20;
+const SEND_TIMEOUT_MS = 60000;
+const COMPOSER_LOCK_TIMEOUT_MS = 65000;
 const REACTION_OPTIONS = [
   '\u{1F44D}',
   '\u{2764}\u{FE0F}',
@@ -154,6 +161,15 @@ type ApiLikeError = {
 type RecordingOptionsInput = NonNullable<
   Parameters<Audio.Recording['prepareToRecordAsync']>[0]
 >;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
 
 function resolveSpeechRecognitionLocale(language: string): string {
   const normalized = language.toLowerCase();
@@ -225,8 +241,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'Chat'>;
 /* ----- Union type for FlatList data ----- */
 type ChatListItem =
   | { kind: 'date'; date: string; key: string }
-  | { kind: 'time'; timeLabel: string; key: string }
-  | { kind: 'message'; message: ChatMessage; key: string };
+  | { kind: 'message'; message: ChatMessage; key: string; timeLabel?: string };
 
 type VoiceReleaseAction = 'send' | 'cancel' | 'transcribe';
 type ImageSendMode = 'separate' | 'merged';
@@ -506,11 +521,12 @@ function resolveLocalVisibilityKey(message: Pick<ChatMessage, 'id' | 'clientKey'
 }
 
 function sortMessagesByCreatedAt(messages: ChatMessage[]) {
-  return [...messages].sort((a, b) => {
-    const aTs = Date.parse(a.createdAt ?? '') || 0;
-    const bTs = Date.parse(b.createdAt ?? '') || 0;
-    return aTs - bTs;
-  });
+  // Use index as tiebreaker to guarantee stable order for same-millisecond sends
+  return messages.map((m, i) => ({ m, i })).sort((a, b) => {
+    const aTs = Date.parse(a.m.createdAt ?? '') || 0;
+    const bTs = Date.parse(b.m.createdAt ?? '') || 0;
+    return aTs - bTs || a.i - b.i;
+  }).map(({ m }) => m);
 }
 
 function appendPendingMessagesToHistory(
@@ -589,6 +605,25 @@ function mergeChatHistories(
   });
 
   return merged;
+}
+
+function removeMessageFromHistory(
+  history: ChatHistory[] | undefined,
+  targetId: string
+): ChatHistory[] | undefined {
+  if (!Array.isArray(history) || history.length === 0) return history;
+  let changed = false;
+  const next = history
+    .map((group) => {
+      const messages = group.messages.filter((message) => {
+        const matches = message.id === targetId || message.clientKey === targetId;
+        if (matches) changed = true;
+        return !matches;
+      });
+      return messages.length > 0 ? { ...group, messages } : null;
+    })
+    .filter((group): group is ChatHistory => Boolean(group));
+  return changed ? next : history;
 }
 
 /* ----- Date separator ----- */
@@ -1664,10 +1699,11 @@ export default function ChatScreen({ navigation, route }: Props) {
   } = route.params;
   const isScreenFocused = useIsFocused();
   const { data: chatHistory, isLoading } = useChatHistory(contactId, {
-    enabled: isScreenFocused,
+    enabled: true,
     polling: false,
   });
-  const { data: canSendState } = useCanSendMessage(contactId);
+  useMessageUpdates(contactId, isScreenFocused);
+  const { data: canSendState, isLoading: isCanSendLoading } = useCanSendMessage(contactId);
   const canSendMessage = canSendState?.canSendMessage;
   const canSendReason = canSendState?.reason;
   const { data: presence } = usePresence(contactId);
@@ -1681,7 +1717,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const clearUnread = useMessageStore((s) => s.clearUnread);
   const setActiveChatContact = useMessageStore((s) => s.setActiveChatContact);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]);
+  const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]) as { isTyping: boolean; updatedAt: number } | undefined;
   const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
   const shouldForceLatestOnReadyRef = useRef(true);
   const scrollRetryTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
@@ -1702,6 +1738,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const olderHistoryTriggerCooldownUntilRef = useRef(0);
   const lastKnownMessageCountRef = useRef(0);
   const pendingNewMessageCountRef = useRef(0);
+  const prefetchedUrisRef = useRef(new Set<string>());
 
   const handleBack = useCallback(() => {
     if (backTo?.tab === 'MessagesTab') {
@@ -1778,6 +1815,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [navigation]);
 
   // Tab bar visibility is now handled by MainTabNavigator's screenListeners
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const plusMenuOpenRef = useRef(false);
+  plusMenuOpenRef.current = plusMenuOpen;
 
   useFocusEffect(
     useCallback(() => {
@@ -1804,7 +1844,28 @@ export default function ChatScreen({ navigation, route }: Props) {
       setFocusVersion((prev) => prev + 1);
       setActiveChatContact(contactId);
       clearUnread(contactId);
+      const hasPendingSend = useMessageRealtimeStore.getState().hasPendingForContact(contactId);
+      void Promise.allSettled([
+        ...(hasPendingSend
+          ? []
+          : [queryClient.invalidateQueries({
+              queryKey: ['chat', contactId],
+              refetchType: 'active',
+            })]),
+        queryClient.invalidateQueries({
+          queryKey: ['chat-can-send', contactId],
+          refetchType: 'active',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['contacts'],
+          refetchType: 'active',
+        }),
+      ]);
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (plusMenuOpenRef.current) {
+          setPlusMenuOpen(false);
+          return true;
+        }
         handleBack();
         return true;
       });
@@ -1818,12 +1879,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         setActiveChatContact(null);
         sub.remove();
       };
-    }, [clearUnread, contactId, handleBack, setActiveChatContact])
+    }, [clearUnread, contactId, handleBack, queryClient, setActiveChatContact])
   );
 
   const [inputText, setInputText] = useState('');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceReleaseAction, setVoiceReleaseActionState] = useState<VoiceReleaseAction>('send');
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
@@ -2338,6 +2398,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     const resolvedMessage = {
       ...nextMessage,
       clientKey,
+      // Preserve local timestamps to prevent time label from jumping after send resolves
+      createdAt: existingMessage?.createdAt ?? nextMessage.createdAt,
+      time: existingMessage?.time ?? nextMessage.time,
       ...(mediaMetas && mediaMetas.length > 0 ? { mediaMetas } : {}),
       mediaGroupId: nextMessage.mediaGroupId ?? existingMessage?.mediaGroupId,
     };
@@ -2398,13 +2461,42 @@ export default function ChatScreen({ navigation, route }: Props) {
     );
   }, []);
 
+  const patchConversationPreview = useCallback((message: ChatMessage) => {
+    patchContactsQueries(queryClient, user?.id, (current) => {
+      const existing = current?.find((contact) => contact.id === contactId);
+      return upsertContact(
+        current,
+        buildConversationPreviewContact(contactId, message, contactName, contactAvatar, existing)
+      );
+    });
+  }, [contactAvatar, contactId, contactName, queryClient, user?.id]);
+
+  const patchPendingMessageInCache = useCallback((message: ChatMessage) => {
+    patchChatQueries(queryClient, user?.id, contactId, (current, language) =>
+      replaceMessageInHistory(current, message.id!, message) ??
+      appendMessageToHistory(current, message, language)
+    );
+  }, [contactId, queryClient, user?.id]);
+
   const queueLocalPendingMessage = useCallback((message: ChatMessage, request: PendingSendRequest) => {
     if (!message.id) return;
     pendingRequestsRef.current[message.id] = request;
     // Mark global pending key so WS handler can avoid appending echoes
     useMessageRealtimeStore.getState().addPendingClientKey(contactId, message.id);
     upsertLocalPendingMessage(message);
-  }, [upsertLocalPendingMessage]);
+    patchPendingMessageInCache(message);
+    patchConversationPreview(message);
+
+    // Persist to AsyncStorage immediately so the message survives navigation
+    if (user?.id) {
+      const lang = useAuthStore.getState().language;
+      const normLang = lang === 'sc' ? 'sc' : lang === 'en' ? 'en' : 'tc';
+      const cachedData = queryClient.getQueryData<ChatHistory[]>(['chat', contactId, normLang]);
+      if (cachedData) {
+        void persistChatCache(user.id, normLang, contactId, cachedData);
+      }
+    }
+  }, [contactId, patchConversationPreview, patchPendingMessageInCache, queryClient, user?.id, upsertLocalPendingMessage]);
 
   const buildLocalPendingMessage = useCallback((message: {
     text?: string;
@@ -2453,16 +2545,6 @@ export default function ChatScreen({ navigation, route }: Props) {
       queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' }),
     ]);
   }, [contactId, queryClient]);
-
-  const patchConversationPreview = useCallback((message: ChatMessage) => {
-    patchContactsQueries(queryClient, user?.id, (current) => {
-      const existing = current?.find((contact) => contact.id === contactId);
-      return upsertContact(
-        current,
-        buildConversationPreviewContact(contactId, message, contactName, contactAvatar, existing)
-      );
-    });
-  }, [contactAvatar, contactId, contactName, queryClient, user?.id]);
 
   useEffect(() => {
     const persistedIds = new Set(
@@ -2614,87 +2696,124 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [applyOlderHistoryChunk, contactId, hasOlderHistory, nextHistoryPage, showSnackbar, t]);
 
   const executePendingSend = useCallback(async (messageId: string, request: PendingSendRequest) => {
+    useMessageRealtimeStore.getState().addPendingClientKey(contactId, messageId);
     updateLocalPendingMessageStatus(messageId, 'sending');
     const sendStartedAt = Date.now();
 
     try {
       let sentMessage: ChatMessage | undefined;
       if (request.kind === 'direct') {
-        const result = await messageService.sendMessage(contactId, request.payload, request.images, messageId);
+        const result = await withTimeout(
+          messageService.sendMessage(contactId, request.payload, request.images, messageId),
+          SEND_TIMEOUT_MS,
+          'Send message'
+        );
         sentMessage = result.message;
       } else if (request.kind === 'image-batch') {
         const uploadStartedAt = Date.now();
-        const uploaded = await uploadService.uploadImages(request.files);
+        const uploaded = await withTimeout(uploadService.uploadImages(request.files), SEND_TIMEOUT_MS, 'Image upload');
         recordTimedMessageMetric('image_upload_duration', uploadStartedAt, {
           count: request.files.length,
           mode: request.mode,
         });
         if (request.mode === 'album') {
-          const result = await messageService.sendMessage(
-            contactId,
-            {
-              imageAlbum: { count: uploaded.urls.length },
-              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-            },
-            uploaded.urls,
-            messageId
+          const result = await withTimeout(
+            messageService.sendMessage(
+              contactId,
+              {
+                imageAlbum: { count: uploaded.urls.length },
+                ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+              },
+              uploaded.urls,
+              messageId
+            ),
+            SEND_TIMEOUT_MS,
+            'Send message'
           );
           sentMessage = result.message;
         } else {
-          const result = await messageService.sendMessage(
-            contactId,
-            {
-              text: '',
-              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-            },
-            uploaded.urls,
-            messageId
+          const result = await withTimeout(
+            messageService.sendMessage(
+              contactId,
+              {
+                text: '',
+                ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+              },
+              uploaded.urls,
+              messageId
+            ),
+            SEND_TIMEOUT_MS,
+            'Send message'
           );
           sentMessage = result.message;
         }
       } else if (request.kind === 'image-single') {
         const uploadStartedAt = Date.now();
-        const uploaded = await uploadService.uploadImage(request.file);
+        const uploaded = await withTimeout(uploadService.uploadImage(request.file), SEND_TIMEOUT_MS, 'Image upload');
         recordTimedMessageMetric('image_upload_duration', uploadStartedAt, {
           count: 1,
           mode: 'single',
         });
-        const result = await messageService.sendMessage(
-          contactId,
-          {
-            text: '',
-            ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-          },
-          [uploaded.url],
-          messageId
+        const result = await withTimeout(
+          messageService.sendMessage(
+            contactId,
+            {
+              text: '',
+              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+            },
+            [uploaded.url],
+            messageId
+          ),
+          SEND_TIMEOUT_MS,
+          'Send message'
         );
         sentMessage = result.message;
       } else {
         const uploadStartedAt = Date.now();
-        const uploaded = await uploadService.uploadFile(request.file);
+        const uploaded = await withTimeout(uploadService.uploadFile(request.file), SEND_TIMEOUT_MS, 'Audio upload');
         recordTimedMessageMetric('audio_upload_duration', uploadStartedAt, {
           durationMs: request.durationMs ?? 0,
         });
-        const result = await messageService.sendMessage(contactId, {
-          ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-          audio: {
-            url: uploaded.url,
-            ...(typeof request.durationMs === 'number' ? { durationMs: request.durationMs } : {}),
-          },
-        }, undefined, messageId);
+        const result = await withTimeout(
+          messageService.sendMessage(contactId, {
+            ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+            audio: {
+              url: uploaded.url,
+              ...(typeof request.durationMs === 'number' ? { durationMs: request.durationMs } : {}),
+            },
+          }, undefined, messageId),
+          SEND_TIMEOUT_MS,
+          'Send message'
+        );
         sentMessage = result.message;
       }
 
       if (sentMessage) {
         const resolvedMessage = mergeResolvedMessageWithPreview(messageId, sentMessage);
-        // Guard: skip local state updates if component unmounted during the await
-        if (!isMountedRef.current) return true;
-        resolveLocalPendingMessage(messageId, resolvedMessage);
+        if (user?.id) {
+          rememberRecentSentMessage(user.id, contactId, resolvedMessage);
+        }
         patchChatQueries(queryClient, user?.id, contactId, (current, language) =>
           replaceMessageInHistory(current, messageId, resolvedMessage) ??
           appendMessageToHistory(current, resolvedMessage, language)
         );
         patchConversationPreview(resolvedMessage);
+
+        // Persist updated cache to AsyncStorage so it survives navigation
+        if (user?.id) {
+          const lang = useAuthStore.getState().language;
+          const normLang = lang === 'sc' ? 'sc' : lang === 'en' ? 'en' : 'tc';
+          const cachedData = queryClient.getQueryData<ChatHistory[]>(['chat', contactId, normLang]);
+          if (cachedData) {
+            void persistChatCache(user.id, normLang, contactId, cachedData);
+          }
+        }
+        if (!isMountedRef.current) {
+          delete pendingRequestsRef.current[messageId];
+          useMessageRealtimeStore.getState().removePendingClientKey(contactId, messageId);
+          return true;
+        }
+        resolveLocalPendingMessage(messageId, resolvedMessage);
 
         const previewUris =
           resolvedMessage.mediaMetas
@@ -2719,6 +2838,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           releaseTransientMediaPreview(resolvedMessage);
         }
       } else {
+        patchChatQueries(queryClient, user?.id, contactId, (current) =>
+          removeMessageFromHistory(current, messageId)
+        );
         removeLocalPendingMessage(messageId);
       }
       recordTimedMessageMetric('message_send_latency', sendStartedAt, {
@@ -2732,7 +2854,26 @@ export default function ChatScreen({ navigation, route }: Props) {
         kind: request.kind,
         contactId,
       });
-      if (!isMountedRef.current) return false;
+      const failedPendingMessage = localPendingMessagesRef.current.find((item) => item.id === messageId);
+      useMessageRealtimeStore.getState().removePendingClientKey(contactId, messageId);
+      if (!isMountedRef.current) {
+        if (failedPendingMessage) {
+          releaseTransientMediaPreview(failedPendingMessage);
+        }
+        patchChatQueries(queryClient, user?.id, contactId, (current) =>
+          removeMessageFromHistory(current, messageId)
+        );
+        delete pendingRequestsRef.current[messageId];
+        queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
+        return false;
+      }
+      if (failedPendingMessage) {
+        patchPendingMessageInCache({
+          ...failedPendingMessage,
+          status: 'failed',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
       updateLocalPendingMessageStatus(messageId, 'failed');
       const mediaKind = request.kind === 'audio'
         ? 'audio'
@@ -2750,6 +2891,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     mergeResolvedMessageWithPreview,
     patchConversationPreview,
     queryClient,
+    patchPendingMessageInCache,
     releaseTransientMediaPreview,
     refreshMessageQueries,
     removeLocalPendingMessage,
@@ -2770,11 +2912,30 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [executePendingSend]);
 
   const visibleMessageKeySet = useMemo(() => new Set(hiddenMessageKeys), [hiddenMessageKeys]);
+  const transientMessages = useMemo(() => {
+    const recentSentMessages = user?.id
+      ? peekRecentSentMessages(user.id, contactId) ?? []
+      : [];
+    const localPendingKeys = new Set(
+      localPendingMessages.flatMap((message) => [
+        message.id ? `id:${message.id}` : null,
+        message.clientKey ? `client:${message.clientKey}` : null,
+      ].filter((value): value is string => Boolean(value)))
+    );
+    const dedupedRecentSentMessages = recentSentMessages.filter((message) => {
+      const idKey = message.id ? `id:${message.id}` : null;
+      const clientKey = message.clientKey ? `client:${message.clientKey}` : null;
+      if (idKey && localPendingKeys.has(idKey)) return false;
+      if (clientKey && localPendingKeys.has(clientKey)) return false;
+      return true;
+    });
+    return [...dedupedRecentSentMessages, ...localPendingMessages];
+  }, [contactId, localPendingMessages, user?.id]);
 
   const displayChatHistory = useMemo(() => {
     const mergedHistory = appendPendingMessagesToHistory(
       mergeChatHistories(olderChatHistory, chatHistory),
-      localPendingMessages,
+      transientMessages,
       todayLabel
     );
     const recalledMessageKeySet = new Set<string>();
@@ -2858,34 +3019,10 @@ export default function ChatScreen({ navigation, route }: Props) {
           }),
       }))
       .filter((group) => group.messages.length > 0);
-  }, [chatHistory, localPendingMessages, olderChatHistory, t, todayLabel, visibleMessageKeySet]);
+  }, [chatHistory, olderChatHistory, t, todayLabel, transientMessages, visibleMessageKeySet]);
 
-  /* ----- Chat trigger: disable input if the latest effective message is mine ----- */
-  const waitingForReplyByHistory = useMemo(() => {
-    const latestScopedHistory = appendPendingMessagesToHistory(
-      chatHistory,
-      localPendingMessages,
-      todayLabel
-    );
-    if (!latestScopedHistory || latestScopedHistory.length === 0) return false;
-
-    const latestMessage = latestScopedHistory
-      .flatMap((group) => group.messages ?? [])
-      .filter((message) => !message.isRecalled && message.status !== 'sending' && message.status !== 'failed')
-      .sort((a, b) => {
-        const aTs = Date.parse(a.createdAt ?? '') || 0;
-        const bTs = Date.parse(b.createdAt ?? '') || 0;
-        return bTs - aTs;
-      })[0];
-
-    if (!latestMessage) return false;
-    return latestMessage.type === 'sent';
-  }, [chatHistory, localPendingMessages, todayLabel]);
-  const waitingForReply = canSendReason === 'WAITING_FOR_REPLY'
-    ? true
-    : canSendState
-      ? false
-      : waitingForReplyByHistory;
+  const isComposerAvailabilityLoading = !canSendState && isCanSendLoading;
+  const waitingForReply = canSendReason === 'WAITING_FOR_REPLY';
   const hkbuBindingRequired = canSendReason === 'HKBU_BIND_REQUIRED';
   const messageSendBlocked = canSendReason === 'BLOCKED' || canSendReason === 'SELF';
   const isContactTyping = Boolean(
@@ -2941,6 +3078,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       const histories = [...(Array.isArray(displayChatHistory) ? displayChatHistory : [displayChatHistory])].reverse();
       histories.forEach((h: ChatHistory, gi: number) => {
         let currentGroupTime: ReturnType<typeof resolveMinuteTimeKey> = null;
+        let currentGroupOldestTime: ReturnType<typeof resolveMinuteTimeKey> = null;
         const dateKeySeed =
           h.messages
             .map((message) => message.createdAt)
@@ -2966,19 +3104,26 @@ export default function ChatScreen({ navigation, route }: Props) {
           if (!currentGroupTime && minuteTime) {
             currentGroupTime = minuteTime;
           }
-          items.push({ kind: 'message', message: renderMessage, key: messageKey });
+          // Always track the oldest time in the group (last iterated since we go newest-first)
+          if (minuteTime) {
+            currentGroupOldestTime = minuteTime;
+          }
           const nextOlderMessage = reversedMessages[mi + 1];
           const isMessageGroupEnd =
             !nextOlderMessage || !shouldMessagesShareGroup(renderMessage, nextOlderMessage);
-          if (currentGroupTime && isMessageGroupEnd) {
-            items.push({
-              kind: 'time',
-              timeLabel: currentGroupTime.timeLabel,
-              key: `time-${currentGroupTime.minuteKey}-${messageKey}`,
-            });
-          }
+          const stableTime =
+            (currentGroupOldestTime || currentGroupTime) && isMessageGroupEnd
+              ? (currentGroupOldestTime || currentGroupTime!)
+              : null;
+          items.push({
+            kind: 'message',
+            message: renderMessage,
+            key: messageKey,
+            ...(stableTime ? { timeLabel: stableTime.timeLabel } : {}),
+          });
           if (isMessageGroupEnd) {
             currentGroupTime = null;
+            currentGroupOldestTime = null;
           }
         });
         if (h.date) {
@@ -2987,11 +3132,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       });
     }
     return items;
-  }, [displayChatHistory, resolveTransientMediaPreview, transientMediaVersion]);
+  }, [displayChatHistory, resolveTransientMediaPreview]);
   const messageItemCount = useMemo(
     () => listData.reduce((count, item) => count + (item.kind === 'message' ? 1 : 0), 0),
     [listData]
   );
+
   const showInitialLoadingState = isLoading && listData.length === 0;
 
   useEffect(() => {
@@ -3053,7 +3199,11 @@ export default function ChatScreen({ navigation, route }: Props) {
       setPendingNewMessageCount(0);
     }
     requestAnimationFrame(() => {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      try {
+        flatListRef.current?.scrollToIndex({ index: 0, animated: false });
+      } catch {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }
     });
   }, [listData.length]);
 
@@ -3065,13 +3215,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   const forceScrollToLatest = useCallback(() => {
     if (listData.length === 0) return;
     clearScrollRetryTimers();
-    const retryDelays = [0, 120, 280, 520];
-
-    retryDelays.forEach((delay) => {
+    [0, 200].forEach((delay) => {
       const timer = setTimeout(() => {
-        InteractionManager.runAfterInteractions(() => {
-          scrollToLatest(true);
-        });
+        scrollToLatest(true);
       }, delay);
       scrollRetryTimersRef.current.push(timer);
     });
@@ -3203,10 +3349,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       .flatMap((item) => item.message.images ?? [])
       .filter((uri) => typeof uri === 'string' && uri.length > 0);
     if (imageUris.length === 0) return;
-    const latestFirstPrefetchTargets = Array.from(new Set(imageUris)).slice(0, 24);
-    void ExpoImage.prefetch(latestFirstPrefetchTargets).catch(() => {
-      // Ignore prefetch failures to avoid interrupting chat interactions.
-    });
+
+    const newUris = Array.from(new Set(imageUris))
+      .slice(0, 24)
+      .filter((uri) => !prefetchedUrisRef.current.has(uri));
+
+    if (newUris.length === 0) return;
+    newUris.forEach((uri) => prefetchedUrisRef.current.add(uri));
+    void ExpoImage.prefetch(newUris).catch(() => {});
   }, [isScreenFocused, listData]);
 
   /* ----- Handle card press: navigate to detail ----- */
@@ -3462,6 +3612,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const handleSend = useCallback(async () => {
     if (composerSendLockRef.current) return;
+    if (!canSendState || canSendMessage !== true) return;
     const text = inputText.trim();
     const pendingForwardDraft =
       forwardedCardDraft && pendingForwardPreview?.dedupeKey === forwardedCardDraft.dedupeKey
@@ -3469,6 +3620,9 @@ export default function ChatScreen({ navigation, route }: Props) {
         : null;
     if (!text && !pendingForwardDraft) return;
     composerSendLockRef.current = true;
+    const lockTimeout = setTimeout(() => {
+      composerSendLockRef.current = false;
+    }, COMPOSER_LOCK_TIMEOUT_MS);
     if (typingStopTimerRef.current) {
       clearTimeout(typingStopTimerRef.current);
       typingStopTimerRef.current = null;
@@ -3531,11 +3685,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       queueLocalPendingMessage(localMessage, textRequest);
       await executePendingSend(localMessage.id!, textRequest);
     } finally {
+      clearTimeout(lockTimeout);
       composerSendLockRef.current = false;
     }
   }, [
     buildLocalPendingMessage,
     buildReplyPayload,
+    canSendMessage,
+    canSendState,
     executePendingSend,
     forwardedCardDraft,
     inputText,
@@ -3647,8 +3804,12 @@ export default function ChatScreen({ navigation, route }: Props) {
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       };
       queueLocalPendingMessage(localMessage, request);
-      void executePendingSend(localMessage.id!, request);
+      void executePendingSend(localMessage.id!, request).finally(() => {
+        setIsSendingSelectedImages(false);
+      });
     } else {
+      // Queue all messages first (they appear instantly in UI)
+      const pendingSends: Array<{ id: string; request: PendingSendRequest }> = [];
       files.forEach((file, index) => {
         const localMessage = buildLocalPendingMessage({
           images: [file.uri],
@@ -3669,14 +3830,24 @@ export default function ChatScreen({ navigation, route }: Props) {
           ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
         };
         queueLocalPendingMessage(localMessage, request);
-        void executePendingSend(localMessage.id!, request);
+        pendingSends.push({ id: localMessage.id!, request });
       });
+
+      // Send sequentially to avoid rate limits and connection pool exhaustion
+      (async () => {
+        try {
+          for (const { id, request } of pendingSends) {
+            await executePendingSend(id, request);
+          }
+        } finally {
+          setIsSendingSelectedImages(false);
+        }
+      })();
     }
 
     setReplyTarget(null);
     setPendingImageAssets([]);
     setImageSendModeVisible(false);
-    setIsSendingSelectedImages(false);
   }, [
     buildLocalMediaMetas,
     buildLocalPendingMessage,
@@ -4082,17 +4253,13 @@ export default function ChatScreen({ navigation, route }: Props) {
           </View>
         );
       }
-      if (item.kind === 'time') {
-        return (
-          <View style={[styles.invertedListItem, styles.chatListItem]}>
+      return (
+        <View style={[styles.invertedListItem, styles.chatListItem]}>
+          {item.timeLabel ? (
             <View style={styles.minuteTimeWrap}>
               <Text style={styles.minuteTimeText}>{item.timeLabel}</Text>
             </View>
-          </View>
-        );
-      }
-      return (
-        <View style={[styles.invertedListItem, styles.chatListItem]}>
+          ) : null}
           <ChatBubble
             message={item.message}
             myAvatarText={myAvatarText}
@@ -4164,15 +4331,25 @@ export default function ChatScreen({ navigation, route }: Props) {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <FlashList
+          key={`chat-list-${contactId}`}
           ref={flatListRef}
           data={listData}
+          extraData={`${focusVersion}:${messageItemCount}`}
           style={styles.invertedList}
           renderItem={renderItem}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.listContent}
+          onLoad={() => {
+            if (shouldForceLatestOnReadyRef.current) {
+              shouldForceLatestOnReadyRef.current = false;
+              requestAnimationFrame(() => {
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+              });
+            }
+          }}
           onContentSizeChange={handleContentSizeChange}
           onScroll={handleListScroll}
           onScrollBeginDrag={handleListScrollBeginDrag}
@@ -4239,7 +4416,12 @@ export default function ChatScreen({ navigation, route }: Props) {
         ) : null}
 
         {/* Input Bar */}
-        {hkbuBindingRequired ? (
+        {isComposerAvailabilityLoading ? (
+          <View style={styles.waitingBar}>
+            <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
+            <Text style={styles.waitingText}>{t('loading')}</Text>
+          </View>
+        ) : hkbuBindingRequired ? (
           <View style={styles.noticeBar}>
             <Text style={styles.waitingText}>{t('messageEmailBindingRequired')}</Text>
             <TouchableOpacity style={styles.noticeButton} onPress={handleOpenManageEmails}>
@@ -4525,6 +4707,25 @@ export default function ChatScreen({ navigation, route }: Props) {
                     {t('replyAction')}
                   </Text>
                 </TouchableOpacity>
+            ) : null}
+
+            {!actionTargetIsRecalled && actionTarget?.text ? (
+              <>
+                <View style={styles.actionDivider} />
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (actionTarget?.text) {
+                      Clipboard.setString(actionTarget.text);
+                      showSnackbar({ message: t('copiedToClipboard'), type: 'success' });
+                    }
+                    setActionTarget(null);
+                  }}
+                >
+                  <Text style={styles.actionText}>{t('copyText')}</Text>
+                </TouchableOpacity>
+              </>
             ) : null}
 
             {!actionTargetIsRecalled && actionCanRecall ? (
@@ -5384,7 +5585,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: Platform.OS === 'android' ? 6 : spacing.sm,
     borderTopWidth: 0.5,
     borderTopColor: '#F0F0F0',
     backgroundColor: '#FFFFFF',
@@ -5412,7 +5613,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     paddingLeft: 14,
     paddingRight: 5,
-    paddingVertical: 5,
+    paddingVertical: Platform.OS === 'android' ? 4 : 5,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -5423,6 +5624,8 @@ const styles = StyleSheet.create({
     color: PURE_BLACK,
     padding: 0,
     margin: 0,
+    paddingTop: Platform.OS === 'android' ? 0 : undefined,
+    paddingBottom: Platform.OS === 'android' ? 0 : undefined,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },

@@ -8,6 +8,7 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,7 +16,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { colors, spacing, borderRadius } from '../../theme';
-import { typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography } from '../../theme/typography';
 
 export interface SegmentedControlOption<T extends string = string> {
   value: T;
@@ -47,6 +48,7 @@ export default function SegmentedControl<T extends string = string>({
   inactiveTextColor,
   containerHeight,
 }: SegmentedControlProps<T>) {
+  const { i18n } = useTranslation();
   const [measurements, setMeasurements] = useState<Map<T, SegmentMeasurement>>(new Map());
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
@@ -97,10 +99,15 @@ export default function SegmentedControl<T extends string = string>({
             <Text
               style={[
                 styles.segmentText,
+                getLocalizedFontStyle(i18n.language, 'regular'),
                 inactiveTextColor != null && { color: inactiveTextColor },
                 isActive && styles.segmentTextActive,
+                isActive && getLocalizedFontStyle(i18n.language, 'bold'),
                 isActive && activeTextColor != null && { color: activeTextColor },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.88}
             >
               {option.label}
             </Text>
@@ -149,11 +156,9 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     fontSize: 13,
-    fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
   },
   segmentTextActive: {
     color: '#0C1015',
-    fontFamily: 'SourceHanSansCN-Bold',
   },
 });
