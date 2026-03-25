@@ -32,7 +32,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingList'>;
 
-const CATEGORIES: RatingCategory[] = ['course', 'teacher', 'canteen', 'major'];
+const CATEGORIES: RatingCategory[] = ['course', 'teacher', 'canteen'];
 
 const CATEGORY_LABELS: Record<RatingCategory, string> = {
   course: 'course',
@@ -535,49 +535,6 @@ export default function RatingListScreen({ navigation }: Props) {
         />
       </View>
 
-      {quickFilterOptions.length > 0 && (
-        <View style={styles.filterSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleQuickFilterChange(ALL_FILTER_VALUE)}
-              style={[
-                styles.filterChip,
-                effectiveQuickFilter === ALL_FILTER_VALUE && styles.filterChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  getLocalizedFontStyle(lang, effectiveQuickFilter === ALL_FILTER_VALUE ? 'bold' : 'regular'),
-                  effectiveQuickFilter === ALL_FILTER_VALUE && styles.filterChipTextActive,
-                ]}
-              >
-                {t('allFilter')}
-              </Text>
-            </TouchableOpacity>
-            {quickFilterOptions.map((option) => {
-              const isActive = effectiveQuickFilter === option.value;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  activeOpacity={0.7}
-                  onPress={() => handleQuickFilterChange(option.value)}
-                  style={[styles.filterChip, isActive && styles.filterChipActive]}
-                >
-                  <Text style={[styles.filterChipText, getLocalizedFontStyle(lang, isActive ? 'bold' : 'regular'), isActive && styles.filterChipTextActive]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
 
       {/* Rating List */}
       {isLoading && !ratings ? (

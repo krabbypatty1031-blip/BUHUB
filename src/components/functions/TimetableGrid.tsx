@@ -18,8 +18,8 @@ interface TimetableGridProps {
 
 const HOUR_HEIGHT = 68;
 const START_HOUR = 8;
-const END_HOUR = 19;
-const TOTAL_ROWS = END_HOUR - START_HOUR + 1; // 12 rows for grid lines
+const END_HOUR = 22;
+const TOTAL_ROWS = END_HOUR - START_HOUR + 1; // 15 rows for grid lines
 const TOTAL_HEIGHT = TOTAL_ROWS * HOUR_HEIGHT; // 816px
 const TIME_LABEL_WIDTH = 28;
 const NUM_DAYS = 7;

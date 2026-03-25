@@ -141,12 +141,12 @@ const CHAT_INPUT_LINE_HEIGHT = 20;
 const SEND_TIMEOUT_MS = 60000;
 const COMPOSER_LOCK_TIMEOUT_MS = 65000;
 const REACTION_OPTIONS = [
-  '\u{1F44D}',
-  '\u{2764}\u{FE0F}',
-  '\u{1F602}',
-  '\u{1F62E}',
-  '\u{1F622}',
-  '\u{1F44F}',
+  String.fromCodePoint(0x1F44D), // 👍
+  String.fromCodePoint(0x2764, 0xFE0F), // ❤️
+  String.fromCodePoint(0x1F602), // 😂
+  String.fromCodePoint(0x1F62E), // 😮
+  String.fromCodePoint(0x1F622), // 😢
+  String.fromCodePoint(0x1F44F), // 👏
 ];
 
 type ApiLikeError = {
@@ -4313,17 +4313,6 @@ export default function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.topBarTitle} numberOfLines={1}>
             {contactName}
           </Text>
-          <View style={styles.topBarStatusRow}>
-            <View
-              style={[
-                styles.topBarStatusDot,
-                isOnlineStatus ? styles.topBarStatusDotOnline : styles.topBarStatusDotOffline,
-              ]}
-            />
-            <Text style={[styles.topBarSubtitle, isContactTyping ? styles.topBarSubtitleTyping : undefined]}>
-              {statusText}
-            </Text>
-          </View>
         </View>
         <View style={styles.iconBtn} />
       </View>
@@ -5763,27 +5752,26 @@ const styles = StyleSheet.create({
   },
   actionEmojiRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
   actionEmojiBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface2,
   },
   actionEmojiBtnActive: {
     backgroundColor: colors.surface1,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.primary,
   },
   actionEmojiText: {
-    fontSize: 22,
+    fontSize: 24,
   },
   actionDivider: {
     height: StyleSheet.hairlineWidth,

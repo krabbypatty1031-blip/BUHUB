@@ -1254,7 +1254,7 @@ const styles = StyleSheet.create({
   miniStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 16,
+    columnGap: 12,
     rowGap: spacing.sm,
     paddingTop: 10,
   },
@@ -1273,8 +1273,8 @@ const styles = StyleSheet.create({
   },
   /* Figma 9:853: Regular 14px, h:23, lineHeight:22.5, #86909C */
   miniStatLabel: {
-    fontSize: 14,
-    lineHeight: 22.5,
+    fontSize: 12,
+    lineHeight: 18,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#86909C',
   },

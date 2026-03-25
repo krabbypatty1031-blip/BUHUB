@@ -14,7 +14,7 @@ export const scheduleService = {
   },
 
   async parseImage(imageUrl: string): Promise<{ courses: ScheduleCourse[] }> {
-    const { data } = await apiClient.post(ENDPOINTS.SCHEDULE.PARSE, { imageUrl });
+    const { data } = await apiClient.post(ENDPOINTS.SCHEDULE.PARSE, { imageUrl }, { timeout: 120000 });
     return data;
   },
 
@@ -30,5 +30,9 @@ export const scheduleService = {
 
   async deleteCourse(id: string): Promise<void> {
     await apiClient.delete(ENDPOINTS.SCHEDULE.DELETE_COURSE(id));
+  },
+
+  async deleteSchedule(): Promise<void> {
+    await apiClient.delete(ENDPOINTS.SCHEDULE.DELETE);
   },
 };

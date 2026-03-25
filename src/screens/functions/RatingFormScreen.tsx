@@ -52,28 +52,36 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   }, [dimensions]);
 
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({});
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
 
-  // Initialize scores from item defaults (50 for each dimension)
+  // Initialize scores from item defaults (70 for each dimension)
   useEffect(() => {
     if (!item) return;
     const initial: Record<string, number> = {};
+    const initialInputs: Record<string, string> = {};
     item.scores.forEach((s) => {
-      initial[s.key] = 50;
+      initial[s.key] = 70;
+      initialInputs[s.key] = '70';
     });
     setScores(initial);
+    setScoreInputs(initialInputs);
   }, [item?.id]);
 
   // Pre-populate from existing rating if available
   useEffect(() => {
     if (myRating?.scores) {
       const converted: Record<string, number> = {};
+      const convertedInputs: Record<string, string> = {};
       for (const [key, value] of Object.entries(myRating.scores)) {
         // Backend stores 0-5, convert to 0-100
-        converted[key] = Math.round(value * 20);
+        const val = Math.round(value * 20);
+        converted[key] = val;
+        convertedInputs[key] = String(val);
       }
       setScores(converted);
+      setScoreInputs(convertedInputs);
     }
     if (myRating?.tags) {
       setSelectedTags(myRating.tags);
@@ -89,21 +97,33 @@ export default function RatingFormScreen({ navigation, route }: Props) {
   const adjustScore = useCallback((key: string, delta: number) => {
     hapticSelection();
     setScores((prev) => {
-      const current = prev[key] ?? 50;
+      const current = prev[key] ?? 70;
       const next = Math.max(0, Math.min(100, current + delta));
+      setScoreInputs((p) => ({ ...p, [key]: String(next) }));
       return { ...prev, [key]: next };
     });
   }, []);
 
   const setScoreValue = useCallback((key: string, text: string) => {
-    const num = parseInt(text, 10);
-    if (text === '') {
-      setScores((prev) => ({ ...prev, [key]: 0 }));
-      return;
-    }
+    // Allow user to type freely — only digits
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setScoreInputs((prev) => ({ ...prev, [key]: cleaned }));
+    // Commit to scores when valid
+    if (cleaned === '') return;
+    const num = parseInt(cleaned, 10);
     if (!isNaN(num)) {
       setScores((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, num)) }));
     }
+  }, []);
+
+  const commitScoreInput = useCallback((key: string) => {
+    // On blur: clamp and sync display
+    setScoreInputs((prev) => {
+      const val = parseInt(prev[key] || '0', 10);
+      const clamped = Math.max(0, Math.min(100, isNaN(val) ? 70 : val));
+      setScores((p) => ({ ...p, [key]: clamped }));
+      return { ...prev, [key]: String(clamped) };
+    });
   }, []);
 
   const toggleTag = useCallback((tag: string) => {
@@ -227,10 +247,12 @@ export default function RatingFormScreen({ navigation, route }: Props) {
                   <View style={styles.numberBox}>
                     <TextInput
                       style={styles.numberText}
-                      value={String(scores[score.key] ?? 50)}
+                      value={scoreInputs[score.key] ?? '70'}
                       onChangeText={(text) => setScoreValue(score.key, text)}
+                      onBlur={() => commitScoreInput(score.key)}
                       keyboardType="number-pad"
                       maxLength={3}
+                      selectTextOnFocus
                     />
                   </View>
                   <TouchableOpacity style={styles.stepBtn} onPress={() => adjustScore(score.key, 5)}>

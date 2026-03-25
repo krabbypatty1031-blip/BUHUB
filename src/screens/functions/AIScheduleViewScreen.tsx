@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -26,11 +27,13 @@ import {
   useDeleteCourse,
 } from '../../hooks/useSchedule';
 import { useUIStore } from '../../store/uiStore';
+import { scheduleService } from '../../api/services/schedule.service';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'AIScheduleView'>;
 
 export default function AIScheduleViewScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const schedule = useScheduleStore((s) => s.schedule);
@@ -159,7 +162,14 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
         {
           text: t('confirm'),
           style: 'destructive',
-          onPress: () => navigation.navigate('AIScheduleUpload'),
+          onPress: async () => {
+            try {
+              await scheduleService.deleteSchedule();              // 1. Delete from backend DB
+            } catch { /* ignore — proceed with local cleanup */ }
+            useScheduleStore.getState().setSchedule(null);         // 2. Clear Zustand + AsyncStorage
+            queryClient.removeQueries({ queryKey: ['schedule'] }); // 3. Clear React Query cache
+            navigation.replace('AIScheduleUpload');                // 4. Navigate
+          },
         },
       ]
     );
@@ -220,20 +230,30 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
         onDelete={handleDelete}
       />
 
-      {/* Hidden export view for screenshot */}
+      {/* Hidden export view for screenshot — sized for phone wallpaper (9:19.5 ratio) */}
       <View style={styles.offscreen} pointerEvents="none">
         <ViewShot ref={exportRef} options={{ format: 'png', quality: 1 }}>
           <View style={styles.exportContainer}>
+            {/* Header with title */}
+            <View style={styles.exportHeader}>
+              <Text style={styles.exportTitle}>{t('aiScheduleTitle')}</Text>
+            </View>
+            {/* Calendar header */}
             <WeekCalendarHeader
               weekOffset={weekOffset}
               onWeekChange={handleWeekChange}
               courseDays={courseDays}
             />
+            {/* Timetable grid — scaled to fit */}
             <View style={styles.exportGrid}>
               <TimetableGrid
                 courses={courses}
                 onPressCourse={() => {}}
               />
+            </View>
+            {/* Footer branding */}
+            <View style={styles.exportFooter}>
+              <Text style={styles.exportFooterText}>UHUB · AI Timetable</Text>
             </View>
           </View>
         </ViewShot>
@@ -285,8 +305,31 @@ const styles = StyleSheet.create({
   },
   exportContainer: {
     backgroundColor: '#FFFFFF',
+    width: 390,
+    // 9:19.5 ratio → height ~845 for wallpaper fit
+    minHeight: 845,
+  },
+  exportHeader: {
+    paddingTop: 16,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  exportTitle: {
+    fontFamily: 'SourceHanSansCN-Bold',
+    fontSize: 18,
+    color: '#0C1015',
   },
   exportGrid: {
-    height: 816,
+    flex: 1,
+    minHeight: 750,
+  },
+  exportFooter: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  exportFooterText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 10,
+    color: '#C7C7CC',
   },
 });

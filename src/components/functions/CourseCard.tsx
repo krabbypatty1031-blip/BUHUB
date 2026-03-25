@@ -46,7 +46,7 @@ const CourseCard = React.memo(function CourseCard({
         {course.name}
       </Text>
       {showLocation && course.location ? (
-        <Text style={styles.location}>
+        <Text style={styles.location} numberOfLines={2}>
           {course.location}
         </Text>
       ) : null}

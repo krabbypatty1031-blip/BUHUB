@@ -149,6 +149,7 @@ const ENDPOINTS = {
   SCHEDULE: {
     GET: '/schedule',
     SAVE: '/schedule',
+    DELETE: '/schedule',
     PARSE: '/schedule/parse',
     ADD_COURSE: '/schedule/courses',
     EDIT_COURSE: (id: string) => `/schedule/courses/${id}`,

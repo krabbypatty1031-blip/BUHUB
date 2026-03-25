@@ -52,7 +52,7 @@ const PartnerCard = React.memo(function PartnerCard({
         activeOpacity={0.7}
         onPress={onPress}
       >
-        {/* Title row: title + category tag + expired tag */}
+        {/* Title row: title on left, tags + translate on right */}
         <View style={styles.titleRow}>
           <TranslatableText
             entityType="partner"
@@ -64,16 +64,19 @@ const PartnerCard = React.memo(function PartnerCard({
             numberOfLines={2}
             containerStyle={styles.titleFlex}
           />
-          {categoryLabel ? (
-            <View style={styles.categoryTag}>
-              <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
-            </View>
-          ) : null}
-          {expired ? (
-            <View style={styles.expiredTag}>
-              <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{expiredLabel}</Text>
-            </View>
-          ) : null}
+          <View style={styles.titleRight}>
+            {categoryLabel ? (
+              <View style={styles.categoryTag}>
+                <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
+              </View>
+            ) : null}
+            {expired ? (
+              <View style={styles.expiredTag}>
+                <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{expiredLabel}</Text>
+              </View>
+            ) : null}
+            <PageTranslationToggle />
+          </View>
         </View>
         {/* Description */}
         <TranslatableText
@@ -113,11 +116,10 @@ const PartnerCard = React.memo(function PartnerCard({
             )}
           </View>
           <View style={styles.userRight}>
-            <PageTranslationToggle />
             {onMore && (
               <TouchableOpacity
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={onMore}
+                onPress={(e) => { e.stopPropagation(); onMore(); }}
               >
                 <FigmaMoreDotsIcon size={20} />
               </TouchableOpacity>
@@ -142,12 +144,19 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
+    gap: 8,
     marginBottom: 8,
   },
   titleFlex: {
     flex: 1,
     minWidth: 0,
+    flexShrink: 1,
+  },
+  titleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
   },
   cardTitle: {
     fontSize: 18,

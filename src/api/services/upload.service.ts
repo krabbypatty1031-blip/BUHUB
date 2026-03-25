@@ -290,7 +290,39 @@ export const uploadService = {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/files/${file.name}` };
     }
-    return uploadViaPresigned(file, { imageMode: 'general' });
+    // Skip image compression — upload original quality.
+    // Used by AI schedule parser which needs high-res text for accurate recognition.
+    const normalizedType = normalizeMimeType(file.type);
+    const fileBlob = await readLocalFileBlob(file.uri);
+    const fileSize = fileBlob.size ?? 0;
+    if (fileSize <= 0) {
+      throw new Error('Could not determine file size.');
+    }
+    const { data: presignedData } = await apiClient.post(ENDPOINTS.UPLOAD.PRESIGNED_URL, {
+      fileName: file.name,
+      fileSize,
+      mimeType: normalizedType,
+    });
+    const { uploadUrl, fileUrl, fileKey } = presignedData;
+    const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
+    const headers: Record<string, string> = { 'Content-Type': normalizedType };
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const targets = finalUploadUrl !== uploadUrl ? [uploadUrl, finalUploadUrl] : [uploadUrl];
+    let uploadResponse: Response | null = null;
+    let lastUploadError: unknown = null;
+    for (const target of targets) {
+      try {
+        uploadResponse = await uploadBinary(target, headers, fileBlob, 2);
+        if (uploadResponse.ok) break;
+      } catch (error) { lastUploadError = error; }
+    }
+    if (!uploadResponse) throw new Error(`Upload failed: ${lastUploadError instanceof Error ? lastUploadError.message : 'network error'}`);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Upload failed (${uploadResponse.status}): ${errorText || 'unknown error'}`);
+    }
+    return { url: fileUrl };
   },
 
   async uploadImage(file: UploadInput): Promise<{ url: string }> {

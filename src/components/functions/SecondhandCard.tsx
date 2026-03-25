@@ -147,23 +147,25 @@ const SecondhandCard = React.memo(function SecondhandCard({
       <View style={[styles.cardContent, isSoldOrExpired && styles.contentDimmed]}>
         <View style={styles.cardMain}>
           <View style={styles.titleBlock}>
-            <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
-            <View style={styles.titleMetaRow}>
-              {categoryLabel ? (
-                <View style={styles.categoryTag}>
-                  <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
-                </View>
-              ) : null}
-              {item.sold ? (
-                <View style={styles.expiredTag}>
-                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('sold')}</Text>
-                </View>
-              ) : isSoldOrExpired ? (
-                <View style={styles.expiredTag}>
-                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('secondhandExpired')}</Text>
-                </View>
-              ) : null}
-              <PageTranslationToggle style={styles.translateToggle} />
+            <View style={styles.titleRow}>
+              <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
+              <View style={styles.titleRight}>
+                {categoryLabel ? (
+                  <View style={styles.categoryTag}>
+                    <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
+                  </View>
+                ) : null}
+                {item.sold ? (
+                  <View style={styles.expiredTag}>
+                    <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('sold')}</Text>
+                  </View>
+                ) : isSoldOrExpired ? (
+                  <View style={styles.expiredTag}>
+                    <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('secondhandExpired')}</Text>
+                  </View>
+                ) : null}
+                <PageTranslationToggle />
+              </View>
             </View>
           </View>
           <View>
@@ -311,17 +313,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   titleBlock: {
-    gap: 6,
   },
-  titleMetaRow: {
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  titleRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: 6,
+    flexShrink: 0,
   },
   /* Figma 1:1647: h:40 (2 lines max) */
   titleTextWrap: {
-    width: '100%',
+    flex: 1,
     minWidth: 0,
     flexShrink: 1,
   },
@@ -334,10 +340,6 @@ const styles = StyleSheet.create({
   },
   textDimmed: {
     color: '#C7C7CC',
-  },
-  translateToggle: {
-    marginLeft: 'auto',
-    alignSelf: 'center',
   },
 
   /* Figma 1:1651: D-DIN Exp Bold, #FF2538, gap:2, items-end */

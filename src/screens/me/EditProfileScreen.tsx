@@ -499,6 +499,7 @@ const styles = StyleSheet.create({
   pickerItemText: {
     ...typography.bodyLarge,
     color: colors.onSurface,
+    textAlign: 'center',
   },
   pickerItemTextSelected: {
     color: colors.onSurface,

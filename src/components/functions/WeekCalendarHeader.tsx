@@ -104,8 +104,6 @@ const WeekCalendarHeader = React.memo(function WeekCalendarHeader({
           const dayOfWeek = index + 1; // 1=Mon ... 7=Sun
           const isToday = isSameDay(date, today);
           const isWeekend = dayOfWeek === 6 || dayOfWeek === 7;
-          const hasCourse = courseDays.has(dayOfWeek);
-
           return (
             <View key={dayOfWeek} style={styles.dayColumn}>
               <Text
@@ -130,7 +128,6 @@ const WeekCalendarHeader = React.memo(function WeekCalendarHeader({
                   {date.getDate()}
                 </Text>
               )}
-              {hasCourse && <View style={styles.courseDot} />}
             </View>
           );
         })}

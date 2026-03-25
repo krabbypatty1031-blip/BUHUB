@@ -47,9 +47,12 @@ export default function AIScheduleUploadScreen({ navigation }: Props) {
     setScreenState('uploading');
     try {
       const fileName = uri.split('/').pop() || `schedule-${Date.now()}.jpg`;
-      const result = await uploadService.uploadImage({
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      // Use uploadFile instead of uploadImage to skip compression — AI needs high-quality text
+      const result = await uploadService.uploadFile({
         uri,
-        type: 'image/jpeg',
+        type: mimeType,
         name: fileName,
       });
       setUploadedImageUrl(result.url);

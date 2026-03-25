@@ -30,9 +30,15 @@ interface CourseEditSheetProps {
 const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 
 function validateTime(value: string): boolean {
-  if (!/^\d{2}:\d{2}$/.test(value)) return false;
+  if (!/^\d{1,2}:\d{2}$/.test(value)) return false;
   const [h, m] = value.split(':').map(Number);
   return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+function padTime(value: string): string {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
 }
 
 export default function CourseEditSheet({
@@ -78,8 +84,8 @@ export default function CourseEditSheet({
       name: name.trim(),
       location: location.trim(),
       dayOfWeek,
-      startTime,
-      endTime,
+      startTime: padTime(startTime),
+      endTime: padTime(endTime),
     });
   }, [name, location, dayOfWeek, startTime, endTime, onSave]);
 
