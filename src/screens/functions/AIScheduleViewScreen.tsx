@@ -62,6 +62,14 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
     return days;
   }, [courses]);
 
+  // Calculate export hour height to fit all courses in the screenshot
+  const exportHourHeight = useMemo(() => {
+    // Target: fit 15 rows (8:00-22:00) into ~750px available height
+    const TOTAL_ROWS = 15;
+    const EXPORT_AVAILABLE_HEIGHT = 750;
+    return Math.floor(EXPORT_AVAILABLE_HEIGHT / TOTAL_ROWS); // ~50px per hour
+  }, []);
+
   const handleWeekChange = useCallback((delta: number) => {
     setWeekOffset((prev) => prev + delta);
   }, []);
@@ -244,11 +252,12 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
               onWeekChange={handleWeekChange}
               courseDays={courseDays}
             />
-            {/* Timetable grid — scaled to fit */}
+            {/* Timetable grid — sized to fit all courses */}
             <View style={styles.exportGrid}>
               <TimetableGrid
                 courses={courses}
                 onPressCourse={() => {}}
+                hourHeight={exportHourHeight}
               />
             </View>
             {/* Footer branding */}
@@ -299,15 +308,15 @@ const styles = StyleSheet.create({
   },
   offscreen: {
     position: 'absolute',
-    left: -9999,
-    top: -9999,
+    left: 0,
+    top: 0,
     width: 390,
+    opacity: 0,
+    pointerEvents: 'none',
   },
   exportContainer: {
     backgroundColor: '#FFFFFF',
     width: 390,
-    // 9:19.5 ratio → height ~845 for wallpaper fit
-    minHeight: 845,
   },
   exportHeader: {
     paddingTop: 16,
@@ -320,8 +329,7 @@ const styles = StyleSheet.create({
     color: '#0C1015',
   },
   exportGrid: {
-    flex: 1,
-    minHeight: 750,
+    overflow: 'hidden',
   },
   exportFooter: {
     paddingVertical: 12,

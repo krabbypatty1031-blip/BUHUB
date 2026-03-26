@@ -14,13 +14,13 @@ interface TimetableGridProps {
   courses: ScheduleCourse[];
   onPressCourse: (course: ScheduleCourse) => void;
   onLongPressEmpty?: (dayOfWeek: number, time: string) => void;
+  hourHeight?: number; // override default 68px per hour (for export scaling)
 }
 
-const HOUR_HEIGHT = 68;
+const DEFAULT_HOUR_HEIGHT = 68;
 const START_HOUR = 8;
 const END_HOUR = 22;
 const TOTAL_ROWS = END_HOUR - START_HOUR + 1; // 15 rows for grid lines
-const TOTAL_HEIGHT = TOTAL_ROWS * HOUR_HEIGHT; // 816px
 const TIME_LABEL_WIDTH = 28;
 const NUM_DAYS = 7;
 
@@ -41,7 +41,9 @@ const TimetableGrid = React.memo(function TimetableGrid({
   courses,
   onPressCourse,
   onLongPressEmpty,
+  hourHeight: HOUR_HEIGHT = DEFAULT_HOUR_HEIGHT,
 }: TimetableGridProps) {
+  const TOTAL_HEIGHT = TOTAL_ROWS * HOUR_HEIGHT;
   const [gridWidth, setGridWidth] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -146,7 +148,7 @@ const TimetableGrid = React.memo(function TimetableGrid({
               key={i}
               style={[
                 styles.gridRow,
-                { top: i * HOUR_HEIGHT },
+                { top: i * HOUR_HEIGHT, height: HOUR_HEIGHT },
               ]}
             />
           ))}
@@ -238,7 +240,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    height: HOUR_HEIGHT,
     borderBottomWidth: 0.5,
     borderBottomColor: '#E0E0E0',
   },

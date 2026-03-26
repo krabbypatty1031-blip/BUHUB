@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     gap: 11,
   },
   contactItemPinned: {
@@ -764,13 +764,13 @@ const styles = StyleSheet.create({
   },
   avatarUnreadDot: {
     position: 'absolute',
-    right: 4,
-    top: 2,
-    width: 7,
-    height: 7,
-    borderRadius: 36,
+    right: 0,
+    top: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#E35B49',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   /* Figma: row with items-start, left column + time */
