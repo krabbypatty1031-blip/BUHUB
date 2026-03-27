@@ -39,12 +39,14 @@ type ComposeErrorLike = {
 };
 
 const TAGS = [
-  'tagTreehole',
+  'tagDormLife',
+  'tagFoodReview',
+  'tagCampusGossip',
+  'tagRelationship',
+  'tagFandom',
   'tagJobReferral',
-  'tagCourseExchange',
-  'tagCampusLife',
+  'tagStudyExchange',
   'tagLostFound',
-  'tagStudyHelp',
 ] as const;
 
 export default function ComposeScreen({ navigation, route }: Props) {
