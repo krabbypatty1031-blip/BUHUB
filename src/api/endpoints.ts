@@ -107,6 +107,7 @@ const ENDPOINTS = {
     UPDATE_LANGUAGE: '/user/language',
     UNLINK_EMAIL: (emailId: string) => `/user/emails/${emailId}`,
     PUBLIC_PROFILE: (userName: string) => `/user/${userName}`,
+    USER_POSTS: (userName: string) => `/user/${userName}/posts`,
     FOLLOW: (userName: string) => `/user/${userName}/follow`,
     BLOCK: (userName: string) => `/user/${userName}/block`,
     BLOCKED_LIST: '/users/blocked',

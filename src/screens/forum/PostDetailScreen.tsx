@@ -1150,6 +1150,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       isAnonymous: post?.isAnonymous,
       userName: post?.userName,
       displayName: post?.name,
+      cachedAvatar: post?.avatar,
+      cachedNickname: post?.name,
+      cachedGender: post?.gender,
     });
   }, [post, currentUser, navigation]);
 
@@ -1161,6 +1164,9 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         isAnonymous: item.isAnonymous,
         userName: item.userName,
         displayName: item.name,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.name,
+        cachedGender: item.gender,
       });
     },
     [currentUser, navigation]

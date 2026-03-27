@@ -100,6 +100,9 @@ export default function FollowListScreen({ navigation, route }: Props) {
         currentUser,
         userName: item.userName,
         displayName: item.nickname ?? item.userName,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.nickname ?? item.userName,
+        cachedGender: item.gender,
       });
     };
     return (

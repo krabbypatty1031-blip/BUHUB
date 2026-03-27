@@ -86,6 +86,9 @@ export default function BlocklistScreen({ navigation }: Props) {
         currentUser,
         userName: item.userName,
         displayName: item.userName,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.userName,
+        cachedGender: item.gender,
       });
     };
     return (

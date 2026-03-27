@@ -201,6 +201,7 @@ export function usePublicProfile(userName: string) {
     queryKey: ['publicProfile', userName],
     queryFn: () => userService.getPublicProfile(userName),
     enabled: userName.length > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

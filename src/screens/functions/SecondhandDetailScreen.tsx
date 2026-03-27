@@ -130,6 +130,9 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
       currentUser,
       userName: item.userName,
       displayName: item.user,
+      cachedAvatar: item.avatar,
+      cachedNickname: item.user,
+      cachedGender: item.gender,
     });
   }, [navigation, currentUser, item]);
 

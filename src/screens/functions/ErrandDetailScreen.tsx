@@ -112,6 +112,9 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
       currentUser,
       userName: errand.userName,
       displayName: errand.user,
+      cachedAvatar: errand.avatar,
+      cachedNickname: errand.user,
+      cachedGender: errand.gender,
     });
   }, [navigation, currentUser, errand]);
 

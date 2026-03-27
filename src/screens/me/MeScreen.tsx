@@ -245,6 +245,9 @@ export default function MeScreen({ navigation }: Props) {
       isAnonymous: post.isAnonymous,
       userName: post.userName,
       displayName: post.name,
+      cachedAvatar: post.avatar,
+      cachedNickname: post.name,
+      cachedGender: post.gender,
     });
   }, [navigation, user]);
 
@@ -255,6 +258,9 @@ export default function MeScreen({ navigation }: Props) {
       isAnonymous: comment.isAnonymous,
       userName: comment.userName,
       displayName: comment.name,
+      cachedAvatar: comment.avatar,
+      cachedNickname: comment.name,
+      cachedGender: comment.gender,
     });
   }, [navigation, user]);
 

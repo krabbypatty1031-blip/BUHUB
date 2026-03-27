@@ -14,6 +14,9 @@ type AvatarNavigationParams = {
   userName?: string | null;
   displayName?: string | null;
   isAnonymous?: boolean;
+  cachedAvatar?: string | null;
+  cachedNickname?: string | null;
+  cachedGender?: string | null;
 };
 
 function normalizeHandle(value?: string | null): string {
@@ -37,6 +40,9 @@ export function handleAvatarPressNavigation({
   userName,
   displayName,
   isAnonymous = false,
+  cachedAvatar,
+  cachedNickname,
+  cachedGender,
 }: AvatarNavigationParams): void {
   if (isAnonymous) return;
   showTabBar();
@@ -59,5 +65,10 @@ export function handleAvatarPressNavigation({
 
   const profileUserName = (userName ?? '').trim() || (displayName ?? '').trim();
   if (!profileUserName) return;
-  navigation.navigate('UserProfile', { userName: profileUserName });
+  navigation.navigate('UserProfile', {
+    userName: profileUserName,
+    cachedAvatar: cachedAvatar ?? null,
+    cachedNickname: cachedNickname ?? null,
+    cachedGender: cachedGender ?? null,
+  });
 }

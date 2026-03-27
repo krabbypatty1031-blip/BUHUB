@@ -48,12 +48,15 @@ export default function NotifyLikesScreen({ navigation }: Props) {
   }, [isFocused, markAsRead, setUnreadLikes]);
 
   const handleAvatarPress = useCallback(
-    (userName: string) => {
+    (item: LikeNotification) => {
       handleAvatarPressNavigation({
         navigation,
         currentUser,
-        userName,
-        displayName: userName,
+        userName: item.userName ?? item.user,
+        displayName: item.user,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.user,
+        cachedGender: item.gender,
       });
     },
     [navigation, currentUser]
@@ -77,7 +80,7 @@ export default function NotifyLikesScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: LikeNotification }) => (
       <View style={styles.notificationItem}>
-        <TouchableOpacity onPress={() => handleAvatarPress(item.userName ?? item.user)}>
+        <TouchableOpacity onPress={() => handleAvatarPress(item)}>
           <Avatar
             text={item.user}
             uri={item.avatar || null}

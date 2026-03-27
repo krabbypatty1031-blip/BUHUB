@@ -112,6 +112,9 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
       currentUser,
       userName: partner.userName,
       displayName: partner.user,
+      cachedAvatar: partner.avatar,
+      cachedNickname: partner.user,
+      cachedGender: partner.gender,
     });
   }, [navigation, currentUser, partner]);
 

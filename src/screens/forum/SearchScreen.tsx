@@ -78,6 +78,9 @@ export default function SearchScreen({ navigation }: Props) {
         isAnonymous: post.isAnonymous,
         userName: post.userName,
         displayName: post.name,
+        cachedAvatar: post.avatar,
+        cachedNickname: post.name,
+        cachedGender: post.gender,
       });
     },
     [navigation, currentUser]

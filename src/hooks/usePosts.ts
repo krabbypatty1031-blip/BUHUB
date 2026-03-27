@@ -338,6 +338,19 @@ export function usePosts(enabled = true) {
   });
 }
 
+export function useUserPosts(userName: string) {
+  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
+    queryKey: ['posts', 'user', userName],
+    queryFn: ({ pageParam }) =>
+      forumService.getUserPosts(userName, { page: pageParam, limit: POSTS_LIMIT }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
+    staleTime: 5 * 60 * 1000,
+    enabled: userName.length > 0,
+  });
+}
+
 export function useFollowingPosts(enabled = true) {
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
     queryKey: ['posts', 'following'],

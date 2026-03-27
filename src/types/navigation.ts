@@ -8,7 +8,12 @@ import type { FunctionCardType } from './message';
 export type TabRouteName = 'ForumTab' | 'FunctionsTab' | 'MessagesTab' | 'MeTab';
 export type FunctionRefType = Exclude<FunctionCardType, 'post'>;
 export type ForwardedChatType = FunctionCardType;
-export type UserProfileParams = { userName: string };
+export type UserProfileParams = {
+  userName: string;
+  cachedAvatar?: string | null;
+  cachedNickname?: string | null;
+  cachedGender?: string | null;
+};
 export type PostDetailParams = {
   postId: string;
   commentId?: string;

@@ -344,6 +344,9 @@ export default function MessagesScreen({ navigation }: Props) {
         currentUser,
         userName: contact.userName,
         displayName: contact.name,
+        cachedAvatar: contact.avatar,
+        cachedNickname: contact.name,
+        cachedGender: contact.gender,
       });
     },
     [navigation, currentUser]

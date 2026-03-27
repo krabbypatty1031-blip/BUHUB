@@ -21,7 +21,7 @@ import type {
 } from '../../types/navigation';
 import type { ForumPost, Language } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
-import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
+import { useUserPosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
@@ -34,7 +34,7 @@ import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
-import { ForumListSkeleton } from '../../components/common/Skeleton';
+import SkeletonBox, { ForumListSkeleton } from '../../components/common/Skeleton';
 import {
   BackIcon,
   EditIcon,
@@ -60,17 +60,13 @@ type UserProfileParamList =
 
 type Props = NativeStackScreenProps<UserProfileParamList, 'UserProfile'>;
 
-function normalizeHandle(value?: string | null): string {
-  return (value ?? '').trim().toLowerCase();
-}
-
 export default function UserProfileScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { userName } = route.params;
+  const { userName, cachedAvatar, cachedNickname, cachedGender } = route.params;
   const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
-  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts } = usePosts();
+  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts, fetchNextPage, hasNextPage, isFetchingNextPage } = useUserPosts(userName);
   const allPosts = useMemo(() => flattenPostPages(postsData), [postsData]);
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
@@ -97,27 +93,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     .filter((value): value is string => !!value && value.trim().length > 0)
     .join(' / ');
 
-  const profileHandles = useMemo(
-    () =>
-      new Set(
-        [
-          userName,
-          profile?.userName,
-          profile?.nickname,
-        ]
-          .map((value) => normalizeHandle(value))
-          .filter((value) => value.length > 0)
-      ),
-    [userName, profile?.userName, profile?.nickname]
-  );
-
-  const userPosts = useMemo(() => {
-    return allPosts.filter((post) => {
-      const postUserName = normalizeHandle(post.userName);
-      const postDisplayName = normalizeHandle(post.name);
-      return profileHandles.has(postUserName) || profileHandles.has(postDisplayName);
-    });
-  }, [allPosts, profileHandles]);
+  const userPosts = allPosts;
 
   const handleBlock = useCallback(() => {
     Alert.alert(t('blockUser'), t('blockUserConfirm'), [
@@ -293,104 +269,131 @@ export default function UserProfileScreen({ navigation, route }: Props) {
           }}
         >
           <Avatar
-            text={userName}
-            uri={profile?.avatar || null}
+            text={profile?.nickname || cachedNickname || userName}
+            uri={profile?.avatar || cachedAvatar || null}
             size="xl"
-            gender={profile?.gender}
+            gender={profile?.gender || cachedGender as 'male' | 'female' | 'other' | 'secret' | undefined}
           />
         </TouchableOpacity>
 
-        <Text style={[styles.userName, getLocalizedFontStyle(language, 'bold')]}>{profile?.nickname || userName}</Text>
+        <Text style={[styles.userName, getLocalizedFontStyle(language, 'bold')]}>{profile?.nickname || cachedNickname || userName}</Text>
 
-        {profileMeta ? (
+        {profileLoading ? (
+          <SkeletonBox width={120} height={14} style={{ marginTop: 6 }} />
+        ) : profileMeta ? (
           <Text style={[styles.profileMeta, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
             {profileMeta}
           </Text>
         ) : null}
 
-        {profile?.bio ? (
+        {profileLoading ? (
+          <SkeletonBox width="60%" height={13} style={{ marginTop: 8 }} />
+        ) : profile?.bio ? (
           <Text style={[styles.bio, getLocalizedFontStyle(language, 'regular')]}>{profile.bio}</Text>
         ) : null}
 
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.stats?.postCount ?? userPosts.length}</Text>
-            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('postsStat')}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
-            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followingStat')}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
-            <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followersStat')}</Text>
-          </View>
+          {profileLoading ? (
+            <>
+              <SkeletonBox width={50} height={36} />
+              <View style={styles.statDivider} />
+              <SkeletonBox width={50} height={36} />
+              <View style={styles.statDivider} />
+              <SkeletonBox width={50} height={36} />
+            </>
+          ) : (
+            <>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.stats?.postCount ?? userPosts.length}</Text>
+                <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('postsStat')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.stats?.followingCount ?? 0}</Text>
+                <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followingStat')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.stats?.followerCount ?? 0}</Text>
+                <Text style={[styles.statLabel, getLocalizedFontStyle(language, 'regular')]}>{t('followersStat')}</Text>
+              </View>
+            </>
+          )}
         </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
-            activeOpacity={0.85}
-            onPress={handleMessage}
-            disabled={!profile?.id}
-          >
-            <ChatBubbleIcon size={18} color="#FFFFFF" />
-            <Text
-              style={[styles.messageBtnText, getLocalizedFontStyle(language, 'bold')]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
+        {profileLoading ? (
+          <View style={styles.actionRow}>
+            <View style={[styles.messageBtn, styles.messageBtnDisabled]}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            </View>
+            <View style={styles.followBtn}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.messageBtn, !profile?.id && styles.messageBtnDisabled]}
+              activeOpacity={0.85}
+              onPress={handleMessage}
+              disabled={!profile?.id}
             >
-              {t('message')}
-            </Text>
-          </TouchableOpacity>
+              <ChatBubbleIcon size={18} color="#FFFFFF" />
+              <Text
+                style={[styles.messageBtnText, getLocalizedFontStyle(language, 'bold')]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {t('message')}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.followBtn,
-              isFollowing && styles.followBtnFollowing,
-            ]}
-            activeOpacity={0.85}
-            onPress={handleFollow}
-            disabled={followUser.isPending}
-          >
-            {followUser.isPending ? (
-              <ActivityIndicator
-                size="small"
-                color={isFollowing ? '#0C1015' : '#FFFFFF'}
-              />
-            ) : (
-              <>
-                {isFollowing ? (
-                  <FollowedCheckIcon size={18} color="#0C1015" />
-                ) : (
-                  <FollowPersonIcon size={18} color="#FFFFFF" />
-                )}
-                <Text
-                  style={[
-                    styles.followBtnText,
-                    getLocalizedFontStyle(language, 'bold'),
-                    isFollowing && styles.followBtnTextFollowing,
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.82}
-                >
-                  {isFollowing ? t('alreadyFollowed') : t('follow')}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[
+                styles.followBtn,
+                isFollowing && styles.followBtnFollowing,
+              ]}
+              activeOpacity={0.85}
+              onPress={handleFollow}
+              disabled={followUser.isPending}
+            >
+              {followUser.isPending ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isFollowing ? '#0C1015' : '#FFFFFF'}
+                />
+              ) : (
+                <>
+                  {isFollowing ? (
+                    <FollowedCheckIcon size={18} color="#0C1015" />
+                  ) : (
+                    <FollowPersonIcon size={18} color="#FFFFFF" />
+                  )}
+                  <Text
+                    style={[
+                      styles.followBtnText,
+                      getLocalizedFontStyle(language, 'bold'),
+                      isFollowing && styles.followBtnTextFollowing,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    {isFollowing ? t('alreadyFollowed') : t('follow')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, getLocalizedFontStyle(language, 'bold')]}>{t('postsStat')}</Text>
       </View>
     </View>
-  ), [userName, profile, profileMeta, userPosts.length, t, language, handleMessage, isFollowing, handleFollow, followUser.isPending]);
+  ), [userName, profile, profileLoading, profileMeta, userPosts.length, t, language, handleMessage, isFollowing, handleFollow, followUser.isPending, cachedAvatar, cachedNickname, cachedGender]);
 
   const renderPost = useCallback(
     ({ item }: { item: ForumPost }) => {
@@ -497,6 +500,8 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         extraData={listExtraData}
         refreshing={loading}
         onRefresh={handleRefresh}
+        onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
@@ -508,6 +513,13 @@ export default function UserProfileScreen({ navigation, route }: Props) {
               title={t('noPosts')}
             />
           )
+        }
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
+            </View>
+          ) : null
         }
       />
 

@@ -48,12 +48,15 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
   }, [isFocused, markAsRead, setUnreadComments]);
 
   const handleAvatarPress = useCallback(
-    (userName: string) => {
+    (item: CommentNotification) => {
       handleAvatarPressNavigation({
         navigation,
         currentUser,
-        userName,
-        displayName: userName,
+        userName: item.userName ?? item.user,
+        displayName: item.user,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.user,
+        cachedGender: item.gender,
       });
     },
     [navigation, currentUser]
@@ -73,7 +76,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: CommentNotification }) => (
       <View style={styles.notificationItem}>
-        <TouchableOpacity onPress={() => handleAvatarPress(item.userName ?? item.user)}>
+        <TouchableOpacity onPress={() => handleAvatarPress(item)}>
           <Avatar
             text={item.user}
             uri={item.avatar || null}

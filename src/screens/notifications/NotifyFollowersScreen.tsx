@@ -33,7 +33,7 @@ function FollowerItem({
   language,
 }: {
   item: FollowerNotification;
-  onAvatarPress: (userName: string) => void;
+  onAvatarPress: (item: FollowerNotification) => void;
   language: string;
 }) {
   const { t } = useTranslation();
@@ -53,7 +53,7 @@ function FollowerItem({
 
   return (
     <View style={styles.notificationItem}>
-      <TouchableOpacity onPress={() => onAvatarPress(targetUserName)}>
+      <TouchableOpacity onPress={() => onAvatarPress(item)}>
         <Avatar
           text={item.user}
           uri={item.avatar || null}
@@ -138,12 +138,15 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
   }, [isFocused, markAsRead, setUnreadFollowers]);
 
   const handleAvatarPress = useCallback(
-    (userName: string) => {
+    (item: FollowerNotification) => {
       handleAvatarPressNavigation({
         navigation,
         currentUser,
-        userName,
-        displayName: userName,
+        userName: item.userName ?? item.user,
+        displayName: item.user,
+        cachedAvatar: item.avatar,
+        cachedNickname: item.user,
+        cachedGender: item.gender,
       });
     },
     [navigation, currentUser]
