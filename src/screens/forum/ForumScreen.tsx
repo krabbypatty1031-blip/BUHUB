@@ -350,11 +350,11 @@ export default function ForumScreen({ navigation, route }: Props) {
   const handleRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
-      await queryClient.resetQueries({ queryKey: ['posts'] });
+      await refetch();
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [queryClient]);
+  }, [refetch]);
 
   return (
       <View style={styles.container}>

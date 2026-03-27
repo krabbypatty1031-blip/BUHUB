@@ -243,12 +243,12 @@ export default function RatingListScreen({ navigation }: Props) {
   const category = selectedCategory;
   const activeQuickFilter = activeFilters[category] ?? ALL_FILTER_VALUE;
 
-  const { data: ratings, isLoading, isRefetching, refetch, isStale } = useRatings(category);
+  const { data: ratings, isLoading, isRefetching, refetch } = useRatings(category);
 
   useFocusEffect(
     useCallback(() => {
-      if (isStale) refetch();
-    }, [isStale, refetch])
+      refetch();
+    }, [refetch])
   );
 
   useEffect(() => {
@@ -409,12 +409,11 @@ export default function RatingListScreen({ navigation }: Props) {
       if ('code' in item && item.code) {
         return [item.code, translatedDepartment].filter(Boolean).join(' | ');
       }
-      if ('email' in item) {
-        const emailDisplay = item.email || t('noEmail');
-        return [translatedDepartment, emailDisplay].filter(Boolean).join(' | ');
-      }
       if ('location' in item && item.location) {
         return [getLocationLabel(item, lang), translatedDepartment].filter(Boolean).join(' | ');
+      }
+      if ('email' in item && item.email) {
+        return [translatedDepartment, item.email].filter(Boolean).join(' | ');
       }
       return translatedDepartment;
     },

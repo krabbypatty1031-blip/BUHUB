@@ -383,8 +383,8 @@ export function useContacts(options: ContactsQueryOptions = {}) {
       });
       return contacts;
     },
-    staleTime: polling ? 5 * 1000 : 30 * 1000,
-    refetchInterval: polling ? 8 * 1000 : false,
+    staleTime: polling ? 10 * 1000 : 30 * 1000,
+    refetchInterval: polling ? 20 * 1000 : false,
     refetchOnWindowFocus: polling,
     refetchOnReconnect: true,
     initialData: userId ? peekCachedContacts(userId, normalizedLanguage) : undefined,
@@ -450,9 +450,9 @@ export function useChatHistory(userId: string, options: ChatHistoryQueryOptions 
       return reconciledHistory;
     },
     enabled: enabled && userId.length > 0,
-    staleTime: polling ? 5 * 1000 : 5 * 60 * 1000,
+    staleTime: polling ? 8 * 1000 : 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchInterval: polling ? 8 * 1000 : false,
+    refetchInterval: polling ? 15 * 1000 : false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     placeholderData: (prev) => prev,

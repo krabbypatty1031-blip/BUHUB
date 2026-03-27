@@ -157,7 +157,7 @@ export type ForumStackParamList = {
   PostDetail: PostDetailParams;
   Compose: ForumComposeParams;
   Search: undefined;
-  CircleDetail: { tag: string };
+  CircleDetail: { tag: string; cachedFollowed?: boolean; cachedFollowerCount?: number; cachedUsageCount?: number };
   UserProfile: UserProfileParams;
 };
 
@@ -207,6 +207,7 @@ export type MeStackParamList = {
   ScanQR: undefined;
   FollowList: { type: 'following' | 'followers' };
   ForumList: undefined;
+  CircleDetail: { tag: string; cachedFollowed?: boolean; cachedFollowerCount?: number; cachedUsageCount?: number };
   UserProfile: UserProfileParams;
   PostDetail: PostDetailParams;
   Settings: undefined;

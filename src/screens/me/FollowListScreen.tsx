@@ -10,8 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
-import type { FollowListItem } from '../../types';
-import { useFollowingList, useFollowersList, useFollowUser } from '../../hooks/useUser';
+import type { FollowListItem, ForumCircleSummary } from '../../types';
+import { useFollowingList, useFollowersList, useFollowUser, useFollowedCircles } from '../../hooks/useUser';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -75,12 +75,43 @@ const FollowItem = React.memo(function FollowItem({
   );
 });
 
+const CircleItem = React.memo(function CircleItem({
+  item,
+  onPress,
+  language,
+  t,
+}: {
+  item: ForumCircleSummary;
+  onPress: () => void;
+  language: string;
+  t: (key: string) => string;
+}) {
+  const rawName = item.name.startsWith('#') ? item.name.slice(1) : item.name;
+  const translated = t(rawName) !== rawName ? t(rawName) : rawName;
+  const translatedName = translated.startsWith('#') ? translated.slice(1) : translated;
+  const firstChar = translatedName.charAt(0);
+  return (
+    <TouchableOpacity style={styles.itemRow} activeOpacity={0.7} onPress={onPress}>
+      <View style={styles.circleAvatar}>
+        <Text style={styles.circleAvatarText}>{firstChar}</Text>
+      </View>
+      <View style={styles.itemInfo}>
+        <Text style={[styles.itemName, getLocalizedFontStyle(language, 'medium')]} numberOfLines={1}>{translatedName}</Text>
+        <Text style={[styles.itemSubInfo, getLocalizedFontStyle(language, 'regular')]} numberOfLines={1}>
+          {item.followerCount} {t('circleFollowers')} · {item.usageCount} {t('circlePosts')}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function FollowListScreen({ navigation, route }: Props) {
   const { type } = route.params;
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const { data: followingData } = useFollowingList();
   const { data: followersData } = useFollowersList();
+  const { data: followedCircles } = useFollowedCircles({ enabled: type === 'following' });
   const { mutate: followUser } = useFollowUser();
   const currentUser = useAuthStore((s) => s.user);
 
@@ -137,8 +168,34 @@ export default function FollowListScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.userName}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          type === 'following' && followedCircles && followedCircles.length > 0 ? (
+            <View>
+              <Text style={[styles.sectionHeader, getLocalizedFontStyle(language, 'bold')]}>{t('officialTags')}</Text>
+              {followedCircles.map((circle) => (
+                <CircleItem
+                  key={circle.name}
+                  item={circle}
+                  onPress={() => navigation.navigate('CircleDetail', {
+                    tag: circle.name,
+                    cachedFollowed: circle.followed,
+                    cachedFollowerCount: circle.followerCount,
+                    cachedUsageCount: circle.usageCount,
+                  })}
+                  language={language}
+                  t={t}
+                />
+              ))}
+              {sourceData && sourceData.length > 0 && (
+                <Text style={[styles.sectionHeader, getLocalizedFontStyle(language, 'bold')]}>{t('followingListTitle')}</Text>
+              )}
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
-          <EmptyState icon={<UsersIcon size={32} color={colors.onSurfaceVariant} />} title={emptyText} />
+          type === 'following' && followedCircles && followedCircles.length > 0
+            ? null
+            : <EmptyState icon={<UsersIcon size={32} color={colors.onSurfaceVariant} />} title={emptyText} />
         }
       />
     </SafeAreaView>
@@ -224,6 +281,26 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
   followBtnTextFollowed: {
+    color: colors.primary,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    color: colors.onSurfaceVariant,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  circleAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryContainer ?? '#E8DEF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.primary,
   },
 });

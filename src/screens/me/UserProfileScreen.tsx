@@ -63,7 +63,10 @@ type Props = NativeStackScreenProps<UserProfileParamList, 'UserProfile'>;
 export default function UserProfileScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { userName, cachedAvatar, cachedNickname, cachedGender } = route.params;
+  const { userName, cachedAvatar, cachedNickname, cachedGender: rawCachedGender } = route.params;
+  const validGenders = ['male', 'female', 'other', 'secret'] as const;
+  type Gender = typeof validGenders[number];
+  const cachedGender: Gender | undefined = validGenders.includes(rawCachedGender as Gender) ? (rawCachedGender as Gender) : undefined;
   const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
   const { data: postsData, isLoading: postsLoading, refetch: refetchPosts, fetchNextPage, hasNextPage, isFetchingNextPage } = useUserPosts(userName);
@@ -272,7 +275,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
             text={profile?.nickname || cachedNickname || userName}
             uri={profile?.avatar || cachedAvatar || null}
             size="xl"
-            gender={profile?.gender || cachedGender as 'male' | 'female' | 'other' | 'secret' | undefined}
+            gender={profile?.gender || cachedGender}
           />
         </TouchableOpacity>
 

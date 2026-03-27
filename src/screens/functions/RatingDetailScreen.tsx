@@ -163,9 +163,9 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
 
   const getSubtitle = (ratingItem: RatingItem): string => {
     const localizedDepartment = getLocalizedRatingDepartment(ratingItem, lang);
-    if ('email' in ratingItem) return localizedDepartment || ratingItem.email || '';
     if ('code' in ratingItem) return [ratingItem.code, localizedDepartment].filter(Boolean).join(' | ');
     if ('location' in ratingItem) return getLocalizedRatingLocation(ratingItem, lang) || localizedDepartment || '';
+    if ('email' in ratingItem && ratingItem.email) return [localizedDepartment, ratingItem.email].filter(Boolean).join(' | ');
     return localizedDepartment || '';
   };
   const sharedTitle = item ? translateLabel(item.name, lang) : '';

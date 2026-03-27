@@ -9,6 +9,7 @@ import ScanQRScreen from '../screens/me/ScanQRScreen';
 import FollowListScreen from '../screens/me/FollowListScreen';
 import ForumListScreen from '../screens/me/ForumListScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
+import CircleDetailScreen from '../screens/forum/CircleDetailScreen';
 import PostDetailScreen from '../screens/forum/PostDetailScreen';
 import SettingsScreen from '../screens/me/SettingsScreen';
 import ManageEmailsScreen from '../screens/me/ManageEmailsScreen';
@@ -31,6 +32,7 @@ export default function MeStackNavigator() {
       <Stack.Screen name="ScanQR" component={ScanQRScreen} />
       <Stack.Screen name="FollowList" component={FollowListScreen} />
       <Stack.Screen name="ForumList" component={ForumListScreen} />
+      <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />

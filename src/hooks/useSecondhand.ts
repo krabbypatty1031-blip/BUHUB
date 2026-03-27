@@ -16,8 +16,7 @@ export function useSecondhand(category?: SecondhandCategory) {
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
-    staleTime: 30 * 1000,
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -30,7 +29,7 @@ export function useMySecondhand(enabled = true) {
   return useQuery({
     queryKey: ['secondhand', 'all'],
     queryFn: () => secondhandService.getList(undefined, { includeExpired: true }),
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled,
   });
 }

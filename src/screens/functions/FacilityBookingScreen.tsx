@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -13,75 +14,152 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { BackIcon, MapPinIcon, ClockIcon, ChevronRightIcon } from '../../components/common/icons';
+import { getLocalizedFontStyle } from '../../theme/typography';
 import { openExternalBrowser } from '../../utils/openExternalBrowser';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FacilityBooking'>;
 
-const BOOKING_URL =
-  'https://library.hkbu.edu.hk/using-the-library/facilities/room-bookings/';
+type FacilityItem = {
+  id: string;
+  titleKey: string;
+  locationKey: string;
+  hours: string;
+  bookingUrl: string;
+  navigateTo?: 'LibraryDetail';
+};
+
+const FACILITIES: FacilityItem[] = [
+  {
+    id: 'library',
+    titleKey: 'libraryFacility',
+    locationKey: 'libAddressShort',
+    hours: '8:30 a.m. – 11:00 p.m.',
+    bookingUrl: 'https://library.hkbu.edu.hk/using-the-library/facilities/room-bookings/',
+    navigateTo: 'LibraryDetail',
+  },
+  {
+    id: 'sports',
+    titleKey: 'facilitySports',
+    locationKey: 'facilitySportsLocation',
+    hours: '7:00 a.m. – 10:30 p.m.',
+    bookingUrl: 'https://sportsbooking1.hkbu.edu.hk/Booking/',
+  },
+  {
+    id: 'vfbs',
+    titleKey: 'facilityVFBS',
+    locationKey: 'facilityVFBSLocation',
+    hours: '',
+    bookingUrl: 'https://cvfbs.hkbu.edu.hk/Booking/',
+  },
+  {
+    id: 'jccc',
+    titleKey: 'facilityJCCC',
+    locationKey: 'facilityJCCCLocation',
+    hours: '',
+    bookingUrl: 'https://jsc.hkbu.edu.hk/facilitycharge_en.html',
+  },
+  {
+    id: 'sgallery',
+    titleKey: 'facilitySGallery',
+    locationKey: 'facilitySGalleryLocation',
+    hours: '',
+    bookingUrl: 'https://s-gallery.hkbu.edu.hk/en/online-booking/',
+  },
+];
+
+function FacilityCard({
+  facility,
+  t,
+  language,
+  onCardPress,
+  onBook,
+}: {
+  facility: FacilityItem;
+  t: (key: string) => string;
+  language: string;
+  onCardPress: () => void;
+  onBook: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.7}
+      onPress={onCardPress}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={[styles.cardTitle, getLocalizedFontStyle(language, 'bold')]}>{t(facility.titleKey)}</Text>
+        <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+      </View>
+
+      <View style={styles.cardDivider} />
+
+      <View style={styles.cardRow}>
+        <View style={styles.cardIcon}>
+          <MapPinIcon size={14} color={colors.onSurface} />
+        </View>
+        <Text style={[styles.cardInfo, getLocalizedFontStyle(language, 'regular')]}>{t(facility.locationKey)}</Text>
+      </View>
+
+      {facility.hours ? (
+        <View style={styles.cardRow}>
+          <View style={styles.cardIcon}>
+            <ClockIcon size={14} color={colors.onSurface} />
+          </View>
+          <Text style={[styles.cardInfo, getLocalizedFontStyle(language, 'regular')]}>{facility.hours}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.cardFooter}>
+        <TouchableOpacity
+          style={styles.bookBtn}
+          activeOpacity={0.7}
+          onPress={onBook}
+        >
+          <Text style={[styles.bookBtnText, getLocalizedFontStyle(language, 'medium')]}>{t('bookNow')}</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function FacilityBookingScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
 
-  const handleCardPress = useCallback(() => {
-    navigation.navigate('LibraryDetail');
+  const handleCardPress = useCallback((facility: FacilityItem) => {
+    if (facility.navigateTo) {
+      navigation.navigate(facility.navigateTo);
+    } else {
+      void openExternalBrowser(facility.bookingUrl, 'system');
+    }
   }, [navigation]);
 
-  const handleBook = useCallback(() => {
-    void openExternalBrowser(BOOKING_URL, 'system');
+  const handleBook = useCallback((url: string) => {
+    void openExternalBrowser(url, 'system');
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <BackIcon size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('facilityBooking')}</Text>
+        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>{t('facilityBooking')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
-      {/* Facility Card */}
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.7}
-          onPress={handleCardPress}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t('libraryFacility')}</Text>
-            <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
-          </View>
-
-          <View style={styles.cardDivider} />
-
-          <View style={styles.cardRow}>
-            <View style={styles.cardIcon}>
-              <MapPinIcon size={14} color={colors.onSurface} />
-            </View>
-            <Text style={styles.cardInfo}>{t('libAddressShort')}</Text>
-          </View>
-
-          <View style={styles.cardRow}>
-            <View style={styles.cardIcon}>
-              <ClockIcon size={14} color={colors.onSurface} />
-            </View>
-            <Text style={styles.cardInfo}>8:30 a.m. – 11:00 p.m.</Text>
-          </View>
-
-          <View style={styles.cardFooter}>
-            <TouchableOpacity
-              style={styles.bookBtn}
-              activeOpacity={0.7}
-              onPress={handleBook}
-            >
-              <Text style={styles.bookBtnText}>{t('bookNow')}</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </View>
-
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {FACILITIES.map((facility) => (
+          <FacilityCard
+            key={facility.id}
+            facility={facility}
+            t={t}
+            language={language}
+            onCardPress={() => handleCardPress(facility)}
+            onBook={() => handleBook(facility.bookingUrl)}
+          />
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -91,8 +169,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-
-  /* ── Top Bar ── */
   topBar: {
     height: 56,
     flexDirection: 'row',
@@ -118,11 +194,14 @@ const styles = StyleSheet.create({
     color: '#0C1015',
     pointerEvents: 'none',
   },
-
-  /* ── Content ── */
+  scrollView: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
   },
   card: {
     backgroundColor: colors.background,

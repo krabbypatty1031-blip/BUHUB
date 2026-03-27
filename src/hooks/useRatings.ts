@@ -7,7 +7,7 @@ export function useMyRating(category: RatingCategory, id: string) {
     queryKey: ['myRating', category, id],
     queryFn: () => ratingService.getMyRating(category, id),
     enabled: id.length > 0,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -15,7 +15,7 @@ export function useRatings(category: RatingCategory, sortMode: RatingSortMode = 
   return useQuery({
     queryKey: ['ratings', category, sortMode],
     queryFn: () => ratingService.getList(category, sortMode),
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     placeholderData: (prev) => prev,
   });

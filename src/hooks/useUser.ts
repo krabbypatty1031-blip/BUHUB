@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../api/services/user.service';
+import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
-import type { User, Language, FollowListItem, MyContent, UserPublicProfile, FollowerNotification } from '../types';
+import type { User, Language, FollowListItem, MyContent, UserPublicProfile, FollowerNotification, ForumCircleSummary } from '../types';
 
 function normalizeHandle(handle: string | null | undefined): string {
   return (handle ?? '').trim().toLowerCase();
@@ -222,6 +223,15 @@ export function useFollowersList(options?: { enabled?: boolean }) {
     queryFn: () => userService.getFollowersList(),
     enabled: options?.enabled ?? true,
     select: (data: FollowListItem[]) => filterBlockedFollowList(data, blockedUsers) ?? [],
+  });
+}
+
+export function useFollowedCircles(options?: { enabled?: boolean }) {
+  return useQuery<ForumCircleSummary[]>({
+    queryKey: ['followedCircles'],
+    queryFn: () => forumService.getCircles({ followedOnly: true }),
+    enabled: options?.enabled ?? true,
+    staleTime: 60 * 1000,
   });
 }
 

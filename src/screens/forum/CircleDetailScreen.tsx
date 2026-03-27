@@ -33,7 +33,7 @@ type Props = NativeStackScreenProps<ForumStackParamList, 'CircleDetail'>;
 export default function CircleDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { tag } = route.params;
+  const { tag, cachedFollowed, cachedFollowerCount, cachedUsageCount } = route.params;
   const { data } = usePosts();
   const allPosts = useMemo(() => flattenPostPages(data), [data]);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
@@ -49,7 +49,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const { data: circleFollow } = useCircleFollow(tag);
   const toggleCircleFollowMutation = useToggleCircleFollow(tag);
-  const followed = circleFollow?.followed ?? false;
+  const followed = circleFollow?.followed ?? cachedFollowed ?? false;
   const displayName = useMemo(() => {
     const translated = t(tag);
     const name = translated !== tag ? translated : tag;
@@ -61,8 +61,8 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     () => allPosts.filter((p) => p.tags?.includes(tag) && !isBlocked(p.name)),
     [allPosts, tag, blockedUsers, isBlocked]
   );
-  const followerCount = circleFollow?.followerCount ?? 0;
-  const contentCount = posts.length;
+  const followerCount = circleFollow?.followerCount ?? cachedFollowerCount ?? 0;
+  const contentCount = posts.length > 0 || cachedUsageCount === undefined ? posts.length : cachedUsageCount;
 
   const handleTagPress = useCallback(
     (pressedTag: string) => {

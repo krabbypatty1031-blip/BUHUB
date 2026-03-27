@@ -16,8 +16,7 @@ export function usePartners(category?: PartnerCategory) {
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
-    staleTime: 30 * 1000,
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -30,7 +29,7 @@ export function useMyPartners(category?: PartnerCategory, enabled = true) {
   return useQuery({
     queryKey: ['partners', 'all', category],
     queryFn: () => partnerService.getList(category || undefined, { includeExpired: true }),
-    refetchInterval: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled,
   });
 }

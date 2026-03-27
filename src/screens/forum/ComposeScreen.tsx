@@ -91,7 +91,9 @@ export default function ComposeScreen({ navigation, route }: Props) {
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? [] : [tag]
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length < 3 ? [...prev, tag] : prev
     );
   }, []);
 
