@@ -3084,6 +3084,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   }, [clearTyping, contactId, typingState?.isTyping, typingState?.updatedAt]);
 
   /* ----- Build flat list data with date separators ----- */
+  const prevListDataMapRef = useRef<Map<string, ChatListItem>>(new Map());
   const listData = useMemo<ChatListItem[]>(() => {
     const items: ChatListItem[] = [];
     if (displayChatHistory) {
@@ -3127,22 +3128,38 @@ function ChatScreenContent({ navigation, route }: Props) {
             (currentGroupOldestTime || currentGroupTime) && isMessageGroupEnd
               ? (currentGroupOldestTime || currentGroupTime!)
               : null;
-          items.push({
-            kind: 'message',
-            message: renderMessage,
-            key: messageKey,
-            ...(stableTime ? { timeLabel: stableTime.timeLabel } : {}),
-          });
+          const prevItem = prevListDataMapRef.current.get(messageKey);
+          const newTimeLabel = stableTime ? stableTime.timeLabel : undefined;
+          const item: ChatListItem =
+            prevItem &&
+            prevItem.kind === 'message' &&
+            prevItem.message === renderMessage &&
+            prevItem.timeLabel === newTimeLabel
+              ? prevItem
+              : { kind: 'message', message: renderMessage, key: messageKey,
+                  ...(stableTime ? { timeLabel: stableTime.timeLabel } : {}) };
+          items.push(item);
           if (isMessageGroupEnd) {
             currentGroupTime = null;
             currentGroupOldestTime = null;
           }
         });
         if (h.date) {
-          items.push({ kind: 'date', date: h.date, key: `date-${h.date}-${dateKeySeed}` });
+          const dateKey = `date-${h.date}-${dateKeySeed}`;
+          const prevDateItem = prevListDataMapRef.current.get(dateKey);
+          const dateItem: ChatListItem =
+            prevDateItem && prevDateItem.kind === 'date' && prevDateItem.date === h.date
+              ? prevDateItem
+              : { kind: 'date', date: h.date, key: dateKey };
+          items.push(dateItem);
         }
       });
     }
+    const newMap = new Map<string, ChatListItem>();
+    for (const item of items) {
+      newMap.set(item.key, item);
+    }
+    prevListDataMapRef.current = newMap;
     return items;
   }, [displayChatHistory, resolveTransientMediaPreview]);
   const messageItemCount = useMemo(
