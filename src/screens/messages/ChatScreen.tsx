@@ -1739,7 +1739,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const hasUserDraggedRef = useRef(false);
   const lastKnownListLengthRef = useRef(0);
   const isFetchingOlderHistoryRef = useRef(false);
-  const isAppendingOlderHistoryRef = useRef(false);
+  const olderHistoryAppendCounterRef = useRef(0);
   const olderHistoryLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetchedOlderHistoryChunkRef = useRef<ChatHistoryChunk | null>(null);
   const isPrefetchingOlderHistoryRef = useRef(false);
@@ -1839,7 +1839,7 @@ function ChatScreenContent({ navigation, route }: Props) {
       lastKnownListLengthRef.current = 0;
       lastKnownMessageCountRef.current = 0;
       olderHistoryLoadArmedRef.current = false;
-      isAppendingOlderHistoryRef.current = false;
+      olderHistoryAppendCounterRef.current = 0;
       olderHistoryTriggerCooldownUntilRef.current = 0;
       setPendingNewMessageCount(0);
       prefetchedOlderHistoryChunkRef.current = null;
@@ -1998,7 +1998,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     setIsInitialLatestPositionReady(false);
     setPendingNewMessageCount(0);
     setTransientMediaVersion(0);
-    isAppendingOlderHistoryRef.current = false;
+    olderHistoryAppendCounterRef.current = 0;
     olderHistoryTriggerCooldownUntilRef.current = 0;
     prefetchedOlderHistoryChunkRef.current = null;
     isPrefetchingOlderHistoryRef.current = false;
@@ -2573,13 +2573,12 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const applyOlderHistoryChunk = useCallback((chunk: ChatHistoryChunk) => {
     if (chunk.history.length > 0) {
-      isAppendingOlderHistoryRef.current = true;
+      olderHistoryAppendCounterRef.current += 1;
       startTransition(() => {
         setOlderChatHistory((current) => mergeChatHistories(chunk.history, current));
       });
-    } else {
-      isAppendingOlderHistoryRef.current = false;
     }
+    // No increment needed for empty chunk — counter stays as-is
     setHasOlderHistory(chunk.hasMore);
     setNextHistoryPage(chunk.page + 1);
   }, []);
@@ -2655,7 +2654,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     }
     isFetchingOlderHistoryRef.current = true;
     olderHistoryLoadArmedRef.current = false;
-    isAppendingOlderHistoryRef.current = false;
+    olderHistoryAppendCounterRef.current = 0;
     olderHistoryTriggerCooldownUntilRef.current = Date.now() + OLDER_HISTORY_TRIGGER_COOLDOWN_MS;
     try {
       const prefetchedChunk =
@@ -2690,7 +2689,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         olderHistoryLoadingTimerRef.current = null;
       }
       setShowOlderHistoryLoading(false);
-      isAppendingOlderHistoryRef.current = false;
+      olderHistoryAppendCounterRef.current = 0;
       showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
     } finally {
       isFetchingOlderHistoryRef.current = false;
@@ -3262,7 +3261,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     lastKnownListLengthRef.current = 0;
     lastKnownMessageCountRef.current = 0;
     isFetchingOlderHistoryRef.current = false;
-    isAppendingOlderHistoryRef.current = false;
+    olderHistoryAppendCounterRef.current = 0;
     hasCompletedInitialLatestPositionRef.current = false;
     olderHistoryLoadArmedRef.current = false;
     setIsInitialLatestPositionReady(false);
@@ -3313,8 +3312,8 @@ function ChatScreenContent({ navigation, route }: Props) {
     const hasNewMessages = messageDelta > 0;
     if (hasNewItems) lastKnownListLengthRef.current = listData.length;
     if (hasNewMessages) lastKnownMessageCountRef.current = messageItemCount;
-    if (isAppendingOlderHistoryRef.current) {
-      isAppendingOlderHistoryRef.current = false;
+    if (olderHistoryAppendCounterRef.current > 0) {
+      olderHistoryAppendCounterRef.current -= 1;
       maybePrefetchOlderHistory();
       return;
     }
@@ -4212,6 +4211,7 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const handlePressNewMessageHint = useCallback(() => {
     anchorToLatestRef.current = true;
+    setPendingNewMessageCount(0);
     scrollToLatest(true);
   }, [scrollToLatest]);
 
@@ -4391,6 +4391,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           keyboardDismissMode="on-drag"
           drawDistance={CHAT_LIST_DRAW_DISTANCE}
           removeClippedSubviews={Platform.OS === 'android'}
+          maintainVisibleContentPosition={{ disabled: true }}
           getItemType={getItemType}
           ListEmptyComponent={
             showInitialLoadingState ? (
