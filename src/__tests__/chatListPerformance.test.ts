@@ -436,3 +436,208 @@ describe('listData referential stability', () => {
     expect(secondDateItems[0]).toBe(firstDateItems[0]); // same reference
   });
 });
+
+// ---------------------------------------------------------------------------
+// CHAT-05: Optimistic send pipeline
+//
+// These tests verify the optimistic message send flow:
+// 1. buildLocalPendingMessage produces a correctly shaped ChatMessage
+// 2. The send pipeline calls queueLocalPendingMessage synchronously before
+//    the await executePendingSend, so the message bubble appears in the
+//    React Query cache (and thus in the FlashList) before the network
+//    round-trip completes.
+// ---------------------------------------------------------------------------
+
+// Mirrors buildLocalPendingMessage from ChatScreen.tsx (lines 2504-2532)
+// Pure function (useCallback with empty deps), safe to replicate here.
+function formatLocalMessageTime(date: Date) {
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+let localIdCounter = 0;
+function createLocalMessageId() {
+  localIdCounter += 1;
+  return `local-msg-${Date.now()}-${localIdCounter}`;
+}
+
+interface ChatReplyReference {
+  text?: string;
+  from?: string;
+  fromName?: string;
+  messageId?: string;
+  clientKey?: string;
+  type?: string;
+  title?: string;
+  thumbnailUri?: string;
+  durationMs?: number;
+  cardType?: string;
+}
+
+function buildLocalPendingMessage(message: {
+  text?: string;
+  images?: string[];
+  mediaMetas?: ChatMessage['mediaMetas'];
+  mediaGroupId?: string;
+  audio?: ChatMessage['audio'];
+  replyTo?: ChatReplyReference;
+  imageAlbum?: ChatMessage['imageAlbum'];
+  functionCard?: ChatMessage['functionCard'];
+}): ChatMessage {
+  const now = new Date();
+  const localMessageId = createLocalMessageId();
+  return {
+    id: localMessageId,
+    clientKey: localMessageId,
+    createdAt: now.toISOString(),
+    type: 'sent',
+    text: message.text ?? '',
+    ...(message.images ? { images: message.images } : {}),
+    ...(message.mediaMetas ? { mediaMetas: message.mediaMetas } : {}),
+    ...(message.mediaGroupId ? { mediaGroupId: message.mediaGroupId } : {}),
+    ...(message.audio ? { audio: message.audio } : {}),
+    ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+    ...(message.imageAlbum ? { imageAlbum: message.imageAlbum } : {}),
+    ...(message.functionCard ? { functionCard: message.functionCard } : {}),
+    time: formatLocalMessageTime(now),
+    status: 'sending',
+  };
+}
+
+describe('CHAT-05: Optimistic send pipeline', () => {
+  beforeEach(() => {
+    localIdCounter = 0;
+  });
+
+  it('buildLocalPendingMessage returns message with status=sending, non-empty id, type=sent, and provided text', () => {
+    const msg = buildLocalPendingMessage({ text: 'hello' });
+
+    expect(msg.status).toBe('sending');
+    expect(msg.id).toBeTruthy();
+    expect(msg.id!.length).toBeGreaterThan(0);
+    expect(msg.type).toBe('sent');
+    expect(msg.text).toBe('hello');
+    expect(msg.clientKey).toBe(msg.id);
+    expect(msg.createdAt).toBeTruthy();
+    expect(msg.time).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('buildLocalPendingMessage with no text returns text="" (empty string, not undefined)', () => {
+    const msg = buildLocalPendingMessage({});
+
+    expect(msg.text).toBe('');
+    expect(msg.text).not.toBeUndefined();
+    expect(msg.status).toBe('sending');
+    expect(msg.type).toBe('sent');
+  });
+
+  it('buildLocalPendingMessage includes replyTo when provided', () => {
+    const reply: ChatReplyReference = {
+      text: 'original message',
+      fromName: 'Alice',
+      messageId: 'msg-999',
+    };
+    const msg = buildLocalPendingMessage({ text: 'reply text', replyTo: reply });
+
+    expect(msg.replyTo).toBeDefined();
+    expect(msg.replyTo!.text).toBe('original message');
+    expect(msg.replyTo!.fromName).toBe('Alice');
+    expect(msg.replyTo!.messageId).toBe('msg-999');
+  });
+
+  it('buildLocalPendingMessage omits optional fields when not provided', () => {
+    const msg = buildLocalPendingMessage({ text: 'plain' });
+
+    expect(msg.images).toBeUndefined();
+    expect(msg.mediaMetas).toBeUndefined();
+    expect(msg.audio).toBeUndefined();
+    expect(msg.replyTo).toBeUndefined();
+    expect(msg.imageAlbum).toBeUndefined();
+    expect(msg.functionCard).toBeUndefined();
+    expect(msg.mediaGroupId).toBeUndefined();
+  });
+
+  it('each call to buildLocalPendingMessage generates a unique id', () => {
+    const msg1 = buildLocalPendingMessage({ text: 'first' });
+    const msg2 = buildLocalPendingMessage({ text: 'second' });
+
+    expect(msg1.id).not.toBe(msg2.id);
+    expect(msg1.clientKey).not.toBe(msg2.clientKey);
+  });
+
+  // -------------------------------------------------------------------
+  // Code structure verification tests
+  // These tests read the actual ChatScreen.tsx source code and verify
+  // that the optimistic send pipeline is correctly ordered:
+  //   1. queueLocalPendingMessage is called BEFORE executePendingSend
+  //   2. patchPendingMessageInCache is called synchronously inside
+  //      queueLocalPendingMessage (no await/Promise/setTimeout wrapper)
+  // -------------------------------------------------------------------
+
+  const fs = require('fs');
+  const path = require('path');
+  const chatScreenPath = path.resolve(__dirname, '../screens/messages/ChatScreen.tsx');
+  const chatScreenSource = fs.readFileSync(chatScreenPath, 'utf-8');
+
+  it('queueLocalPendingMessage is called BEFORE executePendingSend in text send flow', () => {
+    // Find the text send block: queueLocalPendingMessage(localMessage, textRequest)
+    // followed by await executePendingSend(localMessage.id!, textRequest)
+    const queueIndex = chatScreenSource.indexOf('queueLocalPendingMessage(localMessage, textRequest)');
+    const executeIndex = chatScreenSource.indexOf(
+      'executePendingSend(localMessage.id!, textRequest)',
+      queueIndex
+    );
+
+    expect(queueIndex).toBeGreaterThan(-1);
+    expect(executeIndex).toBeGreaterThan(-1);
+    // queue must come BEFORE execute in the source
+    expect(queueIndex).toBeLessThan(executeIndex);
+
+    // Verify the execute call has await (it's async, not fire-and-forget for text)
+    const betweenQueueAndExecute = chatScreenSource.slice(queueIndex, executeIndex);
+    expect(betweenQueueAndExecute).toContain('await');
+  });
+
+  it('patchPendingMessageInCache inside queueLocalPendingMessage is synchronous (no await/setTimeout/Promise wrapper)', () => {
+    // Find the queueLocalPendingMessage function body
+    const queueFnStart = chatScreenSource.indexOf('const queueLocalPendingMessage = useCallback(');
+    expect(queueFnStart).toBeGreaterThan(-1);
+
+    // Find the closing of queueLocalPendingMessage (next useCallback or named const)
+    const queueFnEnd = chatScreenSource.indexOf(
+      'const buildLocalPendingMessage',
+      queueFnStart
+    );
+    expect(queueFnEnd).toBeGreaterThan(-1);
+
+    const queueFnBody = chatScreenSource.slice(queueFnStart, queueFnEnd);
+
+    // Verify patchPendingMessageInCache is called in the body
+    expect(queueFnBody).toContain('patchPendingMessageInCache(message)');
+
+    // Verify NO async wrapper around patchPendingMessageInCache:
+    // Get the line containing patchPendingMessageInCache(message)
+    const patchCallIndex = queueFnBody.indexOf('patchPendingMessageInCache(message)');
+    // Get a window of 100 chars before the call to check for await/setTimeout/Promise
+    const preceding = queueFnBody.slice(Math.max(0, patchCallIndex - 100), patchCallIndex);
+
+    expect(preceding).not.toMatch(/await\s+$/);
+    expect(preceding).not.toMatch(/setTimeout\s*\(/);
+    expect(preceding).not.toMatch(/Promise\s*\.\s*resolve/);
+    expect(preceding).not.toMatch(/requestAnimationFrame\s*\(/);
+    expect(preceding).not.toMatch(/InteractionManager\s*\.\s*runAfterInteractions/);
+
+    // Also verify the patchPendingMessageInCache function itself is synchronous
+    const patchFnStart = chatScreenSource.indexOf('const patchPendingMessageInCache = useCallback(');
+    expect(patchFnStart).toBeGreaterThan(-1);
+
+    const patchFnEnd = chatScreenSource.indexOf(
+      'const queueLocalPendingMessage',
+      patchFnStart
+    );
+    const patchFnBody = chatScreenSource.slice(patchFnStart, patchFnEnd);
+
+    // Verify patchPendingMessageInCache does NOT use await (it's a sync cache patch)
+    expect(patchFnBody).not.toMatch(/async\s*\(/);
+    expect(patchFnBody).not.toContain('await ');
+  });
+});
