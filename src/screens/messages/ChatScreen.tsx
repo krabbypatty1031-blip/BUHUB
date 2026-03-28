@@ -4308,7 +4308,7 @@ function ChatScreenContent({ navigation, route }: Props) {
             onImagePress={handleOpenImagePreview}
             onPressReaction={handlePressReaction}
             onRetryFailedMessage={retryFailedMessage}
-            isAudioPlaying={Boolean(item.message.id && playingAudioMessageId === item.message.id)}
+            isAudioPlaying={Boolean(item.message.id && playingAudioMessageIdRef.current === item.message.id)}
             t={t}
           />
         </View>
@@ -4325,11 +4325,14 @@ function ChatScreenContent({ navigation, route }: Props) {
       handlePlayAudio,
       handleOpenImagePreview,
       handlePressReaction,
-      playingAudioMessageId,
       retryFailedMessage,
       t,
     ]
   );
+
+  const keyExtractor = useCallback((item: ChatListItem) => item.key, []);
+  const getItemType = useCallback((item: ChatListItem) => item.kind, []);
+  const handleEndReached = useCallback(() => { void loadOlderHistory(); }, [loadOlderHistory]);
 
   const actionCanRecall = canRecallMessage(actionTarget);
   const canSubmitComposer = hasText || Boolean(pendingForwardPreview);
@@ -4361,14 +4364,13 @@ function ChatScreenContent({ navigation, route }: Props) {
           key={`chat-list-${contactId}`}
           ref={flatListRef}
           data={listData}
-          extraData={`${focusVersion}:${messageItemCount}`}
+          extraData={playingAudioMessageId}
           style={{
             ...styles.invertedList,
             opacity: isInitialLatestPositionReady ? 1 : 0,
           }}
-          estimatedItemSize={80}
           renderItem={renderItem}
-          keyExtractor={(item) => item.key}
+          keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           onLoad={() => {
             if (shouldForceLatestOnReadyRef.current || !hasCompletedInitialLatestPositionRef.current) {
@@ -4382,16 +4384,14 @@ function ChatScreenContent({ navigation, route }: Props) {
           onContentSizeChange={handleContentSizeChange}
           onScroll={handleListScroll}
           onScrollBeginDrag={handleListScrollBeginDrag}
-          onEndReached={() => {
-            void loadOlderHistory();
-          }}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.03}
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           drawDistance={CHAT_LIST_DRAW_DISTANCE}
           removeClippedSubviews={Platform.OS === 'android'}
-          getItemType={(item) => item.kind}
+          getItemType={getItemType}
           ListEmptyComponent={
             showInitialLoadingState ? (
               <View style={[styles.invertedListItem, styles.loadingContainer]}>
