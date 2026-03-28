@@ -3243,6 +3243,18 @@ function ChatScreenContent({ navigation, route }: Props) {
     // Actual scroll happens in FlashList onLoad — no timers, no InteractionManager
   }, [isLoading, isScreenFocused, listData.length, messageItemCount, focusVersion]);
 
+  // Safety timeout: reveal list after 500ms even if onLoad hasn't fired
+  useEffect(() => {
+    if (isInitialLatestPositionReady) return;
+    const safetyTimer = setTimeout(() => {
+      if (!hasCompletedInitialLatestPositionRef.current) {
+        hasCompletedInitialLatestPositionRef.current = true;
+        setIsInitialLatestPositionReady(true);
+      }
+    }, 500);
+    return () => clearTimeout(safetyTimer);
+  }, [isInitialLatestPositionReady, contactId]);
+
   useEffect(
     () => () => {
       if (olderHistoryLoadingTimerRef.current) {
@@ -4295,7 +4307,10 @@ function ChatScreenContent({ navigation, route }: Props) {
           ref={flatListRef}
           data={listData}
           extraData={`${focusVersion}:${messageItemCount}`}
-          style={styles.invertedList}
+          style={{
+            ...styles.invertedList,
+            opacity: isInitialLatestPositionReady ? 1 : 0,
+          }}
           estimatedItemSize={80}
           renderItem={renderItem}
           keyExtractor={(item) => item.key}
