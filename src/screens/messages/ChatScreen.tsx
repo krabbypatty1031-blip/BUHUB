@@ -24,6 +24,7 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Clipboard } from 'react-native';
 import { Audio } from 'expo-av';
 import { useQueryClient } from '@tanstack/react-query';
@@ -33,7 +34,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
-  withSequence,
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
@@ -60,7 +60,7 @@ import { useMessageStore } from '../../store/messageStore';
 import { useUIStore } from '../../store/uiStore';
 import { useMessageRealtimeStore } from '../../store/messageRealtimeStore';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius, layout } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
@@ -74,10 +74,7 @@ import {
 } from '../../components/messages';
 import {
   BackIcon,
-  SendIcon,
-  CameraIcon,
   MicIcon,
-  KeyboardIcon,
   ImageIcon,
   CloseIcon,
   ChevronRightIcon,
@@ -126,7 +123,36 @@ const VOICE_ACTION_ZONE_WIDTH = 132;
 const VOICE_ACTION_ZONE_HEIGHT = 80;
 const VOICE_ACTION_ZONE_SIDE = 20;
 const VOICE_ACTION_ZONE_BOTTOM = 90;
-const CHAT_HISTORY_PAGE_LIMIT = 50;
+const CHAT_IMAGE_MAX_WIDTH = 1200;
+const CHAT_IMAGE_QUALITY = 0.7;
+
+async function compressChatImage(uri: string, width?: number): Promise<string> {
+  if (width && width <= CHAT_IMAGE_MAX_WIDTH) return uri;
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: CHAT_IMAGE_MAX_WIDTH } }],
+      { compress: CHAT_IMAGE_QUALITY, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return result.uri;
+  } catch {
+    return uri;
+  }
+}
+
+async function compressChatAssets(
+  assets: ImagePicker.ImagePickerAsset[]
+): Promise<{ assets: ImagePicker.ImagePickerAsset[]; uris: string[] }> {
+  const compressed = await Promise.all(
+    assets.map((a) => compressChatImage(a.uri, a.width))
+  );
+  return {
+    assets: assets.map((a, i) => ({ ...a, uri: compressed[i] })),
+    uris: compressed,
+  };
+}
+
+const CHAT_HISTORY_PAGE_LIMIT = 30;
 const CHAT_LIST_DRAW_DISTANCE = 420;
 const OLDER_HISTORY_LOADING_DELAY_MS = 180;
 const OLDER_HISTORY_PREFETCH_DISTANCE_PX = 520;
@@ -780,7 +806,7 @@ const ChatAlbumBubble = React.memo(function ChatAlbumBubble({
   isMine,
   onPress,
   onLongPress,
-  t,
+  t: _t,
 }: {
   images: string[];
   count: number;
@@ -1118,7 +1144,7 @@ type TextMessageContentProps = {
 const TextMessageContent = React.memo(function TextMessageContent({
   message,
   isMine,
-  t,
+  t: _t,
 }: TextMessageContentProps) {
   return (
     <View
@@ -1608,59 +1634,6 @@ const ChatBubble = React.memo(function ChatBubble({
 });
 
 /* ----- Waveform color palette ----- */
-const WAVE_COLORS = [colors.error];
-
-/* ----- Waveform bar (single animated bar with staggered start) ----- */
-const WAVE_BAR_COUNT = 24;
-const BAR_STAGGER_MS = 60;
-
-const WaveBar = React.memo(function WaveBar({ index }: { index: number }) {
-  const height = useSharedValue(3);
-
-  useEffect(() => {
-    const delay = index * BAR_STAGGER_MS;
-    const dur = 200 + (index % 5) * 50;
-    const maxH = 10 + (index % 4) * 5;
-    const timer = setTimeout(() => {
-      height.value = withRepeat(
-        withSequence(
-          withTiming(maxH, { duration: dur }),
-          withTiming(4, { duration: dur })
-        ),
-        -1,
-        true
-      );
-    }, delay);
-    return () => {
-      clearTimeout(timer);
-      cancelAnimation(height);
-    };
-  }, [height, index]);
-
-  const barStyle = useAnimatedStyle(() => ({
-    height: height.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[styles.waveBar, { backgroundColor: WAVE_COLORS[index % WAVE_COLORS.length] }, barStyle]}
-    />
-  );
-});
-
-/* ----- Waveform bars container ----- */
-const waveBars = Array.from({ length: WAVE_BAR_COUNT }, (_, i) => i);
-
-function WaveformBars() {
-  return (
-    <View style={styles.waveformContainer}>
-      {waveBars.map((i) => (
-        <WaveBar key={i} index={i} />
-      ))}
-    </View>
-  );
-}
-
 function getContainedMediaSize(
   sourceWidth: number,
   sourceHeight: number,
@@ -1677,7 +1650,42 @@ function getContainedMediaSize(
   };
 }
 
-export default function ChatScreen({ navigation, route }: Props) {
+function ChatScreenPlaceholder({ navigation, route }: Props) {
+  const { contactName } = route.params;
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setReady(true));
+    return () => task.cancel();
+  }, []);
+
+  if (ready) {
+    return <ChatScreenContent navigation={navigation} route={route} />;
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <BackIcon size={24} color={colors.onSurface} />
+        </TouchableOpacity>
+        <View style={styles.topBarTitleWrap}>
+          <Text style={styles.topBarTitle} numberOfLines={1}>{contactName}</Text>
+        </View>
+        <View style={styles.iconBtn} />
+      </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+export default function ChatScreen(props: Props) {
+  return <ChatScreenPlaceholder {...props} />;
+}
+
+function ChatScreenContent({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -1706,7 +1714,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const { data: canSendState, isLoading: isCanSendLoading } = useCanSendMessage(contactId);
   const canSendMessage = canSendState?.canSendMessage;
   const canSendReason = canSendState?.reason;
-  const { data: presence } = usePresence(contactId);
+  usePresence(contactId); // keep query active for prefetch
   const sendMessageMutation = useSendMessage(contactId, {
     name: contactName,
     avatar: contactAvatar,
@@ -1720,7 +1728,6 @@ export default function ChatScreen({ navigation, route }: Props) {
   const typingState = useMessageRealtimeStore((s) => s.typingByContact[contactId]) as { isTyping: boolean; updatedAt: number } | undefined;
   const clearTyping = useMessageRealtimeStore((s) => s.clearTyping);
   const shouldForceLatestOnReadyRef = useRef(true);
-  const scrollRetryTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const flatListRef = useRef<FlashListRef<ChatListItem>>(null);
   const textInputRef = useRef<TextInput | null>(null);
   const isNearLatestRef = useRef(true);
@@ -1822,18 +1829,14 @@ export default function ChatScreen({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => {
       shouldForceLatestOnReadyRef.current = true;
-      scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
-      scrollRetryTimersRef.current = [];
       isNearLatestRef.current = true;
       anchorToLatestRef.current = true;
       hasUserDraggedRef.current = false;
       lastKnownListLengthRef.current = 0;
       lastKnownMessageCountRef.current = 0;
-      hasCompletedInitialLatestPositionRef.current = false;
       olderHistoryLoadArmedRef.current = false;
       isAppendingOlderHistoryRef.current = false;
       olderHistoryTriggerCooldownUntilRef.current = 0;
-      setIsInitialLatestPositionReady(false);
       setPendingNewMessageCount(0);
       prefetchedOlderHistoryChunkRef.current = null;
       isPrefetchingOlderHistoryRef.current = false;
@@ -1870,8 +1873,6 @@ export default function ChatScreen({ navigation, route }: Props) {
         return true;
       });
       return () => {
-        scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
-        scrollRetryTimersRef.current = [];
         if (olderHistoryLoadingTimerRef.current) {
           clearTimeout(olderHistoryLoadingTimerRef.current);
           olderHistoryLoadingTimerRef.current = null;
@@ -1904,7 +1905,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const recordingStartTimeRef = useRef<number>(0);
   const [recordingDurationMs, setRecordingDurationMs] = useState<number>(0);
   const [pendingForwardConfirmKey, setPendingForwardConfirmKey] = useState<string | null>(null);
-  const [pendingForwardSendingKey, setPendingForwardSendingKey] = useState<string | null>(null);
+  const [, setPendingForwardSendingKey] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -1923,7 +1924,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [showOlderHistoryLoading, setShowOlderHistoryLoading] = useState(false);
   const [isInitialLatestPositionReady, setIsInitialLatestPositionReady] = useState(false);
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0);
-  const [transientMediaVersion, setTransientMediaVersion] = useState(0);
+  const [, setTransientMediaVersion] = useState(0);
   const {
     inputHeight: chatInputHeight,
     scrollEnabled: isChatInputScrollEnabled,
@@ -2079,9 +2080,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     };
   }, []);
 
-  const composerBottomInset = isKeyboardVisible
-    ? spacing.sm
-    : Math.max(insets.bottom, spacing.sm);
+  const composerBottomInset = spacing.sm;
 
   const clearLiveTranscription = useCallback(() => {
     liveTranscriptionTextRef.current = '';
@@ -3025,17 +3024,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const waitingForReply = canSendReason === 'WAITING_FOR_REPLY';
   const hkbuBindingRequired = canSendReason === 'HKBU_BIND_REQUIRED';
   const messageSendBlocked = canSendReason === 'BLOCKED' || canSendReason === 'SELF';
-  const isContactTyping = Boolean(
-    typingState?.isTyping &&
-      typeof typingState?.updatedAt === 'number' &&
-      Date.now() - typingState.updatedAt < TYPING_STALE_MS
-  );
-  const statusText = isContactTyping
-    ? t('typing')
-    : (presence?.isOnline
-      ? t('onlineStatus')
-      : t('offlineStatus'));
-  const isOnlineStatus = isContactTyping || Boolean(presence?.isOnline);
+  // Typing indicator state is consumed via typingState in the useEffect below
 
   useEffect(() => {
     playingAudioMessageIdRef.current = playingAudioMessageId;
@@ -3198,30 +3187,8 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (pendingNewMessageCountRef.current > 0) {
       setPendingNewMessageCount(0);
     }
-    requestAnimationFrame(() => {
-      try {
-        flatListRef.current?.scrollToIndex({ index: 0, animated: false });
-      } catch {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-      }
-    });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [listData.length]);
-
-  const clearScrollRetryTimers = useCallback(() => {
-    scrollRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
-    scrollRetryTimersRef.current = [];
-  }, []);
-
-  const forceScrollToLatest = useCallback(() => {
-    if (listData.length === 0) return;
-    clearScrollRetryTimers();
-    [0, 200].forEach((delay) => {
-      const timer = setTimeout(() => {
-        scrollToLatest(true);
-      }, delay);
-      scrollRetryTimersRef.current.push(timer);
-    });
-  }, [clearScrollRetryTimers, listData.length, scrollToLatest]);
 
   const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -3266,28 +3233,24 @@ export default function ChatScreen({ navigation, route }: Props) {
       olderHistoryLoadingTimerRef.current = null;
     }
     shouldForceLatestOnReadyRef.current = true;
-    clearScrollRetryTimers();
-  }, [clearScrollRetryTimers, contactId]);
+  }, [contactId]);
 
   useEffect(() => {
     if (!isScreenFocused || isLoading || listData.length === 0 || !shouldForceLatestOnReadyRef.current) return;
-    forceScrollToLatest();
     shouldForceLatestOnReadyRef.current = false;
-    hasCompletedInitialLatestPositionRef.current = true;
-    setIsInitialLatestPositionReady(true);
     lastKnownListLengthRef.current = listData.length;
     lastKnownMessageCountRef.current = messageItemCount;
-  }, [forceScrollToLatest, focusVersion, isLoading, isScreenFocused, listData.length, messageItemCount]);
+    // Actual scroll happens in FlashList onLoad — no timers, no InteractionManager
+  }, [isLoading, isScreenFocused, listData.length, messageItemCount, focusVersion]);
 
   useEffect(
     () => () => {
-      clearScrollRetryTimers();
       if (olderHistoryLoadingTimerRef.current) {
         clearTimeout(olderHistoryLoadingTimerRef.current);
         olderHistoryLoadingTimerRef.current = null;
       }
     },
-    [clearScrollRetryTimers]
+    []
   );
 
   const handleContentSizeChange = useCallback(() => {
@@ -3308,6 +3271,9 @@ export default function ChatScreen({ navigation, route }: Props) {
       anchorToLatestRef.current ||
       (hasNewMessages && isNearLatestRef.current)
     ) {
+      if (shouldForceLatestOnReadyRef.current) {
+        shouldForceLatestOnReadyRef.current = false;
+      }
       scrollToLatest(true);
       return;
     }
@@ -3727,17 +3693,18 @@ export default function ChatScreen({ navigation, route }: Props) {
     });
     if (!result.canceled && result.assets.length > 0) {
       hapticLight();
+      const { assets: compressedAssets } = await compressChatAssets(result.assets);
       const mediaGroupId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const files = result.assets.map((asset, index) => ({
+      const files = compressedAssets.map((asset, index) => ({
         uri: asset.uri,
-        type: asset.mimeType || 'image/jpeg',
+        type: 'image/jpeg',
         name: asset.fileName || `camera-${Date.now()}-${index}.jpg`,
       }));
       const replyPayload = buildReplyPayload();
       const localMessage = buildLocalPendingMessage({
         images: files.map((file) => file.uri),
         mediaMetas: buildLocalMediaMetas(
-          result.assets.map((asset, index) => ({
+          compressedAssets.map((asset, index) => ({
             uri: asset.uri,
             width: asset.width,
             height: asset.height,
@@ -3774,9 +3741,10 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (pendingImageAssets.length === 0 || isSendingSelectedImages) return;
     setIsSendingSelectedImages(true);
     anchorToLatestRef.current = true;
-    const files = pendingImageAssets.map((asset, index) => ({
+    const { assets: compressedGalleryAssets } = await compressChatAssets(pendingImageAssets);
+    const files = compressedGalleryAssets.map((asset, index) => ({
       uri: asset.uri,
-      type: asset.mimeType || 'image/jpeg',
+      type: 'image/jpeg',
       name: asset.fileName || `gallery-${Date.now()}-${index}.jpg`,
     }));
     const replyPayload = buildReplyPayload();
@@ -3786,7 +3754,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       const localMessage = buildLocalPendingMessage({
         images: files.map((file) => file.uri),
         mediaMetas: buildLocalMediaMetas(
-          pendingImageAssets.map((asset, index) => ({
+          compressedGalleryAssets.map((asset, index) => ({
             uri: asset.uri,
             width: asset.width,
             height: asset.height,
@@ -3815,9 +3783,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           images: [file.uri],
           mediaMetas: buildLocalMediaMetas([
             {
-              uri: pendingImageAssets[index]?.uri ?? file.uri,
-              width: pendingImageAssets[index]?.width,
-              height: pendingImageAssets[index]?.height,
+              uri: compressedGalleryAssets[index]?.uri ?? file.uri,
+              width: compressedGalleryAssets[index]?.width,
+              height: compressedGalleryAssets[index]?.height,
               localKey: file.name,
             },
           ]),
@@ -4300,7 +4268,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const canSubmitComposer = hasText || Boolean(pendingForwardPreview);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -4320,7 +4288,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        keyboardVerticalOffset={0}
       >
         <FlashList
           key={`chat-list-${contactId}`}
@@ -4328,15 +4296,17 @@ export default function ChatScreen({ navigation, route }: Props) {
           data={listData}
           extraData={`${focusVersion}:${messageItemCount}`}
           style={styles.invertedList}
+          estimatedItemSize={80}
           renderItem={renderItem}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.listContent}
           onLoad={() => {
-            if (shouldForceLatestOnReadyRef.current) {
-              shouldForceLatestOnReadyRef.current = false;
-              requestAnimationFrame(() => {
-                flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-              });
+            if (shouldForceLatestOnReadyRef.current || !hasCompletedInitialLatestPositionRef.current) {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+              if (!hasCompletedInitialLatestPositionRef.current) {
+                hasCompletedInitialLatestPositionRef.current = true;
+                setIsInitialLatestPositionReady(true);
+              }
             }
           }}
           onContentSizeChange={handleContentSizeChange}
@@ -4347,7 +4317,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           }}
           onEndReachedThreshold={0.03}
           scrollEventThrottle={16}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
           drawDistance={CHAT_LIST_DRAW_DISTANCE}
           removeClippedSubviews={Platform.OS === 'android'}
@@ -4474,7 +4444,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                 </View>
               </View>
             ) : null}
-          <View style={[styles.inputBar, { paddingBottom: plusMenuOpen ? 8 : composerBottomInset }]}>
+          <View style={styles.inputBar}>
             {isVoiceMode ? (
               <>
                 <TouchableOpacity
