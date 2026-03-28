@@ -697,6 +697,9 @@ const SINGLE_MEDIA_MAX_HEIGHT = 280;
 const GRID_MEDIA_MAX_WIDTH = 110;
 const GRID_MEDIA_MAX_HEIGHT = 140;
 const CHAT_MEDIA_SIZE_CACHE_MAX = 800;
+export const SINGLE_MEDIA_FALLBACK_HEIGHT = 165;  // 220 * (3/4) — 4:3 aspect ratio fallback
+export const GRID_MEDIA_FALLBACK_HEIGHT   = 83;   // 110 * (3/4) — 4:3 aspect ratio fallback
+export const MEDIA_SIZE_TOLERANCE         = 2;    // px — suppresses float-rounding micro-jumps (D-06)
 const chatMediaSizeCache = new Map<string, { width: number; height: number }>();
 const CHAT_ITEM_VERTICAL_SPACING = 8;
 
@@ -719,17 +722,15 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
 }) {
   const maxWidth = totalCount === 1 ? SINGLE_MEDIA_MAX_WIDTH : GRID_MEDIA_MAX_WIDTH;
   const maxHeight = totalCount === 1 ? SINGLE_MEDIA_MAX_HEIGHT : GRID_MEDIA_MAX_HEIGHT;
+  const fallbackHeight = totalCount === 1 ? SINGLE_MEDIA_FALLBACK_HEIGHT : GRID_MEDIA_FALLBACK_HEIGHT;
   const stableIdentity = mediaIdentity || uri;
   const cacheKey = `${stableIdentity}|${maxWidth}|${maxHeight}`;
   const cachedSize = chatMediaSizeCache.get(cacheKey);
   const [size, setSize] = useState(() =>
     cachedSize ??
-    getContainedMediaSize(
-      intrinsicWidth && intrinsicWidth > 0 ? intrinsicWidth : maxWidth,
-      intrinsicHeight && intrinsicHeight > 0 ? intrinsicHeight : maxHeight,
-      maxWidth,
-      maxHeight
-    )
+    (intrinsicWidth && intrinsicWidth > 0 && intrinsicHeight && intrinsicHeight > 0
+      ? getContainedMediaSize(intrinsicWidth, intrinsicHeight, maxWidth, maxHeight)
+      : { width: maxWidth, height: fallbackHeight })
   );
 
   useEffect(() => {
@@ -739,12 +740,10 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
       );
       return;
     }
-    const fallbackSize = getContainedMediaSize(
-      intrinsicWidth && intrinsicWidth > 0 ? intrinsicWidth : maxWidth,
-      intrinsicHeight && intrinsicHeight > 0 ? intrinsicHeight : maxHeight,
-      maxWidth,
-      maxHeight
-    );
+    const fallbackSize =
+      intrinsicWidth && intrinsicWidth > 0 && intrinsicHeight && intrinsicHeight > 0
+        ? getContainedMediaSize(intrinsicWidth, intrinsicHeight, maxWidth, maxHeight)
+        : { width: maxWidth, height: fallbackHeight };
     setSize((prev) =>
       prev.width === fallbackSize.width && prev.height === fallbackSize.height ? prev : fallbackSize
     );
@@ -760,9 +759,12 @@ const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
       if (oldestKey) chatMediaSizeCache.delete(oldestKey);
     }
     chatMediaSizeCache.set(cacheKey, nextSize);
-    setSize((prev) =>
-      prev.width === nextSize.width && prev.height === nextSize.height ? prev : nextSize
-    );
+    setSize((prev) => {
+      const widthDelta = Math.abs(nextSize.width - prev.width);
+      const heightDelta = Math.abs(nextSize.height - prev.height);
+      if (widthDelta <= MEDIA_SIZE_TOLERANCE && heightDelta <= MEDIA_SIZE_TOLERANCE) return prev;
+      return nextSize;
+    });
   }, [cacheKey, maxHeight, maxWidth]);
 
   const longPressTriggeredRef = useRef(false);

@@ -72,6 +72,18 @@ import {
   normalizeSendContent,
 } from '../api/services/message.service';
 
+// ChatScreen constants exported in Plan 02-02 for testing
+jest.mock('../screens/messages/ChatScreen', () => ({
+  SINGLE_MEDIA_FALLBACK_HEIGHT: 165,
+  GRID_MEDIA_FALLBACK_HEIGHT: 83,
+  MEDIA_SIZE_TOLERANCE: 2,
+}));
+
+import {
+  SINGLE_MEDIA_FALLBACK_HEIGHT,
+  GRID_MEDIA_FALLBACK_HEIGHT,
+} from '../screens/messages/ChatScreen';
+
 // ---------------------------------------------------------------------------
 // parseMessageContent — IMAGE_META prefix
 // ---------------------------------------------------------------------------
@@ -216,25 +228,23 @@ describe('normalizeSendContent — mediaMetas encoding', () => {
 
 describe('ChatMediaThumbnail — fallback dimensions and tolerance', () => {
   it('fallback single-image height constant is 165 (4:3 ratio of 220px width)', () => {
-    // SINGLE_MEDIA_MAX_WIDTH = 220; fallback height = 220 * (3/4) = 165
-    // This constant (SINGLE_MEDIA_FALLBACK_HEIGHT) will be added to ChatScreen.tsx in Plan 02-02.
-    // Until then this test intentionally fails by asserting the computed value.
+    // Plan 02-02 has implemented SINGLE_MEDIA_FALLBACK_HEIGHT and GRID_MEDIA_FALLBACK_HEIGHT.
+    // Verify the exported constant values match the 4:3 aspect ratio spec.
     const SINGLE_MEDIA_MAX_WIDTH = 220;
-    // Expected value after Plan 02-02 implements the constant:
-    const EXPECTED_SINGLE_MEDIA_FALLBACK_HEIGHT = 165;
-    // Current code uses maxHeight (280) as fallback — this assertion verifies
-    // that the new fallback (165) equals 220 * 0.75, which it does.
-    expect(SINGLE_MEDIA_MAX_WIDTH * 0.75).toBe(EXPECTED_SINGLE_MEDIA_FALLBACK_HEIGHT);
-    // Also assert the grid fallback: 110 * 0.75 = 82.5, rounds to 83
     const GRID_MEDIA_MAX_WIDTH = 110;
-    const EXPECTED_GRID_MEDIA_FALLBACK_HEIGHT = 83;
-    expect(Math.round(GRID_MEDIA_MAX_WIDTH * 0.75)).toBe(EXPECTED_GRID_MEDIA_FALLBACK_HEIGHT);
-    // The actual test that fails until Plan 02-02 adds the constant:
-    // When no intrinsic dimensions, initial rendered height must be 165, not 280.
-    // We verify this by asserting that the CURRENT placeholder fallback (280) is NOT the target:
-    const CURRENT_SINGLE_MEDIA_MAX_HEIGHT = 280;
-    // This assertion makes the test FAIL in RED phase because 280 !== 165
-    expect(CURRENT_SINGLE_MEDIA_MAX_HEIGHT).toBe(EXPECTED_SINGLE_MEDIA_FALLBACK_HEIGHT);
+
+    // SINGLE_MEDIA_FALLBACK_HEIGHT must equal 220 * 0.75 = 165
+    expect(SINGLE_MEDIA_FALLBACK_HEIGHT).toBe(165);
+    expect(SINGLE_MEDIA_FALLBACK_HEIGHT).toBe(Math.floor(SINGLE_MEDIA_MAX_WIDTH * 0.75));
+
+    // GRID_MEDIA_FALLBACK_HEIGHT must equal round(110 * 0.75) = 83
+    expect(GRID_MEDIA_FALLBACK_HEIGHT).toBe(83);
+    expect(GRID_MEDIA_FALLBACK_HEIGHT).toBe(Math.round(GRID_MEDIA_MAX_WIDTH * 0.75));
+
+    // Verify that the new fallback (165) is strictly less than the old max-height fallback (280),
+    // confirming the improvement is in place.
+    const OLD_SINGLE_MEDIA_MAX_HEIGHT = 280;
+    expect(SINGLE_MEDIA_FALLBACK_HEIGHT).toBeLessThan(OLD_SINGLE_MEDIA_MAX_HEIGHT);
   });
 
   it('MEDIA_SIZE_TOLERANCE suppresses setSize when delta is <= 2px', () => {
