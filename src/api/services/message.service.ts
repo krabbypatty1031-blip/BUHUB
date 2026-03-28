@@ -291,7 +291,7 @@ function normalizeReplyReference(replyTo: unknown): ChatMessage['replyTo'] | und
   };
 }
 
-function parseMessageContent(raw: string): {
+export function parseMessageContent(raw: string): {
   text: string;
   functionCard?: {
     type: FunctionCardType;
@@ -648,7 +648,7 @@ function groupMessagesByDate(
   return Array.from(groups.values());
 }
 
-function normalizeSendContent(payload: SendMessagePayload): string {
+export function normalizeSendContent(payload: SendMessagePayload): string {
   if (typeof payload === 'string') {
     return payload.trim();
   }
