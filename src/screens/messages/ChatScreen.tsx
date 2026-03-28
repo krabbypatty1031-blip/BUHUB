@@ -463,11 +463,13 @@ type PendingSendRequest =
       files: RetryUploadFile[];
       mode: 'plain' | 'album';
       replyTo?: ChatMessage['replyTo'];
+      mediaMetas?: Array<{ width: number; height: number }>;
     }
   | {
       kind: 'image-single';
       file: RetryUploadFile;
       replyTo?: ChatMessage['replyTo'];
+      mediaMetas?: Array<{ width: number; height: number }>;
     }
   | {
       kind: 'audio';
@@ -2722,7 +2724,12 @@ function ChatScreenContent({ navigation, route }: Props) {
             messageService.sendMessage(
               contactId,
               {
-                imageAlbum: { count: uploaded.urls.length },
+                imageAlbum: {
+                  count: uploaded.urls.length,
+                  ...(request.mediaMetas && request.mediaMetas.length > 0
+                    ? { mediaMetas: request.mediaMetas }
+                    : {}),
+                },
                 ...(request.replyTo ? { replyTo: request.replyTo } : {}),
               },
               uploaded.urls,
@@ -2736,10 +2743,17 @@ function ChatScreenContent({ navigation, route }: Props) {
           const result = await withTimeout(
             messageService.sendMessage(
               contactId,
-              {
-                text: '',
-                ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-              },
+              request.mediaMetas && request.mediaMetas.length > 0
+                ? {
+                    imageMeta: {
+                      mediaMetas: request.mediaMetas,
+                    },
+                    ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+                  }
+                : {
+                    text: '',
+                    ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+                  },
               uploaded.urls,
               messageId
             ),
@@ -2758,10 +2772,17 @@ function ChatScreenContent({ navigation, route }: Props) {
         const result = await withTimeout(
           messageService.sendMessage(
             contactId,
-            {
-              text: '',
-              ...(request.replyTo ? { replyTo: request.replyTo } : {}),
-            },
+            request.mediaMetas && request.mediaMetas.length > 0
+              ? {
+                  imageMeta: {
+                    mediaMetas: request.mediaMetas,
+                  },
+                  ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+                }
+              : {
+                  text: '',
+                  ...(request.replyTo ? { replyTo: request.replyTo } : {}),
+                },
             [uploaded.url],
             messageId
           ),
@@ -3728,10 +3749,14 @@ function ChatScreenContent({ navigation, route }: Props) {
         mediaGroupId,
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       });
+      const cameraBatchMetas = compressedAssets
+        .map((asset) => ({ width: asset.width ?? 0, height: asset.height ?? 0 }))
+        .filter((m) => m.width > 0 && m.height > 0);
       queueLocalPendingMessage(localMessage, {
         kind: 'image-batch',
         files,
         mode: 'plain',
+        ...(cameraBatchMetas.length > 0 ? { mediaMetas: cameraBatchMetas } : {}),
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       });
       anchorToLatestRef.current = true;
@@ -3740,6 +3765,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         kind: 'image-batch',
         files,
         mode: 'plain',
+        ...(cameraBatchMetas.length > 0 ? { mediaMetas: cameraBatchMetas } : {}),
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       });
     }
@@ -3779,10 +3805,14 @@ function ChatScreenContent({ navigation, route }: Props) {
         imageAlbum: { count: files.length },
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       });
+      const albumMetas = compressedGalleryAssets
+        .map((asset) => ({ width: asset.width ?? 0, height: asset.height ?? 0 }))
+        .filter((m) => m.width > 0 && m.height > 0);
       const request: PendingSendRequest = {
         kind: 'image-batch',
         files,
         mode: 'album',
+        ...(albumMetas.length > 0 ? { mediaMetas: albumMetas } : {}),
         ...(replyPayload ? { replyTo: replyPayload } : {}),
       };
       queueLocalPendingMessage(localMessage, request);
@@ -3806,9 +3836,15 @@ function ChatScreenContent({ navigation, route }: Props) {
           mediaGroupId: `media-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
           ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
         });
+        const singleAsset = compressedGalleryAssets[index];
+        const singleAssetW = singleAsset?.width ?? 0;
+        const singleAssetH = singleAsset?.height ?? 0;
         const request: PendingSendRequest = {
           kind: 'image-single',
           file,
+          ...(singleAssetW > 0 && singleAssetH > 0
+            ? { mediaMetas: [{ width: singleAssetW, height: singleAssetH }] }
+            : {}),
           ...(index === 0 && replyPayload ? { replyTo: replyPayload } : {}),
         };
         queueLocalPendingMessage(localMessage, request);

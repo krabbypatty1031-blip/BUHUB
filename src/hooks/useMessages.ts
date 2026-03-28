@@ -282,11 +282,29 @@ function buildOptimisticMessage(
     };
   }
 
+  if (payload.imageMeta) {
+    const metaMetas =
+      Array.isArray(payload.imageMeta.mediaMetas) && payload.imageMeta.mediaMetas.length > 0
+        ? payload.imageMeta.mediaMetas
+        : undefined;
+    return {
+      ...baseMessage,
+      text: typeof payload.imageMeta.text === 'string' ? payload.imageMeta.text.trim() : '',
+      ...(metaMetas ? { mediaMetas: metaMetas } : {}),
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    };
+  }
+
   if (payload.imageAlbum?.count) {
+    const albumMediaMetas =
+      Array.isArray(payload.imageAlbum.mediaMetas) && payload.imageAlbum.mediaMetas.length > 0
+        ? payload.imageAlbum.mediaMetas
+        : undefined;
     return {
       ...baseMessage,
       text: (payload.text ?? '').trim(),
       imageAlbum: { count: payload.imageAlbum.count },
+      ...(albumMediaMetas ? { mediaMetas: albumMediaMetas } : {}),
       ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     };
   }
