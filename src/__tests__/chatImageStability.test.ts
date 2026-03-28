@@ -184,7 +184,6 @@ describe('normalizeSendContent — mediaMetas encoding', () => {
     const payload = {
       imageMeta: { mediaMetas: [{ width: 500, height: 400 }] },
     };
-    // @ts-expect-error imageMeta not in SendMessagePayload until Task 2 adds it
     const result = normalizeSendContent(payload);
     expect(result.startsWith('[BUHUB_IMAGE_META]')).toBe(true);
     const json = JSON.parse(result.slice('[BUHUB_IMAGE_META]'.length));
@@ -201,7 +200,6 @@ describe('normalizeSendContent — mediaMetas encoding', () => {
         ],
       },
     };
-    // @ts-expect-error mediaMetas not in imageAlbum until Task 2 adds it
     const result = normalizeSendContent(payload);
     expect(result.startsWith('[BUHUB_ALBUM]')).toBe(true);
     const json = JSON.parse(result.slice('[BUHUB_ALBUM]'.length));

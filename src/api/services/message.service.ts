@@ -11,6 +11,7 @@ const MESSAGE_REPLY_PREFIX = '[BUHUB_REPLY]';
 const MESSAGE_AUDIO_PREFIX = '[BUHUB_AUDIO]';
 const MESSAGE_REACTION_PREFIX = '[BUHUB_REACTION]';
 const MESSAGE_ALBUM_PREFIX = '[BUHUB_ALBUM]';
+const MESSAGE_IMAGE_META_PREFIX = '[BUHUB_IMAGE_META]';
 const CARD_TITLE_MAX_LEN = 240;
 const CARD_POSTER_MAX_LEN = 80;
 
@@ -44,6 +45,13 @@ type ReactionPayload = {
 type ImageAlbumPayload = {
   count: number;
   replyTo?: NonNullable<ChatMessage['replyTo']>;
+  mediaMetas?: Array<{ width: number; height: number }>;
+};
+
+type ImageMetaPayload = {
+  mediaMetas: Array<{ width: number; height: number }>;
+  text?: string;
+  replyTo?: NonNullable<ChatMessage['replyTo']>;
 };
 
 export type SendMessagePayload =
@@ -56,7 +64,9 @@ export type SendMessagePayload =
       reaction?: ReactionPayload;
       imageAlbum?: {
         count: number;
+        mediaMetas?: Array<{ width: number; height: number }>;
       };
+      imageMeta?: ImageMetaPayload;
     };
 
 export type PersistedDirectMessage = {
@@ -236,6 +246,10 @@ function encodeImageAlbumPayload(payload: ImageAlbumPayload): string {
   return `${MESSAGE_ALBUM_PREFIX}${JSON.stringify(payload)}`;
 }
 
+function encodeImageMetaPayload(payload: ImageMetaPayload): string {
+  return `${MESSAGE_IMAGE_META_PREFIX}${JSON.stringify(payload)}`;
+}
+
 function normalizeReplyReference(replyTo: unknown): ChatMessage['replyTo'] | undefined {
   if (!replyTo || typeof replyTo !== 'object') return undefined;
   const raw = replyTo as Record<string, unknown>;
@@ -305,13 +319,39 @@ export function parseMessageContent(raw: string): {
   audio?: AudioPayload;
   reaction?: ReactionPayload;
   imageAlbum?: ImageAlbumPayload;
+  mediaMetas?: Array<{ width: number; height: number }>;
 } {
+  if (raw.startsWith(MESSAGE_IMAGE_META_PREFIX)) {
+    try {
+      const payload = JSON.parse(raw.slice(MESSAGE_IMAGE_META_PREFIX.length)) as ImageMetaPayload;
+      const validMetas = Array.isArray(payload?.mediaMetas)
+        ? payload.mediaMetas.filter(
+            (m) => Number.isFinite(m?.width) && Number.isFinite(m?.height) && m.width > 0 && m.height > 0
+          )
+        : [];
+      return {
+        text: typeof payload?.text === 'string' ? payload.text : '',
+        mediaMetas: validMetas.length > 0 ? validMetas : undefined,
+        ...(normalizeReplyReference(payload?.replyTo)
+          ? { replyTo: normalizeReplyReference(payload.replyTo) }
+          : {}),
+      };
+    } catch {
+      return { text: raw };
+    }
+  }
+
   if (raw.startsWith(MESSAGE_ALBUM_PREFIX)) {
     try {
       const payload = JSON.parse(raw.slice(MESSAGE_ALBUM_PREFIX.length)) as ImageAlbumPayload;
       if (!payload?.count || payload.count < 1) {
         return { text: raw };
       }
+      const validMetas = Array.isArray(payload.mediaMetas)
+        ? payload.mediaMetas.filter(
+            (m) => Number.isFinite(m?.width) && Number.isFinite(m?.height) && m.width > 0 && m.height > 0
+          )
+        : undefined;
       return {
         text: '',
         imageAlbum: {
@@ -323,6 +363,7 @@ export function parseMessageContent(raw: string): {
         ...(normalizeReplyReference(payload.replyTo)
           ? { replyTo: normalizeReplyReference(payload.replyTo) }
           : {}),
+        ...(validMetas && validMetas.length > 0 ? { mediaMetas: validMetas } : {}),
       };
     } catch {
       return { text: raw };
@@ -450,6 +491,9 @@ export function buildSentChatMessage(message: PersistedDirectMessage): ChatMessa
         })()
       : {}),
     ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
+    ...(parsed.mediaMetas && parsed.mediaMetas.length > 0
+      ? { mediaMetas: parsed.mediaMetas.map((m) => ({ width: m.width, height: m.height })) }
+      : {}),
     ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
     time: formatChatTime(timestamp),
     status: message.isRead ? 'read' : 'delivered',
@@ -501,6 +545,9 @@ export function buildChatMessageFromPersistedMessage(
         })()
       : {}),
     ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
+    ...(parsed.mediaMetas && parsed.mediaMetas.length > 0
+      ? { mediaMetas: parsed.mediaMetas.map((m) => ({ width: m.width, height: m.height })) }
+      : {}),
     ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
     time: formatChatTime(timestamp),
     ...(isMine ? { status: (message.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
@@ -635,6 +682,9 @@ function groupMessagesByDate(
           })()
         : {}),
       ...(parsed.imageAlbum ? { imageAlbum: { count: parsed.imageAlbum.count } } : {}),
+      ...(parsed.mediaMetas && parsed.mediaMetas.length > 0
+        ? { mediaMetas: parsed.mediaMetas.map((meta) => ({ width: meta.width, height: meta.height })) }
+        : {}),
       ...(parsed.replyTo ? { replyTo: parsed.replyTo } : {}),
       time: formatChatTime(timestamp),
       ...(m.isMine ? { status: (m.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
@@ -664,9 +714,20 @@ export function normalizeSendContent(payload: SendMessagePayload): string {
     });
   }
 
+  if (payload.imageMeta) {
+    return encodeImageMetaPayload({
+      mediaMetas: payload.imageMeta.mediaMetas,
+      ...(typeof payload.imageMeta.text === 'string' ? { text: payload.imageMeta.text } : {}),
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    });
+  }
+
   if (payload.imageAlbum) {
     return encodeImageAlbumPayload({
       count: payload.imageAlbum.count,
+      ...(payload.imageAlbum.mediaMetas && payload.imageAlbum.mediaMetas.length > 0
+        ? { mediaMetas: payload.imageAlbum.mediaMetas }
+        : {}),
       ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     });
   }
