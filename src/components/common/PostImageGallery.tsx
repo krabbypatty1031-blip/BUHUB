@@ -62,8 +62,8 @@ type PostImageGalleryProps = {
   resizeMode?: ImageResizeMode;
 };
 
-const DEFAULT_RATIO = 4 / 3;
-const GALLERY_MIN_HEIGHT = 120;
+export const DEFAULT_RATIO = 4 / 3;
+export const GALLERY_MIN_HEIGHT = 120;
 
 function PostImageGallery({
   images,
@@ -90,17 +90,16 @@ function PostImageGallery({
     return null;
   }
 
-  // Single image: 70% width, max height 300, auto ratio
+  // Single image: 70% width, max height 300, fixed DEFAULT_RATIO height
   if (images.length === 1) {
     const singleMaxH = maxHeight ?? 300;
-    const ratio = ratios[0] ?? DEFAULT_RATIO;
     const singleWidth = pageWidth * 0.7;
-    const rawHeight = singleWidth / ratio;
+    const rawHeight = singleWidth / DEFAULT_RATIO;
     const singleHeight = Math.min(Math.max(rawHeight, effectiveMin), singleMaxH);
 
     return (
       <View onLayout={handleLayout}>
-        <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(0)}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(0)} style={{ alignSelf: 'flex-start' }}>
           <ExpoImage
             source={images[0]}
             contentFit="cover"

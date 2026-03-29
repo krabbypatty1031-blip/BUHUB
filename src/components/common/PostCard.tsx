@@ -35,7 +35,7 @@ import {
   QuoteActionIcon,
 } from './PostActionIcons';
 
-interface PostCardProps {
+export interface PostCardProps {
   post: ForumPost;
   onPress?: () => void;
   onAvatarPress?: () => void;
@@ -401,7 +401,18 @@ function PostCard({
   );
 }
 
-export default React.memo(PostCard);
+export function arePostCardPropsEqual(
+  prev: PostCardProps,
+  next: PostCardProps
+): boolean {
+  if (prev.post !== next.post) return false;
+  if (prev.isLiked !== next.isLiked) return false;
+  if (prev.isBookmarked !== next.isBookmarked) return false;
+  if (prev.votedOptionIndex !== next.votedOptionIndex) return false;
+  return true;
+}
+
+export default React.memo(PostCard, arePostCardPropsEqual);
 
 const styles = StyleSheet.create({
   card: {
