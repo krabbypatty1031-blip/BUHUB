@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { userService } from '../api/services/user.service';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
@@ -165,6 +165,9 @@ export function useProfile() {
   return useQuery({
     queryKey: ['profile'],
     queryFn: () => userService.getProfile(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -173,6 +176,8 @@ export function useMyContent() {
     queryKey: ['myContent'],
     queryFn: () => userService.getMyContent(),
     staleTime: 30 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
