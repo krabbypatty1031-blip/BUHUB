@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   LayoutChangeEvent,
+  LayoutAnimation,
   Platform,
   ActivityIndicator,
   Alert,
@@ -4111,6 +4112,7 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const handleToggleVoiceMode = useCallback(() => {
     if (isRecordingRef.current) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsVoiceMode((prev) => !prev);
   }, []);
 
