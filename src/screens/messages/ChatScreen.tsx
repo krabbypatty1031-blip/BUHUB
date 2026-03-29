@@ -9,14 +9,15 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
+  LayoutChangeEvent,
   Platform,
   ActivityIndicator,
   Alert,
   BackHandler,
-  Keyboard,
   Linking,
 } from 'react-native';
+import type { ScrollViewProps } from 'react-native';
+import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image as ExpoImage } from 'expo-image';
 import type { ImageLoadEventData } from 'expo-image';
 import Svg, { Path, Polygon } from 'react-native-svg';
@@ -113,6 +114,23 @@ import {
 } from '../../utils/messageCache';
 import { recordMessageMetric, recordTimedMessageMetric } from '../../utils/messageMetrics';
 import type { ChatHistoryChunk, SendMessagePayload } from '../../api/services/message.service';
+
+// Module-level ref for extraContentPadding shared value (set by ChatScreen instance)
+const extraContentPaddingRef = { current: undefined as any };
+
+const ChatScrollView = React.forwardRef<any, ScrollViewProps>((props, ref) => {
+  const { bottom } = useSafeAreaInsets();
+  return (
+    <KeyboardChatScrollView
+      ref={ref}
+      automaticallyAdjustContentInsets={false}
+      contentInsetAdjustmentBehavior="never"
+      offset={bottom}
+      extraContentPadding={extraContentPaddingRef.current}
+      {...props}
+    />
+  );
+});
 
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
@@ -1894,7 +1912,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const cardSentRef = useRef<string | null>(null);
   const cardSendingRef = useRef<string | null>(null);
   const forwardedTextSentRef = useRef<string | null>(null);
@@ -1949,6 +1966,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const replyComposerTranslateY = useSharedValue(8);
   const replyComposerDragX = useSharedValue(0);
   const replyComposerDragY = useSharedValue(0);
+  const extraContentPadding = useSharedValue(0);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
   const liveTranscriptionTextRef = useRef('');
@@ -1959,6 +1977,14 @@ function ChatScreenContent({ navigation, route }: Props) {
     setInputText(text);
     updateChatInputHeightByText(text);
   }, [updateChatInputHeightByText]);
+
+  const handleInputBarLayout = useCallback((e: LayoutChangeEvent) => {
+    const height = e.nativeEvent.layout.height;
+    extraContentPadding.value = withTiming(
+      Math.max(height - CHAT_INPUT_MIN_HEIGHT, 0),
+      { duration: 250 }
+    );
+  }, [extraContentPadding]);
 
   useEffect(() => {
     if (inputText.length === 0) {
@@ -1975,17 +2001,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   useEffect(() => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
-  }, []);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
   }, []);
 
   useEffect(() => {
@@ -3317,6 +3332,8 @@ function ChatScreenContent({ navigation, route }: Props) {
       maybePrefetchOlderHistory();
       return;
     }
+    // Skip scroll for keyboard-induced or layout-only content size changes
+    if (!hasNewItems && !hasNewMessages) return;
     if (
       shouldForceLatestOnReadyRef.current ||
       anchorToLatestRef.current ||
@@ -4337,6 +4354,8 @@ function ChatScreenContent({ navigation, route }: Props) {
   const actionCanRecall = canRecallMessage(actionTarget);
   const canSubmitComposer = hasText || Boolean(pendingForwardPreview);
 
+  extraContentPaddingRef.current = extraContentPadding;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Bar */}
@@ -4355,14 +4374,11 @@ function ChatScreenContent({ navigation, route }: Props) {
         <View style={styles.iconBtn} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <View style={styles.keyboardView}>
         <FlashList
           key={`chat-list-${contactId}`}
           ref={flatListRef}
+          renderScrollComponent={ChatScrollView}
           data={listData}
           extraData={playingAudioMessageId}
           style={{
@@ -4446,6 +4462,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         ) : null}
 
         {/* Input Bar */}
+        <KeyboardStickyView>
         {isComposerAvailabilityLoading ? (
           <View style={styles.waitingBar}>
             <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
@@ -4467,7 +4484,7 @@ function ChatScreenContent({ navigation, route }: Props) {
             <Text style={styles.waitingText}>{t('cannotMessageUser')}</Text>
           </View>
         ) : (
-          <View>
+          <View onLayout={handleInputBarLayout}>
             {replyTarget ? (
               <GestureDetector gesture={replyComposerGesture}>
                 <Animated.View style={[styles.replyComposer, replyComposerAnimatedStyle]}>
@@ -4630,7 +4647,8 @@ function ChatScreenContent({ navigation, route }: Props) {
           )}
           </View>
         )}
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </View>
 
       <RecordingOverlay
         ref={recordingOverlayRef}
