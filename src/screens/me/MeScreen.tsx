@@ -9,6 +9,7 @@ import {
   Share,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -101,8 +102,8 @@ export default function MeScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const lang = i18n.language as Language;
-  const { data: profile, isLoading } = useProfile();
-  const { data: myContent } = useMyContent();
+  const { data: profile, isLoading, refetch: profileRefetch } = useProfile();
+  const { data: myContent, refetch: myContentRefetch } = useMyContent();
   const { data: followedCircles } = useFollowedCircles();
   const user = useAuthStore((s) => s.user);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
@@ -125,6 +126,7 @@ export default function MeScreen({ navigation }: Props) {
   const [postPreviewIndex, setPostPreviewIndex] = useState(0);
   const [publishedActionItem, setPublishedActionItem] = useState<{ kind: 'partner' | 'errand' | 'secondhand'; data: any; id: string } | null>(null);
   const [publishedForwardItem, setPublishedForwardItem] = useState<{ kind: 'partner' | 'errand' | 'secondhand'; data: any; id: string } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const deletePartnerMutation = useDeletePartner();
   const deleteErrandMutation = useDeleteErrand();
   const deleteSecondhandMutation = useDeleteSecondhand();
@@ -205,6 +207,19 @@ export default function MeScreen({ navigation }: Props) {
     }),
     [t]
   );
+
+  /* ==================== Pull-to-refresh ==================== */
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        profileRefetch(),
+        myContentRefetch(),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [profileRefetch, myContentRefetch]);
 
   /* ==================== Navigation helpers ==================== */
   const goToPost = useCallback(
@@ -832,7 +847,13 @@ export default function MeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
         {/* ==================== Upper Half: Profile ==================== */}
         <View style={styles.profileSection}>
           {/* Profile info row: left info + right avatar */}
