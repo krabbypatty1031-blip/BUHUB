@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
 import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
@@ -334,6 +334,8 @@ export function usePosts(enabled = true) {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled,
   });
 }
@@ -360,6 +362,8 @@ export function useFollowingPosts(enabled = true) {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
     enabled,
   });
 }
@@ -369,12 +373,7 @@ export function flattenPostPages(data: PostsInfiniteData | undefined): ForumPost
   return data.pages.flatMap((p) => p.posts);
 }
 
-export function useFollowedCircles() {
-  return useQuery({
-    queryKey: ['circles', 'followed'],
-    queryFn: () => forumService.getCircles({ followedOnly: true }),
-  });
-}
+export { useFollowedCircles } from './useUser';
 
 export function useCircleFollow(tag: string) {
   return useQuery({
