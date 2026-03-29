@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -44,12 +45,14 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <AppNavigator />
-          <StatusBar style="dark" />
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <KeyboardProvider statusBarTranslucent>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <AppNavigator />
+            <StatusBar style="dark" />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }
