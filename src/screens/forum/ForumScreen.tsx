@@ -350,7 +350,6 @@ export default function ForumScreen({ navigation, route }: Props) {
   }, [refetch]);
 
   const keyExtractor = useCallback((item: ForumPost) => item.id, []);
-  const handleOnRefresh = useCallback(() => { void handleRefresh(); }, [handleRefresh]);
 
   return (
       <View style={styles.container}>
@@ -404,7 +403,7 @@ export default function ForumScreen({ navigation, route }: Props) {
             keyExtractor={keyExtractor}
             extraData={listExtraData}
             refreshing={feedTab === 'discover' && isPullRefreshing}
-            onRefresh={handleOnRefresh}
+            onRefresh={handleRefresh}
             onEndReached={feedTab === 'discover' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'discover' ? onScroll : undefined}
@@ -432,7 +431,7 @@ export default function ForumScreen({ navigation, route }: Props) {
             keyExtractor={keyExtractor}
             extraData={listExtraData}
             refreshing={feedTab === 'following' && isPullRefreshing}
-            onRefresh={handleOnRefresh}
+            onRefresh={handleRefresh}
             onEndReached={feedTab === 'following' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'following' ? onScroll : undefined}

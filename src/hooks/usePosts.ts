@@ -336,6 +336,7 @@ export function usePosts(enabled = true) {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
+    maxPages: 3,
     enabled,
   });
 }
@@ -364,6 +365,7 @@ export function useFollowingPosts(enabled = true) {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
+    maxPages: 3,
     enabled,
   });
 }
