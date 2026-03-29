@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -321,14 +322,7 @@ export default function ForumScreen({ navigation, route }: Props) {
     [votedPolls, queryClient, currentUser, handlePostPress, handleAvatarPress, handleCommentPress, handleForward, likePostMutation, bookmarkPostMutation, votePostMutation, handleQuote, handleTagPress, handleFunctionPress, navigation, handleDeletePost]
   );
 
-  const listExtraData = useMemo(
-    () => ({
-      votedPolls,
-      pollListRefreshKey,
-      pollVotes: posts?.map((p) => (p.isPoll ? `${p.id}:${p.myVote?.optionId ?? ''}` : '')).join('|'),
-    }),
-    [votedPolls, pollListRefreshKey, posts]
-  );
+  const listExtraData = useMemo(() => votedPolls, [votedPolls]);
   const isPullRefreshing = isManualRefreshing;
 
   const handleEndReached = useCallback(() => {
@@ -354,6 +348,9 @@ export default function ForumScreen({ navigation, route }: Props) {
       setIsManualRefreshing(false);
     }
   }, [refetch]);
+
+  const keyExtractor = useCallback((item: ForumPost) => item.id, []);
+  const handleOnRefresh = useCallback(() => { void handleRefresh(); }, [handleRefresh]);
 
   return (
       <View style={styles.container}>
@@ -404,15 +401,15 @@ export default function ForumScreen({ navigation, route }: Props) {
             ref={discoverListRef}
             data={discoverPosts}
             renderItem={renderPost}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
             extraData={listExtraData}
             refreshing={feedTab === 'discover' && isPullRefreshing}
-            onRefresh={() => { void handleRefresh(); }}
+            onRefresh={handleOnRefresh}
             onEndReached={feedTab === 'discover' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'discover' ? onScroll : undefined}
             scrollEventThrottle={16}
-            removeClippedSubviews={false}
+            removeClippedSubviews={Platform.OS === 'android'}
             contentContainerStyle={styles.listContent}
             drawDistance={700}
             ListFooterComponent={feedTab === 'discover' ? renderFooter : null}
@@ -432,15 +429,15 @@ export default function ForumScreen({ navigation, route }: Props) {
             ref={followingListRef}
             data={followingPosts}
             renderItem={renderPost}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
             extraData={listExtraData}
             refreshing={feedTab === 'following' && isPullRefreshing}
-            onRefresh={() => { void handleRefresh(); }}
+            onRefresh={handleOnRefresh}
             onEndReached={feedTab === 'following' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'following' ? onScroll : undefined}
             scrollEventThrottle={16}
-            removeClippedSubviews={false}
+            removeClippedSubviews={Platform.OS === 'android'}
             contentContainerStyle={styles.listContent}
             drawDistance={700}
             ListFooterComponent={feedTab === 'following' ? renderFooter : null}
