@@ -330,7 +330,6 @@ export default function ForumScreen({ navigation, route }: Props) {
     [votedPolls, pollListRefreshKey, posts]
   );
   const isPullRefreshing = isManualRefreshing;
-  const showInitialSkeleton = isLoading && allPosts.length === 0;
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
