@@ -339,24 +339,29 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
     }
 
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+      // Force immediate refetch (bypass staleTime) so the server-authoritative
+      // unread count flows into the store via MainTabNavigator's useEffect.
+      queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'] });
 
-      // Immediately increment the badge so the UI updates without waiting for refetch
+      // Optimistically bump the specific counter so the badge updates instantly.
+      // MainTabNavigator will reconcile with the server value once refetch resolves.
       const data = notification.request.content.data as Record<string, unknown> | undefined;
       const type = typeof data?.type === 'string' ? data.type : '';
-      const store = useNotificationStore.getState();
-      switch (type) {
-        case 'like':
-          store.setUnreadLikes(store.unreadLikes + 1);
-          break;
-        case 'follow':
-          store.setUnreadFollowers(store.unreadFollowers + 1);
-          break;
-        case 'comment':
-        case 'reply':
-        case 'mention':
-          store.setUnreadComments(store.unreadComments + 1);
-          break;
+      if (type === 'like' || type === 'follow' || type === 'comment' || type === 'reply' || type === 'mention') {
+        const store = useNotificationStore.getState();
+        switch (type) {
+          case 'like':
+            store.setUnreadLikes(store.unreadLikes + 1);
+            break;
+          case 'follow':
+            store.setUnreadFollowers(store.unreadFollowers + 1);
+            break;
+          case 'comment':
+          case 'reply':
+          case 'mention':
+            store.setUnreadComments(store.unreadComments + 1);
+            break;
+        }
       }
     });
 

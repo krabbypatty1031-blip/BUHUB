@@ -83,6 +83,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
   const [popoverVisible, setPopoverVisible] = React.useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
   const [forwardPost, setForwardPost] = useState<ForumPost | null>(null);
@@ -183,8 +184,13 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     setQuotePostId(undefined);
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    void Promise.all([refetchProfile(), refetchPosts()]);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refetchProfile(), refetchPosts()]);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [refetchProfile, refetchPosts]);
 
   const handleDeletePost = useCallback(
@@ -396,7 +402,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         <Text style={[styles.sectionTitle, getLocalizedFontStyle(language, 'bold')]}>{t('postsStat')}</Text>
       </View>
     </View>
-  ), [userName, profile, profileLoading, profileMeta, userPosts.length, t, language, handleMessage, isFollowing, handleFollow, followUser.isPending, cachedAvatar, cachedNickname, cachedGender]);
+  ), [userName, profile, profileLoading, profileMeta, t, language, handleMessage, isFollowing, handleFollow, followUser.isPending, cachedAvatar, cachedNickname, cachedGender]);
 
   const renderPost = useCallback(
     ({ item }: { item: ForumPost }) => {
@@ -501,7 +507,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         extraData={listExtraData}
-        refreshing={loading}
+        refreshing={isRefreshing}
         onRefresh={handleRefresh}
         onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
         onEndReachedThreshold={0.5}
