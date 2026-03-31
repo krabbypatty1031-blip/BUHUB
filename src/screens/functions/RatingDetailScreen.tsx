@@ -163,9 +163,11 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
 
   const getSubtitle = (ratingItem: RatingItem): string => {
     const localizedDepartment = getLocalizedRatingDepartment(ratingItem, lang);
+    const code = 'code' in ratingItem && ratingItem.code ? ratingItem.code : '';
     const email = 'email' in ratingItem && ratingItem.email ? ratingItem.email as string : '';
-    if ('code' in ratingItem) return [ratingItem.code, localizedDepartment].filter(Boolean).join(' | ');
-    if ('location' in ratingItem) return getLocalizedRatingLocation(ratingItem, lang) || localizedDepartment || '';
+    const location = 'location' in ratingItem && ratingItem.location ? ratingItem.location : '';
+    if (code) return [code, localizedDepartment].filter(Boolean).join(' | ');
+    if (location) return getLocalizedRatingLocation(ratingItem, lang) || localizedDepartment || '';
     return [localizedDepartment, email].filter(Boolean).join(' | ');
   };
   const sharedTitle = item ? translateLabel(item.name, lang) : '';

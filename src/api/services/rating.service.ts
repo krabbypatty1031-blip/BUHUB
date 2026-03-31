@@ -8,7 +8,7 @@ type ApiScoreRecord = {
   key?: string;
   dimension?: string;
   value?: number;
-  label?: string;
+  label?: string | { tc?: string; sc?: string; en?: string };
 };
 type ApiLocalizedLabel = {
   tc?: string;
