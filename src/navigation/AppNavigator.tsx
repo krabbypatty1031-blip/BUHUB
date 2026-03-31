@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
@@ -40,8 +40,12 @@ export default function AppNavigator() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   usePushRegistration(navigationRef);
 
+  // Sync i18n with persisted language only once on hydration.
+  // Subsequent language changes are handled directly by SettingsScreen.
+  const hasInitializedLangRef = useRef(false);
   useEffect(() => {
-    if (!hasHydrated) return;
+    if (!hasHydrated || hasInitializedLangRef.current) return;
+    hasInitializedLangRef.current = true;
     const normalized = normalizeLanguage(language) ?? 'tc';
     if (normalized !== language) {
       setLanguage(normalized);
