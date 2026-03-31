@@ -7,6 +7,7 @@ import type { NavigationContainerRef } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
 import { useAuthStore } from '../store/authStore';
+import { useNotificationStore } from '../store/notificationStore';
 import type { MainTabParamList } from '../types/navigation';
 
 const PUSH_REGISTRATION_CACHE_KEY = 'buhub-expo-push-registration';
@@ -337,8 +338,26 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
       return;
     }
 
-    const subscription = Notifications.addNotificationReceivedListener(() => {
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+
+      // Immediately increment the badge so the UI updates without waiting for refetch
+      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const type = typeof data?.type === 'string' ? data.type : '';
+      const store = useNotificationStore.getState();
+      switch (type) {
+        case 'like':
+          store.setUnreadLikes(store.unreadLikes + 1);
+          break;
+        case 'follow':
+          store.setUnreadFollowers(store.unreadFollowers + 1);
+          break;
+        case 'comment':
+        case 'reply':
+        case 'mention':
+          store.setUnreadComments(store.unreadComments + 1);
+          break;
+      }
     });
 
     return () => {
