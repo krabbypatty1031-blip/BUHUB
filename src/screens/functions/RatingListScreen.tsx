@@ -429,9 +429,9 @@ export default function RatingListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: RatingItem }) => {
       const topTags = getTopTags(item);
-      const overallScore = item.scores.length > 0
+      const overallScore = item.overallScore ?? (item.scores.length > 0
         ? Math.round(item.scores.reduce((sum, s) => sum + s.value, 0) / item.scores.length)
-        : 0;
+        : 0);
       return (
         <TouchableOpacity
           style={styles.card}

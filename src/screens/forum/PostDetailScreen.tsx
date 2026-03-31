@@ -2363,8 +2363,10 @@ const styles = StyleSheet.create({
   anonToggle: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
     marginRight: spacing.xs,
+    height: 40,
   },
   commentInputBar: {
     flexDirection: 'row',

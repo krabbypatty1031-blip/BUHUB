@@ -32,12 +32,14 @@ import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 type Props = NativeStackScreenProps<ForumStackParamList, 'Search'>;
 
 const CIRCLE_KEYS = [
-  'tagTreehole',
+  'tagDormLife',
+  'tagFoodReview',
+  'tagCampusGossip',
+  'tagRelationship',
+  'tagFandom',
   'tagJobReferral',
-  'tagCourseExchange',
-  'tagCampusLife',
+  'tagStudyExchange',
   'tagLostFound',
-  'tagStudyHelp',
 ] as const;
 
 export default function SearchScreen({ navigation }: Props) {

@@ -22,7 +22,11 @@ export default function MessagesStackNavigator() {
       }}
     >
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
       <Stack.Screen name="NotifyLikes" component={NotifyLikesScreen} />
       <Stack.Screen name="NotifyFollowers" component={NotifyFollowersScreen} />
       <Stack.Screen name="NotifyComments" component={NotifyCommentsScreen} />

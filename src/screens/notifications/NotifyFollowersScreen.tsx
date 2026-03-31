@@ -85,8 +85,8 @@ function FollowerItem({
       </View>
       <TouchableOpacity
         style={[
-          styles.followBackBtn,
-          followed && styles.followBackBtnFollowed,
+          styles.followBtn,
+          followed && styles.followBtnFollowed,
         ]}
         onPress={handleFollow}
         disabled={followUser.isPending || !targetUserName}
@@ -97,17 +97,15 @@ function FollowerItem({
         ) : (
           <Text
             style={[
-              styles.followBackText,
+              styles.followBtnText,
               getLocalizedFontStyle(language, 'medium'),
-              followed && styles.followBackTextFollowed,
+              followed && styles.followBtnTextFollowed,
             ]}
             adjustsFontSizeToFit
             minimumFontScale={0.85}
             numberOfLines={1}
           >
-            {followed
-              ? t('alreadyFollowed')
-              : t('follow')}
+            {followed ? t('alreadyFollowed') : t('follow')}
           </Text>
         )}
       </TouchableOpacity>
@@ -287,30 +285,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.xxs,
   },
   notificationAction: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },
-  followBackBtn: {
+  followBtn: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 8,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
     minWidth: 96,
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
   },
-  followBackBtnFollowed: {
+  followBtnFollowed: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  followBackText: {
+  followBtnText: {
     ...typography.labelMedium,
     color: colors.onPrimary,
   },
-  followBackTextFollowed: {
+  followBtnTextFollowed: {
     color: colors.primary,
   },
 });

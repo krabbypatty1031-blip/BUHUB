@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -117,7 +117,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
             </View>
           ) : null}
           {item.originalPost ? (
-            <View style={styles.originalPostContainer}>
+            <View style={styles.originalPostRow}>
               <View style={styles.originalPostBar} />
               <Text style={[styles.originalPostText, getLocalizedFontStyle(language, 'regular')]} numberOfLines={2}>
                 {item.originalPost}
@@ -127,7 +127,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
     ),
-    [t, handleAvatarPress, handleContentPress]
+    [t, language, handleAvatarPress, handleContentPress]
   );
 
   return (
@@ -267,22 +267,21 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.surface2,
-    marginBottom: spacing.xs,
+    marginTop: spacing.xxs,
   },
   commentText: {
     ...typography.bodyMedium,
     color: colors.onSurface,
   },
-  originalPostContainer: {
+  originalPostRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    marginTop: spacing.xs,
+    gap: spacing.xs,
   },
   originalPostBar: {
     width: 3,
-    height: 16,
     borderRadius: 1.5,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: colors.onSurfaceVariant,
   },
   originalPostText: {
     ...typography.bodySmall,

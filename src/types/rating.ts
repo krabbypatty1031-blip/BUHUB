@@ -26,6 +26,7 @@ interface BaseRating {
   scores: ScoreItem[];
   tags: string[];
   tagCounts: Record<string, number>;
+  overallScore?: number;
   ratingCount: number;
   recentCount: number;
   scoreVariance: number;
