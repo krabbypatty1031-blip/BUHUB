@@ -54,10 +54,13 @@ const mapScore = (score: ApiScoreRecord) => {
   const key = score?.key ?? score?.dimension ?? '';
   const rawValue = typeof score?.value === 'number' ? score.value : 0;
   const value = rawValue <= 5 ? Math.round(rawValue * 20) : Math.round(rawValue);
-  const rawLabel = typeof score?.label === 'string' ? score.label : key;
+  const rawLabel = score?.label;
+  const label = typeof rawLabel === 'string'
+    ? rawLabel
+    : (rawLabel?.en ?? rawLabel?.tc ?? rawLabel?.sc ?? key);
   return {
     key,
-    label: rawLabel || key,
+    label: label || key,
     value,
   };
 };
