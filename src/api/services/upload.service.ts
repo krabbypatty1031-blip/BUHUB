@@ -158,6 +158,8 @@ async function compressImage(
   };
 }
 
+const UPLOAD_TIMEOUT_MS = 30_000; // 30s per upload attempt
+
 async function uploadBinary(
   targetUrl: string,
   headers: Record<string, string>,
@@ -168,16 +170,25 @@ async function uploadBinary(
   let lastResponse: Response | null = null;
 
   for (let attempt = 1; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
     try {
       const response = await fetch(targetUrl, {
         method: 'PUT',
         headers,
         body: blob,
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       if (response.ok) return response;
       lastResponse = response;
     } catch (error) {
-      lastError = error;
+      clearTimeout(timer);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        lastError = new Error(`Upload timed out after ${UPLOAD_TIMEOUT_MS / 1000}s`);
+      } else {
+        lastError = error;
+      }
     }
   }
 
