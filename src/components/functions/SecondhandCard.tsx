@@ -35,7 +35,7 @@ export interface SecondhandCardProps {
   categoryLabel?: string;
 }
 
-/* ── Combined title text: registers for translation, always shows condition + desc ── */
+/* ── Combined title text: registers for translation, shows condition and description when present ── */
 function CardCombinedText({
   entityId,
   item,
@@ -69,7 +69,7 @@ function CardCombinedText({
 
   const titlePart = translatedFields?.title ?? item.title?.trim() ?? '';
   const conditionPart = getLocalizedSecondhandCondition(item.condition, t);
-  const descPart = translatedFields?.description ?? (item.desc?.trim() || t('noDescription'));
+  const descPart = translatedFields?.description ?? item.desc?.trim() ?? '';
   const combined = [titlePart, conditionPart, descPart].filter(Boolean).join(' | ');
 
   return (

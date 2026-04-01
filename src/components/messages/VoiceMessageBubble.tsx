@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 
 interface VoiceMessageBubbleProps {
   isMine: boolean;
   durationMs: number;
   isPlaying?: boolean;
+  isBuffering?: boolean;
+  playbackProgress?: number;
   isRead?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -102,6 +103,8 @@ export const VoiceMessageBubble: React.FC<VoiceMessageBubbleProps> = ({
   isMine,
   durationMs,
   isPlaying = false,
+  isBuffering = false,
+  playbackProgress: _playbackProgress = 0,
   isRead = true,
   onPress,
   onLongPress,
@@ -139,11 +142,11 @@ export const VoiceMessageBubble: React.FC<VoiceMessageBubbleProps> = ({
         {isMine ? (
           <>
             <Text style={[styles.duration, styles.durationMine]}>{formatDuration(durationMs)}</Text>
-            <VoiceWaveGlyph isMine={isMine} isPlaying={isPlaying} />
+            <VoiceWaveGlyph isMine={isMine} isPlaying={isPlaying && !isBuffering} />
           </>
         ) : (
           <>
-            <VoiceWaveGlyph isMine={isMine} isPlaying={isPlaying} />
+            <VoiceWaveGlyph isMine={isMine} isPlaying={isPlaying && !isBuffering} />
             <Text style={[styles.duration, styles.durationTheirs]}>{formatDuration(durationMs)}</Text>
           </>
         )}

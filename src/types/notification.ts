@@ -31,6 +31,7 @@ export interface CommentNotification {
   id?: string;
   user: string;
   userName?: string;
+  isAnonymous?: boolean;
   avatar: string;
   gender: Gender;
   grade?: string;

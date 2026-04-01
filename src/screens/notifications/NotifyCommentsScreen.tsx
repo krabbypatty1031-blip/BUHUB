@@ -54,6 +54,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
         currentUser,
         userName: item.userName ?? item.user,
         displayName: item.user,
+        isAnonymous: item.isAnonymous,
         cachedAvatar: item.avatar,
         cachedNickname: item.user,
         cachedGender: item.gender,

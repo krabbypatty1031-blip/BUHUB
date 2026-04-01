@@ -186,6 +186,9 @@ export type FunctionsStackParamList = {
   UserProfile: UserProfileParams;
   AIScheduleUpload: undefined;
   AIScheduleView: undefined;
+  FeedbackList: undefined;
+  FeedbackSubmit: undefined;
+  FeedbackDetail: { id: string };
 };
 
 // Messages Stack

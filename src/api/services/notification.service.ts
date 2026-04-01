@@ -51,6 +51,7 @@ type RawCommentNotification = {
   id?: string;
   user?: string;
   userName?: string;
+  isAnonymous?: boolean;
   name?: string;
   avatar?: string;
   gender?: 'male' | 'female' | 'other' | 'secret';
@@ -172,6 +173,7 @@ export const notificationService = {
         id: item.id ?? `${item.postId ?? ''}:${item.commentId ?? ''}:${item.time ?? ''}`,
         user: item.user ?? item.name ?? item.userName ?? '',
         userName: item.userName ?? item.user ?? item.name ?? '',
+        isAnonymous: !!item.isAnonymous,
         avatar: normalizeAvatarUrl(item.avatar) ?? '',
         gender: item.gender ?? 'other',
         action: normalizeCommentAction(item.action, type),

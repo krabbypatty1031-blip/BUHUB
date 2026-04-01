@@ -25,6 +25,9 @@ import LibraryDetailScreen from '../screens/functions/LibraryDetailScreen';
 import UserProfileScreen from '../screens/me/UserProfileScreen';
 import AIScheduleUploadScreen from '../screens/functions/AIScheduleUploadScreen';
 import AIScheduleViewScreen from '../screens/functions/AIScheduleViewScreen';
+import FeedbackListScreen from '../screens/functions/FeedbackListScreen';
+import FeedbackSubmitScreen from '../screens/functions/FeedbackSubmitScreen';
+import FeedbackDetailScreen from '../screens/functions/FeedbackDetailScreen';
 
 const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
@@ -60,6 +63,9 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="AIScheduleUpload" component={AIScheduleUploadScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AIScheduleView" component={AIScheduleViewScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="FeedbackList" component={FeedbackListScreen} />
+      <Stack.Screen name="FeedbackSubmit" component={FeedbackSubmitScreen} />
+      <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
     </Stack.Navigator>
   );
 }

@@ -125,7 +125,8 @@ export type ConversationSummary = {
     isDeleted?: boolean;
     isRead?: boolean;
     senderId: string;
-  };
+  } | null;
+  lastInteractedAt?: string | Date;
   unreadCount: number;
 };
 
@@ -556,7 +557,16 @@ export function buildChatMessageFromPersistedMessage(
 }
 
 export function mapConversationSummaryToContact(summary: ConversationSummary): Contact {
-  const latestMessageAt = resolveMessageTimestamp(summary.latestMessage?.createdAt);
+  const latestMessageAt = resolveMessageTimestamp(
+    summary.latestMessage?.createdAt ?? summary.lastInteractedAt
+  );
+  const previewText = summary.latestMessage
+    ? buildMessagePreviewText(
+        summary.latestMessage.content ?? '',
+        summary.latestMessage.images,
+        summary.latestMessage.isDeleted
+      )
+    : tMessage('noMessages');
   return {
     id: summary.userId,
     userName: summary.user?.userName ?? undefined,
@@ -564,11 +574,7 @@ export function mapConversationSummaryToContact(summary: ConversationSummary): C
     avatar: normalizeAvatarUrl(summary.user?.avatar) ?? '',
     grade: summary.user?.grade ?? undefined,
     major: summary.user?.major ?? undefined,
-    message: buildMessagePreviewText(
-      summary.latestMessage?.content ?? '',
-      summary.latestMessage?.images,
-      summary.latestMessage?.isDeleted
-    ),
+    message: previewText,
     time: formatMessageTime(latestMessageAt),
     lastMessageAt: latestMessageAt,
     unread: summary.unreadCount ?? 0,
@@ -752,10 +758,26 @@ export const messageService = {
       const { mockContacts } = await import('../../data/mock/messages');
       return mockContacts;
     }
-    const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CONVERSATIONS);
-    return (Array.isArray(data) ? data : []).map((c) =>
-      mapConversationSummaryToContact(c as ConversationSummary)
-    );
+    const pageSize = 50;
+    const allSummaries: ConversationSummary[] = [];
+
+    for (let page = 1; page <= 20; page += 1) {
+      const { data } = await apiClient.get(ENDPOINTS.MESSAGE.CONVERSATIONS, {
+        params: { page, limit: pageSize },
+      });
+      const pageItems = (Array.isArray(data) ? data : []) as ConversationSummary[];
+      if (pageItems.length === 0) break;
+      allSummaries.push(...pageItems);
+      if (pageItems.length < pageSize) break;
+    }
+
+    const dedupedContacts = new Map<string, Contact>();
+    allSummaries.forEach((summary) => {
+      if (!dedupedContacts.has(summary.userId)) {
+        dedupedContacts.set(summary.userId, mapConversationSummaryToContact(summary));
+      }
+    });
+    return Array.from(dedupedContacts.values());
   },
 
   async searchContacts(query: string, limit = 20): Promise<Contact[]> {
@@ -949,6 +971,12 @@ export const messageService = {
   async deleteMessage(messageId: string): Promise<{ success: boolean }> {
     if (USE_MOCK) return { success: true };
     await apiClient.delete(ENDPOINTS.MESSAGE.MESSAGE_DETAIL(messageId));
+    return { success: true };
+  },
+
+  async deleteConversation(userId: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) return { success: true };
+    await apiClient.delete(ENDPOINTS.MESSAGE.CONVERSATION(userId));
     return { success: true };
   },
 

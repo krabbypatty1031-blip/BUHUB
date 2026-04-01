@@ -634,3 +634,43 @@ export function useRecallMessage(contactId: string) {
     },
   });
 }
+
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
+
+  return useMutation({
+    mutationFn: (contactId: string) => messageService.deleteConversation(contactId),
+    onMutate: async (contactId) => {
+      await queryClient.cancelQueries({ queryKey: ['contacts'] });
+      await queryClient.cancelQueries({ queryKey: ['chat', contactId] });
+
+      const previousContacts = queryClient.getQueriesData<Contact[]>({
+        queryKey: ['contacts'],
+      });
+      const previousChats = queryClient.getQueriesData<ChatHistory[]>({
+        queryKey: ['chat', contactId],
+      });
+
+      patchContactsQueries(queryClient, currentUserId, (current) =>
+        current?.filter((contact) => contact.id !== contactId) ?? current
+      );
+      patchChatQueries(queryClient, currentUserId, contactId, () => []);
+
+      return { previousContacts, previousChats, contactId };
+    },
+    onError: (_error, _contactId, context) => {
+      context?.previousContacts?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      context?.previousChats?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+    },
+    onSuccess: (_data, contactId) => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['chat', contactId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+    },
+  });
+}

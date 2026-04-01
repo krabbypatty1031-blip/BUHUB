@@ -88,6 +88,7 @@ const ENDPOINTS = {
   // Messages (backend: conversations, chat/:userId, POST /messages)
   MESSAGE: {
     CONVERSATIONS: '/messages/conversations',
+    CONVERSATION: (userId: string) => `/messages/conversations/${userId}`,
     SEARCH: '/messages/search',
     CHAT: (userId: string) => `/messages/chat/${userId}`,
     CAN_SEND: (userId: string) => `/messages/can-send/${userId}`,
@@ -155,6 +156,13 @@ const ENDPOINTS = {
     ADD_COURSE: '/schedule/courses',
     EDIT_COURSE: (id: string) => `/schedule/courses/${id}`,
     DELETE_COURSE: (id: string) => `/schedule/courses/${id}`,
+  },
+
+  // Feedback
+  FEEDBACK: {
+    LIST: '/feedback',
+    DETAIL: (id: string) => `/feedback/${id}`,
+    SUBMIT: '/feedback',
   },
 } as const;
 

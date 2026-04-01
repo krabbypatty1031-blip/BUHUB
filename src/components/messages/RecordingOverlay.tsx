@@ -1,9 +1,8 @@
-import React, { useCallback, forwardRef, useImperativeHandle, useEffect } from 'react';
+import React, { useCallback, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
 import ReAnimated, {
   useSharedValue,
@@ -20,7 +19,9 @@ import { spacing } from '../../theme/spacing';
 export type ActionType = 'send' | 'cancel' | 'transcribe';
 
 export interface RecordingOverlayRef {
+  beginGesture: (pageX: number, pageY: number) => void;
   handleTouchMove: (pageX: number, pageY: number) => void;
+  resetGesture: () => void;
 }
 
 interface RecordingOverlayProps {
@@ -100,31 +101,95 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
     ref
   ) {
     const { t } = useTranslation();
-    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+    const gestureStartRef = useRef<{ x: number; y: number } | null>(null);
+    const cancelButtonRef = useRef<View | null>(null);
+    const transcribeButtonRef = useRef<View | null>(null);
+    const cancelButtonBoundsRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+    const transcribeButtonBoundsRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
-    const ZONE_TOP_RATIO = 0.38;
-    const zoneMid = screenWidth / 2;
+    const measureButtonBounds = useCallback((target: 'cancel' | 'transcribe') => {
+      const targetRef = target === 'cancel' ? cancelButtonRef.current : transcribeButtonRef.current;
+      if (!targetRef?.measureInWindow) return;
+      targetRef.measureInWindow((x, y, width, height) => {
+        const nextBounds = { x, y, width, height };
+        if (target === 'cancel') {
+          cancelButtonBoundsRef.current = nextBounds;
+        } else {
+          transcribeButtonBoundsRef.current = nextBounds;
+        }
+      });
+    }, []);
+
+    const refreshButtonBounds = useCallback(() => {
+      measureButtonBounds('cancel');
+      measureButtonBounds('transcribe');
+    }, [measureButtonBounds]);
+
+    const isPointInsideBounds = useCallback(
+      (
+        pageX: number,
+        pageY: number,
+        bounds: { x: number; y: number; width: number; height: number } | null
+      ) => {
+        if (!bounds) return false;
+        const touchSlopX = 18;
+        const touchSlopY = 16;
+        return (
+          pageX >= bounds.x - touchSlopX &&
+          pageX <= bounds.x + bounds.width + touchSlopX &&
+          pageY >= bounds.y - touchSlopY &&
+          pageY <= bounds.y + bounds.height + touchSlopY
+        );
+      },
+      []
+    );
+
+    const beginGesture = useCallback((pageX: number, pageY: number) => {
+      gestureStartRef.current = { x: pageX, y: pageY };
+      refreshButtonBounds();
+    }, []);
+
+    const resetGesture = useCallback(() => {
+      gestureStartRef.current = null;
+    }, []);
 
     const handleTouchMove = useCallback(
       (pageX: number, pageY: number) => {
-        // Upper area = send
-        if (pageY < screenHeight * ZONE_TOP_RATIO) {
-          onActionChange('send');
+        const gestureStart = gestureStartRef.current ?? { x: pageX, y: pageY };
+        if (!gestureStartRef.current) {
+          gestureStartRef.current = gestureStart;
+        }
+
+        if (isPointInsideBounds(pageX, pageY, cancelButtonBoundsRef.current)) {
+          onActionChange('cancel');
           return;
         }
-        // Bottom area: left = cancel, right = transcribe
-        if (pageX <= zoneMid) {
-          onActionChange('cancel');
-        } else {
+        if (isPointInsideBounds(pageX, pageY, transcribeButtonBoundsRef.current)) {
           onActionChange('transcribe');
+          return;
         }
+        onActionChange('send');
       },
-      [zoneMid, screenHeight, onActionChange]
+      [isPointInsideBounds, onActionChange]
     );
 
+    useEffect(() => {
+      if (!visible) {
+        cancelButtonBoundsRef.current = null;
+        transcribeButtonBoundsRef.current = null;
+        return;
+      }
+      const frame = requestAnimationFrame(() => {
+        refreshButtonBounds();
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [refreshButtonBounds, visible]);
+
     useImperativeHandle(ref, () => ({
+      beginGesture,
       handleTouchMove,
-    }));
+      resetGesture,
+    }), [beginGesture, handleTouchMove, resetGesture]);
 
     const hintText =
       currentAction === 'cancel'
@@ -132,6 +197,8 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
         : currentAction === 'transcribe'
           ? t('voiceReleaseToTranscribe')
           : t('voiceSlideHint');
+    const shouldShowTranscriptPanel = currentAction === 'transcribe';
+    const transcriptPreviewText = transcriptText.trim();
 
     if (!visible) return null;
 
@@ -147,16 +214,27 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
             <View style={styles.bubbleTail} />
           </View>
 
-          {/* Transcript text (if speech-to-text is active) */}
-          {transcriptText ? (
-            <Text style={styles.transcriptText} numberOfLines={3}>
-              {transcriptText}
-            </Text>
+          {/* Transcript text is only surfaced when user is aiming for voice-to-text */}
+          {shouldShowTranscriptPanel ? (
+            <View style={styles.transcriptPanel}>
+              <Text style={styles.transcriptLabel}>{t('voiceToText')}</Text>
+              <Text
+                style={[
+                  styles.transcriptText,
+                  transcriptPreviewText.length === 0 && styles.transcriptPlaceholder,
+                ]}
+                numberOfLines={3}
+              >
+                {transcriptPreviewText || t('voiceReleaseToTranscribe')}
+              </Text>
+            </View>
           ) : null}
 
           {/* Action buttons */}
           <View style={styles.actionRow}>
             <View
+              ref={cancelButtonRef}
+              onLayout={refreshButtonBounds}
               style={[
                 styles.actionBtn,
                 currentAction === 'cancel' && styles.actionBtnFocused,
@@ -167,6 +245,8 @@ export const RecordingOverlay = forwardRef<RecordingOverlayRef, RecordingOverlay
               </Text>
             </View>
             <View
+              ref={transcribeButtonRef}
+              onLayout={refreshButtonBounds}
               style={[
                 styles.actionBtn,
                 currentAction === 'transcribe' && styles.actionBtnFocused,
@@ -256,13 +336,34 @@ const styles = StyleSheet.create({
   },
 
   /* Transcript text */
+  transcriptPanel: {
+    width: '82%',
+    maxWidth: 336,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(111,231,167,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(111,231,167,0.34)',
+    gap: 8,
+  },
+  transcriptLabel: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#6FE7A7',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+  },
   transcriptText: {
     fontSize: 18,
-    lineHeight: 21,
+    lineHeight: 24,
     fontFamily: 'SourceHanSansCN-Medium',
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.96)',
     textAlign: 'center',
-    paddingHorizontal: 32,
+  },
+  transcriptPlaceholder: {
+    color: 'rgba(255,255,255,0.6)',
   },
   actionRow: {
     flexDirection: 'row',

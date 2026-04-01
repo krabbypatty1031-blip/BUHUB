@@ -20,6 +20,7 @@ import {
   RatingFnIcon,
   FacilityFnIcon,
   AIScheduleFnIcon,
+  FeedbackFnIcon,
   ArrowRightFnIcon,
 } from '../../components/functions/FunctionHubIcons';
 import { useSchedule } from '../../hooks/useSchedule';
@@ -36,7 +37,8 @@ type FunctionsHubRouteName =
   | 'SecondhandList'
   | 'AISchedule'
   | 'RatingList'
-  | 'FacilityBooking';
+  | 'FacilityBooking'
+  | 'FeedbackList';
 
 interface FunctionEntry {
   key: string;
@@ -55,6 +57,7 @@ const ENTRIES: FunctionEntry[] = [
   { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', arrowColor: '#C1C1C1', route: 'RatingList' },
   { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', arrowColor: '#C1C1C1', route: 'FacilityBooking' },
   { key: 'aiSchedule', titleKey: 'aiSchedule', subtitleKey: 'aiScheduleDesc', Icon: AIScheduleFnIcon, iconColor: '#5B73FF', arrowColor: '#C1C1C1', route: 'AISchedule' },
+  { key: 'feedback', titleKey: 'feedback', subtitleKey: 'feedbackDesc', Icon: FeedbackFnIcon, iconColor: '#FF6B6B', arrowColor: '#C1C1C1', route: 'FeedbackList' },
 ];
 
 const HEADER_BG_COLOR = '#333333';
@@ -109,6 +112,9 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           navigation.navigate('AIScheduleUpload');
           return;
         }
+        case 'FeedbackList':
+          navigation.navigate('FeedbackList');
+          return;
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');
           return;

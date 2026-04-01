@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MessagesStackParamList } from '../../types/navigation';
 import type { Contact } from '../../types';
-import { useContacts, useMessageSearch } from '../../hooks/useMessages';
+import { useContacts, useDeleteConversation, useMessageSearch } from '../../hooks/useMessages';
 import { useBlockUser, useBlockedList } from '../../hooks/useUser';
 import { messageService } from '../../api/services/message.service';
 import { normalizeLanguage } from '../../i18n';
@@ -167,6 +167,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const isBlocked = useForumStore((s) => s.isBlocked);
   const setBlockedUsers = useForumStore((s) => s.setBlockedUsers);
   const blockUserMutation = useBlockUser();
+  const deleteConversationMutation = useDeleteConversation();
   const { data: blockedList } = useBlockedList();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -406,6 +407,30 @@ export default function MessagesScreen({ navigation }: Props) {
     }
   }, [actionSheetContact, blockUserMutation, showSnackbar, t]);
 
+  const handleActionDeleteConversation = useCallback(() => {
+    if (!actionSheetContact) {
+      setActionSheetContact(null);
+      return;
+    }
+
+    const targetContact = actionSheetContact;
+    setActionSheetContact(null);
+    Alert.alert(t('deleteConversation'), t('deleteConversationConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          deleteConversationMutation.mutate(targetContact.id, {
+            onSuccess: () => {
+              showSnackbar({ message: t('conversationDeleted'), type: 'success' });
+            },
+          });
+        },
+      },
+    ]);
+  }, [actionSheetContact, deleteConversationMutation, showSnackbar, t]);
+
   /* List header: user avatar + notifications */
   const renderHeader = useCallback(() => {
     return (
@@ -615,6 +640,18 @@ export default function MessagesScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.actionSheetItem}
               activeOpacity={0.7}
+              onPress={handleActionDeleteConversation}
+            >
+              <Text style={[styles.actionSheetText, { color: '#ED4956' }]}>
+                {t('deleteConversation')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionSheetDivider} />
+
+            <TouchableOpacity
+              style={styles.actionSheetItem}
+              activeOpacity={0.7}
               onPress={handleActionBlock}
             >
               <Text style={[styles.actionSheetText, { color: '#ED4956' }]}>
@@ -649,14 +686,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 4,
+    paddingTop: 18,
     paddingBottom: 16,
     paddingLeft: 20,
     paddingRight: 30,
   },
   topBarTitle: {
     fontSize: 32,
-    lineHeight: 32,
+    lineHeight: 38,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     includeFontPadding: false,

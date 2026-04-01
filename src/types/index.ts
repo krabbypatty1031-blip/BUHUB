@@ -9,3 +9,4 @@ export * from './message';
 export * from './notification';
 export * from './navigation';
 export * from './translation';
+export * from './feedback';

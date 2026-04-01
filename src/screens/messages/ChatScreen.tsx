@@ -304,6 +304,8 @@ type ChatBubbleProps = {
   onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
   onRetryFailedMessage?: (message: ChatMessage) => void;
   isAudioPlaying?: boolean;
+  isAudioBuffering?: boolean;
+  audioProgress?: number;
   t: (key: string, options?: Record<string, unknown>) => string;
 };
 
@@ -1278,6 +1280,8 @@ type AudioMessageContentProps = {
   message: ChatMessage;
   isMine: boolean;
   isAudioPlaying?: boolean;
+  isAudioBuffering?: boolean;
+  audioProgress?: number;
   onPlayAudio?: (message: ChatMessage) => void;
   onLongPressMessage?: (message: ChatMessage) => void;
 };
@@ -1286,6 +1290,8 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
   message,
   isMine,
   isAudioPlaying,
+  isAudioBuffering,
+  audioProgress,
   onPlayAudio,
   onLongPressMessage,
 }: AudioMessageContentProps) {
@@ -1294,6 +1300,8 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
       isMine={isMine}
       durationMs={message.audio?.durationMs || 0}
       isPlaying={isAudioPlaying}
+      isBuffering={isAudioBuffering}
+      playbackProgress={audioProgress}
       isRead={message.status === 'read' || !isMine}
       onPress={() => onPlayAudio?.(message)}
       onLongPress={() => onLongPressMessage?.(message)}
@@ -1303,6 +1311,8 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
   return (
     prevProps.isMine === nextProps.isMine &&
     Boolean(prevProps.isAudioPlaying) === Boolean(nextProps.isAudioPlaying) &&
+    Boolean(prevProps.isAudioBuffering) === Boolean(nextProps.isAudioBuffering) &&
+    (prevProps.audioProgress ?? 0) === (nextProps.audioProgress ?? 0) &&
     prevProps.onPlayAudio === nextProps.onPlayAudio &&
     prevProps.onLongPressMessage === nextProps.onLongPressMessage &&
     prevProps.message.id === nextProps.message.id &&
@@ -1311,6 +1321,22 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
     prevProps.message.audio?.durationMs === nextProps.message.audio?.durationMs
   );
 });
+
+type AudioPlaybackState = {
+  messageId: string | null;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  positionMillis: number;
+  durationMillis: number;
+};
+
+const EMPTY_AUDIO_PLAYBACK_STATE: AudioPlaybackState = {
+  messageId: null,
+  isPlaying: false,
+  isBuffering: false,
+  positionMillis: 0,
+  durationMillis: 0,
+};
 
 type MessageDeliveryStatusProps = {
   message: ChatMessage;
@@ -1400,6 +1426,8 @@ const ChatBubble = React.memo(function ChatBubble({
   onPressReaction,
   onRetryFailedMessage,
   isAudioPlaying,
+  isAudioBuffering,
+  audioProgress,
   t,
 }: ChatBubbleProps) {
   const isMine = message.type === 'sent';
@@ -1528,6 +1556,8 @@ const ChatBubble = React.memo(function ChatBubble({
           message={message}
           isMine={isMine}
           isAudioPlaying={isAudioPlaying}
+          isAudioBuffering={isAudioBuffering}
+          audioProgress={audioProgress}
           onPlayAudio={onPlayAudio}
           onLongPressMessage={onLongPressMessage}
         />
@@ -1651,6 +1681,8 @@ const ChatBubble = React.memo(function ChatBubble({
     prevProps.onRetryFailedMessage === nextProps.onRetryFailedMessage &&
     prevProps.onSwipeReply === nextProps.onSwipeReply &&
     Boolean(prevProps.isAudioPlaying) === Boolean(nextProps.isAudioPlaying) &&
+    Boolean(prevProps.isAudioBuffering) === Boolean(nextProps.isAudioBuffering) &&
+    (prevProps.audioProgress ?? 0) === (nextProps.audioProgress ?? 0) &&
     prevProps.t === nextProps.t &&
     areChatMessagesEquivalent(prevProps.message, nextProps.message)
   );
@@ -1913,6 +1945,9 @@ function ChatScreenContent({ navigation, route }: Props) {
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   const [playingAudioMessageId, setPlayingAudioMessageId] = useState<string | null>(null);
+  const [audioPlaybackState, setAudioPlaybackState] = useState<AudioPlaybackState>(
+    EMPTY_AUDIO_PLAYBACK_STATE
+  );
   const cardSentRef = useRef<string | null>(null);
   const cardSendingRef = useRef<string | null>(null);
   const forwardedTextSentRef = useRef<string | null>(null);
@@ -1973,6 +2008,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const liveTranscriptionTextRef = useRef('');
   const liveTranscriptionFinalRef = useRef('');
   const liveSpeechActiveRef = useRef(false);
+  const liveSpeechDesiredRef = useRef(false);
 
   const handleChatInputTextChange = useCallback((text: string) => {
     setInputText(text);
@@ -2109,6 +2145,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   }, []);
 
   const stopLiveSpeechRecognition = useCallback((abort = false) => {
+    liveSpeechDesiredRef.current = false;
     const speechRecognitionModule = getSpeechRecognitionModule();
     if (!speechRecognitionModule) return;
     if (!liveSpeechActiveRef.current) return;
@@ -2124,26 +2161,110 @@ function ChatScreenContent({ navigation, route }: Props) {
     liveSpeechActiveRef.current = false;
   }, []);
 
+  const settleLiveSpeechRecognition = useCallback(async (abort = false, timeoutMs = 600) => {
+    liveSpeechDesiredRef.current = false;
+    const speechRecognitionModule = getSpeechRecognitionModule();
+    if (!speechRecognitionModule) return;
+    if (!liveSpeechActiveRef.current) return;
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        endSub.remove();
+        errorSub.remove();
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+          timeoutHandle = null;
+        }
+      };
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        liveSpeechActiveRef.current = false;
+        cleanup();
+        resolve();
+      };
+
+      const endSub = speechRecognitionModule.addListener('end', finish);
+      const errorSub = speechRecognitionModule.addListener('error', finish);
+
+      timeoutHandle = setTimeout(finish, timeoutMs);
+
+      try {
+        if (abort) {
+          speechRecognitionModule.abort();
+        } else {
+          speechRecognitionModule.stop();
+        }
+      } catch {
+        finish();
+      }
+    });
+  }, []);
+
   const startLiveSpeechRecognition = useCallback(async () => {
     if (liveSpeechActiveRef.current) return;
+    liveSpeechDesiredRef.current = true;
     const speechRecognitionModule = getSpeechRecognitionModule();
     if (!speechRecognitionModule) return;
     try {
       if (!speechRecognitionModule.isRecognitionAvailable()) return;
       const permission = await speechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) return;
+      // After the async permission check, verify we still want speech
+      // recognition active. The user may have slid away from the transcribe
+      // zone while we were awaiting.
+      if (!liveSpeechDesiredRef.current) return;
       speechRecognitionModule.start({
         lang: resolveSpeechRecognitionLocale(i18n.language),
         interimResults: true,
         continuous: true,
         addsPunctuation: true,
         maxAlternatives: 1,
+        // On iOS, explicitly set the audio session category to match what
+        // expo-av Audio.Recording already configured. This prevents
+        // expo-speech-recognition from reconfiguring the audio session and
+        // disrupting the concurrent recording.
+        ...(Platform.OS === 'ios'
+          ? {
+              iosCategory: {
+                category: 'playAndRecord',
+                categoryOptions: ['defaultToSpeaker', 'allowBluetooth'],
+                mode: 'default',
+              },
+            }
+          : {}),
       });
       liveSpeechActiveRef.current = true;
     } catch {
       liveSpeechActiveRef.current = false;
     }
   }, [i18n.language]);
+
+  // Lazily start/stop live speech recognition when the user slides into or
+  // out of the "transcribe" zone during recording. This avoids running
+  // expo-speech-recognition simultaneously with expo-av Audio.Recording from
+  // the very start (which causes iOS audio session conflicts).
+  const prevVoiceReleaseActionRef = useRef<VoiceReleaseAction>('send');
+  useEffect(() => {
+    const prev = prevVoiceReleaseActionRef.current;
+    prevVoiceReleaseActionRef.current = voiceReleaseAction;
+
+    if (!isRecording) return;
+
+    if (voiceReleaseAction === 'transcribe' && prev !== 'transcribe') {
+      // User just slid into the transcribe zone — start recognizing.
+      void startLiveSpeechRecognition();
+    } else if (voiceReleaseAction !== 'transcribe' && prev === 'transcribe') {
+      // User slid OUT of the transcribe zone — stop recognizing so it doesn't
+      // interfere with the audio recording for the voice-message path.
+      stopLiveSpeechRecognition(true);
+      clearLiveTranscription();
+    }
+  }, [voiceReleaseAction, isRecording, startLiveSpeechRecognition, stopLiveSpeechRecognition, clearLiveTranscription]);
 
   const forwardedCardDraft = useMemo<ForwardedCardDraft | null>(() => {
     if (!forwardedType || !forwardedPosterName) return null;
@@ -2279,7 +2400,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   }, [forwardedCardDraft, pendingForwardConfirmKey, t]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const playingAudioMessageIdRef = useRef<string | null>(null);
 
   const myAvatarText = user?.nickname || user?.name || t('meLabel');
   const myAvatarUri = user?.avatar || null;
@@ -3065,10 +3185,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   // Typing indicator state is consumed via typingState in the useEffect below
 
   useEffect(() => {
-    playingAudioMessageIdRef.current = playingAudioMessageId;
-  }, [playingAudioMessageId]);
-
-  useEffect(() => {
     if (waitingForReply && isVoiceMode) {
       setIsVoiceMode(false);
     }
@@ -3462,6 +3578,11 @@ function ChatScreenContent({ navigation, route }: Props) {
     return Date.now() - sentTs <= RECALL_WINDOW_MS;
   }, []);
 
+  const clearAudioPlayback = useCallback(() => {
+    setPlayingAudioMessageId(null);
+    setAudioPlaybackState(EMPTY_AUDIO_PLAYBACK_STATE);
+  }, []);
+
   const doRecallMessage = useCallback(
     (message: ChatMessage) => {
       if (!canRecallMessage(message)) return;
@@ -3504,9 +3625,9 @@ function ChatScreenContent({ navigation, route }: Props) {
         });
       }
       audioSoundRef.current = null;
-      setPlayingAudioMessageId(null);
+      clearAudioPlayback();
     }
-  }, [actionTarget, contactId, playingAudioMessageId, replyTarget, user?.id]);
+  }, [actionTarget, clearAudioPlayback, contactId, playingAudioMessageId, replyTarget, user?.id]);
 
   const handleMessageActions = useCallback(
     (message: ChatMessage) => {
@@ -3625,9 +3746,9 @@ function ChatScreenContent({ navigation, route }: Props) {
         void sound.unloadAsync();
       }
       audioSoundRef.current = null;
-      setPlayingAudioMessageId(null);
+      clearAudioPlayback();
     },
-    []
+    [clearAudioPlayback]
   );
 
   useEffect(
@@ -3993,12 +4114,13 @@ function ChatScreenContent({ navigation, route }: Props) {
       setVoiceReleaseAction('send');
       setRecordingDurationMs(0);
       hapticLight();
-      void startLiveSpeechRecognition();
+      // NOTE: Live speech recognition is started lazily when the user slides
+      // into the "transcribe" zone (see useEffect below that watches
+      // voiceReleaseAction). Starting it eagerly here caused iOS audio session
+      // conflicts with the concurrent expo-av Audio.Recording.
 
       recordingDurationIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - recordingStartTimeRef.current;
-        setRecordingDurationMs(elapsed);
-
         // Auto-stop when max recording duration is reached.
         if (elapsed >= MAX_RECORD_DURATION_MS) {
           if (recordingDurationIntervalRef.current) {
@@ -4020,7 +4142,7 @@ function ChatScreenContent({ navigation, route }: Props) {
       );
       return false;
     }
-  }, [clearLiveTranscription, setVoiceReleaseAction, startLiveSpeechRecognition, stopLiveSpeechRecognition, t]);
+  }, [clearLiveTranscription, setVoiceReleaseAction, stopLiveSpeechRecognition, t]);
 
   const stopRecordingSession = useCallback(async () => {
     let recordedUri: string | null = null;
@@ -4091,6 +4213,11 @@ function ChatScreenContent({ navigation, route }: Props) {
   const transcribeRecordedAudioToText = useCallback(async (uri: string, durationMs: number) => {
     setIsTranscribingVoice(true);
     try {
+      // Attempt file-based transcription as a last resort. Note: the recorded
+      // audio is typically .m4a (AAC) which may not be supported by the native
+      // speech recognizer for file transcription (it prefers WAV/MP3). This
+      // path only runs when real-time transcription produced no results, so
+      // failure here is expected on some devices/formats.
       const recognizedText = await transcribeAudioFileWithNativeSpeech({
         uri,
         languageHint: i18n.language,
@@ -4101,10 +4228,12 @@ function ChatScreenContent({ navigation, route }: Props) {
         setInputText((prev) => (prev.trim().length > 0 ? `${prev} ${normalizedText}` : normalizedText));
         setIsVoiceMode(false);
       } else {
-        showSnackbar({ message: t('voiceTranscribeFailed'), type: 'error' });
+        showSnackbar({ message: t('voiceNoSpeechDetected'), type: 'error' });
       }
     } catch {
-      showSnackbar({ message: t('voiceTranscribeFailed'), type: 'error' });
+      // File transcription is unreliable with .m4a format — show a more
+      // specific message rather than a generic failure.
+      showSnackbar({ message: t('voiceNoSpeechDetected'), type: 'error' });
     } finally {
       setIsTranscribingVoice(false);
     }
@@ -4116,8 +4245,12 @@ function ChatScreenContent({ navigation, route }: Props) {
     setIsVoiceMode((prev) => !prev);
   }, []);
 
-  const handleHoldToTalkPressIn = useCallback(async () => {
+  const handleHoldToTalkPressIn = useCallback(async (event: GestureResponderEvent) => {
     if (waitingForReply || isTranscribingVoice) return;
+    recordingOverlayRef.current?.beginGesture(
+      event.nativeEvent.pageX,
+      event.nativeEvent.pageY
+    );
     await startRecordingSession();
   }, [isTranscribingVoice, startRecordingSession, waitingForReply]);
 
@@ -4131,6 +4264,7 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const handleHoldToTalkRelease = useCallback(async () => {
     if (!isRecordingRef.current) return;
+    recordingOverlayRef.current?.resetGesture();
     const result = await stopRecordingSession();
     const releaseAction = pendingReleaseActionRef.current ?? voiceReleaseActionRef.current;
     pendingReleaseActionRef.current = null;
@@ -4152,8 +4286,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     }
 
     if (releaseAction === 'transcribe') {
-      stopLiveSpeechRecognition(false);
-      await new Promise((resolve) => setTimeout(resolve, 180));
+      await settleLiveSpeechRecognition(false);
       const realtimeTranscript = (
         liveTranscriptionFinalRef.current || liveTranscriptionTextRef.current
       ).trim();
@@ -4173,7 +4306,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     stopLiveSpeechRecognition(true);
     clearLiveTranscription();
     await sendRecordedAudio(result.uri, effectiveDurationMs);
-  }, [clearLiveTranscription, sendRecordedAudio, setVoiceReleaseAction, showSnackbar, stopLiveSpeechRecognition, stopRecordingSession, t, transcribeRecordedAudioToText]);
+  }, [clearLiveTranscription, sendRecordedAudio, setVoiceReleaseAction, settleLiveSpeechRecognition, showSnackbar, stopLiveSpeechRecognition, stopRecordingSession, t, transcribeRecordedAudioToText]);
 
   useEffect(() => {
     handleHoldToTalkReleaseRef.current = handleHoldToTalkRelease;
@@ -4182,6 +4315,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const handlePlayAudio = useCallback(async (message: ChatMessage) => {
     if (!message.audio?.url) return;
     const resolvedAudioUrl = normalizeMediaUrl(message.audio.url) ?? message.audio.url;
+    const messageId = message.id ?? null;
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -4194,33 +4328,64 @@ function ChatScreenContent({ navigation, route }: Props) {
         audioSoundRef.current = null;
       }
 
-      const currentPlayingId = playingAudioMessageIdRef.current;
-      if (currentPlayingId && message.id && currentPlayingId === message.id) {
-        setPlayingAudioMessageId(null);
+      if (playingAudioMessageId && messageId && playingAudioMessageId === messageId) {
+        clearAudioPlayback();
         return;
       }
 
-      const { sound } = await Audio.Sound.createAsync(
+      const { sound, status } = await Audio.Sound.createAsync(
         { uri: resolvedAudioUrl },
-        { shouldPlay: true }
+        { shouldPlay: true, progressUpdateIntervalMillis: 150 }
       );
       audioSoundRef.current = sound;
-      setPlayingAudioMessageId(message.id ?? null);
+      setPlayingAudioMessageId(messageId);
+      if (status.isLoaded) {
+        setAudioPlaybackState({
+          messageId,
+          isPlaying: status.isPlaying,
+          isBuffering: Boolean(status.isBuffering),
+          positionMillis: status.positionMillis ?? 0,
+          durationMillis: status.durationMillis ?? message.audio.durationMs ?? 0,
+        });
+      } else {
+        setAudioPlaybackState({
+          messageId,
+          isPlaying: false,
+          isBuffering: true,
+          positionMillis: 0,
+          durationMillis: message.audio.durationMs ?? 0,
+        });
+      }
       sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
+        if (audioSoundRef.current !== sound) return;
+        if (!status.isLoaded) {
+          clearAudioPlayback();
+          return;
+        }
+        if (messageId) {
+          setPlayingAudioMessageId(messageId);
+        }
         if (status.didJustFinish) {
-          setPlayingAudioMessageId(null);
+          clearAudioPlayback();
           void sound.unloadAsync();
           if (audioSoundRef.current === sound) {
             audioSoundRef.current = null;
           }
+          return;
         }
+        setAudioPlaybackState({
+          messageId,
+          isPlaying: status.isPlaying,
+          isBuffering: Boolean(status.isBuffering),
+          positionMillis: status.positionMillis ?? 0,
+          durationMillis: status.durationMillis ?? message.audio?.durationMs ?? 0,
+        });
       });
     } catch {
       showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
-      setPlayingAudioMessageId(null);
+      clearAudioPlayback();
     }
-  }, [showSnackbar, t]);
+  }, [clearAudioPlayback, playingAudioMessageId, showSnackbar, t]);
 
   const handleOpenImagePreview = useCallback((images: string[], index: number) => {
     setPreviewImages(images);
@@ -4327,7 +4492,27 @@ function ChatScreenContent({ navigation, route }: Props) {
             onImagePress={handleOpenImagePreview}
             onPressReaction={handlePressReaction}
             onRetryFailedMessage={retryFailedMessage}
-            isAudioPlaying={Boolean(item.message.id && playingAudioMessageIdRef.current === item.message.id)}
+            isAudioPlaying={Boolean(
+              item.message.id &&
+                playingAudioMessageId === item.message.id &&
+                audioPlaybackState.isPlaying &&
+                !audioPlaybackState.isBuffering
+            )}
+            isAudioBuffering={Boolean(
+              item.message.id &&
+                audioPlaybackState.messageId === item.message.id &&
+                audioPlaybackState.isBuffering
+            )}
+            audioProgress={
+              item.message.id &&
+              audioPlaybackState.messageId === item.message.id &&
+              audioPlaybackState.durationMillis > 0
+                ? Math.max(
+                    0,
+                    Math.min(1, audioPlaybackState.positionMillis / audioPlaybackState.durationMillis)
+                  )
+                : 0
+            }
             t={t}
           />
         </View>
@@ -4344,6 +4529,8 @@ function ChatScreenContent({ navigation, route }: Props) {
       handlePlayAudio,
       handleOpenImagePreview,
       handlePressReaction,
+      audioPlaybackState,
+      playingAudioMessageId,
       retryFailedMessage,
       t,
     ]
@@ -4382,7 +4569,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           ref={flatListRef}
           renderScrollComponent={ChatScrollView}
           data={listData}
-          extraData={playingAudioMessageId}
+          extraData={audioPlaybackState}
           style={{
             ...styles.invertedList,
             opacity: isInitialLatestPositionReady ? 1 : 0,
@@ -4874,14 +5061,18 @@ const styles = StyleSheet.create({
   },
   topBarTitleWrap: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topBarTitle: {
+    width: '100%',
+    flexShrink: 1,
     fontSize: 16,
     lineHeight: 22,
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
+    textAlign: 'center',
   },
   topBarSubtitle: {
     ...typography.bodySmall,

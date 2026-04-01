@@ -134,8 +134,6 @@ export default function FeedbackListScreen({ navigation }: Props) {
             <EmptyState
               title={t('feedbackEmpty')}
               message={t('feedbackEmptyMessage')}
-              actionLabel={t('feedbackEmptyAction')}
-              onAction={() => navigation.navigate('FeedbackSubmit')}
             />
           ) : null
         }

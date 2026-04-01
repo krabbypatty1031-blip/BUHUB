@@ -79,6 +79,23 @@ export function AIScheduleFnIcon({ size = 28, color = '#5B73FF' }: IconProps) {
   );
 }
 
+/** 反馈 – speech bubble with exclamation (feedback icon) */
+export function FeedbackFnIcon({ size = 28, color = '#FF6B6B' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <Path
+        d="M5.83333 4.66667H22.1667C23.1332 4.66667 23.9167 5.45017 23.9167 6.41667V18.0833C23.9167 19.0498 23.1332 19.8333 22.1667 19.8333H15.75L10.5 24.5V19.8333H5.83333C4.86683 19.8333 4.08333 19.0498 4.08333 18.0833V6.41667C4.08333 5.45017 4.86683 4.66667 5.83333 4.66667Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M14 8.75V12.8333" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M14 15.75H14.0117" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** 卡片右上角箭头 */
 export function ArrowRightFnIcon({ size = 24, color = '#C1C1C1' }: IconProps) {
   return (
