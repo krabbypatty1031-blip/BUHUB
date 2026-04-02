@@ -133,6 +133,8 @@ const ChatScrollView = React.forwardRef<any, ScrollViewProps>((props, ref) => {
   );
 });
 
+ChatScrollView.displayName = 'ChatScrollView';
+
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
 const TYPING_STOP_DELAY_MS = 2500;

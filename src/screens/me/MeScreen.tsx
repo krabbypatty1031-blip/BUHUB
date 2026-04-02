@@ -5,9 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
-  Share,
-  Alert,
   Platform,
   RefreshControl,
 } from 'react-native';
@@ -44,13 +41,11 @@ import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import {
   EditIcon,
   SettingsIcon,
-  HelpCircleIcon,
   LockIcon,
   HeartIcon,
   BookmarkIcon,
   CommentIcon,
   CloseIcon,
-  QrCodeIcon,
   ShoppingBagIcon,
   ImageIcon,
   BarChartIcon,
@@ -116,7 +111,6 @@ export default function MeScreen({ navigation }: Props) {
   const { data: myPartners } = useMyPartners(undefined, isPublishedTab);
   const { data: myErrands } = useMyErrands(undefined, isPublishedTab);
   const { data: mySecondhand } = useMySecondhand(isPublishedTab);
-  const [contactModalVisible, setContactModalVisible] = useState(false);
   const [forwardComment, setForwardComment] = useState<ForumPost | null>(null);
   const [composeSheetVisible, setComposeSheetVisible] = useState(false);
   const [quotePostId, setQuotePostId] = useState<string | undefined>(undefined);
@@ -238,6 +232,12 @@ export default function MeScreen({ navigation }: Props) {
     setQuotePostId(post.id);
     setComposeSheetVisible(true);
   }, []);
+
+  const handleHelpPress = useCallback(() => {
+    navigation.getParent()?.navigate('FunctionsTab', {
+      screen: 'FeedbackList',
+    });
+  }, [navigation]);
 
   const closeComposeSheet = useCallback(() => {
     setComposeSheetVisible(false);
@@ -871,7 +871,7 @@ export default function MeScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.topBarIconBtnLeft}
             activeOpacity={0.6}
-            onPress={() => setContactModalVisible(true)}
+            onPress={handleHelpPress}
           >
             <FigmaHelpIcon size={26} color="#0C1015" />
           </TouchableOpacity>
@@ -997,48 +997,6 @@ export default function MeScreen({ navigation }: Props) {
           <View style={styles.tabContent}>{renderTabContent()}</View>
         </View>
       </ScrollView>
-
-      {/* Contact Us Modal */}
-      <Modal
-        visible={contactModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setContactModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setContactModalVisible(false)}
-        >
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('contactUs')}</Text>
-              <TouchableOpacity
-                onPress={() => setContactModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <CloseIcon size={20} color={colors.onSurface} />
-              </TouchableOpacity>
-            </View>
-
-            {/* QR Code placeholder */}
-            <View style={styles.qrSection}>
-              <View style={styles.qrPlaceholder}>
-                <QrCodeIcon size={80} color={colors.primary} />
-              </View>
-            </View>
-
-            {/* WhatsApp Number */}
-            <View style={styles.contactInfoRow}>
-              <Text style={styles.contactLabel}>{t('whatsappNumber')}</Text>
-              <Text style={styles.contactValue}>+852 1234 5678</Text>
-            </View>
-
-            {/* Description */}
-            <Text style={styles.contactDesc}>{t('contactUsDesc')}</Text>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {/* Compose Type Sheet */}
       <SwipeableBottomSheet visible={composeSheetVisible} onClose={closeComposeSheet}>
@@ -1447,77 +1405,6 @@ const styles = StyleSheet.create({
   footerTime: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
-  },
-
-  /* Contact Us Modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.scrim,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  modalSheet: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    width: '100%',
-    maxWidth: 340,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  modalTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrSection: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  qrPlaceholder: {
-    width: 160,
-    height: 160,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  contactInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.outlineVariant,
-  },
-  contactLabel: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
-  },
-  contactValue: {
-    ...typography.titleSmall,
-    color: colors.onSurface,
-    fontWeight: '600',
-  },
-  contactDesc: {
-    ...typography.bodySmall,
-    color: colors.onSurface,
-    textAlign: 'center',
-    lineHeight: 18,
   },
 
   /* Compose Sheet */
