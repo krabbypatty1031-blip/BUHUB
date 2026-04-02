@@ -60,6 +60,7 @@ type ApiPostRecord = {
   avatar?: string | null;
   anonymousAvatar?: string | null;
   anonymousName?: string;
+  isOwnedByCurrentUser?: boolean;
   name?: string;
   userName?: string;
   gender?: unknown;
@@ -97,6 +98,7 @@ type ApiCommentRecord = {
   avatar?: string | null;
   anonymousAvatar?: string | null;
   anonymousName?: string;
+  isOwnedByCurrentUser?: boolean;
   author?: ApiAuthorRecord;
   isAnonymous?: boolean;
   sourceLanguage?: Comment['sourceLanguage'];
@@ -276,6 +278,7 @@ function mapPostRecord(p: ApiPostRecord): ForumPost {
     id: p.id ?? '',
     lang: sourceLanguage,
     sourceLanguage,
+    isOwnedByCurrentUser: typeof p.isOwnedByCurrentUser === 'boolean' ? p.isOwnedByCurrentUser : undefined,
     name: p.isAnonymous ? (p.name ?? resolvedAnonymousName ?? '?') : (p.name ?? author.nickname ?? '?'),
     avatar: resolveAvatarValue(avatarSource),
     defaultAvatar: p.defaultAvatar ?? author.defaultAvatar,
@@ -334,6 +337,7 @@ function mapReplyRecord(r: ApiCommentRecord, parentName: string): Reply {
   return {
     id: r.id ?? '',
     name: replyName,
+    isOwnedByCurrentUser: typeof r.isOwnedByCurrentUser === 'boolean' ? r.isOwnedByCurrentUser : undefined,
     userName: isAnonymous ? undefined : (r.userName ?? r.author?.userName ?? r.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(r.avatar ?? r.anonymousAvatar ?? r.author?.avatar),
     defaultAvatar: isAnonymous ? undefined : (typeof r.author?.avatar === 'string' ? r.author.avatar : undefined),
@@ -363,6 +367,7 @@ function mapCommentRecord(c: ApiCommentRecord): Comment {
   return {
     id: c.id ?? '',
     name: commentName,
+    isOwnedByCurrentUser: typeof c.isOwnedByCurrentUser === 'boolean' ? c.isOwnedByCurrentUser : undefined,
     userName: isAnonymous ? undefined : (c.userName ?? c.author?.userName ?? c.author?.nickname ?? undefined),
     avatar: resolveAvatarValue(c.avatar ?? c.anonymousAvatar ?? c.author?.avatar),
     defaultAvatar: isAnonymous ? undefined : (typeof c.author?.avatar === 'string' ? c.author.avatar : undefined),

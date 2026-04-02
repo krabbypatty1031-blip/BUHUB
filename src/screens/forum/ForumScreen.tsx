@@ -279,6 +279,7 @@ export default function ForumScreen({ navigation, route }: Props) {
         ? { ...item, myVote: detailPost.myVote, pollOptions: detailPost.pollOptions ?? item.pollOptions }
         : item;
       const isOwnPost = isCurrentUserContentOwner(currentUser, {
+        isOwnedByCurrentUser: post.isOwnedByCurrentUser,
         userName: post.userName,
         displayName: post.name,
         isAnonymous: post.isAnonymous,

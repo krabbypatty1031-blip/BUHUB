@@ -206,6 +206,7 @@ function mapForumPostToUserPost(post: ForumPost): UserPost {
   return {
     postId: post.id,
     name: post.name,
+    isOwnedByCurrentUser: post.isOwnedByCurrentUser,
     userName: post.userName,
     avatar: post.avatar,
     defaultAvatar: post.defaultAvatar,

@@ -223,6 +223,7 @@ function ItemActions({
   onComment,
   onForward,
   onBookmark,
+  onDelete,
   bookmarked,
   size = 18,
   replyCount,
@@ -233,6 +234,7 @@ function ItemActions({
   onComment: () => void;
   onForward: () => void;
   onBookmark: () => void;
+  onDelete?: () => void;
   bookmarked: boolean;
   size?: number;
   replyCount?: number;
@@ -251,6 +253,11 @@ function ItemActions({
     hapticLight();
     onBookmark();
   }, [onBookmark]);
+
+  const handleDeletePress = useCallback(() => {
+    hapticLight();
+    onDelete?.();
+  }, [onDelete]);
 
   return (
     <View style={styles.itemActions}>
@@ -280,6 +287,11 @@ function ItemActions({
           fill={bookmarked ? colors.primary : undefined}
         />
       </PressScaleButton>
+      {onDelete ? (
+        <TouchableOpacity style={styles.itemActionBtn} onPress={handleDeletePress}>
+          <TrashIcon size={size} color="#86909C" />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -294,6 +306,8 @@ function ReplyItem({
   onBookmark,
   onForward,
   onReport,
+  onDelete,
+  isOwnContent,
   highlightId,
   level = 2,
   expandedReplies = [],
@@ -308,12 +322,15 @@ function ReplyItem({
   onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: (commentId: string) => void;
+  onDelete?: (commentId: string) => void;
+  isOwnContent: (item: Comment | Reply) => boolean;
   highlightId?: string;
   level?: number;
   expandedReplies?: string[];
   registerItemRef?: (id: string, node: View | null) => void;
   onAvatarPress?: (reply: Reply) => void;
 }) {
+  const canDelete = isOwnContent(reply);
 
   const replyTime = useMemo(
     () => getRelativeTime(reply.createdAt || reply.time, lang),
@@ -400,7 +417,11 @@ function ReplyItem({
         highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
       ]}
     >
-      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(reply.id)} style={styles.commentMainWrap}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={canDelete ? undefined : () => onReport(reply.id)}
+        style={styles.commentMainWrap}
+      >
         <View style={styles.commentHeader}>
           {onAvatarPress && !reply.isAnonymous ? (
             <TouchableOpacity
@@ -471,6 +492,7 @@ function ReplyItem({
           onComment={() => onReply(reply.name, reply.id)}
           onForward={onForward}
           onBookmark={() => onBookmark(reply.id)}
+          onDelete={canDelete && onDelete ? () => onDelete(reply.id) : undefined}
           bookmarked={reply.bookmarked ?? false}
           replyCount={totalNestedReplies}
           size={14}
@@ -493,6 +515,8 @@ function ReplyItem({
                 onBookmark={onBookmark}
                 onForward={onForward}
                 onReport={onReport}
+                onDelete={onDelete}
+                isOwnContent={isOwnContent}
                 highlightId={highlightId}
                 level={level + 1}
                 expandedReplies={expandedReplies}
@@ -543,6 +567,8 @@ function CommentItem({
   onBookmark,
   onForward,
   onReport,
+  onDelete,
+  isOwnContent,
   highlightId,
   expandedReplies = [],
   registerItemRef,
@@ -555,11 +581,14 @@ function CommentItem({
   onBookmark: (commentId: string) => void;
   onForward: () => void;
   onReport: (commentId: string) => void;
+  onDelete?: (commentId: string) => void;
+  isOwnContent: (item: Comment | Reply) => boolean;
   highlightId?: string;
   expandedReplies?: string[];
   registerItemRef?: (id: string, node: View | null) => void;
   onAvatarPress?: (comment: Comment | Reply) => void;
 }) {
+  const canDelete = isOwnContent(comment);
   const { t } = useTranslation();
   const isHighlighted = !!highlightId && comment.id === highlightId;
   const highlightedReplyId =
@@ -644,7 +673,11 @@ function CommentItem({
       ]}
     >
       {/* Comment main */}
-      <TouchableOpacity activeOpacity={1} onLongPress={() => onReport(comment.id)} style={styles.commentMainWrap}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={canDelete ? undefined : () => onReport(comment.id)}
+        style={styles.commentMainWrap}
+      >
         <View style={styles.commentHeader}>
           {onAvatarPress && !comment.isAnonymous ? (
             <TouchableOpacity
@@ -705,6 +738,7 @@ function CommentItem({
           onComment={() => onReply(comment.name, comment.id)}
           onForward={onForward}
           onBookmark={() => onBookmark(comment.id)}
+          onDelete={canDelete && onDelete ? () => onDelete(comment.id) : undefined}
           bookmarked={comment.bookmarked ?? false}
           replyCount={totalReplies}
         />
@@ -726,6 +760,8 @@ function CommentItem({
               onBookmark={onBookmark}
               onForward={onForward}
               onReport={onReport}
+              onDelete={onDelete}
+              isOwnContent={isOwnContent}
               highlightId={highlightId}
               level={2}
               expandedReplies={expandedReplies}
@@ -1123,11 +1159,12 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const isOwnPost = useMemo(
     () =>
       isCurrentUserContentOwner(currentUser, {
+        isOwnedByCurrentUser: post?.isOwnedByCurrentUser,
         userName: post?.userName,
         displayName: post?.name,
         isAnonymous: post?.isAnonymous,
       }),
-    [currentUser, post?.userName, post?.name, post?.isAnonymous]
+    [currentUser, post?.isOwnedByCurrentUser, post?.userName, post?.name, post?.isAnonymous]
   );
 
   const isOwnCommentContent = useCallback(
@@ -1135,6 +1172,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       Boolean(
         item &&
           isCurrentUserContentOwner(currentUser, {
+            isOwnedByCurrentUser: item.isOwnedByCurrentUser,
             userName: item.userName,
             displayName: item.name,
             isAnonymous: item.isAnonymous,
@@ -1322,6 +1360,29 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     setCommentActionVisible(true);
   }, []);
 
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      Alert.alert(t('deleteCommentTitle'), t('deleteCommentMessage'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('confirmBtn'),
+          style: 'destructive',
+          onPress: () => {
+            deleteCommentMutation.mutate(commentId, {
+              onSuccess: () => {
+                showSnackbar({ message: t('commentDeleted'), type: 'success' });
+              },
+              onError: () => {
+                showSnackbar({ message: t('deleteCommentFailed'), type: 'error' });
+              },
+            });
+          },
+        },
+      ]);
+    },
+    [deleteCommentMutation, showSnackbar, t]
+  );
+
   // Keep FlatList props stable so input-only state updates (e.g. isAnonymous)
   // do not trigger full list/header re-render that can cause image flicker.
   const renderCommentItem = useCallback(
@@ -1334,6 +1395,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         onBookmark={handleBookmarkComment}
         onForward={handleForward}
         onReport={handleCommentLongPress}
+        onDelete={handleDeleteComment}
+        isOwnContent={isOwnCommentContent}
         highlightId={commentId}
         expandedReplies={expandedReplies}
         registerItemRef={registerItemRef}
@@ -1793,40 +1856,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           setReportTargetCommentId(null);
         }}
       >
-            {selectedCommentIsOwn ? (
-              <TouchableOpacity
-                style={styles.actionSheetItem}
-                onPress={() => {
-                  if (!reportTargetCommentId) return;
-                  setCommentActionVisible(false);
-                  Alert.alert(t('deleteCommentTitle'), t('deleteCommentMessage'), [
-                    {
-                      text: t('cancel'),
-                      style: 'cancel',
-                      onPress: () => setReportTargetCommentId(null),
-                    },
-                    {
-                      text: t('confirmBtn'),
-                      style: 'destructive',
-                      onPress: () => {
-                        deleteCommentMutation.mutate(reportTargetCommentId, {
-                          onSuccess: () => {
-                            setReportTargetCommentId(null);
-                            showSnackbar({ message: t('commentDeleted'), type: 'success' });
-                          },
-                          onError: () => {
-                            setReportTargetCommentId(null);
-                            showSnackbar({ message: t('deleteCommentFailed'), type: 'error' });
-                          },
-                        });
-                      },
-                    },
-                  ]);
-                }}
-              >
-                <Text style={styles.actionSheetItemTextDestructive}>{t('deleteCommentTitle')}</Text>
-              </TouchableOpacity>
-            ) : (
+            {!selectedCommentIsOwn ? (
               <TouchableOpacity
                 style={styles.actionSheetItem}
                 onPress={() => {
@@ -1841,7 +1871,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               >
                 <Text style={styles.actionSheetItemTextDestructive}>{t('reportComment')}</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
             <View style={styles.actionSheetDivider} />
             <TouchableOpacity
               style={styles.actionSheetItem}

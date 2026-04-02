@@ -345,6 +345,7 @@ export default function MeScreen({ navigation }: Props) {
   const mapUserPostToForumPost = useCallback((p: UserPost): ForumPost => ({
     id: p.postId,
     name: p.name,
+    isOwnedByCurrentUser: p.isOwnedByCurrentUser,
     userName: p.userName,
     avatar: p.avatar,
     defaultAvatar: p.defaultAvatar,
@@ -521,6 +522,24 @@ export default function MeScreen({ navigation }: Props) {
               isLiked={post.liked ?? false}
               isBookmarked={post.bookmarked ?? false}
               votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
+              onDelete={post.isOwnedByCurrentUser ? () => {
+                showModal({
+                  title: t('deletePostTitle'),
+                  message: t('deletePostMessage'),
+                  onConfirm: () => {
+                    deletePostMutation.mutate(post.id, {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ['myContent'] });
+                        queryClient.invalidateQueries({ queryKey: ['posts'] });
+                        showSnackbar({ message: t('postDeleted'), type: 'success' });
+                      },
+                      onError: () => {
+                        showSnackbar({ message: t('deleteFailed'), type: 'error' });
+                      },
+                    });
+                  },
+                });
+              } : undefined}
             />
           ))}
           {likedComments.map((c) => (
@@ -587,7 +606,7 @@ export default function MeScreen({ navigation }: Props) {
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
                   onForward={() => setForwardComment(commentAsPost)}
-                  showDelete={false}
+                  showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
             })()
@@ -647,6 +666,24 @@ export default function MeScreen({ navigation }: Props) {
               isLiked={post.liked ?? false}
               isBookmarked={post.bookmarked ?? false}
               votedOptionIndex={getVotedOptionIndex(post, votedPolls)}
+              onDelete={post.isOwnedByCurrentUser ? () => {
+                showModal({
+                  title: t('deletePostTitle'),
+                  message: t('deletePostMessage'),
+                  onConfirm: () => {
+                    deletePostMutation.mutate(post.id, {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ['myContent'] });
+                        queryClient.invalidateQueries({ queryKey: ['posts'] });
+                        showSnackbar({ message: t('postDeleted'), type: 'success' });
+                      },
+                      onError: () => {
+                        showSnackbar({ message: t('deleteFailed'), type: 'error' });
+                      },
+                    });
+                  },
+                });
+              } : undefined}
             />
           ))}
           {bookmarkedComments.map((c) => (
@@ -712,7 +749,7 @@ export default function MeScreen({ navigation }: Props) {
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
                   onForward={() => setForwardComment(commentAsPost)}
-                  showDelete={false}
+                  showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
             })()
@@ -757,16 +794,17 @@ export default function MeScreen({ navigation }: Props) {
         return (
           <CommentCard
             key={i}
-            comment={c}
-            t={t}
-            lang={lang}
+          comment={c}
+          t={t}
+          lang={lang}
             onPress={() => goToComment(c.postId, c.commentId, false)}
             onAvatarPress={() => handleCommentAvatarPress(c)}
-            onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
-            onComment={() => goToComment(c.postId, c.commentId, true)}
-            onForward={() => setForwardComment(commentAsPost)}
-          />
-        );
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
+          onComment={() => goToComment(c.postId, c.commentId, true)}
+          onForward={() => setForwardComment(commentAsPost)}
+          showDelete={Boolean(c.isOwnedByCurrentUser ?? true)}
+        />
+      );
       });
     }
     // Convert UserPost to ForumPost format for PostCard

@@ -7,6 +7,7 @@ function normalizeValue(value?: string | null): string {
 export function isCurrentUserContentOwner(
   currentUser: User | null,
   options: {
+    isOwnedByCurrentUser?: boolean;
     authorId?: string | null;
     userName?: string | null;
     displayName?: string | null;
@@ -15,7 +16,11 @@ export function isCurrentUserContentOwner(
 ): boolean {
   if (!currentUser) return false;
 
-  const { authorId, userName, displayName, isAnonymous } = options;
+  const { isOwnedByCurrentUser, authorId, userName, displayName, isAnonymous } = options;
+
+  if (typeof isOwnedByCurrentUser === 'boolean') {
+    return isOwnedByCurrentUser;
+  }
 
   if (authorId && currentUser.id) {
     return authorId === currentUser.id;

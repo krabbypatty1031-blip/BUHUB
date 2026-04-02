@@ -21,6 +21,7 @@ export interface ForumPost {
   avatar: string;
   defaultAvatar?: string;
   name: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   gender: Gender;
   meta: string;
@@ -68,6 +69,7 @@ export interface ForumPost {
 export interface Comment {
   id: string;
   name: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   avatar: string;
   defaultAvatar?: string;
@@ -88,6 +90,7 @@ export interface Comment {
 export interface Reply {
   id: string;
   name: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   avatar: string;
   defaultAvatar?: string;

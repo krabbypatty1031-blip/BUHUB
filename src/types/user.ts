@@ -68,6 +68,7 @@ export interface UserPublicProfile {
 export interface UserPost {
   postId: string;
   name: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   avatar: string;
   defaultAvatar?: string;
@@ -113,6 +114,7 @@ export interface UserComment {
   postId: string;
   commentId: string;
   name: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   avatar: string;
   defaultAvatar?: string;
@@ -147,6 +149,7 @@ export interface LikedComment {
   postId: string;
   commentId: string;
   name?: string;
+  isOwnedByCurrentUser?: boolean;
   userName?: string;
   avatar?: string;
   defaultAvatar?: string;
