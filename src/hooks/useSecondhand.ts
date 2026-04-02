@@ -20,11 +20,6 @@ export function useSecondhand(category?: SecondhandCategory) {
   });
 }
 
-export function flattenSecondhandPages(data: SecondhandInfiniteData | undefined): SecondhandItem[] {
-  if (!data) return [];
-  return data.pages.flatMap((p) => p.items);
-}
-
 export function useMySecondhand(enabled = true) {
   return useQuery({
     queryKey: ['secondhand', 'all'],

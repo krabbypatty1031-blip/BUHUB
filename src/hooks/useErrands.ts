@@ -20,11 +20,6 @@ export function useErrands(category?: ErrandCategory) {
   });
 }
 
-export function flattenErrandPages(data: ErrandInfiniteData | undefined): Errand[] {
-  if (!data) return [];
-  return data.pages.flatMap((p) => p.items);
-}
-
 export function useMyErrands(category?: ErrandCategory, enabled = true) {
   return useQuery({
     queryKey: ['errands', 'all', category],

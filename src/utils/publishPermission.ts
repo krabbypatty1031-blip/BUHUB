@@ -1,7 +1,11 @@
 import type { User } from '../types';
 
 export const LIFE_HKBU_EMAIL_DOMAIN = '@life.hkbu.edu.hk';
-export const HKBU_EMAIL_REQUIRED_FOR_PUBLISH_ERROR_CODE = 'HKBU_EMAIL_REQUIRED_FOR_PUBLISH';
+
+/** Backend uses HKBU_EMAIL_REQUIRED; legacy code may still reference FOR_PUBLISH. */
+export function isHkbuCommunityPermissionError(code: unknown): boolean {
+  return code === 'HKBU_EMAIL_REQUIRED' || code === 'HKBU_EMAIL_REQUIRED_FOR_PUBLISH';
+}
 
 type PublishPermissionErrorLike = {
   errorCode?: string | null;
@@ -29,5 +33,5 @@ export function canPublishCommunityContent(user?: User | null): boolean {
 
 export function isPublishPermissionError(error?: PublishPermissionErrorLike | null): boolean {
   const code = error?.errorCode ?? error?.code;
-  return code === HKBU_EMAIL_REQUIRED_FOR_PUBLISH_ERROR_CODE;
+  return isHkbuCommunityPermissionError(code);
 }

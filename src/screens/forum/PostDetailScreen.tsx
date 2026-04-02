@@ -25,6 +25,7 @@ import { useFollowersList, useFollowingList } from '../../hooks/useUser';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
+import { isHkbuCommunityPermissionError } from '../../utils/publishPermission';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -1248,7 +1249,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             ? err as MutationErrorLike
             : undefined;
           const code = error?.errorCode || error?.code;
-          const msg = code === 'HKBU_EMAIL_REQUIRED' || code === 'HKBU_EMAIL_REQUIRED_FOR_PUBLISH'
+          const msg = isHkbuCommunityPermissionError(code)
             ? t('hkbuEmailRequiredForComment')
             : code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
           showSnackbar({ message: msg, type: 'error' });

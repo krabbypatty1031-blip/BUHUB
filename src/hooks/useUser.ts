@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { userService } from '../api/services/user.service';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
-import type { User, Language, FollowListItem, MyContent, UserPublicProfile, FollowerNotification, ForumCircleSummary } from '../types';
+import type { User, FollowListItem, MyContent, UserPublicProfile, FollowerNotification, ForumCircleSummary } from '../types';
 
 function normalizeHandle(handle: string | null | undefined): string {
   return (handle ?? '').trim().toLowerCase();
@@ -188,16 +188,6 @@ export function useUpdateProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
-    },
-  });
-}
-
-export function useUpdateLanguage() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (language: Language) => userService.updateLanguage(language),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }

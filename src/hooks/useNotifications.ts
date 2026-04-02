@@ -46,13 +46,6 @@ export function useMarkAsRead() {
   });
 }
 
-export function useRegisterDevice() {
-  return useMutation({
-    mutationFn: ({ pushToken, platform }: { pushToken: string; platform: 'ios' | 'android' }) =>
-      notificationService.registerDevice(pushToken, platform),
-  });
-}
-
 export function useNotificationSettings() {
   return useQuery({
     queryKey: ['notificationSettings'],

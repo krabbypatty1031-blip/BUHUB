@@ -4,8 +4,8 @@ export { useErrands, useMyErrands, useErrandDetail, useCreateErrand, useEditErra
 export { useSecondhand, useMySecondhand, useSecondhandDetail, useCreateSecondhand, useEditSecondhand, useDeleteSecondhand, useCloseSecondhand, useWantSecondhand } from './useSecondhand';
 export { useRatings, useRatingDetail, useSubmitRating, useRatingDimensions, useRatingTagOptions } from './useRatings';
 export { useContacts, useChatHistory, useCanSendMessage, usePresence, useSendMessage, useRecallMessage } from './useMessages';
-export { useLikeNotifications, useFollowerNotifications, useCommentNotifications, useUnreadCount, useMarkAsRead, useRegisterDevice, useNotificationSettings, useUpdateNotificationSettings } from './useNotifications';
-export { useProfile, useMyContent, useUpdateProfile, useUpdateLanguage, usePublicProfile, useFollowUser, useFollowingList, useFollowersList, useBlockUser, useUnblockUser, useBlockedList } from './useUser';
+export { useLikeNotifications, useFollowerNotifications, useCommentNotifications, useUnreadCount, useMarkAsRead, useNotificationSettings, useUpdateNotificationSettings } from './useNotifications';
+export { useProfile, useMyContent, useUpdateProfile, usePublicProfile, useFollowUser, useFollowingList, useFollowersList, useBlockUser, useUnblockUser, useBlockedList } from './useUser';
 export { useImagePicker } from './useImagePicker';
 export { useScrollTabBarAnimation } from './useScrollTabBarAnimation';
 export { useMessageRealtime } from './useMessageRealtime';

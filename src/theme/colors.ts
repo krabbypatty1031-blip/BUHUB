@@ -72,14 +72,6 @@ export const colors = {
   transparent: 'transparent',
 } as const;
 
-export type ColorKey = keyof typeof colors;
-
-// Function card themes (monochrome)
-export const functionCardThemes = {
-  blue: { cardBg: '#F5F5F5', iconBg: '#E8E8E8', iconColor: '#000000', textColor: '#000000' },
-  lemon: { cardBg: '#F5F5F5', iconBg: '#E8E8E8', iconColor: '#666666', textColor: '#333333' },
-} as const;
-
 // Share button themes (monochrome)
 export const shareActionThemes = {
   blue: { bg: '#F0F0F0', icon: '#000000' },

@@ -20,11 +20,6 @@ export function usePartners(category?: PartnerCategory) {
   });
 }
 
-export function flattenPartnerPages(data: PartnerInfiniteData | undefined): PartnerPost[] {
-  if (!data) return [];
-  return data.pages.flatMap((p) => p.items);
-}
-
 export function useMyPartners(category?: PartnerCategory, enabled = true) {
   return useQuery({
     queryKey: ['partners', 'all', category],
