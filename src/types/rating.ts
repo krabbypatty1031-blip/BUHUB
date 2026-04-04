@@ -5,8 +5,25 @@ export type RatingCategory = 'course' | 'teacher' | 'canteen' | 'major';
 export type RatingSortMode = 'recent' | 'controversial';
 
 export interface RatingComment {
+  id?: string;
   comment: string;
   createdAt: string;
+}
+
+export interface RatingCommentsPage {
+  data: RatingComment[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+export interface RatingsListPage {
+  items: RatingItem[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 export interface MyRating {
@@ -31,6 +48,9 @@ interface BaseRating {
   recentCount: number;
   scoreVariance: number;
   comments?: RatingComment[];
+  commentCount?: number;
+  commentsPageSize?: number;
+  hasMoreComments?: boolean;
 }
 
 export interface TeacherRating extends BaseRating {

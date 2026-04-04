@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { RatingCategory, RatingItem } from '../../types';
+import type { RatingCategory, RatingComment, RatingItem } from '../../types';
 import { useRatingDetail, useMyRating } from '../../hooks/useRatings';
 import { ratingService } from '../../api/services/rating.service';
 import { useAuthStore } from '../../store/authStore';
@@ -66,8 +66,13 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [isResolvingCategory, setIsResolvingCategory] = useState(!initialCategory);
+  const [visibleComments, setVisibleComments] = useState<RatingComment[]>([]);
+  const [commentCount, setCommentCount] = useState(0);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isLoadingMoreComments, setIsLoadingMoreComments] = useState(false);
   const activeCategory = initialCategory ?? resolvedCategory;
-  const { data: item, isLoading, refetch } = useRatingDetail(activeCategory, id, { enabled: !!activeCategory });
+  const { data: item, isLoading } = useRatingDetail(activeCategory, id, { enabled: !!activeCategory });
   const { data: myRating } = useMyRating(activeCategory ?? 'course', id);
   const rateLabelKey = activeCategory ? RATE_LABEL_KEYS[activeCategory] : 'rate';
 
@@ -123,13 +128,6 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (!activeCategory) return undefined;
-      refetch();
-    }, [activeCategory, refetch])
-  );
-
-  useFocusEffect(
-    React.useCallback(() => {
       if (!backTo && !backToChat) return undefined;
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         handleBack();
@@ -177,6 +175,53 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
     setPopoverVisible(false);
     setShareSheetVisible(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!item) {
+      setVisibleComments([]);
+      setCommentCount(0);
+      setCommentsPage(1);
+      setHasMoreComments(false);
+      return;
+    }
+
+    setVisibleComments(item.comments ?? []);
+    setCommentCount(item.commentCount ?? item.comments?.length ?? 0);
+    setCommentsPage(1);
+    setHasMoreComments(item.hasMoreComments ?? false);
+  }, [item]);
+
+  const handleLoadMoreComments = React.useCallback(async () => {
+    if (!activeCategory || !item || !hasMoreComments || isLoadingMoreComments) return;
+
+    setIsLoadingMoreComments(true);
+    try {
+      const nextPage = commentsPage + 1;
+      const page = await ratingService.getComments(
+        activeCategory,
+        item.id,
+        nextPage,
+        item.commentsPageSize ?? 10
+      );
+
+      setVisibleComments((prev) => {
+        const seen = new Set(prev.map((comment) => comment.id ?? `${comment.createdAt}:${comment.comment}`));
+        const merged = [...prev];
+        for (const comment of page.data) {
+          const key = comment.id ?? `${comment.createdAt}:${comment.comment}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(comment);
+        }
+        return merged;
+      });
+      setCommentCount(page.total);
+      setCommentsPage(page.page);
+      setHasMoreComments(page.hasMore);
+    } finally {
+      setIsLoadingMoreComments(false);
+    }
+  }, [activeCategory, commentsPage, hasMoreComments, isLoadingMoreComments, item]);
 
   if (isLoading || isResolvingCategory) {
     return (
@@ -318,18 +363,32 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
         )}
 
         {/* ── Anonymous Comments ── */}
-        {item.comments && item.comments.length > 0 && (
+        {commentCount > 0 && (
           <>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>
-                {t('reviews')} ({item.comments.length})
+                {t('reviews')} ({commentCount})
               </Text>
-              {item.comments.map((c, i) => (
+              {visibleComments.map((c, i) => (
                 <View key={i} style={[styles.commentCard, i > 0 && { marginTop: spacing.sm }]}>
                   <Text style={styles.commentText}>{c.comment}</Text>
                   <Text style={styles.commentTime}>{getRelativeTime(c.createdAt, lang)}</Text>
                 </View>
               ))}
+              {hasMoreComments && (
+                <TouchableOpacity
+                  style={styles.loadMoreCommentsButton}
+                  activeOpacity={0.7}
+                  onPress={handleLoadMoreComments}
+                  disabled={isLoadingMoreComments}
+                >
+                  {isLoadingMoreComments ? (
+                    <ActivityIndicator size="small" color={colors.onSurface} />
+                  ) : (
+                    <Text style={styles.loadMoreCommentsText}>{t('loadMoreReviews')}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
             <View style={styles.divider} />
           </>
@@ -594,6 +653,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SourceHanSansCN-Regular',
     color: '#C7C7CC',
+  },
+  loadMoreCommentsButton: {
+    alignSelf: 'center',
+    minHeight: 40,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  loadMoreCommentsText: {
+    ...typography.labelMedium,
+    color: colors.onSurface,
   },
 
   /* ── Action Bar ── */
