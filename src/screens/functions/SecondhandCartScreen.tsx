@@ -55,7 +55,6 @@ function CartItemCard({
   onAvatarPress,
   onMore,
   onImagePress,
-  soldLabel,
   expiredLabel,
 }: {
   item: SecondhandItem;
@@ -63,11 +62,10 @@ function CartItemCard({
   onAvatarPress: (item: SecondhandItem) => void;
   onMore: (item: SecondhandItem) => void;
   onImagePress: (images: string[], index: number) => void;
-  soldLabel: string;
   expiredLabel: string;
 }) {
   const primaryImage = item.images?.[0];
-  const isExpired = item.expired && !item.sold;
+  const isExpired = item.expired;
 
   return (
     <PageTranslationProvider>
@@ -101,12 +99,7 @@ function CartItemCard({
             <Text style={styles.imageCountBadgeText}>{`1/${item.images!.length}`}</Text>
           </View>
         ) : null}
-        {(item.sold || isExpired) && <View style={styles.cardImageDimmer} />}
-        {item.sold ? (
-          <View style={[styles.statusBadge, styles.statusBadgeSold]}>
-            <Text style={styles.statusBadgeText}>{soldLabel}</Text>
-          </View>
-        ) : null}
+        {isExpired && <View style={styles.cardImageDimmer} />}
         {isExpired ? (
           <View style={[styles.statusBadge, styles.statusBadgeExpired]}>
             <Text style={styles.statusBadgeText}>{expiredLabel}</Text>
@@ -174,8 +167,6 @@ function CartItemCard({
         <View style={styles.footerRow}>
           {isExpired ? (
             <Text style={styles.expiredHint}>{expiredLabel}</Text>
-          ) : item.sold ? (
-            <Text style={styles.expiredHint}>{soldLabel}</Text>
           ) : null}
         </View>
       </View>
@@ -201,8 +192,8 @@ export default function SecondhandCartScreen({ navigation }: Props) {
     const sorted = [...cartItems].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-    const active = sorted.filter((item) => !item.expired && !item.sold);
-    const inactive = sorted.filter((item) => item.expired || item.sold);
+    const active = sorted.filter((item) => !item.expired);
+    const inactive = sorted.filter((item) => item.expired);
     const nextSections: CartSection[] = [
       { key: 'active', title: t('cartActiveSection'), data: active },
       { key: 'inactive', title: t('cartInactiveSection'), data: inactive },
@@ -286,7 +277,6 @@ export default function SecondhandCartScreen({ navigation }: Props) {
           setPreviewIndex(index);
           setPreviewVisible(true);
         }}
-        soldLabel={t('sold')}
         expiredLabel={t('secondhandExpired')}
       />
     ),

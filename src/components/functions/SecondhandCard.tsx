@@ -39,11 +39,11 @@ export interface SecondhandCardProps {
 function CardCombinedText({
   entityId,
   item,
-  isSoldOrExpired,
+  isExpired,
 }: {
   entityId: string;
   item: SecondhandItem;
-  isSoldOrExpired: boolean;
+  isExpired: boolean;
 }) {
   const { t } = useTranslation();
   const pageCtx = usePageTranslation();
@@ -74,7 +74,7 @@ function CardCombinedText({
 
   return (
     <Text
-      style={[styles.itemTitle, styles.titleTextWrap, isSoldOrExpired && styles.textDimmed]}
+      style={[styles.itemTitle, styles.titleTextWrap, isExpired && styles.textDimmed]}
       numberOfLines={2}
     >
       {combined}
@@ -98,7 +98,7 @@ const SecondhandCard = React.memo(function SecondhandCard({
 }: SecondhandCardProps) {
   const { i18n } = useTranslation();
   const language = i18n.language;
-  const isSoldOrExpired = item.sold || isExpiredNow(item.expired, item.expiresAt, now);
+  const isExpired = isExpiredNow(item.expired, item.expiresAt, now);
   const primaryImage = item.images?.[0];
 
   return (
@@ -109,7 +109,7 @@ const SecondhandCard = React.memo(function SecondhandCard({
       onPress={() => onPress(id)}
     >
       {/* Image 105x105 borderRadius:10 */}
-      <View style={[styles.imageArea, isSoldOrExpired && styles.imageAreaDimmed]}>
+      <View style={[styles.imageArea, isExpired && styles.imageAreaDimmed]}>
         {primaryImage ? (
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
@@ -144,22 +144,18 @@ const SecondhandCard = React.memo(function SecondhandCard({
       </View>
 
       {/* Right content */}
-      <View style={[styles.cardContent, isSoldOrExpired && styles.contentDimmed]}>
+      <View style={[styles.cardContent, isExpired && styles.contentDimmed]}>
         <View style={styles.cardMain}>
           <View style={styles.titleBlock}>
             <View style={styles.titleRow}>
-              <CardCombinedText entityId={id} item={item} isSoldOrExpired={isSoldOrExpired} />
+              <CardCombinedText entityId={id} item={item} isExpired={isExpired} />
               <View style={styles.titleRight}>
                 {categoryLabel ? (
                   <View style={styles.categoryTag}>
                     <Text style={[styles.categoryTagText, getLocalizedFontStyle(language, 'regular')]}>{categoryLabel}</Text>
                   </View>
                 ) : null}
-                {item.sold ? (
-                  <View style={styles.expiredTag}>
-                    <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('sold')}</Text>
-                  </View>
-                ) : isSoldOrExpired ? (
+                {isExpired ? (
                   <View style={styles.expiredTag}>
                     <Text style={[styles.expiredTagText, getLocalizedFontStyle(language, 'bold')]}>{t('secondhandExpired')}</Text>
                   </View>

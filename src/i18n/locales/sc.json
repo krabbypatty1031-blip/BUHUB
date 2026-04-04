@@ -552,6 +552,7 @@
   "partnerContentPlaceholder": "描述活动内容、要求、费用等...",
   "activityTime": "活动时间",
   "deadlineTime": "截止报名",
+  "partnerDeadlineTime": "截止报名",
   "location": "地点",
   "activityTimePlaceholder": "点击选择活动时间",
   "endsAt": "截止时间",

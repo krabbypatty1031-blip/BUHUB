@@ -24,6 +24,7 @@ interface DateTimePickerSheetProps {
   onConfirm: (date: Date) => void;
   initialDate?: Date;
   minimumDate?: Date;
+  maximumDate?: Date;
   title?: string;
 }
 
@@ -41,6 +42,16 @@ function daysInMonth(year: number, month: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function clampDate(date: Date, minimumDate: Date, maximumDate?: Date): Date {
+  if (date.getTime() < minimumDate.getTime()) {
+    return minimumDate;
+  }
+  if (maximumDate && date.getTime() > maximumDate.getTime()) {
+    return maximumDate;
+  }
+  return date;
 }
 
 function getMonthMeta(baseDate: Date, monthOffset: number) {
@@ -199,26 +210,30 @@ export default function DateTimePickerSheet({
   onConfirm,
   initialDate,
   minimumDate,
+  maximumDate,
   title,
 }: DateTimePickerSheetProps) {
   const { t } = useTranslation();
   const [liveMinimumDate, setLiveMinimumDate] = useState<Date>(
     minimumDate || new Date(),
   );
+  const initialMaximumMonthOffset = maximumDate
+    ? clamp(getMonthOffset(liveMinimumDate, maximumDate), 0, 11)
+    : 11;
+  const clampedInitialDate = clampDate(
+    initialDate ?? liveMinimumDate,
+    liveMinimumDate,
+    maximumDate,
+  );
   const initialMonthOffset = clamp(
     getMonthOffset(
       liveMinimumDate,
-      initialDate && initialDate.getTime() >= liveMinimumDate.getTime()
-        ? initialDate
-        : liveMinimumDate,
+      clampedInitialDate,
     ),
     0,
-    11,
+    initialMaximumMonthOffset,
   );
-  const initDate =
-    initialDate && initialDate.getTime() >= liveMinimumDate.getTime()
-      ? initialDate
-      : liveMinimumDate;
+  const initDate = clampedInitialDate;
   const [monthOffset, setMonthOffset] = useState(initialMonthOffset);
   const [day, setDay] = useState(initDate.getDate());
   const [hour, setHour] = useState(initDate.getHours());
@@ -244,24 +259,29 @@ export default function DateTimePickerSheet({
   useEffect(() => {
     if (visible) {
       const currentMinimum = minimumDate || new Date();
-      const d =
-        initialDate && initialDate.getTime() >= currentMinimum.getTime()
-          ? initialDate
-          : currentMinimum;
-      setMonthOffset(clamp(getMonthOffset(currentMinimum, d), 0, 11));
+      const maximumMonthOffset = maximumDate
+        ? clamp(getMonthOffset(currentMinimum, maximumDate), 0, 11)
+        : 11;
+      const d = clampDate(initialDate ?? currentMinimum, currentMinimum, maximumDate);
+      setMonthOffset(clamp(getMonthOffset(currentMinimum, d), 0, maximumMonthOffset));
       setDay(d.getDate());
       setHour(d.getHours());
       setMinute(d.getMinutes());
     }
-  }, [visible, initialDate, minimumDate]);
+  }, [visible, initialDate, minimumDate, maximumDate]);
 
   const { year: selectedYear, month: selectedMonth } = getMonthMeta(
     liveMinimumDate,
     monthOffset,
   );
+  const maximumMonthOffset = maximumDate
+    ? clamp(getMonthOffset(liveMinimumDate, maximumDate), 0, 11)
+    : 11;
   const maxDay = daysInMonth(selectedYear, selectedMonth);
+  const isMaximumMonth = Boolean(maximumDate) && monthOffset === maximumMonthOffset;
   const minimumDay = monthOffset === 0 ? liveMinimumDate.getDate() : 1;
-  const days = range(minimumDay, maxDay);
+  const maximumDay = isMaximumMonth && maximumDate ? maximumDate.getDate() : maxDay;
+  const days = range(minimumDay, Math.min(maxDay, maximumDay));
 
   useEffect(() => {
     if (day > maxDay) setDay(maxDay);
@@ -273,13 +293,23 @@ export default function DateTimePickerSheet({
     }
   }, [day, minimumDay]);
 
-  const months = range(0, 11);
+  useEffect(() => {
+    if (day > maximumDay) {
+      setDay(maximumDay);
+    }
+  }, [day, maximumDay]);
+
+  const months = range(0, maximumMonthOffset);
   const isMinimumDay = monthOffset === 0 && day === liveMinimumDate.getDate();
+  const isMaximumDay = isMaximumMonth && !!maximumDate && day === maximumDate.getDate();
   const minimumHour = isMinimumDay ? liveMinimumDate.getHours() : 0;
-  const hours = range(minimumHour, 23);
+  const maximumHour = isMaximumDay && maximumDate ? maximumDate.getHours() : 23;
+  const hours = range(minimumHour, maximumHour);
   const isMinimumHour = isMinimumDay && hour === liveMinimumDate.getHours();
+  const isMaximumHour = isMaximumDay && !!maximumDate && hour === maximumHour;
   const minimumMinute = isMinimumHour ? liveMinimumDate.getMinutes() : 0;
-  const minutes = range(minimumMinute, 59);
+  const maximumMinute = isMaximumHour && maximumDate ? maximumDate.getMinutes() : 59;
+  const minutes = range(minimumMinute, maximumMinute);
 
   useEffect(() => {
     if (hour < minimumHour) {
@@ -288,19 +318,30 @@ export default function DateTimePickerSheet({
   }, [hour, minimumHour]);
 
   useEffect(() => {
+    if (hour > maximumHour) {
+      setHour(maximumHour);
+    }
+  }, [hour, maximumHour]);
+
+  useEffect(() => {
     if (minute < minimumMinute) {
       setMinute(minimumMinute);
     }
   }, [minute, minimumMinute]);
 
+  useEffect(() => {
+    if (minute > maximumMinute) {
+      setMinute(maximumMinute);
+    }
+  }, [minute, maximumMinute]);
+
   const handleConfirm = useCallback(() => {
     const currentMinimum = minimumDate || new Date();
     const { year, month } = getMonthMeta(currentMinimum, monthOffset);
     const date = new Date(year, month - 1, day, hour, minute, 0, 0);
-    const safeDate =
-      date.getTime() >= currentMinimum.getTime() ? date : currentMinimum;
+    const safeDate = clampDate(date, currentMinimum, maximumDate);
     onConfirm(safeDate);
-  }, [day, hour, minute, minimumDate, monthOffset, onConfirm]);
+  }, [day, hour, minute, minimumDate, maximumDate, monthOffset, onConfirm]);
 
   return (
     <Modal

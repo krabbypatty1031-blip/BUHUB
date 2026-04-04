@@ -153,9 +153,6 @@ export default function MeScreen({ navigation }: Props) {
     const kindOrder: Record<string, number> = { partner: 0, errand: 1, secondhand: 2 };
     const getAvailabilityRank = (item: PublishedItem) => {
       const expired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
-      if (item.kind === 'secondhand') {
-        return item.data.sold || expired ? 1 : 0;
-      }
       return expired ? 1 : 0;
     };
     items.sort((a, b) => {
@@ -1121,8 +1118,8 @@ export default function MeScreen({ navigation }: Props) {
             >
               <Text style={styles.publishedActionText}>{t('editPost')}</Text>
             </TouchableOpacity>
-            {/* Close — only for non-expired, non-sold items */}
-            {publishedActionItem && !isExpiredNow(publishedActionItem.data.expired, publishedActionItem.data.expiresAt, now) && !(publishedActionItem.kind === 'secondhand' && publishedActionItem.data.sold) && (
+            {/* Close — only for non-expired items */}
+            {publishedActionItem && !isExpiredNow(publishedActionItem.data.expired, publishedActionItem.data.expiresAt, now) && (
               <TouchableOpacity
                 style={styles.publishedActionRow}
                 onPress={() => {

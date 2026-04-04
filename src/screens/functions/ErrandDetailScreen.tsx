@@ -178,7 +178,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errandDetail')}</Text>
-        <TouchableOpacity onPress={() => setPopoverVisible(true)}>
+        <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.moreBtn}>
           <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
       </View>
@@ -236,6 +236,7 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             textStyle={styles.contentTitle}
             containerStyle={styles.titleFlex}
           />
+          <PageTranslationToggle style={styles.titleTranslationToggle} />
           {isExpired && (
             <View style={styles.expiredTag}>
               <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('errandExpired')}</Text>
@@ -345,9 +346,6 @@ export default function ErrandDetailScreen({ navigation, route }: Props) {
             </Text>
           </View>
         </TouchableOpacity>
-
-        <PageTranslationToggle />
-
       </ScrollView>
 
       {/* Bottom action bar */}
@@ -432,6 +430,12 @@ const styles = StyleSheet.create({
     fontFamily: 'SourceHanSansCN-Bold',
     color: '#0C1015',
     pointerEvents: 'none',
+  },
+  moreBtn: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   /* ----- Empty ----- */
@@ -553,6 +557,9 @@ const styles = StyleSheet.create({
   },
   titleFlex: {
     flex: 1,
+  },
+  titleTranslationToggle: {
+    marginTop: 2,
   },
   expiredTag: {
     backgroundColor: '#FFF0F0',

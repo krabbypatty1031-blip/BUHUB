@@ -538,6 +538,7 @@
   "partnerContentPlaceholder": "Describe activity, requirements, costs...",
   "activityTime": "Activity time",
   "deadlineTime": "Registration deadline",
+  "partnerDeadlineTime": "Registration deadline",
   "location": "Location",
   "activityTimePlaceholder": "Tap to set activity time",
   "endsAt": "Ends at",

@@ -61,9 +61,8 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   const isOwnPost = isCurrentUserFunctionAuthor(currentUser, item?.authorId, item?.user);
 
   const isWanted = !!item?.isWanted;
-  const isSold = item?.sold ?? false;
-  const isExpired = item ? !item.sold && isExpiredNow(item.expired, item.expiresAt, now) : false;
-  const isListingInactive = isSold || isExpired;
+  const isExpired = item ? isExpiredNow(item.expired, item.expiresAt, now) : false;
+  const isListingInactive = isExpired;
   const isContactDisabled = isOwnPost || isListingInactive;
   const isWantDisabled = isListingInactive;
   const previewImages = useMemo(() => item?.images ?? [], [item?.images]);
@@ -211,7 +210,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
           <BackIcon size={26} color="#0C1015" />
         </TouchableOpacity>
         <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhand')}</Text>
-        <TouchableOpacity onPress={() => setPopoverVisible(true)}>
+        <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.moreBtn}>
           <FigmaMoreDotsIcon size={20} />
         </TouchableOpacity>
       </View>
@@ -324,11 +323,7 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
                 textStyle={styles.contentTitle}
                 containerStyle={styles.titleFlex}
               />
-              {isSold && (
-                <View style={styles.expiredTag}>
-                  <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhandSold')}</Text>
-                </View>
-              )}
+              <PageTranslationToggle style={styles.titleTranslationToggle} />
               {isExpired && (
                 <View style={styles.expiredTag}>
                   <Text style={[styles.expiredTagText, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhandExpired')}</Text>
@@ -404,8 +399,6 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
               </Text>
             </View>
           </TouchableOpacity>
-
-          <PageTranslationToggle />
         </View>
       </ScrollView>
 
@@ -508,6 +501,12 @@ const styles = StyleSheet.create({
     color: '#0C1015',
     pointerEvents: 'none',
   },
+  moreBtn: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   /* ----- Empty ----- */
   emptyContainer: {
@@ -568,6 +567,9 @@ const styles = StyleSheet.create({
   },
   titleFlex: {
     flex: 1,
+  },
+  titleTranslationToggle: {
+    marginTop: 2,
   },
   expiredTag: {
     backgroundColor: '#FFF0F0',

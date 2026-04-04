@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
@@ -40,17 +40,18 @@ export default function AppNavigator() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   usePushRegistration(navigationRef);
 
-  // Sync i18n with persisted language only once on hydration.
-  // Subsequent language changes are handled directly by SettingsScreen.
-  const hasInitializedLangRef = useRef(false);
+  // Keep the rendering language in sync with the persisted/store language.
+  // This also covers login/verify-token flows that update the auth store
+  // without going through the Settings screen.
   useEffect(() => {
-    if (!hasHydrated || hasInitializedLangRef.current) return;
-    hasInitializedLangRef.current = true;
+    if (!hasHydrated) return;
     const normalized = normalizeLanguage(language) ?? 'tc';
     if (normalized !== language) {
       setLanguage(normalized);
     }
-    void changeLanguage(normalized);
+    if (normalized !== i18n.language) {
+      void changeLanguage(normalized);
+    }
   }, [hasHydrated, language, setLanguage]);
 
   // Verify token on app startup (wait for hydration first)

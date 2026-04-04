@@ -91,13 +91,13 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
   const placeholders = getPlaceholders();
 
   // When activityTime changes, auto-set deadline = activityTime if no deadline,
-  // or reset deadline if it now exceeds activityTime
+  // or lift deadline forward if it now falls before activityTime
   useEffect(() => {
     if (!activityTime) {
       setDeadlineTime(null);
     } else if (!deadlineTime) {
       setDeadlineTime(activityTime);
-    } else if (deadlineTime.getTime() > activityTime.getTime()) {
+    } else if (deadlineTime.getTime() < activityTime.getTime()) {
       setDeadlineTime(activityTime);
     }
   }, [activityTime]);
@@ -372,14 +372,11 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
             visible={deadlinePickerVisible}
             onClose={() => setDeadlinePickerVisible(false)}
             onConfirm={(date) => {
-              if (date.getTime() > activityTime.getTime()) {
-                setDeadlineTime(activityTime);
-              } else {
-                setDeadlineTime(date);
-              }
+              setDeadlineTime(date);
               setDeadlinePickerVisible(false);
             }}
             initialDate={deadlineTime || activityTime}
+            minimumDate={activityTime}
             title={t('deadlineLabel')}
           />
         )}
@@ -530,4 +527,3 @@ const styles = StyleSheet.create({
     color: colors.outline,
   },
 });
-
