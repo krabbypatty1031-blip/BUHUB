@@ -83,6 +83,7 @@ const ENDPOINTS = {
     DIMENSIONS: (category: string) => `/ratings/${category}/dimensions`,
     TAGS: (category: string) => `/ratings/${category}/tags`,
     MY_RATING: (category: string, id: string) => `/ratings/${category}/${id}/my-rating`,
+    COMMENTS: (category: string, id: string) => `/ratings/${category}/${id}/comments`,
   },
 
   // Messages (backend: conversations, chat/:userId, POST /messages)

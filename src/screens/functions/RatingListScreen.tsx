@@ -6,25 +6,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { RatingCategory, RatingItem } from '../../types';
 import { useRatings } from '../../hooks/useRatings';
 import { useRatingStore } from '../../store/ratingStore';
-import { ratingService } from '../../api/services/rating.service';
 import { translateLabel } from '../../utils/translate';
-import { getLocalizedRatingDepartment, getLocalizedRatingLocation, getLocalizedRatingMetaLabel } from '../../utils/ratingMeta';
+import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../utils/ratingMeta';
 import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
-import { getLocalizedFontStyle, typography } from '../../theme/typography';
-import { BackIcon, CloseIcon, SearchIcon, StarIcon } from '../../components/common/icons';
+import { getLocalizedFontStyle } from '../../theme/typography';
+import { BackIcon, CloseIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
 import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
@@ -33,6 +28,7 @@ import SegmentedControl, { type SegmentedControlOption } from '../../components/
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingList'>;
 
 const CATEGORIES: RatingCategory[] = ['course', 'teacher', 'canteen'];
+const PAGE_SIZE = 20;
 
 const CATEGORY_LABELS: Record<RatingCategory, string> = {
   course: 'course',
@@ -47,151 +43,6 @@ const SEARCH_PLACEHOLDERS: Record<RatingCategory, string> = {
   canteen: 'searchCanteen',
   major: 'searchMajor',
 };
-
-const ALL_FILTER_VALUE = '__all__';
-
-type QuickFilterOption = {
-  value: string;
-  label: string;
-  count: number;
-};
-
-type IndexedSearchField = {
-  rawLower: string;
-  normalized: string;
-  weight: number;
-};
-
-type IndexedRatingItem = {
-  item: RatingItem;
-  quickFilterValue: string;
-  quickFilterLabel: string;
-  searchFields: IndexedSearchField[];
-};
-
-type SearchQueryIndex = {
-  trimmed: string;
-  lowered: string;
-  normalized: string;
-  loweredTokens: string[];
-  normalizedTokens: string[];
-};
-
-function normalizeSearchText(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFKC')
-    .replace(/[^a-z0-9\u3400-\u9fff]+/gi, '');
-}
-
-function extractCourseSubject(code: string) {
-  const compactCode = code.replace(/\s+/g, '').toUpperCase();
-  const matched = compactCode.match(/^[A-Z]+/);
-  return matched?.[0] ?? compactCode;
-}
-
-function simplifyFilterLabel(value: string) {
-  return value
-    .replace(/^Department of\s+/i, '')
-    .replace(/^School of\s+/i, '')
-    .replace(/^Academy of\s+/i, '')
-    .replace(/^Faculty of\s+/i, '')
-    .replace(/^Institute of\s+/i, '')
-    .trim();
-}
-
-function getQuickFilterValue(item: RatingItem, category: RatingCategory) {
-  if (category === 'course' && 'code' in item && item.code) {
-    return extractCourseSubject(item.code);
-  }
-  if (category === 'canteen' && 'location' in item && item.location) {
-    return item.location.trim();
-  }
-  return item.department.trim();
-}
-
-function getDepartmentLabel(item: RatingItem, lang: 'tc' | 'sc' | 'en') {
-  return getLocalizedRatingDepartment(item, lang);
-}
-
-function getLocationLabel(item: RatingItem, lang: 'tc' | 'sc' | 'en') {
-  return getLocalizedRatingLocation(item, lang);
-}
-
-function buildSearchQueryIndex(query: string): SearchQueryIndex {
-  const trimmed = query.trim();
-  const rawTokens = trimmed.split(/\s+/).filter(Boolean);
-
-  return {
-    trimmed,
-    lowered: trimmed.toLowerCase(),
-    normalized: normalizeSearchText(trimmed),
-    loweredTokens: rawTokens.map((token) => token.toLowerCase()),
-    normalizedTokens: rawTokens.map((token) => normalizeSearchText(token)).filter(Boolean),
-  };
-}
-
-function buildIndexedSearchFields(item: RatingItem, lang: 'tc' | 'sc' | 'en'): IndexedSearchField[] {
-  const departmentLabel = getDepartmentLabel(item, lang);
-  const fields: Array<{ value: string; weight: number }> = [
-    { value: item.name ?? '', weight: 160 },
-    { value: translateLabel(item.name ?? '', lang), weight: 180 },
-    { value: item.department ?? '', weight: 80 },
-    { value: departmentLabel, weight: 110 },
-  ];
-
-  if ('code' in item && item.code) {
-    fields.push({ value: item.code, weight: 220 });
-    fields.push({ value: extractCourseSubject(item.code), weight: 140 });
-  }
-
-  if ('email' in item && item.email) {
-    fields.push({ value: item.email, weight: 90 });
-  }
-
-  if ('location' in item && item.location) {
-    fields.push({ value: item.location, weight: 110 });
-    fields.push({ value: getLocationLabel(item, lang), weight: 130 });
-  }
-
-  return fields
-    .filter((field) => field.value.trim().length > 0)
-    .map((field) => ({
-      rawLower: field.value.toLowerCase(),
-      normalized: normalizeSearchText(field.value),
-      weight: field.weight,
-    }));
-}
-
-function getSearchScore(indexedItem: IndexedRatingItem, queryIndex: SearchQueryIndex) {
-  let bestScore = 0;
-
-  for (const field of indexedItem.searchFields) {
-    let score = 0;
-
-    if (field.rawLower === queryIndex.lowered || field.normalized === queryIndex.normalized) {
-      score = field.weight + 220;
-    } else if (field.rawLower.startsWith(queryIndex.lowered) || field.normalized.startsWith(queryIndex.normalized)) {
-      score = field.weight + 150;
-    } else if (field.rawLower.includes(queryIndex.lowered) || field.normalized.includes(queryIndex.normalized)) {
-      score = field.weight + 70;
-    }
-
-    if (queryIndex.loweredTokens.length > 1) {
-      const matchedAllRawTokens = queryIndex.loweredTokens.every((token) => field.rawLower.includes(token));
-      const matchedAllNormalizedTokens = queryIndex.normalizedTokens.every((token) => field.normalized.includes(token));
-      if (matchedAllRawTokens || matchedAllNormalizedTokens) {
-        score = Math.max(score, field.weight + 110 + queryIndex.loweredTokens.length * 15);
-      }
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-    }
-  }
-
-  return bestScore;
-}
 
 function MiniScoreBar({
   label,
@@ -224,43 +75,35 @@ function MiniScoreBar({
 
 export default function RatingListScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const listRef = useRef<any>(null);
-  const pendingScrollToTop = useRef(false);
+  const listRef = useRef<FlashList<RatingItem> | null>(null);
   const selectedCategory = useRatingStore((s) => s.selectedCategory);
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
   const setSearchQuery = useRatingStore((s) => s.setSearchQuery);
+  const sortMode = useRatingStore((s) => s.sortMode);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [showSearch, setShowSearch] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<Record<RatingCategory, string>>({
-    course: ALL_FILTER_VALUE,
-    teacher: ALL_FILTER_VALUE,
-    canteen: ALL_FILTER_VALUE,
-    major: ALL_FILTER_VALUE,
-  });
   const category = selectedCategory;
-  const activeQuickFilter = activeFilters[category] ?? ALL_FILTER_VALUE;
 
-  const { data: ratings, isLoading, isRefetching, refetch } = useRatings(category);
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useRatings(category, deferredSearchQuery, sortMode, PAGE_SIZE);
 
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch])
+  const ratings = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data]
   );
 
-  useEffect(() => {
-    const categoriesToPrefetch = CATEGORIES.filter((candidate) => candidate !== category);
-    for (const candidate of categoriesToPrefetch) {
-      void queryClient.prefetchQuery({
-        queryKey: ['ratings', candidate, 'recent'],
-        queryFn: () => ratingService.getList(candidate),
-        staleTime: 5 * 60 * 1000,
-      });
-    }
-  }, [category, queryClient]);
+  const isInitialLoading = isLoading && ratings.length === 0;
+  const isRefreshing = isRefetching && !isFetchingNextPage;
+  const hasSearchQuery = deferredSearchQuery.trim().length > 0;
 
   const categoryOptions = useMemo<SegmentedControlOption<RatingCategory>[]>(
     () =>
@@ -278,68 +121,6 @@ export default function RatingListScreen({ navigation }: Props) {
     [setCategory]
   );
 
-  const indexedRatings = useMemo<IndexedRatingItem[]>(() => {
-    if (!ratings) return [];
-
-    return ratings.map((item) => {
-      const quickFilterValue = getQuickFilterValue(item, category);
-      const quickFilterLabel =
-        category === 'course'
-          ? quickFilterValue
-          : simplifyFilterLabel(getLocalizedRatingMetaLabel(quickFilterValue, lang));
-
-      return {
-        item,
-        quickFilterValue,
-        quickFilterLabel,
-        searchFields: buildIndexedSearchFields(item, lang),
-      };
-    });
-  }, [ratings, category, lang]);
-
-  const allQuickFilterOptions = useMemo<QuickFilterOption[]>(() => {
-    const counts = new Map<string, QuickFilterOption>();
-    for (const entry of indexedRatings) {
-      if (!entry.quickFilterValue) continue;
-      const existing = counts.get(entry.quickFilterValue);
-      if (existing) {
-        existing.count += 1;
-        continue;
-      }
-      counts.set(entry.quickFilterValue, {
-        value: entry.quickFilterValue,
-        label: entry.quickFilterLabel,
-        count: 1,
-      });
-    }
-
-    return Array.from(counts.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  }, [indexedRatings]);
-
-  const quickFilterOptions = useMemo(() => {
-    const maxVisible = category === 'course' ? 12 : 8;
-    const visibleOptions = allQuickFilterOptions.slice(0, maxVisible);
-
-    if (activeQuickFilter === ALL_FILTER_VALUE) {
-      return visibleOptions;
-    }
-
-    if (visibleOptions.some((option) => option.value === activeQuickFilter)) {
-      return visibleOptions;
-    }
-
-    const activeOption = allQuickFilterOptions.find((option) => option.value === activeQuickFilter);
-    return activeOption ? [...visibleOptions, activeOption] : visibleOptions;
-  }, [activeQuickFilter, allQuickFilterOptions, category]);
-
-  const effectiveQuickFilter = useMemo(
-    () =>
-      activeQuickFilter === ALL_FILTER_VALUE || allQuickFilterOptions.some((option) => option.value === activeQuickFilter)
-        ? activeQuickFilter
-        : ALL_FILTER_VALUE,
-    [activeQuickFilter, allQuickFilterOptions]
-  );
-
   const handleSearchChange = useCallback(
     (value: string) => {
       startTransition(() => {
@@ -349,68 +130,25 @@ export default function RatingListScreen({ navigation }: Props) {
     [setSearchQuery]
   );
 
-  const handleQuickFilterChange = useCallback(
-    (value: string) => {
-      pendingScrollToTop.current = true;
-      setActiveFilters((prev) => ({ ...prev, [category]: value }));
-    },
-    [category]
-  );
-
-  const handleContentSizeChange = useCallback(() => {
-    if (pendingScrollToTop.current) {
-      pendingScrollToTop.current = false;
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    }
-  }, []);
-
-  // Scroll to top on category or search change
   useEffect(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [category, deferredSearchQuery]);
 
-  const searchQueryIndex = useMemo(() => buildSearchQueryIndex(deferredSearchQuery), [deferredSearchQuery]);
-
-  const filteredRatings = useMemo(() => {
-    const scopedRatings =
-      effectiveQuickFilter === ALL_FILTER_VALUE
-        ? indexedRatings
-        : indexedRatings.filter((entry) => entry.quickFilterValue === effectiveQuickFilter);
-
-    if (!searchQueryIndex.trimmed) {
-      return scopedRatings.map((entry) => entry.item);
+  const handleLoadMore = useCallback(() => {
+    if (!hasNextPage || isFetchingNextPage || isInitialLoading) {
+      return;
     }
-
-    return scopedRatings
-      .map((entry, index) => ({
-        item: entry.item,
-        index,
-        score: getSearchScore(entry, searchQueryIndex),
-      }))
-      .filter((entry) => entry.score > 0)
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          b.item.recentCount - a.item.recentCount ||
-          b.item.ratingCount - a.item.ratingCount ||
-          a.index - b.index
-      )
-      .map((entry) => entry.item);
-  }, [effectiveQuickFilter, indexedRatings, searchQueryIndex]);
-
-  const listIdentityKey = useMemo(
-    () => `ratings:${category}:${effectiveQuickFilter}:${searchQueryIndex.trimmed}`,
-    [category, effectiveQuickFilter, searchQueryIndex.trimmed]
-  );
+    void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isInitialLoading]);
 
   const getSubtitle = useCallback(
     (item: RatingItem) => {
-      const translatedDepartment = getDepartmentLabel(item, lang);
+      const translatedDepartment = getLocalizedRatingDepartment(item, lang);
       if ('code' in item && item.code) {
         return [item.code, translatedDepartment].filter(Boolean).join(' | ');
       }
       if ('location' in item && item.location) {
-        return [getLocationLabel(item, lang), translatedDepartment].filter(Boolean).join(' | ');
+        return [getLocalizedRatingLocation(item, lang), translatedDepartment].filter(Boolean).join(' | ');
       }
       if ('email' in item && item.email) {
         return [translatedDepartment, item.email].filter(Boolean).join(' | ');
@@ -429,16 +167,16 @@ export default function RatingListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: RatingItem }) => {
       const topTags = getTopTags(item);
-      const overallScore = item.overallScore ?? (item.scores.length > 0
-        ? Math.round(item.scores.reduce((sum, s) => sum + s.value, 0) / item.scores.length)
-        : 0);
+      const overallScore =
+        item.overallScore ??
+        (item.scores.length > 0
+          ? Math.round(item.scores.reduce((sum, score) => sum + score.value, 0) / item.scores.length)
+          : 0);
       return (
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
-          onPress={() =>
-            navigation.navigate('RatingDetail', { category, id: item.id })
-          }
+          onPress={() => navigation.navigate('RatingDetail', { category, id: item.id })}
         >
           <View style={styles.cardHeader}>
             {category === 'teacher' ? <TeacherAvatarIcon size={40} /> :
@@ -483,9 +221,20 @@ export default function RatingListScreen({ navigation }: Props) {
     [category, navigation, getTopTags, t, lang, getSubtitle]
   );
 
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) {
+      return <View style={styles.listFooterSpacer} />;
+    }
+
+    return (
+      <View style={styles.listFooterLoading}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }, [isFetchingNextPage]);
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar — matching Secondhand */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <BackIcon size={26} color="#0C1015" />
@@ -498,7 +247,6 @@ export default function RatingListScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Search Bar (collapsible) */}
       {showSearch && (
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
@@ -525,7 +273,6 @@ export default function RatingListScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Category Tabs */}
       <View style={styles.tabsContainer}>
         <SegmentedControl
           options={categoryOptions}
@@ -534,31 +281,31 @@ export default function RatingListScreen({ navigation }: Props) {
         />
       </View>
 
-
-      {/* Rating List */}
-      {isLoading && !ratings ? (
+      {isInitialLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <View key={listIdentityKey} style={styles.listWrapper}>
+        <View style={styles.listWrapper}>
           <FlashList
             ref={listRef}
-            data={filteredRatings}
-            extraData={`${listIdentityKey}:${filteredRatings.length}`}
+            data={ratings}
+            extraData={`${category}:${deferredSearchQuery.trim()}:${ratings.length}:${isFetchingNextPage ? 'fetching' : 'idle'}`}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
-            refreshing={isRefetching}
+            refreshing={isRefreshing}
             onRefresh={refetch}
-            onContentSizeChange={handleContentSizeChange}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.35}
             drawDistance={500}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            ListFooterComponent={renderFooter}
             ListEmptyComponent={
               <EmptyState
                 icon={<StarIcon size={36} color={colors.onSurfaceVariant} />}
-                title={deferredSearchQuery.trim() || effectiveQuickFilter !== ALL_FILTER_VALUE ? t('noSearchResults') : t('noRatingData')}
+                title={hasSearchQuery ? t('noSearchResults') : t('noRatingData')}
               />
             }
           />
@@ -637,32 +384,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-  filterSection: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  filterRow: {
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F5F7',
-  },
-  filterChipActive: {
-    backgroundColor: '#0C1015',
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
-    color: '#0C1015',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -674,6 +395,14 @@ const styles = StyleSheet.create({
   listContent: {
     flexGrow: 1,
     paddingBottom: 100,
+  },
+  listFooterLoading: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listFooterSpacer: {
+    height: 16,
   },
   card: {
     paddingHorizontal: 16,
@@ -706,8 +435,7 @@ const styles = StyleSheet.create({
     color: '#86909C',
     marginTop: 2,
   },
-  cardBody: {
-  },
+  cardBody: {},
   miniBarsColumn: {
     flexDirection: 'column',
     gap: 6,

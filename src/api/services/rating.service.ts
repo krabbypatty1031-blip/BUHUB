@@ -1,6 +1,15 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { RatingCategory, RatingItem, RatingSortMode, ScoreDimension, MyRating } from '../../types';
+import type {
+  RatingCategory,
+  RatingItem,
+  RatingSortMode,
+  ScoreDimension,
+  MyRating,
+  RatingCommentsPage,
+  RatingComment,
+  RatingsListPage,
+} from '../../types';
 import { mockRatings, mockScoreDimensions, mockTagOptions } from '../../data/mock/ratings';
 
 const USE_MOCK = false;
@@ -37,6 +46,10 @@ type ApiRatingItemRecord = {
   ratingCount?: number;
   recentCount?: number;
   scoreVariance?: number;
+  comments?: { id?: string; comment?: string; createdAt?: string }[];
+  commentCount?: number;
+  commentsPageSize?: number;
+  hasMoreComments?: boolean;
 } & Record<string, unknown>;
 
 const toApiCategory = (category: RatingCategory) => category.toUpperCase();
@@ -90,10 +103,27 @@ const mapRatingItem = (item: ApiRatingItemRecord): RatingItem => ({
   ratingCount: item?.ratingCount ?? 0,
   recentCount: item?.recentCount ?? 0,
   scoreVariance: item?.scoreVariance ?? 0,
+  comments: Array.isArray(item?.comments)
+    ? item.comments
+      .filter((comment): comment is { id?: string; comment?: string; createdAt?: string } => Boolean(comment))
+      .map((comment) => ({
+        id: typeof comment.id === 'string' ? comment.id : undefined,
+        comment: typeof comment.comment === 'string' ? comment.comment : '',
+        createdAt: typeof comment.createdAt === 'string' ? comment.createdAt : new Date(0).toISOString(),
+      }))
+      .filter((comment) => comment.comment.trim().length > 0)
+    : [],
+  commentCount: typeof item?.commentCount === 'number' ? item.commentCount : 0,
+  commentsPageSize: typeof item?.commentsPageSize === 'number' ? item.commentsPageSize : undefined,
+  hasMoreComments: typeof item?.hasMoreComments === 'boolean' ? item.hasMoreComments : false,
 });
 
 export const ratingService = {
-  async getList(category: RatingCategory, sortMode: RatingSortMode = 'recent'): Promise<RatingItem[]> {
+  async getList(
+    category: RatingCategory,
+    sortMode: RatingSortMode = 'recent',
+    options?: { page?: number; limit?: number; query?: string }
+  ): Promise<RatingsListPage> {
     if (USE_MOCK) {
       const { mockRatings } = await import('../../data/mock/ratings');
       const items = [...mockRatings[category]];
@@ -102,14 +132,42 @@ export const ratingService = {
       } else {
         items.sort((a, b) => b.scoreVariance - a.scoreVariance);
       }
-      return items;
+      const page = options?.page ?? 1;
+      const limit = options?.limit ?? 20;
+      const start = (page - 1) * limit;
+      const pagedItems = items.slice(start, start + limit);
+      return {
+        items: pagedItems,
+        total: items.length,
+        page,
+        limit,
+        hasMore: start + pagedItems.length < items.length,
+      };
     }
-    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(toApiCategory(category)), { params: { sortMode } });
-    const mapped = (Array.isArray(data) ? data : []).map(mapRatingItem);
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 20;
+    const query = options?.query?.trim() ?? '';
+    const { data } = await apiClient.get(ENDPOINTS.RATING.LIST(toApiCategory(category)), {
+      params: { sortMode, page, limit, query: query || undefined },
+    });
+    const mapped = Array.isArray(data?.items) ? data.items.map(mapRatingItem) : [];
     if (category === 'canteen' && mapped.length === 0) {
-      return [...mockRatings.canteen];
+      const fallbackItems = [...mockRatings.canteen];
+      return {
+        items: fallbackItems,
+        total: fallbackItems.length,
+        page: 1,
+        limit: fallbackItems.length,
+        hasMore: false,
+      };
     }
-    return mapped;
+    return {
+      items: mapped,
+      total: typeof data?.total === 'number' ? data.total : mapped.length,
+      page: typeof data?.page === 'number' ? data.page : page,
+      limit: typeof data?.limit === 'number' ? data.limit : limit,
+      hasMore: typeof data?.hasMore === 'boolean' ? data.hasMore : false,
+    };
   },
 
   async getDetail(category: RatingCategory, id: string): Promise<RatingItem> {
@@ -204,5 +262,29 @@ export const ratingService = {
       return mockTagOptions.canteen;
     }
     return options;
+  },
+
+  async getComments(category: RatingCategory, id: string, page = 1, limit = 10): Promise<RatingCommentsPage> {
+    const { data } = await apiClient.get(ENDPOINTS.RATING.COMMENTS(toApiCategory(category), id), {
+      params: { page, limit },
+    });
+    const comments = Array.isArray(data?.data)
+      ? data.data
+        .filter((comment: RatingComment | null | undefined): comment is RatingComment => Boolean(comment))
+        .map((comment: RatingComment) => ({
+          id: typeof comment.id === 'string' ? comment.id : undefined,
+          comment: typeof comment.comment === 'string' ? comment.comment : '',
+          createdAt: typeof comment.createdAt === 'string' ? comment.createdAt : new Date(0).toISOString(),
+        }))
+        .filter((comment: RatingComment) => comment.comment.trim().length > 0)
+      : [];
+
+    return {
+      data: comments,
+      total: typeof data?.total === 'number' ? data.total : comments.length,
+      page: typeof data?.page === 'number' ? data.page : page,
+      limit: typeof data?.limit === 'number' ? data.limit : limit,
+      hasMore: typeof data?.hasMore === 'boolean' ? data.hasMore : false,
+    };
   },
 };

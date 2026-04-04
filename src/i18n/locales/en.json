@@ -891,6 +891,7 @@
   "editMyRating": "Edit My Rating",
   "rateThis": "Rate",
   "reviews": "Reviews",
+  "loadMoreReviews": "Load more reviews",
   "editingNotice": "You submitted a rating on {{date}}. This will update your rating.",
   "updateRating": "Update Rating",
   "uploadSchedule": "Upload Schedule",

@@ -891,6 +891,7 @@
   "editMyRating": "修改我的评分",
   "rateThis": "去评分",
   "reviews": "评价",
+  "loadMoreReviews": "查看更多评价",
   "editingNotice": "你已于 {{date}} 提交过评分，本次将更新你的评分",
   "updateRating": "更新评分",
   "uploadSchedule": "上传课表",
