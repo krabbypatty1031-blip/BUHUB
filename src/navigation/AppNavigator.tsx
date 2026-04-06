@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { authService } from '../api/services/auth.service';
@@ -28,6 +29,7 @@ function isAuthFailure(error: unknown): boolean {
 }
 
 export default function AppNavigator() {
+  const queryClient = useQueryClient();
   const navigationRef = useNavigationContainerRef<MainTabParamList>();
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const token = useAuthStore((s) => s.token);
@@ -38,6 +40,7 @@ export default function AppNavigator() {
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [lastForumLanguage, setLastForumLanguage] = useState<string | null>(null);
   usePushRegistration(navigationRef);
 
   // Keep the rendering language in sync with the persisted/store language.
@@ -52,7 +55,18 @@ export default function AppNavigator() {
     if (normalized !== i18n.language) {
       void changeLanguage(normalized);
     }
-  }, [hasHydrated, language, setLanguage]);
+    if (lastForumLanguage !== null && lastForumLanguage !== normalized) {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['search'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
+    }
+    if (lastForumLanguage !== normalized) {
+      setLastForumLanguage(normalized);
+    }
+  }, [hasHydrated, language, lastForumLanguage, queryClient, setLanguage]);
 
   // Verify token on app startup (wait for hydration first)
   useEffect(() => {

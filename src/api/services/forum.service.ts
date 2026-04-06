@@ -2,6 +2,7 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 import type { ForumPost, CommentsData, Comment, Reply, PaginationParams, ForumCircleSummary, RatingCategory, FunctionRefPreview } from '../../types';
 import { normalizeImageUrl, normalizeAvatarUrl } from '../../utils/imageUrl';
+import i18n, { normalizeLanguage } from '../../i18n';
 
 const USE_MOCK = false;
 const FUNCTION_REF_PREFIX = '[FUNC_REF]';
@@ -187,7 +188,8 @@ function resolveAnonymousNameValue(name: unknown): string | undefined {
   if (trimmed.startsWith('{')) {
     try {
       const parsed = JSON.parse(trimmed) as { tc?: string; sc?: string; en?: string };
-      return parsed.tc ?? parsed.sc ?? parsed.en;
+      const language = normalizeLanguage(i18n.language) ?? 'tc';
+      return parsed[language] ?? parsed.tc ?? parsed.sc ?? parsed.en;
     } catch {
       return undefined;
     }

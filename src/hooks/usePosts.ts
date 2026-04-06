@@ -1,6 +1,8 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
+import { useAuthStore } from '../store/authStore';
+import { normalizeLanguage } from '../i18n';
 import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
 
 export type PostsPage = { posts: ForumPost[]; hasMore: boolean; page: number };
@@ -14,6 +16,13 @@ type MyContentCommentLike = {
 type BookmarkSourcePost = ForumPost | UserPost;
 
 const POSTS_LIMIT = 20;
+const resolveForumLanguage = (language?: string | null) => normalizeLanguage(language) ?? 'tc';
+const postsKey = (language: string) => ['posts', language] as const;
+const followingPostsKey = (language: string) => ['posts', 'following', language] as const;
+const userPostsKey = (userName: string, language: string) => ['userPosts', userName, language] as const;
+const postDetailKey = (postId: string, language: string) => ['post', postId, language] as const;
+const commentsKey = (postId: string, language: string) => ['comments', postId, language] as const;
+const searchKey = (query: string, language: string) => ['search', query, language] as const;
 
 function mapPostsPages(
   data: PostsInfiniteData | undefined,
@@ -327,8 +336,9 @@ function updateMyContentPostBookmark(
 }
 
 export function usePosts(enabled = true) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
-    queryKey: ['posts'],
+    queryKey: postsKey(language) as unknown as string[],
     queryFn: ({ pageParam }) =>
       forumService.getPosts({ page: pageParam, limit: POSTS_LIMIT }),
     initialPageParam: 1,
@@ -343,8 +353,9 @@ export function usePosts(enabled = true) {
 }
 
 export function useUserPosts(userName: string) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
-    queryKey: ['userPosts', userName],
+    queryKey: userPostsKey(userName, language) as unknown as string[],
     queryFn: ({ pageParam }) =>
       forumService.getUserPosts(userName, { page: pageParam, limit: POSTS_LIMIT }),
     initialPageParam: 1,
@@ -356,8 +367,9 @@ export function useUserPosts(userName: string) {
 }
 
 export function useFollowingPosts(enabled = true) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
-    queryKey: ['posts', 'following'],
+    queryKey: followingPostsKey(language) as unknown as string[],
     queryFn: ({ pageParam }) =>
       forumService.getFollowingPosts({ page: pageParam, limit: POSTS_LIMIT }),
     initialPageParam: 1,
@@ -419,16 +431,18 @@ export function useToggleCircleFollow(tag: string) {
 }
 
 export function usePostDetail(postId: string) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useQuery({
-    queryKey: ['post', postId],
+    queryKey: postDetailKey(postId, language),
     queryFn: () => forumService.getPostDetail(postId),
     enabled: postId.length > 0,
   });
 }
 
 export function useComments(postId: string) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useQuery<Comment[]>({
-    queryKey: ['comments', postId],
+    queryKey: commentsKey(postId, language),
     queryFn: async () => {
       const data = await forumService.getComments(postId);
       return data[postId] || [];
@@ -437,9 +451,10 @@ export function useComments(postId: string) {
 }
 
 export function useSearch(query: string) {
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   const normalizedQuery = query.trim();
   return useQuery({
-    queryKey: ['search', normalizedQuery],
+    queryKey: searchKey(normalizedQuery, language),
     queryFn: () => forumService.search(normalizedQuery),
     enabled: normalizedQuery.length >= 1,
   });
@@ -459,6 +474,7 @@ export function useCreatePost() {
 
 export function useEditPost() {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: ({ postId, post }: { postId: string; post: { content: string; tags?: string[] } }) =>
       forumService.editPost(postId, post),
@@ -466,7 +482,7 @@ export function useEditPost() {
       setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) => (post.id === variables.postId ? { ...post, ...data } : post))
       );
-      queryClient.setQueryData<ForumPost>(['post', variables.postId], (old) =>
+      queryClient.setQueryData<ForumPost>(postDetailKey(variables.postId, language), (old) =>
         old ? { ...old, ...data } : data
       );
       queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -477,11 +493,12 @@ export function useEditPost() {
 
 export function useDeletePost() {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (postId: string) => forumService.deletePost(postId),
     onSuccess: (_data, postId) => {
       setAllPostLists(queryClient, (old) => filterPostsPages(old, (post) => post.id !== postId));
-      queryClient.setQueryData(['post', postId], undefined);
+      queryClient.setQueryData(postDetailKey(postId, language), undefined);
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
@@ -490,14 +507,15 @@ export function useDeletePost() {
 
 export function useCreateComment(postId: string) {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: ({ content, isAnonymous, parentId }: { content: string; isAnonymous?: boolean; parentId?: string }) =>
       forumService.createComment(postId, content, isAnonymous, parentId),
     onSuccess: (createdComment, variables) => {
-      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+      queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
         insertCreatedComment(old, createdComment, variables.parentId)
       );
-      queryClient.setQueryData<ForumPost>(['post', postId], (old) =>
+      queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), (old) =>
         old
           ? {
               ...old,
@@ -525,22 +543,24 @@ export function useCreateComment(postId: string) {
 
 export function useEditComment(postId: string) {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: ({ commentId, content }: { commentId: string; content: string }) =>
       forumService.editComment(postId, commentId, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: commentsKey(postId, language) });
     },
   });
 }
 
 export function useDeleteComment(postId: string) {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (commentId: string) => forumService.deleteComment(postId, commentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
-      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: commentsKey(postId, language) });
+      queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language) });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
       setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) =>
@@ -555,14 +575,15 @@ export function useDeleteComment(postId: string) {
 
 export function useLikePost() {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (postId: string) => forumService.likePost(postId),
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
-      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+      await queryClient.cancelQueries({ queryKey: postDetailKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
-      const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
+      const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({
         ...p,
@@ -581,7 +602,7 @@ export function useLikePost() {
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
-        queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
+        queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         old
@@ -602,9 +623,9 @@ export function useLikePost() {
         setAllPostLists(queryClient, (old) =>
           mapPostsPages(old, update)
         );
-        const detail = queryClient.getQueryData<ForumPost>(['post', postId]);
+        const detail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
         if (detail) {
-          queryClient.setQueryData<ForumPost>(['post', postId], { ...detail, liked: res.liked, likes: res.likeCount });
+          queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), { ...detail, liked: res.liked, likes: res.likeCount });
         }
         queryClient.setQueryData<MyContent>(['myContent'], (old) =>
           old
@@ -619,14 +640,14 @@ export function useLikePost() {
     },
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
-      if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
+      if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (res, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
       if (typeof res?.likeCount !== 'number') {
-        queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
+        queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
       }
     },
   });
@@ -634,15 +655,16 @@ export function useLikePost() {
 
 export function useLikeComment(postId: string) {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (commentId: string) => forumService.likeComment(commentId),
     onMutate: async (commentId) => {
-      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      await queryClient.cancelQueries({ queryKey: commentsKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      const previous = queryClient.getQueryData<Comment[]>(commentsKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
 
-      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+      queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
         updateCommentTreeById(old, commentId, (node) => ({
           ...node,
           liked: !node.liked,
@@ -660,7 +682,7 @@ export function useLikeComment(postId: string) {
     },
     onSuccess: (res, commentId) => {
       if (typeof res.likeCount === 'number') {
-        queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+        queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
           updateCommentTreeById(old, commentId, (node) => ({
             ...node,
             liked: res.liked,
@@ -677,11 +699,11 @@ export function useLikeComment(postId: string) {
       }
     },
     onError: (_err, _commentId, context) => {
-      if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+      if (context?.previous) queryClient.setQueryData(commentsKey(postId, language), context.previous);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: commentsKey(postId, language) });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
@@ -689,6 +711,7 @@ export function useLikeComment(postId: string) {
 
 export function useVotePost() {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   const setVotedPoll = useForumStore((s) => s.setVotedPoll);
   const clearVotedPoll = useForumStore((s) => s.clearVotedPoll);
   const bumpPollListRefresh = useForumStore((s) => s.bumpPollListRefresh);
@@ -697,10 +720,10 @@ export function useVotePost() {
       forumService.votePost(postId, optionId),
     onMutate: async ({ postId, optionId, optionIndex }) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
-      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+      await queryClient.cancelQueries({ queryKey: postDetailKey(postId, language) });
 
       const previousPostLists = getAllPostLists(queryClient);
-      const previousPostDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
+      const previousPostDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousOptionIndex = useForumStore.getState().votedPolls[postId];
       setVotedPoll(postId, optionIndex);
 
@@ -736,9 +759,9 @@ export function useVotePost() {
         mapPostsPages(old, applyVote)
       );
       if (optimisticPost) {
-        queryClient.setQueryData<ForumPost>(['post', postId], optimisticPost);
+        queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), optimisticPost);
       } else if (previousPostDetail) {
-        queryClient.setQueryData<ForumPost>(['post', postId], applyVote(previousPostDetail));
+        queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), applyVote(previousPostDetail));
       }
 
       return { previousOptionIndex, previousPostLists, previousPostDetail };
@@ -751,12 +774,12 @@ export function useVotePost() {
       }
       restoreAllPostLists(queryClient, context?.previousPostLists);
       if (context?.previousPostDetail) {
-        queryClient.setQueryData(['post', variables.postId], context.previousPostDetail);
+        queryClient.setQueryData(postDetailKey(variables.postId, language), context.previousPostDetail);
       }
     },
     onSuccess: async (_data, variables) => {
       const { postId } = variables;
-      await queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      await queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language) });
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['search'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
@@ -767,15 +790,16 @@ export function useVotePost() {
 
 export function useBookmarkComment(postId: string) {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (commentId: string) => forumService.bookmarkComment(commentId),
     onMutate: async (commentId) => {
-      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      await queryClient.cancelQueries({ queryKey: commentsKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
-      const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      const previous = queryClient.getQueryData<Comment[]>(commentsKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
 
-      queryClient.setQueryData<Comment[]>(['comments', postId], (old) =>
+      queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
         updateCommentTreeById(old, commentId, (node) => ({
           ...node,
           bookmarked: !node.bookmarked,
@@ -798,11 +822,11 @@ export function useBookmarkComment(postId: string) {
       );
     },
     onError: (_err, _commentId, context) => {
-      if (context?.previous) queryClient.setQueryData(['comments', postId], context.previous);
+      if (context?.previous) queryClient.setQueryData(commentsKey(postId, language), context.previous);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: commentsKey(postId, language) });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
@@ -810,14 +834,15 @@ export function useBookmarkComment(postId: string) {
 
 export function useBookmarkPost() {
   const queryClient = useQueryClient();
+  const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useMutation({
     mutationFn: (postId: string) => forumService.bookmarkPost(postId),
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
-      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+      await queryClient.cancelQueries({ queryKey: postDetailKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
-      const previousDetail = queryClient.getQueryData<ForumPost>(['post', postId]);
+      const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const listSourcePost = findPostInPostLists(previousPostLists, postId);
       const sourcePost = previousDetail ?? listSourcePost;
@@ -830,7 +855,7 @@ export function useBookmarkPost() {
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
       if (previousDetail) {
-        queryClient.setQueryData<ForumPost>(['post', postId], toggle(previousDetail));
+        queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
@@ -848,7 +873,7 @@ export function useBookmarkPost() {
             : post
         )
       );
-      queryClient.setQueryData<ForumPost>(['post', postId], (old) =>
+      queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), (old) =>
         old
           ? {
               ...old,
@@ -861,19 +886,19 @@ export function useBookmarkPost() {
           old,
           postId,
           res.bookmarked,
-          queryClient.getQueryData<ForumPost>(['post', postId]) ??
+          queryClient.getQueryData<ForumPost>(postDetailKey(postId, language)) ??
             findPostInPostLists(getAllPostLists(queryClient), postId)
         )
       );
     },
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
-      if (context?.previousDetail) queryClient.setQueryData(['post', postId], context.previousDetail);
+      if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (_data, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
   });
