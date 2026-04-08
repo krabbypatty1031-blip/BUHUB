@@ -106,7 +106,7 @@ export default function LoginScreen({ navigation }: Props) {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.contentInner}>
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>UHUB</Text>
+          <Text style={styles.logoText}>ULink</Text>
           <Text style={styles.subtitle}>{t('loginDesc')}</Text>
         </View>
 

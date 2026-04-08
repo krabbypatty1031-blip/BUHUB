@@ -53,7 +53,7 @@ export const usePartnerStore = create<PartnerState>()(
       setExpiredNotified: (expiredNotified) => set({ expiredNotified }),
     }),
     {
-      name: 'buhub-partner-store',
+      name: 'ulink-partner-store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state): PersistedPartnerState => ({
         joinedActivityIds: Object.keys(state.joinedActivities),

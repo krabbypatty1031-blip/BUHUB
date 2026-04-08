@@ -53,7 +53,7 @@ export const useSecondhandStore = create<SecondhandState>()(
       setExpiredNotified: (expiredNotified) => set({ expiredNotified }),
     }),
     {
-      name: 'buhub-secondhand-store',
+      name: 'ulink-secondhand-store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state): PersistedSecondhandState => ({
         wantedItemIds: Object.keys(state.wantedItems),

@@ -60,7 +60,7 @@ export const useScheduleStore = create<ScheduleState>()(
       setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
     {
-      name: 'buhub-schedule',
+      name: 'ulink-schedule',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

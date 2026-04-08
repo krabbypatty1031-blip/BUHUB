@@ -27,7 +27,7 @@ import {
   ScanIcon,
 } from '../../components/common/icons';
 
-const QR_PREFIX = 'buhub://user/';
+const QR_PREFIX = 'ulink://user/';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'ShareProfile'>;
 

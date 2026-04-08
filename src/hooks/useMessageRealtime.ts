@@ -23,7 +23,7 @@ import {
 } from '../utils/messageCache';
 import { recordMessageMetric } from '../utils/messageMetrics';
 
-const TOKEN_KEY = 'buhub-token';
+const TOKEN_KEY = 'ulink-token';
 const RECONNECT_BASE_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 5000;
 

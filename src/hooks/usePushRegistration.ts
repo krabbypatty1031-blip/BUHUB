@@ -10,7 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import type { MainTabParamList } from '../types/navigation';
 
-const PUSH_REGISTRATION_CACHE_KEY = 'buhub-expo-push-registration';
+const PUSH_REGISTRATION_CACHE_KEY = 'ulink-expo-push-registration';
 
 type PushNavigationRef = NavigationContainerRef<MainTabParamList>;
 type PushNavigationTarget =

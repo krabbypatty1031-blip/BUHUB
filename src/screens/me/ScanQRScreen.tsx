@@ -17,7 +17,7 @@ import { typography } from '../../theme/typography';
 import { BackIcon, ScanIcon } from '../../components/common/icons';
 import { useUIStore } from '../../store/uiStore';
 
-const QR_PREFIX = 'buhub://user/';
+const QR_PREFIX = 'ulink://user/';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'ScanQR'>;
 

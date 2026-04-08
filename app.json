@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "UHUB",
-    "slug": "buhub-rn",
-    "scheme": "buhub",
-    "version": "0.2.2",
+    "name": "ULink",
+    "slug": "ulink-rn",
+    "scheme": "ulink",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/ios-icon.png",
     "userInterfaceStyle": "light",
@@ -18,15 +18,15 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "11",
-      "bundleIdentifier": "com.buhub.app",
+      "buildNumber": "13",
+      "bundleIdentifier": "com.ulink.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSCameraUsageDescription": "UHUB needs camera access to take photos for posts, avatars, and messages.",
-        "NSPhotoLibraryUsageDescription": "UHUB needs photo library access to select images for posts, avatars, and messages.",
-        "NSMicrophoneUsageDescription": "UHUB needs microphone access to record voice messages.",
+        "NSCameraUsageDescription": "ULink needs camera access to take photos for posts, avatars, and messages.",
+        "NSPhotoLibraryUsageDescription": "ULink needs photo library access to select images for posts, avatars, and messages.",
+        "NSMicrophoneUsageDescription": "ULink needs microphone access to record voice messages.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -39,7 +39,7 @@
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.buhub.app",
+      "package": "com.ulink.app",
       "usesCleartextTraffic": false
     },
     "web": {
@@ -61,21 +61,21 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "UHUB needs camera access to scan QR codes and take photos."
+          "cameraPermission": "ULink needs camera access to scan QR codes and take photos."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "UHUB needs photo library access to save QR code images.",
-          "savePhotosPermission": "UHUB needs permission to save QR code images to your photo library."
+          "photosPermission": "ULink needs photo library access to save QR code images.",
+          "savePhotosPermission": "ULink needs permission to save QR code images to your photo library."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "UHUB needs microphone access for voice-to-text.",
-          "speechRecognitionPermission": "UHUB needs speech recognition access to convert voice to text.",
+          "microphonePermission": "ULink needs microphone access for voice-to-text.",
+          "speechRecognitionPermission": "ULink needs speech recognition access to convert voice to text.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox"
           ]

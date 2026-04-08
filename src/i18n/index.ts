@@ -6,7 +6,7 @@ import tc from './locales/tc.json';
 import sc from './locales/sc.json';
 import en from './locales/en.json';
 
-const LANGUAGE_KEY = 'buhub-language';
+const LANGUAGE_KEY = 'ulink-language';
 const SUPPORTED_LANGUAGES = ['tc', 'sc', 'en'] as const;
 
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];

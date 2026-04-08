@@ -180,7 +180,7 @@ export const useMessageStore = create<MessageState>()(
       },
     }),
     {
-      name: 'buhub-message-store',
+      name: 'ulink-message-store',
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist pin/mute state — transient UI state is not persisted
       partialize: (state): PersistedMessageState => ({

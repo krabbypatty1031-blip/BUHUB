@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import type { ApiError } from '../types';
 
-const TOKEN_KEY = 'buhub-token';
+const TOKEN_KEY = 'ulink-token';
 
 // In-memory token cache to avoid AsyncStorage reads on every request
 let cachedToken: string | null = null;

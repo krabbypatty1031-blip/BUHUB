@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthState>()(
         },
     }),
     {
-      name: 'buhub-auth',
+      name: 'ulink-auth',
       storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => {
         const { _hasHydrated, ...rest } = state;

@@ -1,6 +1,6 @@
 {
-  "name": "buhub-rn",
-  "version": "0.2.2",
+  "name": "ulink-rn",
+  "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

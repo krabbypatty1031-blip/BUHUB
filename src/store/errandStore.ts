@@ -49,7 +49,7 @@ export const useErrandStore = create<ErrandState>()(
       setExpiredNotified: (expiredNotified) => set({ expiredNotified }),
     }),
     {
-      name: 'buhub-errand-store',
+      name: 'ulink-errand-store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state): PersistedErrandState => ({
         acceptedErrandIds: Object.keys(state.acceptedErrands),
