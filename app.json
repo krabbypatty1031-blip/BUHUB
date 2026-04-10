@@ -26,8 +26,9 @@
         },
         "NSCameraUsageDescription": "ULink needs camera access to take photos for posts, avatars, and messages.",
         "NSPhotoLibraryUsageDescription": "ULink needs photo library access to select images for posts, avatars, and messages.",
-        "NSMicrophoneUsageDescription": "ULink needs microphone access to record voice messages.",
-        "ITSAppUsesNonExemptEncryption": false
+        "NSMicrophoneUsageDescription": "ULink needs microphone access for voice-to-text.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSpeechRecognitionUsageDescription": "ULink needs speech recognition access to convert voice to text."
       }
     },
     "android": {
@@ -40,7 +41,17 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.ulink.app",
-      "usesCleartextTraffic": false
+      "usesCleartextTraffic": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -88,8 +99,9 @@
       "termsUrl": "https://www.uhub.help/terms",
       "privacyUrl": "https://www.uhub.help/privacy",
       "eas": {
-        "projectId": "86d0a94b-7e4f-4634-bae4-8ef0fc7c6b75"
+        "projectId": "b995e2cb-f484-4127-aac9-f11a4841f10b"
       }
-    }
+    },
+    "owner": "davidzhangtest"
   }
 }
