@@ -1796,6 +1796,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
         {/* Comment Input Bar */}
         <View style={[styles.commentInputBar, { paddingBottom: composerBottomInset }]}>
+          <View pointerEvents="none" style={styles.composerBgExtension} />
           <View style={styles.anonToggle}>
             <IOSSwitch
               value={isAnonymous}
@@ -2406,6 +2407,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.outlineVariant,
+    backgroundColor: colors.surface,
+  },
+  composerBgExtension: {
+    position: 'absolute',
+    left: -spacing.md,
+    right: -spacing.md,
+    bottom: -10000,
+    height: 10000,
     backgroundColor: colors.surface,
   },
   commentInput: {

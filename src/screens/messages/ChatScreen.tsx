@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  Keyboard,
   Linking,
 } from 'react-native';
 import type { ScrollViewProps } from 'react-native';
@@ -1882,6 +1883,18 @@ function ChatScreenContent({ navigation, route }: Props) {
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const plusMenuOpenRef = useRef(false);
   plusMenuOpenRef.current = plusMenuOpen;
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -2138,7 +2151,9 @@ function ChatScreenContent({ navigation, route }: Props) {
     };
   }, []);
 
-  const composerBottomInset = spacing.sm;
+  const composerBottomInset = isKeyboardVisible
+    ? spacing.sm
+    : Math.max(insets.bottom, spacing.sm);
 
   const clearLiveTranscription = useCallback(() => {
     liveTranscriptionTextRef.current = '';
@@ -4548,7 +4563,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   extraContentPaddingRef.current = extraContentPadding;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -4655,27 +4670,28 @@ function ChatScreenContent({ navigation, route }: Props) {
         {/* Input Bar */}
         <KeyboardStickyView>
         {isComposerAvailabilityLoading ? (
-          <View style={styles.waitingBar}>
+          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
             <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
             <Text style={styles.waitingText}>{t('loading')}</Text>
           </View>
         ) : hkbuBindingRequired ? (
-          <View style={styles.noticeBar}>
+          <View style={[styles.noticeBar, { paddingBottom: composerBottomInset }]}>
             <Text style={styles.waitingText}>{t('messageEmailBindingRequired')}</Text>
             <TouchableOpacity style={styles.noticeButton} onPress={handleOpenManageEmails}>
               <Text style={styles.noticeButtonText}>{t('bindNow')}</Text>
             </TouchableOpacity>
           </View>
         ) : waitingForReply ? (
-          <View style={styles.waitingBar}>
+          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
             <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
           </View>
         ) : messageSendBlocked ? (
-          <View style={styles.waitingBar}>
+          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
             <Text style={styles.waitingText}>{t('cannotMessageUser')}</Text>
           </View>
         ) : (
-          <View onLayout={handleInputBarLayout}>
+          <View onLayout={handleInputBarLayout} style={{ paddingBottom: composerBottomInset }}>
+            <View pointerEvents="none" style={styles.composerBgExtension} />
             {replyTarget ? (
               <GestureDetector gesture={replyComposerGesture}>
                 <Animated.View style={[styles.replyComposer, replyComposerAnimatedStyle]}>
@@ -4813,7 +4829,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           </View>
           {/* Plus menu grid below input bar */}
           {plusMenuOpen && (
-            <View style={[styles.plusMenuGrid, { paddingBottom: composerBottomInset }]}>
+            <View style={[styles.plusMenuGrid, { paddingBottom: spacing.sm }]}>
               <TouchableOpacity
                 style={styles.plusMenuItem}
                 activeOpacity={0.7}
@@ -5833,6 +5849,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F0',
     backgroundColor: '#FFFFFF',
     gap: spacing.xs,
+  },
+  composerBgExtension: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -10000,
+    height: 10000,
+    backgroundColor: '#FFFFFF',
   },
   mediaBtn: {
     width: 30,
