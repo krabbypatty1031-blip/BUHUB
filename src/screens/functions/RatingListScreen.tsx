@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
@@ -76,7 +76,7 @@ function MiniScoreBar({
 export default function RatingListScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language as 'tc' | 'sc' | 'en';
-  const listRef = useRef<FlashList<RatingItem> | null>(null);
+  const listRef = useRef<FlashListRef<RatingItem> | null>(null);
   const selectedCategory = useRatingStore((s) => s.selectedCategory);
   const setCategory = useRatingStore((s) => s.setCategory);
   const searchQuery = useRatingStore((s) => s.searchQuery);
