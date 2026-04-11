@@ -1329,9 +1329,9 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: colors.white,
   },
-  /* Figma 9:862: w:169, bg:#EDF2F5, borderRadius:12, px:16 py:7.5, gap:4 */
+  /* Figma 9:862: responsive two-button row, bg:#EDF2F5, borderRadius:12, px:16 py:7.5, gap:4 */
   actionBtn: {
-    width: 169,
+    flex: 1,
     height: 36,
     flexDirection: 'row',
     alignItems: 'center',
