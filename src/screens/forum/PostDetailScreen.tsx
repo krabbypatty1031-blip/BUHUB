@@ -902,7 +902,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const composerBottomInset = isKeyboardVisible
-    ? spacing.sm
+    ? 0
     : Math.max(insets.bottom, spacing.sm);
 
   const targetCommentIndex = useMemo(() => {
