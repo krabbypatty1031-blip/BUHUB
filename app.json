@@ -18,8 +18,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "13",
-      "bundleIdentifier": "com.ulink.app",
+      "buildNumber": "14",
+      "bundleIdentifier": "com.ulinks.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
@@ -40,7 +40,7 @@
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.ulink.app",
+      "package": "com.ulinks.app",
       "usesCleartextTraffic": false,
       "permissions": [
         "android.permission.CAMERA",
