@@ -19,6 +19,7 @@ import { useUIStore } from '../../store/uiStore';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import SecondhandCard from '../../components/functions/SecondhandCard';
@@ -28,10 +29,7 @@ import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { filterWithExpiredVisibility } from '../../utils/expiredFilter';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
-import {
-  BackIcon,
-  ShoppingBagIcon,
-} from '../../components/common/icons';
+import { ShoppingBagIcon } from '../../components/common/icons';
 import {
   FigmaSearchIcon26,
   FigmaCartIcon,
@@ -203,21 +201,22 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Figma: top bar — back left:12, title center 18px Bold, search+cart right:16 gap:16 */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>{t('secondhand')}</Text>
-        <View style={styles.topBarRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('SecondhandCart')}>
-            <FigmaCartIcon size={26} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
-            <FigmaSearchIcon26 size={30} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('secondhand')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(language, 'bold')}
+        rightAction={
+          <View style={styles.topBarRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('SecondhandCart')}>
+              <FigmaCartIcon size={26} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
+              <FigmaSearchIcon26 size={30} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Search Bar (collapsible) */}
       {showSearch && (
@@ -352,32 +351,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  /* Figma: top bar — height:62, back left:12, title center 18px Bold, right icons gap:16 right:16 */
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',

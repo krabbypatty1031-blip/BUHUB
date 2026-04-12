@@ -19,7 +19,8 @@ import { translateLabel } from '../../utils/translate';
 import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../utils/ratingMeta';
 import { colors } from '../../theme/colors';
 import { getLocalizedFontStyle } from '../../theme/typography';
-import { BackIcon, CloseIcon, StarIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { CloseIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
 import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
@@ -235,17 +236,17 @@ export default function RatingListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('ratings')}</Text>
-        <View style={styles.topBarRight}>
+      <ScreenHeader
+        variant="campus"
+        title={t('ratings')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(lang, 'bold')}
+        rightAction={
           <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
             <FigmaSearchIcon26 size={30} />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {showSearch && (
         <View style={styles.searchSection}>
@@ -319,36 +320,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
-  topBarRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
   },
   tabsContainer: {
     paddingHorizontal: 16,

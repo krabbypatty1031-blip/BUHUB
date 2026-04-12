@@ -39,8 +39,8 @@ import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition
 import { useExpirationTick, isExpiredNow } from '../../hooks/useExpirationTick';
 import { ConditionIcon, TradeMethodIcon } from '../../components/functions/DetailInfoIcons';
 import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   ShoppingBagIcon,
   MaleIcon,
   FemaleIcon,
@@ -171,13 +171,13 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
     return (
       <PageTranslationProvider>
         <SafeAreaView style={styles.container}>
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-            <BackIcon size={26} color="#0C1015" />
-          </TouchableOpacity>
-          <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhand')}</Text>
-          <View style={{ width: 20 }} />
-        </View>
+        <ScreenHeader
+          variant="campus"
+          title={t('secondhand')}
+          onBack={handleBack}
+          titleStyle={getLocalizedFontStyle(lang, 'bold')}
+          rightSpacerWidth={20}
+        />
         <View style={styles.emptyContainer}>
           {isItemLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
@@ -204,16 +204,17 @@ export default function SecondhandDetailScreen({ navigation, route }: Props) {
   return (
     <PageTranslationProvider>
       <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('secondhand')}</Text>
-        <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.moreBtn}>
-          <FigmaMoreDotsIcon size={20} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('secondhand')}
+        onBack={handleBack}
+        titleStyle={getLocalizedFontStyle(lang, 'bold')}
+        rightAction={
+          <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.moreBtn}>
+            <FigmaMoreDotsIcon size={20} />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Popover Menu */}
       {popoverVisible && (
@@ -475,32 +476,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  /* ----- Top Bar ----- */
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
   moreBtn: {
     width: 20,
     height: 20,

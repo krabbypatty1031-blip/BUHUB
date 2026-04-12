@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -294,10 +295,20 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    alignSelf: 'stretch',
     ...typography.bodyMedium,
     color: colors.onSurface,
-    paddingVertical: 4,
     paddingHorizontal: 0,
+    ...Platform.select({
+      android: {
+        paddingVertical: 0,
+        textAlignVertical: 'center',
+        includeFontPadding: false,
+      },
+      default: {
+        paddingVertical: 4,
+      },
+    }),
   },
   emptyState: {
     flex: 1,

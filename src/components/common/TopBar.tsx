@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, layout } from '../../theme';
-import { BackIcon } from './icons';
+import { colors } from '../../theme/colors';
+import ScreenHeader from './ScreenHeader';
 
 interface TopBarProps {
   title: string;
@@ -11,64 +11,28 @@ interface TopBarProps {
   transparent?: boolean;
 }
 
+/** Legacy wrapper: safe-area top inset + {@link ScreenHeader} (`variant="default"`). */
 export default function TopBar({ title, onBack, rightAction, transparent }: TopBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[
-      styles.container,
-      { paddingTop: insets.top },
-      transparent && styles.transparent,
-    ]}>
-      <View style={styles.content}>
-        <View style={styles.left}>
-          {onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <BackIcon size={24} color={colors.onSurface} />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        <View style={styles.right}>
-          {rightAction}
-        </View>
-      </View>
+    <View
+      style={[
+        styles.wrap,
+        { paddingTop: insets.top },
+        transparent && styles.transparent,
+      ]}
+    >
+      <ScreenHeader title={title} onBack={onBack} rightAction={rightAction} variant="default" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
   },
   transparent: {
     backgroundColor: 'transparent',
-    borderBottomWidth: 0,
-  },
-  content: {
-    height: layout.navHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  left: {
-    width: 40,
-    alignItems: 'flex-start',
-  },
-  title: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.onSurface,
-    textAlign: 'center',
-  },
-  right: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
-  backBtn: {
-    padding: 4,
   },
 });

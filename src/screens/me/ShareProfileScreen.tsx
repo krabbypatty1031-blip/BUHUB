@@ -21,8 +21,8 @@ import { colors, shareActionThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   DownloadIcon,
   ScanIcon,
 } from '../../components/common/icons';
@@ -71,16 +71,11 @@ export default function ShareProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
-        >
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('shareProfile')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('shareProfile')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -155,31 +150,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   scroll: {
     flex: 1,

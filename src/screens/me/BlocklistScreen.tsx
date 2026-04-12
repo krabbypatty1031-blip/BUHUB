@@ -20,7 +20,8 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
-import { BackIcon, UsersIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { UsersIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Blocklist'>;
@@ -103,13 +104,11 @@ export default function BlocklistScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.6} onPress={() => navigation.goBack()}>
-          <BackIcon size={22} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('blocklist')}</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader
+        title={t('blocklist')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+      />
 
       <FlatList
         data={blockedData || []}
@@ -128,32 +127,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   listContent: {
     paddingVertical: spacing.sm,

@@ -21,7 +21,7 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import Chip from '../../components/common/Chip';
-import { BackIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FeedbackSubmit'>;
 
@@ -89,14 +89,12 @@ export default function FeedbackSubmitScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('feedbackSubmit')}</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('feedbackSubmit')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -190,30 +188,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   scroll: {
     flex: 1,

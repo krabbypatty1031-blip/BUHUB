@@ -26,7 +26,8 @@ import { useProfile } from '../../hooks/useUser';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, getLocalizedFontStyle } from '../../theme/typography';
-import { BackIcon, ChevronRightIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { ChevronRightIcon } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import ScrollPickerSheet from '../../components/common/ScrollPickerSheet';
 import { PRIVACY_URL, TERMS_URL } from '../../config/legal';
@@ -292,14 +293,12 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(currentLanguage, 'bold')]}>{t('settings')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('settings')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(currentLanguage, 'bold')}
+        showBottomBorder={false}
+      />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* ── Section 1: Account & Security ── */}
@@ -562,28 +561,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   scroll: {
     flex: 1,

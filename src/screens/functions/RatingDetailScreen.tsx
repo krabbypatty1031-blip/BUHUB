@@ -26,7 +26,8 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
-import { BackIcon, MoreHorizontalIcon, StarIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { MoreHorizontalIcon, StarIcon } from '../../components/common/icons';
 import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingDetail'>;
@@ -236,16 +237,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   if (!item) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.iconBtn}
-          >
-            <BackIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('ratings')}</Text>
-          <View style={styles.iconBtn} />
-        </View>
+        <ScreenHeader title={t('ratings')} onBack={handleBack} titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }} />
         <View style={styles.loadingContainer}>
           <Text style={styles.emptyText}>{t('notFound')}</Text>
         </View>
@@ -255,22 +247,16 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.iconBtn}
-        >
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{activeCategory ? t(activeCategory) : t('ratings')}</Text>
-        <TouchableOpacity
-          onPress={() => setPopoverVisible(true)}
-          style={styles.iconBtn}
-        >
-          <MoreHorizontalIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={activeCategory ? t(activeCategory) : t('ratings')}
+        onBack={handleBack}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        rightAction={
+          <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.iconBtn}>
+            <MoreHorizontalIcon size={24} color={colors.onSurface} />
+          </TouchableOpacity>
+        }
+      />
 
       {popoverVisible && (
         <TouchableOpacity
@@ -432,32 +418,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* ── Top Bar ── */
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
   iconBtn: {
     width: 48,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   popoverOverlay: {
     ...StyleSheet.absoluteFillObject,

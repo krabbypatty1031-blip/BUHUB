@@ -35,8 +35,8 @@ import PostCard from '../../components/common/PostCard';
 import ForwardSheet from '../../components/common/ForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import SkeletonBox, { ForumListSkeleton } from '../../components/common/Skeleton';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   EditIcon,
   ImageIcon,
   BarChartIcon,
@@ -476,18 +476,16 @@ export default function UserProfileScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle} />
-        <TouchableOpacity onPress={handleOpenActions} style={styles.backBtn}>
-          <MoreHorizontalIcon size={24} color="#0C1015" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        variant="campus"
+        center={<View />}
+        onBack={() => navigation.goBack()}
+        rightAction={
+          <TouchableOpacity onPress={handleOpenActions} style={styles.headerMoreBtn}>
+            <MoreHorizontalIcon size={24} color="#0C1015" />
+          </TouchableOpacity>
+        }
+      />
 
       {popoverVisible && (
         <TouchableOpacity
@@ -607,30 +605,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
+  headerMoreBtn: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   listContent: {
     paddingBottom: 100,

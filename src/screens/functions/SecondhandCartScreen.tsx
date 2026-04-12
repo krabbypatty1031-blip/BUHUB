@@ -28,8 +28,8 @@ import { PageTranslationProvider, PageTranslationToggle } from '../../components
 import { buildChatBackTarget } from '../../utils/chatNavigation';
 import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   MapPinIcon,
   MoreHorizontalIcon,
   ShoppingBagIcon,
@@ -285,13 +285,11 @@ export default function SecondhandCartScreen({ navigation }: Props) {
 
   return (
       <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('tabMyWants')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('tabMyWants')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+      />
 
       <SectionList
         sections={sections}
@@ -386,31 +384,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   listContent: {
     padding: spacing.lg,

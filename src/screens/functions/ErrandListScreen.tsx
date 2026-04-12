@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -31,8 +31,8 @@ import { isCurrentUserFunctionAuthor } from '../../utils/functionAuthor';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   PlusIcon,
   TruckIcon,
 } from '../../components/common/icons';
@@ -182,18 +182,17 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   return (
       <SafeAreaView style={styles.container}>
-      {/* Top Bar — matching Secondhand */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>{t('errands')}</Text>
-        <View style={styles.topBarRight}>
+      <ScreenHeader
+        variant="campus"
+        title={t('errands')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(lang, 'bold')}
+        rightAction={
           <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
             <FigmaSearchIcon26 size={30} />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Search Bar (collapsible) */}
       {showSearch && (
@@ -326,36 +325,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
-  topBarRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
   },
   searchSection: {
     paddingHorizontal: 16,

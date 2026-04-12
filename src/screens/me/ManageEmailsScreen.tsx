@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -22,7 +22,7 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import type { LinkedEmail, User } from '../../types';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'ManageEmails'>;
@@ -212,13 +212,12 @@ export default function ManageEmailsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('manageEmails')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('manageEmails')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        showBottomBorder={false}
+      />
 
       <KeyboardAvoidingView
         style={styles.content}
@@ -335,29 +334,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   content: {
     flex: 1,

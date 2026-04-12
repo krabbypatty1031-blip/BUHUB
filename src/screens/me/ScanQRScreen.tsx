@@ -14,7 +14,8 @@ import type { MeStackParamList } from '../../types/navigation';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
-import { BackIcon, ScanIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { ScanIcon } from '../../components/common/icons';
 import { useUIStore } from '../../store/uiStore';
 
 const QR_PREFIX = 'ulink://user/';
@@ -65,13 +66,12 @@ export default function ScanQRScreen({ navigation }: Props) {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <BackIcon size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>{t('scanQR')}</Text>
-          <View style={styles.iconBtn} />
-        </View>
+        <ScreenHeader
+          title={t('scanQR')}
+          onBack={() => navigation.goBack()}
+          titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+          backgroundColor={colors.background}
+        />
         <View style={styles.center}>
           <ScanIcon size={48} color={colors.onSurfaceVariant} />
           <Text style={styles.permissionTitle}>{t('permissionNeededTitle')}</Text>
@@ -86,13 +86,15 @@ export default function ScanQRScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <BackIcon size={24} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, { color: colors.white }]}>{t('scanQR')}</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('scanQR')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold', color: colors.white }}
+        backIconColor={colors.white}
+        backgroundColor="transparent"
+        showBottomBorder={false}
+        style={{ zIndex: 10 }}
+      />
 
       <View style={styles.cameraContainer}>
         <CameraView
@@ -145,30 +147,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     gap: spacing.md,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    zIndex: 10,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   permissionTitle: {
     ...typography.titleMedium,

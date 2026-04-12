@@ -17,8 +17,8 @@ import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  CloseIcon,
   ClockIcon,
   MapPinIcon,
   PackageIcon,
@@ -199,24 +199,24 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <CloseIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t(isEditMode ? 'editPost' : 'newErrandPost')}</Text>
-        <TouchableOpacity
-          style={[styles.postBtn, (!canPost || isPosting) && styles.postBtnDisabled]}
-          onPress={handlePost}
-          disabled={!canPost || isPosting}
-        >
-          <Text
-            style={[styles.postBtnText, (!canPost || isPosting) && styles.postBtnTextDisabled]}
+      <ScreenHeader
+        title={t(isEditMode ? 'editPost' : 'newErrandPost')}
+        onBack={() => navigation.goBack()}
+        leading="close"
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        showBottomBorder={false}
+        rightAction={
+          <TouchableOpacity
+            style={[styles.postBtn, (!canPost || isPosting) && styles.postBtnDisabled]}
+            onPress={handlePost}
+            disabled={!canPost || isPosting}
           >
-            {t(isEditMode ? 'save' : 'publishBtn')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text style={[styles.postBtnText, (!canPost || isPosting) && styles.postBtnTextDisabled]}>
+              {t(isEditMode ? 'save' : 'publishBtn')}
+            </Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -413,32 +413,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surface,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   postBtn: {
     backgroundColor: colors.primary,

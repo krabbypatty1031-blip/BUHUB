@@ -17,7 +17,8 @@ import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/spacing';
 import { getLocalizedFontStyle } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
-import { BackIcon, PlusIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { PlusIcon } from '../../components/common/icons';
 import { getRelativeTime } from '../../utils/formatTime';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FeedbackList'>;
@@ -107,16 +108,12 @@ export default function FeedbackListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(lang, 'bold')]}>
-          {t('feedbackList')}
-        </Text>
-        <View style={styles.spacer} />
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('feedbackList')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(lang, 'bold')}
+      />
 
       {/* Feedback List */}
       <FlatList
@@ -162,36 +159,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-
-  /* Top Bar */
-  topBar: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 12,
-    paddingRight: 16,
-  },
-  backBtn: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
-  spacer: {
-    width: 26,
   },
 
   /* List */

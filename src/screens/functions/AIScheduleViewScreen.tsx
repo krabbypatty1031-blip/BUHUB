@@ -14,7 +14,7 @@ import * as MediaLibrary from 'expo-media-library';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { ScheduleCourse } from '../../types/schedule';
-import { BackIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import { DownloadIcon, ReuploadIcon } from '../../components/functions/AIScheduleIcons';
 import WeekCalendarHeader from '../../components/functions/WeekCalendarHeader';
 import TimetableGrid from '../../components/functions/TimetableGrid';
@@ -185,30 +185,22 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('aiScheduleTitle')}</Text>
-        <View style={styles.topBarRight}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleExport}
-          >
-            <DownloadIcon size={24} color="#0C1015" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleReupload}
-          >
-            <ReuploadIcon size={24} color="#0C1015" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('aiScheduleTitle')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        rightAction={
+          <View style={styles.topBarRight}>
+            <TouchableOpacity activeOpacity={0.7} onPress={handleExport}>
+              <DownloadIcon size={24} color="#0C1015" />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={handleReupload}>
+              <ReuploadIcon size={24} color="#0C1015" />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Week Calendar Header */}
       <WeekCalendarHeader
@@ -276,35 +268,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  topBar: {
-    height: 62,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginLeft: 12,
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontFamily: 'SourceHanSansCN-Bold',
-    fontSize: 18,
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginLeft: 'auto',
-    marginRight: 16,
   },
   offscreen: {
     position: 'absolute',

@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { BackIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import LoadingDots from '../../components/common/LoadingDots';
 import { UploadImageIcon, AISparkleIcon, CloseCircleIcon } from '../../components/functions/AIScheduleIcons';
 import ImageSourcePopover from '../../components/functions/ImageSourcePopover';
@@ -270,16 +270,12 @@ export default function AIScheduleUploadScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <BackIcon size={26} color="#0C1015" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{t('uploadSchedule')}</Text>
-      </View>
+      <ScreenHeader
+        variant="campus"
+        title={t('uploadSchedule')}
+        onBack={() => navigation.goBack()}
+        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+      />
 
       {/* Content area with gray background */}
       <View style={styles.contentArea}>
@@ -348,31 +344,6 @@ const styles = StyleSheet.create({
   contentArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-
-  // Top Bar
-  topBar: {
-    height: 62,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginLeft: 12,
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontFamily: 'SourceHanSansCN-Bold',
-    fontSize: 18,
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
 
   // Title Section

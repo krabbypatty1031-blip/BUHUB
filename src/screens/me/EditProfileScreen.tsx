@@ -27,8 +27,8 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import { normalizeAvatarUrl } from '../../utils/imageUrl';
 import Avatar from '../../components/common/Avatar';
+import ScreenHeader from '../../components/common/ScreenHeader';
 import {
-  BackIcon,
   CameraIcon,
   ChevronRightIcon,
 } from '../../components/common/icons';
@@ -110,37 +110,33 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
-        >
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(i18n.language, 'bold')]}>
-          {t('editProfile')}
-        </Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={styles.saveBtn}
-          disabled={isSaving || updateProfile.isPending}
-          activeOpacity={0.7}
-        >
-          {isSaving || updateProfile.isPending ? (
-            <ActivityIndicator size="small" color={colors.onPrimary} />
-          ) : (
-            <Text
-              style={[styles.saveBtnText, getLocalizedFontStyle(i18n.language, 'medium')]}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-              numberOfLines={1}
-            >
-              {t('save')}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={t('editProfile')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(i18n.language, 'bold')}
+        showBottomBorder
+        rightAction={
+          <TouchableOpacity
+            onPress={handleSave}
+            style={styles.saveBtn}
+            disabled={isSaving || updateProfile.isPending}
+            activeOpacity={0.7}
+          >
+            {isSaving || updateProfile.isPending ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Text
+                style={[styles.saveBtnText, getLocalizedFontStyle(i18n.language, 'medium')]}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                numberOfLines={1}
+              >
+                {t('save')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -308,37 +304,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 
-  /* ── Top Bar ── */
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    color: '#0C1015',
-    pointerEvents: 'none',
-  },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginLeft: 'auto',
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

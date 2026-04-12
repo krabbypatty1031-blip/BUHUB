@@ -20,7 +20,8 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
-import { BackIcon, HeartIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import { HeartIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
 type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyLikes'>;
@@ -128,18 +129,11 @@ export default function NotifyLikesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconBtn}
-        >
-          <BackIcon size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, getLocalizedFontStyle(language, 'bold')]}>
-          {t('likeNotifications')}
-        </Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader
+        title={t('likeNotifications')}
+        onBack={() => navigation.goBack()}
+        titleStyle={getLocalizedFontStyle(language, 'bold')}
+      />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -170,30 +164,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  topBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.outlineVariant,
-  },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
-    color: '#0C1015',
-    pointerEvents: 'none',
   },
   loadingContainer: {
     flex: 1,
