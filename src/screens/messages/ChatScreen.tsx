@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  Keyboard,
   Linking,
 } from 'react-native';
 import type { ScrollViewProps } from 'react-native';
@@ -1991,7 +1992,7 @@ function ChatScreenContent({ navigation, route }: Props) {
    * Must be the measured height of the entire composer column (reply/forward + input + menu), not piecemeal growth.
    */
   const composerBlockHeightSV = useSharedValue(0);
-  const chatListBlankSpaceZero = useSharedValue(0);
+  const chatListBlankSpace = useSharedValue(0);
   const composerScrollFrameRef = useRef<number | null>(null);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
@@ -2036,9 +2037,14 @@ function ChatScreenContent({ navigation, route }: Props) {
   >({});
   const composerSendLockRef = useRef(false);
   const isMountedRef = useRef(true);
+  const kbScrollSubRef = useRef<ReturnType<typeof Keyboard.addListener> | null>(null);
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+      kbScrollSubRef.current?.remove();
+      kbScrollSubRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -3218,10 +3224,10 @@ function ChatScreenContent({ navigation, route }: Props) {
         inverted
         keyboardLiftBehavior="always"
         offset={keyboardChatScrollOffset}
-        blankSpace={chatListBlankSpaceZero}
+        blankSpace={chatListBlankSpace}
       />
     ),
-    [keyboardChatScrollOffset, chatListBlankSpaceZero]
+    [keyboardChatScrollOffset, chatListBlankSpace]
   );
 
   useEffect(() => {
@@ -3391,14 +3397,14 @@ function ChatScreenContent({ navigation, route }: Props) {
   }));
 
   /* ----- Auto-scroll to bottom when data changes ----- */
-  const scrollToLatest = useCallback((force = false) => {
+  const scrollToLatest = useCallback((force = false, animated = false) => {
     if (listData.length === 0) return;
     const shouldAutoScroll = force || isNearLatestRef.current || anchorToLatestRef.current;
     if (!shouldAutoScroll) return;
     if (pendingNewMessageCountRef.current > 0) {
       setPendingNewMessageCount(0);
     }
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated });
   }, [listData.length]);
 
   const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -3496,10 +3502,17 @@ function ChatScreenContent({ navigation, route }: Props) {
       anchorToLatestRef.current ||
       (hasNewMessages && isNearLatestRef.current)
     ) {
-      if (shouldForceLatestOnReadyRef.current) {
+      const wasForceInit = shouldForceLatestOnReadyRef.current;
+      if (wasForceInit) {
         shouldForceLatestOnReadyRef.current = false;
       }
-      scrollToLatest(true);
+      // On initial load, always force-scroll to position latest messages.
+      // Otherwise, when already near latest, skip explicit scroll —
+      // new content appears at the bottom of the inverted list naturally,
+      // and scrollToOffset(0) conflicts with KeyboardChatScrollView's keyboard inset.
+      if (wasForceInit || !isNearLatestRef.current) {
+        scrollToLatest(true);
+      }
       return;
     }
     if (hasNewMessages) {
@@ -4436,7 +4449,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const handlePressNewMessageHint = useCallback(() => {
     anchorToLatestRef.current = true;
     setPendingNewMessageCount(0);
-    scrollToLatest(true);
+    scrollToLatest(true, true);
   }, [scrollToLatest]);
 
   const beginReplyingToMessage = useCallback((message: ChatMessage) => {
@@ -4689,10 +4702,10 @@ function ChatScreenContent({ navigation, route }: Props) {
         ) : null}
 
         {/* Input Bar */}
-        <KeyboardStickyView>
+        <KeyboardStickyView offset={{ closed: 0, opened: composerBottomInset }}>
         {isComposerAvailabilityLoading ? (
           <View
-            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset, backgroundColor: '#FFFFFF' }]}
             onLayout={handleLoadingComposerLayout}
           >
             <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
@@ -4700,7 +4713,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           </View>
         ) : hkbuBindingRequired ? (
           <View
-            style={[styles.noticeBar, { paddingBottom: composerBottomInset }]}
+            style={[styles.noticeBar, { paddingBottom: composerBottomInset, backgroundColor: '#FFFFFF' }]}
             onLayout={handleLoadingComposerLayout}
           >
             <Text style={styles.waitingText}>{t('messageEmailBindingRequired')}</Text>
@@ -4710,21 +4723,21 @@ function ChatScreenContent({ navigation, route }: Props) {
           </View>
         ) : waitingForReply ? (
           <View
-            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset, backgroundColor: '#FFFFFF' }]}
             onLayout={handleLoadingComposerLayout}
           >
             <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
           </View>
         ) : messageSendBlocked ? (
           <View
-            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset, backgroundColor: '#FFFFFF' }]}
             onLayout={handleLoadingComposerLayout}
           >
             <Text style={styles.waitingText}>{t('cannotMessageUser')}</Text>
           </View>
         ) : (
           <View
-            style={{ paddingBottom: composerBottomInset }}
+            style={{ paddingBottom: composerBottomInset, backgroundColor: '#FFFFFF' }}
             onLayout={handleComposerBlockLayout}
             collapsable={false}
           >
@@ -4838,6 +4851,20 @@ function ChatScreenContent({ navigation, route }: Props) {
                     textAlignVertical="center"
                     onFocus={() => {
                       setPlusMenuOpen(false);
+                      anchorToLatestRef.current = true;
+                      // Smooth scroll to latest AFTER keyboard fully appears.
+                      // KeyboardChatScrollView calls scrollTo during the keyboard animation,
+                      // which cancels any concurrent animated scroll — so we wait for keyboardDidShow.
+                      // For inverted lists the library sets contentInset.top = keyboardPadding;
+                      // offset -kbHeight scrolls into that inset area to position newest messages
+                      // above the keyboard rather than behind it.
+                      kbScrollSubRef.current?.remove();
+                      kbScrollSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
+                        kbScrollSubRef.current?.remove();
+                        kbScrollSubRef.current = null;
+                        const kbHeight = e.endCoordinates.height;
+                        flatListRef.current?.scrollToOffset({ offset: -kbHeight, animated: true });
+                      });
                     }}
                   />
                 </View>

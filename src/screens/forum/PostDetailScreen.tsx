@@ -1752,7 +1752,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           keyboardDismissMode="on-drag"
         />
 
-        <KeyboardStickyView>
+        <KeyboardStickyView offset={{ closed: 0, opened: Math.max(composerBottomInset - spacing.sm, 0) }}>
           {/* @ Mention Suggestions */}
           {showMentions && (
             <View style={styles.mentionOverlay}>
