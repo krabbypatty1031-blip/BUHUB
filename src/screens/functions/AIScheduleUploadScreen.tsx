@@ -397,11 +397,11 @@ const styles = StyleSheet.create({
 
   // Upload Area
   uploadAreaWrapper: {
-    marginLeft: 24,
     marginTop: 34,
+    paddingHorizontal: 24,
   },
   uploadArea: {
-    width: 342,
+    width: '100%',
     height: 241,
     borderRadius: 10,
     borderWidth: 1,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
 
   // Image Preview
   imagePreviewContainer: {
-    width: 342,
+    width: '100%',
     height: 241,
     borderRadius: 12,
     borderWidth: 1,
@@ -478,6 +478,7 @@ const styles = StyleSheet.create({
   // Notice Section
   noticeSection: {
     marginLeft: 24,
+    marginRight: 24,
     marginTop: 32,
   },
   noticeTitle: {
@@ -503,10 +504,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'flex-start',
     paddingTop: 12,
+    paddingHorizontal: 24,
   },
   parseButton: {
-    marginLeft: 24,
-    width: 342,
+    width: '100%',
     height: 46,
     borderRadius: 13,
     alignItems: 'center',

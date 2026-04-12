@@ -127,6 +127,8 @@ const ChatScrollView = React.forwardRef<any, ScrollViewProps>((props, ref) => {
       ref={ref}
       automaticallyAdjustContentInsets={false}
       contentInsetAdjustmentBehavior="never"
+      inverted
+      keyboardLiftBehavior="whenAtEnd"
       offset={bottom}
       extraContentPadding={extraContentPaddingRef.current}
       {...props}
@@ -2018,6 +2020,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const replyComposerDragX = useSharedValue(0);
   const replyComposerDragY = useSharedValue(0);
   const extraContentPadding = useSharedValue(0);
+  const composerScrollFrameRef = useRef<number | null>(null);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
   const liveTranscriptionTextRef = useRef('');
@@ -2025,10 +2028,30 @@ function ChatScreenContent({ navigation, route }: Props) {
   const liveSpeechActiveRef = useRef(false);
   const liveSpeechDesiredRef = useRef(false);
 
+  const keepLatestVisibleAfterComposerChange = useCallback(() => {
+    if (!isNearLatestRef.current && !anchorToLatestRef.current) return;
+    if (composerScrollFrameRef.current !== null) {
+      cancelAnimationFrame(composerScrollFrameRef.current);
+    }
+    composerScrollFrameRef.current = requestAnimationFrame(() => {
+      composerScrollFrameRef.current = null;
+      if (!isNearLatestRef.current && !anchorToLatestRef.current) return;
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (composerScrollFrameRef.current !== null) {
+      cancelAnimationFrame(composerScrollFrameRef.current);
+      composerScrollFrameRef.current = null;
+    }
+  }, []);
+
   const handleChatInputTextChange = useCallback((text: string) => {
     setInputText(text);
     updateChatInputHeightByText(text);
-  }, [updateChatInputHeightByText]);
+    keepLatestVisibleAfterComposerChange();
+  }, [keepLatestVisibleAfterComposerChange, updateChatInputHeightByText]);
 
   const handleInputBarLayout = useCallback((e: LayoutChangeEvent) => {
     const height = e.nativeEvent.layout.height;
@@ -2036,7 +2059,8 @@ function ChatScreenContent({ navigation, route }: Props) {
       Math.max(height - CHAT_INPUT_MIN_HEIGHT, 0),
       { duration: 250 }
     );
-  }, [extraContentPadding]);
+    keepLatestVisibleAfterComposerChange();
+  }, [extraContentPadding, keepLatestVisibleAfterComposerChange]);
 
   useEffect(() => {
     if (inputText.length === 0) {
@@ -2152,7 +2176,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   }, []);
 
   const composerBottomInset = isKeyboardVisible
-    ? spacing.sm
+    ? 0
     : Math.max(insets.bottom, spacing.sm);
 
   const clearLiveTranscription = useCallback(() => {
@@ -4793,11 +4817,17 @@ function ChatScreenContent({ navigation, route }: Props) {
                     placeholderTextColor="#86909C"
                     value={inputText}
                     onChangeText={handleChatInputTextChange}
-                    onContentSizeChange={handleChatInputContentSizeChange}
+                    onContentSizeChange={(event) => {
+                      handleChatInputContentSizeChange(event);
+                      keepLatestVisibleAfterComposerChange();
+                    }}
                     multiline
                     scrollEnabled={isChatInputScrollEnabled}
                     textAlignVertical="center"
-                    onFocus={() => setPlusMenuOpen(false)}
+                    onFocus={() => {
+                      setPlusMenuOpen(false);
+                      keepLatestVisibleAfterComposerChange();
+                    }}
                   />
                 </View>
 
