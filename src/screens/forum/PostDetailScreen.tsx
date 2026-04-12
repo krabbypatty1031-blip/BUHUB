@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Animated,
@@ -15,6 +14,7 @@ import {
   Keyboard,
   Alert,
 } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -867,7 +867,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const [reportTargetCommentId, setReportTargetCommentId] = useState<string | null>(null);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [commentActionVisible, setCommentActionVisible] = useState(false);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
@@ -890,20 +889,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  const composerBottomInset = isKeyboardVisible
-    ? 0
-    : Math.max(insets.bottom, spacing.sm);
+  /** Stable inset avoids layout jumps when toggling keyboard; KeyboardStickyView already tracks the keyboard. */
+  const composerBottomInset = Math.max(insets.bottom, spacing.sm);
 
   const targetCommentIndex = useMemo(() => {
     if (!commentId || !comments) return -1;
@@ -1751,13 +1738,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       )}
 
-      <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <View style={styles.flex1}>
         <FlatList
           ref={flatListRef}
+          style={styles.flex1}
           data={commentsData}
           ListHeaderComponent={headerComponent}
           renderItem={renderCommentItem}
@@ -1768,79 +1752,81 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           keyboardDismissMode="on-drag"
         />
 
-        {/* @ Mention Suggestions */}
-        {showMentions && (
-          <View style={styles.mentionOverlay}>
-            <Text style={styles.mentionHeader}>{t('mentionContact')}</Text>
-            <ScrollView
-              keyboardShouldPersistTaps="always"
-              style={styles.mentionScroll}
-            >
-              {mentionSuggestions.map((candidate) => (
-                <TouchableOpacity
-                  key={candidate.key}
-                  style={styles.mentionItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleMentionSelect(candidate)}
-                >
-                  <Avatar text={candidate.name} uri={candidate.avatar} size="sm" gender={candidate.gender} />
-                  <View style={styles.mentionTextWrap}>
-                    <Text style={styles.mentionName}>{candidate.name}</Text>
-                    <Text style={styles.mentionMeta}>@{candidate.mentionValue}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        <KeyboardStickyView>
+          {/* @ Mention Suggestions */}
+          {showMentions && (
+            <View style={styles.mentionOverlay}>
+              <Text style={styles.mentionHeader}>{t('mentionContact')}</Text>
+              <ScrollView
+                keyboardShouldPersistTaps="always"
+                style={styles.mentionScroll}
+              >
+                {mentionSuggestions.map((candidate) => (
+                  <TouchableOpacity
+                    key={candidate.key}
+                    style={styles.mentionItem}
+                    activeOpacity={0.7}
+                    onPress={() => handleMentionSelect(candidate)}
+                  >
+                    <Avatar text={candidate.name} uri={candidate.avatar} size="sm" gender={candidate.gender} />
+                    <View style={styles.mentionTextWrap}>
+                      <Text style={styles.mentionName}>{candidate.name}</Text>
+                      <Text style={styles.mentionMeta}>@{candidate.mentionValue}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
-        {/* Comment Input Bar */}
-        <View style={[styles.commentInputBar, { paddingBottom: composerBottomInset }]}>
-          <View pointerEvents="none" style={styles.composerBgExtension} />
-          <View style={styles.anonToggle}>
-            <IOSSwitch
-              value={isAnonymous}
-              onValueChange={setIsAnonymous}
-              activeColor={colors.onSurface}
-              thumbIcon={
-                <Text
-                  style={{
-                    fontSize: i18n.language === 'en' ? 9 : 11,
-                    fontWeight: '700',
-                    color: colors.onSurface,
-                  }}
-                >
-                  {t('anonLabel')}
-                </Text>
+          {/* Comment Input Bar */}
+          <View style={[styles.commentInputBar, { paddingBottom: composerBottomInset }]}>
+            <View pointerEvents="none" style={styles.composerBgExtension} />
+            <View style={styles.anonToggle}>
+              <IOSSwitch
+                value={isAnonymous}
+                onValueChange={setIsAnonymous}
+                activeColor={colors.onSurface}
+                thumbIcon={
+                  <Text
+                    style={{
+                      fontSize: i18n.language === 'en' ? 9 : 11,
+                      fontWeight: '700',
+                      color: colors.onSurface,
+                    }}
+                  >
+                    {t('anonLabel')}
+                  </Text>
+                }
+              />
+            </View>
+            <TextInput
+              ref={inputRef}
+              style={[styles.commentInput, isAnonymous && styles.commentInputAnon]}
+              placeholder={
+                replyTo
+                  ? `${t('replyTo')} ${replyTo.name}`
+                  : t('writeComment')
               }
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              textAlignVertical="top"
             />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!commentText.trim() || createCommentMutation.isPending) && styles.sendBtnDisabled]}
+              onPress={handleSendComment}
+              disabled={!commentText.trim() || createCommentMutation.isPending}
+            >
+              <SendIcon
+                size={20}
+                color={commentText.trim() ? colors.onPrimary : colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
           </View>
-          <TextInput
-            ref={inputRef}
-            style={[styles.commentInput, isAnonymous && styles.commentInputAnon]}
-            placeholder={
-              replyTo
-                ? `${t('replyTo')} ${replyTo.name}`
-                : t('writeComment')
-            }
-            placeholderTextColor={colors.onSurfaceVariant}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline
-            textAlignVertical="top"
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!commentText.trim() || createCommentMutation.isPending) && styles.sendBtnDisabled]}
-            onPress={handleSendComment}
-            disabled={!commentText.trim() || createCommentMutation.isPending}
-          >
-            <SendIcon
-              size={20}
-              color={commentText.trim() ? colors.onPrimary : colors.onSurfaceVariant}
-            />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </View>
 
       {/* Forward Sheet */}
       <ForwardSheet

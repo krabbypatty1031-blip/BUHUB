@@ -7,10 +7,10 @@ import {
   Modal,
   StyleSheet,
   useWindowDimensions,
-  KeyboardAvoidingView,
   Platform,
   TextInput,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 import { CommonActions } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography } from '../../theme';

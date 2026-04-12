@@ -8,7 +8,9 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, borderRadius, typography, elevation } from '../../theme';
 
@@ -57,6 +59,10 @@ export default function ReportModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.kavRoot}
+      >
       <Pressable
         style={[styles.overlay, overlayTransparent && styles.overlayTransparent]}
         onPress={handleClose}
@@ -107,11 +113,15 @@ export default function ReportModal({
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: colors.scrim,

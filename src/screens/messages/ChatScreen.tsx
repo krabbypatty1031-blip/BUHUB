@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
-  Keyboard,
   Linking,
 } from 'react-native';
 import type { ScrollViewProps } from 'react-native';
@@ -116,27 +115,6 @@ import {
 } from '../../utils/messageCache';
 import { recordMessageMetric, recordTimedMessageMetric } from '../../utils/messageMetrics';
 import type { ChatHistoryChunk, SendMessagePayload } from '../../api/services/message.service';
-
-// Module-level ref for extraContentPadding shared value (set by ChatScreen instance)
-const extraContentPaddingRef = { current: undefined as any };
-
-const ChatScrollView = React.forwardRef<any, ScrollViewProps>((props, ref) => {
-  const { bottom } = useSafeAreaInsets();
-  return (
-    <KeyboardChatScrollView
-      ref={ref}
-      automaticallyAdjustContentInsets={false}
-      contentInsetAdjustmentBehavior="never"
-      inverted
-      keyboardLiftBehavior="whenAtEnd"
-      offset={bottom}
-      extraContentPadding={extraContentPaddingRef.current}
-      {...props}
-    />
-  );
-});
-
-ChatScrollView.displayName = 'ChatScrollView';
 
 const MIN_RECORD_DURATION_MS = 1000;
 const MAX_RECORD_DURATION_MS = 60000;
@@ -1723,8 +1701,10 @@ function ChatScreenPlaceholder({ navigation, route }: Props) {
     return <ChatScreenContent navigation={navigation} route={route} />;
   }
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <BackIcon size={24} color={colors.onSurface} />
@@ -1737,7 +1717,7 @@ function ChatScreenPlaceholder({ navigation, route }: Props) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1885,19 +1865,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const plusMenuOpenRef = useRef(false);
   plusMenuOpenRef.current = plusMenuOpen;
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       shouldForceLatestOnReadyRef.current = true;
@@ -2019,7 +1986,12 @@ function ChatScreenContent({ navigation, route }: Props) {
   const replyComposerTranslateY = useSharedValue(8);
   const replyComposerDragX = useSharedValue(0);
   const replyComposerDragY = useSharedValue(0);
-  const extraContentPadding = useSharedValue(0);
+  /**
+   * Single source of truth for KeyboardChatScrollView: totalPadding = keyboard + extra (blankSpace 0).
+   * Must be the measured height of the entire composer column (reply/forward + input + menu), not piecemeal growth.
+   */
+  const composerBlockHeightSV = useSharedValue(0);
+  const chatListBlankSpaceZero = useSharedValue(0);
   const composerScrollFrameRef = useRef<number | null>(null);
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleHoldToTalkReleaseRef = useRef<(() => Promise<void>) | null>(null);
@@ -2050,17 +2022,7 @@ function ChatScreenContent({ navigation, route }: Props) {
   const handleChatInputTextChange = useCallback((text: string) => {
     setInputText(text);
     updateChatInputHeightByText(text);
-    keepLatestVisibleAfterComposerChange();
-  }, [keepLatestVisibleAfterComposerChange, updateChatInputHeightByText]);
-
-  const handleInputBarLayout = useCallback((e: LayoutChangeEvent) => {
-    const height = e.nativeEvent.layout.height;
-    extraContentPadding.value = withTiming(
-      Math.max(height - CHAT_INPUT_MIN_HEIGHT, 0),
-      { duration: 250 }
-    );
-    keepLatestVisibleAfterComposerChange();
-  }, [extraContentPadding, keepLatestVisibleAfterComposerChange]);
+  }, [updateChatInputHeightByText]);
 
   useEffect(() => {
     if (inputText.length === 0) {
@@ -2087,6 +2049,7 @@ function ChatScreenContent({ navigation, route }: Props) {
     setHasOlderHistory(false);
     setShowOlderHistoryLoading(false);
     setIsInitialLatestPositionReady(false);
+    composerBlockHeightSV.value = 0;
     setPendingNewMessageCount(0);
     setTransientMediaVersion(0);
     olderHistoryAppendCounterRef.current = 0;
@@ -2175,9 +2138,8 @@ function ChatScreenContent({ navigation, route }: Props) {
     };
   }, []);
 
-  const composerBottomInset = isKeyboardVisible
-    ? 0
-    : Math.max(insets.bottom, spacing.sm);
+  /** Do not toggle with keyboard — pairs with KeyboardStickyView; toggling caused post-dismiss gap (extra inset vs composer height). */
+  const composerBottomInset = Math.max(insets.bottom, spacing.sm);
 
   const clearLiveTranscription = useCallback(() => {
     liveTranscriptionTextRef.current = '';
@@ -3224,6 +3186,43 @@ function ChatScreenContent({ navigation, route }: Props) {
   const hkbuBindingRequired = canSendReason === 'HKBU_BIND_REQUIRED';
   const messageSendBlocked = canSendReason === 'BLOCKED' || canSendReason === 'SELF';
   // Typing indicator state is consumed via typingState in the useEffect below
+
+  /** Tab bar hidden on Chat — full keyboard lift; safe area in composer padding only. */
+  const keyboardChatScrollOffset = 0;
+
+  const handleLoadingComposerLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height;
+      composerBlockHeightSV.value = h > 0 ? h : 0;
+      keepLatestVisibleAfterComposerChange();
+    },
+    [composerBlockHeightSV, keepLatestVisibleAfterComposerChange]
+  );
+
+  const handleComposerBlockLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height;
+      if (h > 0) {
+        composerBlockHeightSV.value = h;
+      }
+    },
+    [composerBlockHeightSV]
+  );
+
+  const renderChatScrollComponent = useCallback(
+    (props: ScrollViewProps) => (
+      <KeyboardChatScrollView
+        {...props}
+        automaticallyAdjustContentInsets={false}
+        contentInsetAdjustmentBehavior="never"
+        inverted
+        keyboardLiftBehavior="always"
+        offset={keyboardChatScrollOffset}
+        blankSpace={chatListBlankSpaceZero}
+      />
+    ),
+    [keyboardChatScrollOffset, chatListBlankSpaceZero]
+  );
 
   useEffect(() => {
     if (waitingForReply && isVoiceMode) {
@@ -4584,10 +4583,8 @@ function ChatScreenContent({ navigation, route }: Props) {
   const actionCanRecall = canRecallMessage(actionTarget);
   const canSubmitComposer = hasText || Boolean(pendingForwardPreview);
 
-  extraContentPaddingRef.current = extraContentPadding;
-
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -4608,7 +4605,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         <FlashList
           key={`chat-list-${contactId}`}
           ref={flatListRef}
-          renderScrollComponent={ChatScrollView}
+          renderScrollComponent={renderChatScrollComponent}
           data={listData}
           extraData={audioPlaybackState}
           style={{
@@ -4694,75 +4691,93 @@ function ChatScreenContent({ navigation, route }: Props) {
         {/* Input Bar */}
         <KeyboardStickyView>
         {isComposerAvailabilityLoading ? (
-          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
+          <View
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            onLayout={handleLoadingComposerLayout}
+          >
             <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
             <Text style={styles.waitingText}>{t('loading')}</Text>
           </View>
         ) : hkbuBindingRequired ? (
-          <View style={[styles.noticeBar, { paddingBottom: composerBottomInset }]}>
+          <View
+            style={[styles.noticeBar, { paddingBottom: composerBottomInset }]}
+            onLayout={handleLoadingComposerLayout}
+          >
             <Text style={styles.waitingText}>{t('messageEmailBindingRequired')}</Text>
             <TouchableOpacity style={styles.noticeButton} onPress={handleOpenManageEmails}>
               <Text style={styles.noticeButtonText}>{t('bindNow')}</Text>
             </TouchableOpacity>
           </View>
         ) : waitingForReply ? (
-          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
+          <View
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            onLayout={handleLoadingComposerLayout}
+          >
             <Text style={styles.waitingText}>{t('waitingForReply')}</Text>
           </View>
         ) : messageSendBlocked ? (
-          <View style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}>
+          <View
+            style={[styles.waitingBar, { paddingBottom: composerBottomInset }]}
+            onLayout={handleLoadingComposerLayout}
+          >
             <Text style={styles.waitingText}>{t('cannotMessageUser')}</Text>
           </View>
         ) : (
-          <View onLayout={handleInputBarLayout} style={{ paddingBottom: composerBottomInset }}>
+          <View
+            style={{ paddingBottom: composerBottomInset }}
+            onLayout={handleComposerBlockLayout}
+            collapsable={false}
+          >
             <View pointerEvents="none" style={styles.composerBgExtension} />
-            {replyTarget ? (
-              <GestureDetector gesture={replyComposerGesture}>
-                <Animated.View style={[styles.replyComposer, replyComposerAnimatedStyle]}>
-                  <View style={styles.replyComposerTextWrap}>
-                    <Text style={styles.replyComposerLabel}>
-                      {`${t('replyAction')} ${activeReplyPayload?.fromName || (activeReplyPayload?.from === 'me' ? myAvatarText : theirAvatarText)}`}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.replyComposerText}>
-                      {activeReplyPayload ? formatReplyReferenceText(activeReplyPayload, t) : buildReplyPreview(replyTarget)}
-                    </Text>
-                  </View>
-                  {activeReplyPayload ? <ReplyReferenceAccessory replyTo={activeReplyPayload} /> : null}
-                  <TouchableOpacity
-                    style={styles.replyComposerClose}
-                    onPress={() => setReplyTarget(null)}
-                    activeOpacity={0.7}
-                  >
-                    <CloseIcon size={18} color={colors.onSurfaceVariant} />
-                  </TouchableOpacity>
-                </Animated.View>
-              </GestureDetector>
-            ) : null}
-            {pendingForwardPreview ? (
-              <View style={styles.pendingForwardComposer}>
-                <View style={styles.pendingForwardCard}>
-                  <View style={styles.pendingForwardCardTopRow}>
-                    <View style={styles.pendingForwardIconCircle}>
-                      {(() => {
-                        const IconComp = TYPE_ICONS[pendingForwardPreview.type];
-                        return <IconComp size={16} color={CARD_THEME.receivedText} />;
-                      })()}
+            <View>
+              {replyTarget ? (
+                <GestureDetector gesture={replyComposerGesture}>
+                  <Animated.View style={[styles.replyComposer, replyComposerAnimatedStyle]}>
+                    <View style={styles.replyComposerTextWrap}>
+                      <Text style={styles.replyComposerLabel}>
+                        {`${t('replyAction')} ${activeReplyPayload?.fromName || (activeReplyPayload?.from === 'me' ? myAvatarText : theirAvatarText)}`}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.replyComposerText}>
+                        {activeReplyPayload ? formatReplyReferenceText(activeReplyPayload, t) : buildReplyPreview(replyTarget)}
+                      </Text>
                     </View>
-                    <Text style={styles.pendingForwardLabel}>{pendingForwardPreview.typeLabel}</Text>
+                    {activeReplyPayload ? <ReplyReferenceAccessory replyTo={activeReplyPayload} /> : null}
                     <TouchableOpacity
                       style={styles.replyComposerClose}
-                      onPress={() => setPendingForwardConfirmKey(null)}
+                      onPress={() => setReplyTarget(null)}
                       activeOpacity={0.7}
                     >
                       <CloseIcon size={18} color={colors.onSurfaceVariant} />
                     </TouchableOpacity>
+                  </Animated.View>
+                </GestureDetector>
+              ) : null}
+              {pendingForwardPreview ? (
+                <View style={styles.pendingForwardComposer}>
+                  <View style={styles.pendingForwardCard}>
+                    <View style={styles.pendingForwardCardTopRow}>
+                      <View style={styles.pendingForwardIconCircle}>
+                        {(() => {
+                          const IconComp = TYPE_ICONS[pendingForwardPreview.type];
+                          return <IconComp size={16} color={CARD_THEME.receivedText} />;
+                        })()}
+                      </View>
+                      <Text style={styles.pendingForwardLabel}>{pendingForwardPreview.typeLabel}</Text>
+                      <TouchableOpacity
+                        style={styles.replyComposerClose}
+                        onPress={() => setPendingForwardConfirmKey(null)}
+                        activeOpacity={0.7}
+                      >
+                        <CloseIcon size={18} color={colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text numberOfLines={2} style={styles.pendingForwardText}>
+                      {pendingForwardPreview.title}
+                    </Text>
                   </View>
-                  <Text numberOfLines={2} style={styles.pendingForwardText}>
-                    {pendingForwardPreview.title}
-                  </Text>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
+            </View>
           <View style={styles.inputBar}>
             {isVoiceMode ? (
               <>
@@ -4817,16 +4832,12 @@ function ChatScreenContent({ navigation, route }: Props) {
                     placeholderTextColor="#86909C"
                     value={inputText}
                     onChangeText={handleChatInputTextChange}
-                    onContentSizeChange={(event) => {
-                      handleChatInputContentSizeChange(event);
-                      keepLatestVisibleAfterComposerChange();
-                    }}
+                    onContentSizeChange={handleChatInputContentSizeChange}
                     multiline
                     scrollEnabled={isChatInputScrollEnabled}
                     textAlignVertical="center"
                     onFocus={() => {
                       setPlusMenuOpen(false);
-                      keepLatestVisibleAfterComposerChange();
                     }}
                   />
                 </View>
@@ -5084,7 +5095,7 @@ function ChatScreenContent({ navigation, route }: Props) {
               </Text>
             </TouchableOpacity>
       </SwipeableBottomSheet>
-    </SafeAreaView>
+    </View>
   );
 }
 
