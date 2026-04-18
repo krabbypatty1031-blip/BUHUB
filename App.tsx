@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 
-import './src/i18n';
+import { i18nReady } from './src/i18n';
 import AppNavigator from './src/navigation/AppNavigator';
 
 const queryClient = new QueryClient({
@@ -31,11 +31,22 @@ export default function App() {
     'Poppins-SemiBold': require('@expo-google-fonts/poppins/600SemiBold/Poppins_600SemiBold.ttf'),
   });
 
+  const [i18nLoaded, setI18nLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    i18nReady.then(() => {
+      if (!cancelled) setI18nLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (fontError && __DEV__) {
     console.warn('[Font] Failed to load custom fonts. Continuing with system fallback.', fontError);
   }
 
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || !i18nLoaded) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" />

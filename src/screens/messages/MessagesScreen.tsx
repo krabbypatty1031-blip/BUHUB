@@ -116,7 +116,6 @@ const ContactRow = React.memo(function ContactRow({
         onPress={onAvatarPress}
       >
         <Avatar text={item.name} uri={item.avatar || null} size="ml" gender={item.gender} />
-        {showUnread && <View style={styles.avatarUnreadDot} />}
       </TouchableOpacity>
       <View style={styles.contactContent}>
         <View style={styles.contactTextCol}>
@@ -130,7 +129,20 @@ const ContactRow = React.memo(function ContactRow({
             {isMuted ? '\u{1F507} ' : ''}{item.message}
           </Text>
         </View>
-        <Text style={styles.contactTime}>{item.time}</Text>
+        <View style={styles.contactRightCol}>
+          <Text style={styles.contactTime}>{item.time}</Text>
+          {showUnread ? (
+            isMuted ? (
+              <View style={styles.unreadBadgeMuted} />
+            ) : (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText} numberOfLines={1}>
+                  {effectiveUnread > 99 ? '99+' : effectiveUnread}
+                </Text>
+              </View>
+            )
+          ) : null}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -802,16 +814,34 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
   },
-  avatarUnreadDot: {
-    position: 'absolute',
-    right: 0,
-    top: -1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  contactRightCol: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  unreadBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#E35B49',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    lineHeight: 13,
+    fontFamily: 'SourceHanSansCN-Bold',
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
+  unreadBadgeMuted: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#C7C7CC',
+    marginRight: 2,
   },
   /* Figma: row with items-start, left column + time */
   contactContent: {

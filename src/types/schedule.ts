@@ -15,3 +15,21 @@ export interface Schedule {
   createdAt: string;
   updatedAt: string;
 }
+
+export type DayDetectionTier = 1 | 2 | 3;
+
+export interface ParseScheduleMeta {
+  dayDetectionTier: DayDetectionTier;
+  dayHeadersFound: number;
+  columnCount: number;
+}
+
+export interface ParseScheduleWarning {
+  code: 'DAY_HEADERS_UNCLEAR';
+}
+
+export interface ParseScheduleResult {
+  courses: ScheduleCourse[];
+  meta: ParseScheduleMeta;
+  warning?: ParseScheduleWarning;
+}

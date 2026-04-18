@@ -10,15 +10,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { colors } from '../../theme/colors';
-import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
-import { MapPinIcon, ClockIcon, ChevronRightIcon } from '../../components/common/icons';
+import { MapPinIcon, ClockIcon } from '../../components/common/icons';
+import { ArrowRightFnIcon } from '../../components/functions/FunctionHubIcons';
+import {
+  LibraryFacilityIcon,
+  SportsFacilityIcon,
+  VFBSFacilityIcon,
+  JCCCFacilityIcon,
+  SGalleryFacilityIcon,
+} from '../../components/functions/FacilityIcons';
 import { getLocalizedFontStyle } from '../../theme/typography';
 import { openExternalBrowser } from '../../utils/openExternalBrowser';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FacilityBooking'>;
+
+type FacilityIconComponent = React.FC<{ size?: number; color?: string }>;
 
 type FacilityItem = {
   id: string;
@@ -27,6 +34,8 @@ type FacilityItem = {
   hours: string;
   bookingUrl: string;
   navigateTo?: 'LibraryDetail';
+  accent: string;
+  Icon: FacilityIconComponent;
 };
 
 const FACILITIES: FacilityItem[] = [
@@ -37,6 +46,8 @@ const FACILITIES: FacilityItem[] = [
     hours: '8:30 a.m. – 11:00 p.m.',
     bookingUrl: 'https://library.hkbu.edu.hk/using-the-library/facilities/room-bookings/',
     navigateTo: 'LibraryDetail',
+    accent: '#3B82F6',
+    Icon: LibraryFacilityIcon,
   },
   {
     id: 'sports',
@@ -44,6 +55,8 @@ const FACILITIES: FacilityItem[] = [
     locationKey: 'facilitySportsLocation',
     hours: '7:00 a.m. – 10:30 p.m.',
     bookingUrl: 'https://sportsbooking1.hkbu.edu.hk/Booking/',
+    accent: '#FF9145',
+    Icon: SportsFacilityIcon,
   },
   {
     id: 'vfbs',
@@ -51,6 +64,8 @@ const FACILITIES: FacilityItem[] = [
     locationKey: 'facilityVFBSLocation',
     hours: '',
     bookingUrl: 'https://cvfbs.hkbu.edu.hk/Booking/',
+    accent: '#02AF4A',
+    Icon: VFBSFacilityIcon,
   },
   {
     id: 'jccc',
@@ -58,6 +73,8 @@ const FACILITIES: FacilityItem[] = [
     locationKey: 'facilityJCCCLocation',
     hours: '',
     bookingUrl: 'https://jsc.hkbu.edu.hk/facilitycharge_en.html',
+    accent: '#FFA814',
+    Icon: JCCCFacilityIcon,
   },
   {
     id: 'sgallery',
@@ -65,8 +82,19 @@ const FACILITIES: FacilityItem[] = [
     locationKey: 'facilitySGalleryLocation',
     hours: '',
     bookingUrl: 'https://s-gallery.hkbu.edu.hk/en/online-booking/',
+    accent: '#C76FF6',
+    Icon: SGalleryFacilityIcon,
   },
 ];
+
+const PAGE_BG = '#F7F7F7';
+const CARD_BG = '#FFFFFF';
+const TITLE_COLOR = '#0C1015';
+const SUBTITLE_COLOR = '#86909C';
+const DIVIDER_COLOR = '#EDEEF0';
+const CARD_RADIUS = 16;
+const GRID_PADDING = 24;
+const GRID_GAP = 12;
 
 function FacilityCard({
   facility,
@@ -78,48 +106,64 @@ function FacilityCard({
   facility: FacilityItem;
   t: (key: string) => string;
   language: string;
-  onCardPress: () => void;
+  onCardPress?: () => void;
   onBook: () => void;
 }) {
+  const Container: React.ComponentType<any> = onCardPress ? TouchableOpacity : View;
+  const containerProps = onCardPress
+    ? { activeOpacity: 0.85, onPress: onCardPress }
+    : {};
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.7}
-      onPress={onCardPress}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, getLocalizedFontStyle(language, 'bold')]}>{t(facility.titleKey)}</Text>
-        <ChevronRightIcon size={18} color={colors.onSurfaceVariant} />
+    <Container style={styles.card} {...containerProps}>
+      <View style={styles.iconBadge}>
+        <facility.Icon size={28} color={facility.accent} />
+      </View>
+
+      <View style={styles.cardTextGroup}>
+        <Text
+          style={[styles.cardTitle, getLocalizedFontStyle(language, 'bold')]}
+          numberOfLines={2}
+        >
+          {t(facility.titleKey)}
+        </Text>
+
+        <View style={styles.metaRow}>
+          <MapPinIcon size={13} color={SUBTITLE_COLOR} />
+          <Text
+            style={[styles.metaText, getLocalizedFontStyle(language, 'regular')]}
+            numberOfLines={2}
+          >
+            {t(facility.locationKey)}
+          </Text>
+        </View>
+
+        {facility.hours ? (
+          <View style={styles.metaRow}>
+            <ClockIcon size={13} color={SUBTITLE_COLOR} />
+            <Text
+              style={[styles.metaText, getLocalizedFontStyle(language, 'regular')]}
+            >
+              {facility.hours}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.cardDivider} />
 
-      <View style={styles.cardRow}>
-        <View style={styles.cardIcon}>
-          <MapPinIcon size={14} color={colors.onSurface} />
-        </View>
-        <Text style={[styles.cardInfo, getLocalizedFontStyle(language, 'regular')]}>{t(facility.locationKey)}</Text>
-      </View>
-
-      {facility.hours ? (
-        <View style={styles.cardRow}>
-          <View style={styles.cardIcon}>
-            <ClockIcon size={14} color={colors.onSurface} />
-          </View>
-          <Text style={[styles.cardInfo, getLocalizedFontStyle(language, 'regular')]}>{facility.hours}</Text>
-        </View>
-      ) : null}
-
       <View style={styles.cardFooter}>
         <TouchableOpacity
           style={styles.bookBtn}
-          activeOpacity={0.7}
+          activeOpacity={0.6}
           onPress={onBook}
         >
-          <Text style={[styles.bookBtnText, getLocalizedFontStyle(language, 'medium')]}>{t('bookNow')}</Text>
+          <Text style={[styles.bookBtnText, getLocalizedFontStyle(language, 'bold')]}>
+            {t('bookNow')}
+          </Text>
+          <ArrowRightFnIcon size={16} color={TITLE_COLOR} />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </Container>
   );
 }
 
@@ -127,35 +171,37 @@ export default function FacilityBookingScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
 
+  const handleBook = useCallback((facility: FacilityItem) => {
+    void openExternalBrowser(facility.bookingUrl, 'system');
+  }, []);
+
   const handleCardPress = useCallback((facility: FacilityItem) => {
     if (facility.navigateTo) {
       navigation.navigate(facility.navigateTo);
-    } else {
-      void openExternalBrowser(facility.bookingUrl, 'system');
     }
   }, [navigation]);
 
-  const handleBook = useCallback((url: string) => {
-    void openExternalBrowser(url, 'system');
-  }, []);
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScreenHeader
         title={t('facilityBooking')}
         onBack={() => navigation.goBack()}
         titleStyle={getLocalizedFontStyle(language, 'bold')}
       />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {FACILITIES.map((facility) => (
           <FacilityCard
             key={facility.id}
             facility={facility}
             t={t}
             language={language}
-            onCardPress={() => handleCardPress(facility)}
-            onBook={() => handleBook(facility.bookingUrl)}
+            onCardPress={facility.navigateTo ? () => handleCardPress(facility) : undefined}
+            onBook={() => handleBook(facility)}
           />
         ))}
       </ScrollView>
@@ -166,74 +212,78 @@ export default function FacilityBookingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: CARD_BG,
   },
   scrollView: {
     flex: 1,
+    backgroundColor: PAGE_BG,
   },
   content: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    paddingHorizontal: GRID_PADDING,
+    paddingTop: 16,
+    paddingBottom: 40,
+    gap: GRID_GAP,
   },
+
+  /* ── Card ── */
   card: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.outlineVariant,
+    backgroundColor: CARD_BG,
+    borderRadius: CARD_RADIUS,
+    paddingTop: 22,
+    paddingLeft: 20,
+    paddingBottom: 16,
+    paddingRight: 14,
+    overflow: 'hidden',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  /* ── Icon ── */
+  iconBadge: {
+    marginBottom: 14,
+  },
+
+  /* ── Text ── */
+  cardTextGroup: {
+    gap: 8,
+    paddingRight: 32,
   },
   cardTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    fontWeight: '700',
+    fontSize: 22,
+    color: TITLE_COLOR,
+    lineHeight: 28,
   },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.outlineVariant,
-    marginVertical: spacing.lg,
-  },
-  cardRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
+    gap: 8,
   },
-  cardIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: {
-    ...typography.bodyMedium,
-    color: colors.onSurface,
+  metaText: {
+    fontSize: 12,
+    color: SUBTITLE_COLOR,
+    letterSpacing: 0.2,
+    lineHeight: 16,
     flex: 1,
-    lineHeight: 22,
+  },
+
+  /* ── Footer ── */
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DIVIDER_COLOR,
+    marginTop: 16,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: spacing.lg,
+    marginTop: 12,
   },
   bookBtn: {
-    paddingHorizontal: spacing.xl,
-    height: 36,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primary,
+    gap: 6,
+    paddingVertical: 6,
+    paddingLeft: 4,
   },
   bookBtnText: {
-    ...typography.labelMedium,
-    color: colors.onPrimary,
+    fontSize: 13,
+    color: TITLE_COLOR,
+    letterSpacing: 0.2,
   },
 });

@@ -185,7 +185,7 @@ export type FunctionsStackParamList = {
   LibraryDetail: undefined;
   UserProfile: UserProfileParams;
   AIScheduleUpload: undefined;
-  AIScheduleView: undefined;
+  AIScheduleView: { dayDetectionWarning?: boolean } | undefined;
   FeedbackList: undefined;
   FeedbackSubmit: undefined;
   FeedbackDetail: { id: string };

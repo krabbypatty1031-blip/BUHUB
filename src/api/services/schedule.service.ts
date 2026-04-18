@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
-import type { Schedule, ScheduleCourse } from '../../types/schedule';
+import type { Schedule, ScheduleCourse, ParseScheduleResult } from '../../types/schedule';
 
 export const scheduleService = {
   async getSchedule(): Promise<Schedule | null> {
@@ -13,7 +13,7 @@ export const scheduleService = {
     return data;
   },
 
-  async parseImage(imageUrl: string): Promise<{ courses: ScheduleCourse[] }> {
+  async parseImage(imageUrl: string): Promise<ParseScheduleResult> {
     const { data } = await apiClient.post(ENDPOINTS.SCHEDULE.PARSE, { imageUrl }, { timeout: 120000 });
     return data;
   },

@@ -37,6 +37,22 @@ i18n.use(initReactI18next).init({
   },
 });
 
+// Resolves once the persisted language (if any) has been applied to i18n.
+// App.tsx awaits this before rendering the navigator so the first paint is
+// in the user's chosen language rather than the sync-init default.
+export const i18nReady: Promise<void> = (async () => {
+  try {
+    const saved = await AsyncStorage.getItem(LANGUAGE_KEY);
+    const normalized = normalizeLanguage(saved);
+    if (normalized && normalized !== i18n.language) {
+      await i18n.changeLanguage(normalized);
+    }
+  } catch {
+    // AsyncStorage can fail on first launch or corrupted state; fall back
+    // to the sync-init language silently.
+  }
+})();
+
 export const changeLanguage = async (lang: Language | string) => {
   const normalized = normalizeLanguage(lang);
   if (!normalized) return;

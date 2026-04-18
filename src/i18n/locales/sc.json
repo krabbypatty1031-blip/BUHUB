@@ -1,6 +1,7 @@
 {
   "appName": "ULink",
   "manageEmails": "管理邮箱",
+  "currentLoginEmail": "当前登录邮箱",
   "primaryEmailTag": "主要",
   "hkbuEmailTag": "HKBU",
   "bindHkbuEmail": "绑定 HKBU 邮箱",
@@ -926,6 +927,10 @@
   "copiedToClipboard": "已复制",
   "exportScheduleTitle": "保存到相册",
   "exportScheduleMessage": "将课表保存为图片到相册？",
+  "aiScheduleDayHeadersUnclearTitle": "未识别到清晰的星期表头",
+  "aiScheduleDayHeadersUnclearBody": "系统未能在您的课表中识别到清晰的星期列标题，部分课程可能被分配到错误的日期。请核对结果，或裁剪后重新上传更清晰的图片。",
+  "aiScheduleDayHeadersUnclearDismiss": "知道了",
+  "aiScheduleDayHeadersUnclearReupload": "重新上传",
   "reuploadScheduleTitle": "重新上传课表",
   "reuploadScheduleMessage": "这将替换您目前的课表，是否继续？",
   "feedback": "意见反馈",

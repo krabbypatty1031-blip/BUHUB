@@ -60,8 +60,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const { data: notificationSettings } = useNotificationSettings();
   const updateNotificationSettings = useUpdateNotificationSettings();
   const linkedEmails = profile?.linkedEmails ?? user?.linkedEmails ?? [];
-  const currentLoginEmailLabel =
-    language === 'en' ? 'Current login email' : language === 'sc' ? '当前登录邮箱' : '現時登入電郵';
+  const currentLoginEmailLabel = t('currentLoginEmail');
   const currentLoginEmailAddress =
     profile?.currentLoginEmail ??
     user?.currentLoginEmail ??

@@ -31,7 +31,7 @@ import { scheduleService } from '../../api/services/schedule.service';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'AIScheduleView'>;
 
-export default function AIScheduleViewScreen({ navigation }: Props) {
+export default function AIScheduleViewScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
@@ -46,6 +46,9 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [editVisible, setEditVisible] = useState(false);
   const [editingCourse, setEditingCourse] = useState<ScheduleCourse | undefined>();
+  const [warningDismissed, setWarningDismissed] = useState(false);
+  const showDayDetectionWarning =
+    !warningDismissed && route.params?.dayDetectionWarning === true;
 
   const exportRef = useRef<ViewShot>(null);
 
@@ -209,6 +212,39 @@ export default function AIScheduleViewScreen({ navigation }: Props) {
         courseDays={courseDays}
       />
 
+      {showDayDetectionWarning && (
+        <View style={styles.warningBanner}>
+          <View style={styles.warningTextGroup}>
+            <Text style={styles.warningTitle}>
+              {t('aiScheduleDayHeadersUnclearTitle')}
+            </Text>
+            <Text style={styles.warningBody}>
+              {t('aiScheduleDayHeadersUnclearBody')}
+            </Text>
+          </View>
+          <View style={styles.warningActions}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setWarningDismissed(true)}
+              style={styles.warningDismiss}
+            >
+              <Text style={styles.warningDismissText}>
+                {t('aiScheduleDayHeadersUnclearDismiss')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleReupload}
+              style={styles.warningPrimary}
+            >
+              <Text style={styles.warningPrimaryText}>
+                {t('aiScheduleDayHeadersUnclearReupload')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Timetable Grid */}
       <TimetableGrid
         courses={courses}
@@ -306,5 +342,54 @@ const styles = StyleSheet.create({
     fontFamily: 'SourceHanSansCN-Regular',
     fontSize: 10,
     color: '#C7C7CC',
+  },
+  warningBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFF4E0',
+    borderWidth: 1,
+    borderColor: '#F5C97A',
+  },
+  warningTextGroup: {
+    marginBottom: 10,
+  },
+  warningTitle: {
+    fontFamily: 'SourceHanSansCN-Bold',
+    fontSize: 13,
+    color: '#8A5A00',
+    marginBottom: 2,
+  },
+  warningBody: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    color: '#8A5A00',
+    lineHeight: 16,
+  },
+  warningActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  warningDismiss: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  warningDismissText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 12,
+    color: '#8A5A00',
+  },
+  warningPrimary: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#F5A623',
+  },
+  warningPrimaryText: {
+    fontFamily: 'SourceHanSansCN-Bold',
+    fontSize: 12,
+    color: '#FFFFFF',
   },
 });

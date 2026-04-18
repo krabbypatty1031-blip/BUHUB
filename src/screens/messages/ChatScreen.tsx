@@ -5259,6 +5259,8 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
   invertedList: {
     transform: [{ scaleY: -1 }],
@@ -5312,7 +5314,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 0,
-    maxWidth: '72%',
+    maxWidth: '82%',
   },
   bubbleRowRight: {
     alignSelf: 'flex-end',

@@ -53,8 +53,11 @@ export function isAnonymousBadgeAvatar(value?: string | null): boolean {
 function parseBadgeToken(value: string): BadgeToken | null {
   if (!isAnonymousBadgeAvatar(value)) return null;
   const [, symbol, palette] = value.split(':');
-  if (!symbol || !palette || !BADGE_PALETTES[palette]) return null;
-  return { symbol, palette };
+  if (!symbol) return null;
+  return {
+    symbol,
+    palette: palette && BADGE_PALETTES[palette] ? palette : 'harbor',
+  };
 }
 
 export default function AnonymousBadgeAvatar({

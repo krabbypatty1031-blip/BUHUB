@@ -174,9 +174,11 @@ export default function AIScheduleUploadScreen({ navigation }: Props) {
         courses: parseResult.courses,
       });
 
+      const dayDetectionWarning = parseResult.warning?.code === 'DAY_HEADERS_UNCLEAR';
+
       finishProgress();
       setTimeout(() => {
-        navigation.replace('AIScheduleView');
+        navigation.replace('AIScheduleView', { dayDetectionWarning });
       }, 350);
     } catch {
       finishProgress();

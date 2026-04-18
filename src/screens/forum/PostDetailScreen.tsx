@@ -53,6 +53,7 @@ import {
   MaleIcon,
   FemaleIcon,
   CheckIcon,
+  IncognitoIcon,
 } from '../../components/common/icons';
 import {
   LikeActionIcon,
@@ -1788,15 +1789,19 @@ export default function PostDetailScreen({ navigation, route }: Props) {
                 onValueChange={setIsAnonymous}
                 activeColor={colors.onSurface}
                 thumbIcon={
-                  <Text
-                    style={{
-                      fontSize: i18n.language === 'en' ? 9 : 11,
-                      fontWeight: '700',
-                      color: colors.onSurface,
-                    }}
-                  >
-                    {t('anonLabel')}
-                  </Text>
+                  i18n.language === 'en' ? (
+                    <IncognitoIcon size={14} color="#000000" />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: colors.onSurface,
+                      }}
+                    >
+                      {t('anonLabel')}
+                    </Text>
+                  )
                 }
               />
             </View>
