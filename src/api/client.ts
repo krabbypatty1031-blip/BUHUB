@@ -8,17 +8,7 @@ import type { ApiError } from '../types';
 
 const TOKEN_KEY = 'ulink-token';
 
-// In-memory token cache to avoid AsyncStorage reads on every request
-let cachedToken: string | null = null;
-let tokenCacheReady = false;
-
-async function ensureTokenCache(): Promise<string | null> {
-  if (!tokenCacheReady) {
-    cachedToken = await AsyncStorage.getItem(TOKEN_KEY);
-    tokenCacheReady = true;
-  }
-  return cachedToken;
-}
+// Token is now primarily managed by useAuthStore (Zustand)
 
 const getApiBaseUrl = () => {
   // 1) Prefer public env (dev / CI)
@@ -51,7 +41,16 @@ const getApiBaseUrl = () => {
 
 const API_BASE = getApiBaseUrl();
 
-if (__DEV__) console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
+if (__DEV__) {
+  console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
+  if (API_BASE.includes('uhub.help')) {
+    console.warn(
+      '[API] Resolved production API (uhub.help). For local backend, set EXPO_PUBLIC_API_URL in BUHUB/.env, then restart Metro with a clean cache: npx expo start -c. ' +
+        'If EXPO_PUBLIC_API_URL is empty at bundle time, app.json extra.apiUrl is used. ' +
+        'Android emulator: http://10.0.2.2:3000/api; iOS simulator: http://localhost:3000/api; physical device: http://<your-LAN-IP>:3000/api.'
+    );
+  }
+}
 
 // Callback for handling unauthorized (401) responses
 // Set by authStore to avoid circular dependency
@@ -92,7 +91,7 @@ const uploadClient = axios.create({
 // Request interceptor: attach Bearer token + language header + debug log
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = await ensureTokenCache();
+    const token = useAuthStore.getState().token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -111,7 +110,7 @@ apiClient.interceptors.request.use(
 // Same interceptor for upload client
 uploadClient.interceptors.request.use(
   async (config) => {
-    const token = await ensureTokenCache();
+    const token = useAuthStore.getState().token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -156,8 +155,7 @@ const responseErrorHandler = async (error: unknown) => {
   }
 
   if (status === 401) {
-    // Token expired - clear token and notify authStore
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    // Token expired - notify authStore to logout
     onUnauthorized?.();
   }
 
@@ -188,14 +186,13 @@ uploadClient.interceptors.response.use(
 );
 
 export const setToken = async (token: string) => {
-  cachedToken = token;
-  tokenCacheReady = true;
+  useAuthStore.getState().setToken(token);
+  // Also keep AsyncStorage for legacy/background if needed, but primary is Zustand
   await AsyncStorage.setItem(TOKEN_KEY, token);
 };
 
 export const clearToken = async () => {
-  cachedToken = null;
-  tokenCacheReady = true;
+  useAuthStore.getState().logout();
   await AsyncStorage.removeItem(TOKEN_KEY);
 };
 

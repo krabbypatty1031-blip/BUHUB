@@ -7,7 +7,7 @@ import ENDPOINTS from '../endpoints';
 
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
 
-const TOKEN_KEY = 'ulink-token';
+import { useAuthStore } from '../../store/authStore';
 const MAX_IMAGE_EDGE = 1600;
 const TARGET_MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 const AVATAR_MAX_EDGE = 320;
@@ -230,7 +230,7 @@ async function uploadViaPresigned(
   const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
 
   const headers: Record<string, string> = { 'Content-Type': uploadMimeType };
-  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  const token = useAuthStore.getState().token;
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -317,7 +317,7 @@ export const uploadService = {
     const { uploadUrl, fileUrl, fileKey } = presignedData;
     const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
     const headers: Record<string, string> = { 'Content-Type': normalizedType };
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const token = useAuthStore.getState().token;
     if (token) headers.Authorization = `Bearer ${token}`;
     const targets = finalUploadUrl !== uploadUrl ? [uploadUrl, finalUploadUrl] : [uploadUrl];
     let uploadResponse: Response | null = null;

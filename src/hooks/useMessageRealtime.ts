@@ -23,7 +23,7 @@ import {
 } from '../utils/messageCache';
 import { recordMessageMetric } from '../utils/messageMetrics';
 
-const TOKEN_KEY = 'ulink-token';
+// Realtime constants
 const RECONNECT_BASE_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 5000;
 
@@ -251,7 +251,7 @@ export function useMessageRealtime() {
     const connectSocket = async () => {
       if (canceled) return;
 
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const token = useAuthStore.getState().token;
       if (!token) {
         scheduleReconnect();
         return;
@@ -322,8 +322,8 @@ export function useMessageRealtime() {
           const AUTH_CLOSE_CODES = [4001, 4003, 4010, 1008];
           if (AUTH_CLOSE_CODES.includes(event.code)) {
             recordMessageMetric('message_ws_auth_rejected', { code: event.code });
-            // Clear stale token and let authStore handle re-auth
-            void AsyncStorage.removeItem(TOKEN_KEY);
+            // Let authStore handle the logout
+            useAuthStore.getState().logout();
             return;
           }
           scheduleReconnect();
