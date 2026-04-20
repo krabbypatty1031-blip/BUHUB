@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -187,6 +187,19 @@ async function ensurePushPermissions() {
 }
 
 async function getExpoPushToken() {
+  if (
+    Platform.OS === 'android' &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+  ) {
+    if (__DEV__) {
+      console.log(
+        '[Push] Remote notifications are not supported in Expo Go on Android (SDK 53+). ' +
+          'Use a development build to test push notifications.'
+      );
+    }
+    return null;
+  }
+
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'General',

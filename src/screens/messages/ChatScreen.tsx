@@ -115,6 +115,7 @@ import {
   upsertContact,
 } from '../../utils/messageCache';
 import { recordMessageMetric, recordTimedMessageMetric } from '../../utils/messageMetrics';
+import { requestVoicePermissions } from '../../utils/voicePermissions';
 import type { ChatHistoryChunk, SendMessagePayload } from '../../api/services/message.service';
 
 const MIN_RECORD_DURATION_MS = 1000;
@@ -4132,31 +4133,44 @@ function ChatScreenContent({ navigation, route }: Props) {
         playsInSilentModeIOS: true,
       });
       const recording = new Audio.Recording();
-      const fallbackRecordingOptions: RecordingOptionsInput = {
-        android: {
-          extension: '.m4a',
-          outputFormat: 4,
-          audioEncoder: 3,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          audioQuality: 127,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {},
-      };
+      const baseOptions = Audio.RecordingOptionsPresets
+        ? Audio.RecordingOptionsPresets.HIGH_QUALITY
+        : {
+            android: {
+              extension: '.m4a',
+              outputFormat: 2,
+              audioEncoder: 3,
+              sampleRate: 44100,
+              numberOfChannels: 2,
+              bitRate: 128000,
+            },
+            ios: {
+              extension: '.m4a',
+              audioQuality: 127,
+              sampleRate: 44100,
+              numberOfChannels: 2,
+              bitRate: 128000,
+              linearPCMBitDepth: 16,
+              linearPCMIsBigEndian: false,
+              linearPCMIsFloat: false,
+            },
+            web: {},
+          };
+
       await recording.prepareToRecordAsync(
-        Audio.RecordingOptionsPresets
-          ? Audio.RecordingOptionsPresets.HIGH_QUALITY
-          : fallbackRecordingOptions
+        Platform.OS === 'android'
+          ? {
+              ...baseOptions,
+              android: {
+                extension: '.awb',
+                outputFormat: 4, // AndroidOutputFormat.AMR_WB
+                audioEncoder: 2, // AndroidAudioEncoder.AMR_WB
+                sampleRate: 16000,
+                numberOfChannels: 1,
+                bitRate: 128000,
+              },
+            }
+          : baseOptions
       );
       await recording.startAsync();
       recordingRef.current = recording;
@@ -4266,11 +4280,6 @@ function ChatScreenContent({ navigation, route }: Props) {
   const transcribeRecordedAudioToText = useCallback(async (uri: string, durationMs: number) => {
     setIsTranscribingVoice(true);
     try {
-      // Attempt file-based transcription as a last resort. Note: the recorded
-      // audio is typically .m4a (AAC) which may not be supported by the native
-      // speech recognizer for file transcription (it prefers WAV/MP3). This
-      // path only runs when real-time transcription produced no results, so
-      // failure here is expected on some devices/formats.
       const recognizedText = await transcribeAudioFileWithNativeSpeech({
         uri,
         languageHint: i18n.language,
@@ -4283,27 +4292,57 @@ function ChatScreenContent({ navigation, route }: Props) {
       } else {
         showSnackbar({ message: t('voiceNoSpeechDetected'), type: 'error' });
       }
-    } catch {
-      // File transcription is unreliable with .m4a format — show a more
-      // specific message rather than a generic failure.
-      showSnackbar({ message: t('voiceNoSpeechDetected'), type: 'error' });
+    } catch (error) {
+      if (__DEV__) {
+        console.log('[Push] transcription error', error);
+      }
+      // Report more specific errors to help diagnostics
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('NATIVE_SPEECH_NOT_LINKED') || msg.includes('NATIVE_SPEECH_NOT_AVAILABLE')) {
+        showSnackbar({ message: t('voiceTranscriptionUnavailable'), type: 'error' });
+      } else if (msg.includes('PERMISSION_DENIED')) {
+        showSnackbar({ message: t('voicePermissionDenied'), type: 'error' });
+      } else {
+        // Fallback to "No speech detected" but potentially include raw error in dev
+        showSnackbar({ message: t('voiceNoSpeechDetected'), type: 'error' });
+      }
     } finally {
       setIsTranscribingVoice(false);
     }
   }, [i18n.language, showSnackbar, t]);
 
-  const handleToggleVoiceMode = useCallback(() => {
+  const handleToggleVoiceMode = useCallback(async () => {
     if (isRecordingRef.current) return;
+    
+    // Toggle on -> Pre-request permissions to avoid "Stuck UI" during Hold-to-Talk
+    if (!isVoiceMode) {
+      const perms = await requestVoicePermissions();
+      if (!perms.microphone) {
+        showSnackbar({ message: t('microphonePermissionMessage'), type: 'error' });
+        return;
+      }
+    }
+
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsVoiceMode((prev) => !prev);
-  }, []);
+  }, [isVoiceMode, showSnackbar, t]);
 
   const handleHoldToTalkPressIn = useCallback(async (event: GestureResponderEvent) => {
     if (waitingForReply || isTranscribingVoice) return;
-    recordingOverlayRef.current?.beginGesture(
-      event.nativeEvent.pageX,
-      event.nativeEvent.pageY
-    );
+
+    // Capture coordinates before async call to avoid synthetic event reuse error
+    const { pageX, pageY } = event.nativeEvent;
+
+    // Safety check: ensure permissions are already granted (requested when toggling mode)
+    // If not granted, we trigger startRecordingSession which will show the Alert if needed,
+    // but we don't start the beginGesture yet to prevent a stuck UI.
+    const audioPerms = await Audio.getPermissionsAsync();
+    if (audioPerms.status !== 'granted') {
+      await startRecordingSession();
+      return;
+    }
+
+    recordingOverlayRef.current?.beginGesture(pageX, pageY);
     await startRecordingSession();
   }, [isTranscribingVoice, startRecordingSession, waitingForReply]);
 
