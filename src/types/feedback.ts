@@ -1,5 +1,5 @@
 export type FeedbackCategory = 'BUG' | 'SUGGESTION' | 'OTHER';
-export type FeedbackStatus = 'PENDING' | 'REPLIED' | 'RESOLVED';
+export type FeedbackStatus = 'UNRESOLVED' | 'RESOLVED' | 'CLOSED';
 
 export interface Feedback {
   id: string;
@@ -13,9 +13,11 @@ export interface FeedbackReply {
   id: string;
   content: string;
   createdAt: string;
-  admin: {
+  isAdmin: boolean;
+  user: {
     id: string;
     nickname: string;
+    avatar?: string;
   };
 }
 

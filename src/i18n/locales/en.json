@@ -941,8 +941,8 @@
   "feedbackCategoryBug": "Bug",
   "feedbackCategorySuggestion": "Suggestion",
   "feedbackCategoryOther": "Other",
-  "feedbackStatusPending": "Pending",
-  "feedbackStatusReplied": "Replied",
+  "feedbackStatusUnresolved": "Unresolved",
+  "feedbackStatusClosed": "Closed",
   "feedbackStatusResolved": "Resolved",
   "feedbackDescPlaceholder": "Describe the issue or suggestion in detail...",
   "feedbackDescMinChars": "At least 10 characters required",
@@ -958,5 +958,9 @@
   "feedbackCharCount": "{{count}}/2000",
   "feedbackSelectCategory": "Select Category",
   "feedbackDescription": "Description",
-  "feedbackImages": "Screenshots"
+  "feedbackImages": "Screenshots",
+  "feedbackReplyPlaceholder": "Type your reply...",
+  "feedbackLimitMessage": "You have reached the limit of {{max}} replies. Once an admin responds, you can reply freely.",
+  "feedbackClosedMessage": "This ticket has been closed. No further replies can be sent.",
+  "feedbackReplyLimitReached": "You have reached the reply limit for this feedback ticket."
 }

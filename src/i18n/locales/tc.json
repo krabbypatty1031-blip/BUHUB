@@ -941,8 +941,8 @@
   "feedbackCategoryBug": "Bug",
   "feedbackCategorySuggestion": "建議",
   "feedbackCategoryOther": "其他",
-  "feedbackStatusPending": "待處理",
-  "feedbackStatusReplied": "已回覆",
+  "feedbackStatusUnresolved": "未解決",
+  "feedbackStatusClosed": "已關閉",
   "feedbackStatusResolved": "已解決",
   "feedbackDescPlaceholder": "請詳細描述問題或建議...",
   "feedbackDescMinChars": "至少需要10個字符",
@@ -958,5 +958,9 @@
   "feedbackCharCount": "{{count}}/2000",
   "feedbackSelectCategory": "選擇類別",
   "feedbackDescription": "描述",
-  "feedbackImages": "截圖"
+  "feedbackImages": "截圖",
+  "feedbackReplyPlaceholder": "輸入你的回覆...",
+  "feedbackLimitMessage": "你已達到 {{max}} 次回覆上限。管理員回覆後，你可以自由回覆。",
+  "feedbackClosedMessage": "工單已關閉，無法繼續回覆。",
+  "feedbackReplyLimitReached": "你已達到此反饋的回覆上限。"
 }

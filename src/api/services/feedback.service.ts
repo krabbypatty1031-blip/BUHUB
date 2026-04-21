@@ -23,4 +23,9 @@ export const feedbackService = {
     const { data } = await apiClient.post(ENDPOINTS.FEEDBACK.SUBMIT, payload);
     return data;
   },
+
+  async submitReply(id: string, content: string): Promise<any> {
+    const { data } = await apiClient.post(ENDPOINTS.FEEDBACK.REPLY(id), { content });
+    return data;
+  },
 };

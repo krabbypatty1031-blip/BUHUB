@@ -41,3 +41,15 @@ export function useSubmitFeedback() {
     },
   });
 }
+
+export function useReplyFeedback() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      feedbackService.submitReply(id, content),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['feedback', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['feedback', 'my'] });
+    },
+  });
+}

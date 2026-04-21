@@ -164,6 +164,7 @@ const ENDPOINTS = {
     LIST: '/feedback',
     DETAIL: (id: string) => `/feedback/${id}`,
     SUBMIT: '/feedback',
+    REPLY: (id: string) => `/feedback/${id}/reply`,
   },
 } as const;
 

@@ -24,9 +24,9 @@ import { getRelativeTime } from '../../utils/formatTime';
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FeedbackList'>;
 
 const STATUS_COLORS: Record<FeedbackStatus, { bg: string; text: string }> = {
-  PENDING: { bg: '#FFF8E1', text: '#F59E0B' },
-  REPLIED: { bg: '#EBF5FF', text: '#3B82F6' },
+  UNRESOLVED: { bg: '#FFF8E1', text: '#F59E0B' },
   RESOLVED: { bg: '#ECFDF5', text: '#22C55E' },
+  CLOSED: { bg: '#F2F3F5', text: '#86909C' },
 };
 
 const CATEGORY_LABEL_KEY: Record<FeedbackCategory, string> = {
@@ -36,9 +36,9 @@ const CATEGORY_LABEL_KEY: Record<FeedbackCategory, string> = {
 };
 
 const STATUS_LABEL_KEY: Record<FeedbackStatus, string> = {
-  PENDING: 'feedbackStatusPending',
-  REPLIED: 'feedbackStatusReplied',
+  UNRESOLVED: 'feedbackStatusUnresolved',
   RESOLVED: 'feedbackStatusResolved',
+  CLOSED: 'feedbackStatusClosed',
 };
 
 export default function FeedbackListScreen({ navigation }: Props) {
@@ -60,7 +60,12 @@ export default function FeedbackListScreen({ navigation }: Props) {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Feedback }) => (
+    ({ item }: { item: Feedback }) => {
+      const statusKey = item.status;
+      const statusColor = STATUS_COLORS[statusKey] || STATUS_COLORS.UNRESOLVED;
+      const statusLabel = STATUS_LABEL_KEY[statusKey] || STATUS_LABEL_KEY.UNRESOLVED;
+
+      return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.7}
@@ -74,17 +79,17 @@ export default function FeedbackListScreen({ navigation }: Props) {
           <View
             style={[
               styles.statusTag,
-              { backgroundColor: STATUS_COLORS[item.status].bg },
+              { backgroundColor: statusColor.bg },
             ]}
           >
             <Text
               style={[
                 styles.statusTagText,
-                { color: STATUS_COLORS[item.status].text },
+                { color: statusColor.text },
                 getLocalizedFontStyle(lang, 'medium'),
               ]}
             >
-              {t(STATUS_LABEL_KEY[item.status])}
+              {t(statusLabel)}
             </Text>
           </View>
         </View>
@@ -102,7 +107,8 @@ export default function FeedbackListScreen({ navigation }: Props) {
           {getRelativeTime(item.createdAt, lang)}
         </Text>
       </TouchableOpacity>
-    ),
+      );
+    },
     [navigation, t, lang],
   );
 
