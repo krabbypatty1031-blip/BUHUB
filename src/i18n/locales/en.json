@@ -1,5 +1,5 @@
 {
-  "appName": "ULink",
+  "appName": "ULinks",
   "appSlogan": "Social Platform for BUers",
   "selectLanguage": "Select your language",
   "traditionalChinese": "Traditional Chinese",
@@ -157,8 +157,8 @@
   "condition": "Condition",
   "message": "Message",
   "disclaimer": "Platform only provides information matching. Please be careful with offline transactions.",
-  "secondhandDisclaimer": "ULink Trading Notice",
-  "errandDisclaimerTitle": "ULink Errand Notice",
+  "secondhandDisclaimer": "ULinks Trading Notice",
+  "errandDisclaimerTitle": "ULinks Errand Notice",
   "errandDisclaimer": "Platform only provides information matching. Please confirm details and pay attention to safety before accepting errands offline.",
   "rate": "Rate",
   "teacher": "Teacher",

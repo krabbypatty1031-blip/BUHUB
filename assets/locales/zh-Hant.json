@@ -1,6 +1,6 @@
 {
-  "NSCameraUsageDescription": "ULink 需要使用相機來拍攝帖文、頭像和訊息的照片。",
-  "NSPhotoLibraryUsageDescription": "ULink 需要存取相簿來選擇帖文、頭像和訊息的圖片。",
-  "NSMicrophoneUsageDescription": "ULink 需要使用麥克風來錄製語音訊息。",
-  "NSSpeechRecognitionUsageDescription": "ULink 需要語音識別權限來將語音轉為文字。"
+  "NSCameraUsageDescription": "ULinks 需要使用相機來拍攝帖文、頭像和訊息的照片。",
+  "NSPhotoLibraryUsageDescription": "ULinks 需要存取相簿來選擇帖文、頭像和訊息的圖片。",
+  "NSMicrophoneUsageDescription": "ULinks 需要使用麥克風來錄製語音訊息。",
+  "NSSpeechRecognitionUsageDescription": "ULinks 需要語音識別權限來將語音轉為文字。"
 }

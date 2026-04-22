@@ -1,5 +1,5 @@
 {
-  "appName": "ULink",
+  "appName": "ULinks",
   "manageEmails": "管理電郵",
   "currentLoginEmail": "現時登入電郵",
   "primaryEmailTag": "主要",
@@ -172,8 +172,8 @@
   "condition": "狀態",
   "message": "私訊",
   "disclaimer": "平台只提供資訊配對，線下交易請注意安全。",
-  "secondhandDisclaimer": "ULink交易須知",
-  "errandDisclaimerTitle": "ULink跑腿須知",
+  "secondhandDisclaimer": "ULinks交易須知",
+  "errandDisclaimerTitle": "ULinks跑腿須知",
   "errandDisclaimer": "平台只提供資訊配對，接單前請自行確認需求細節，並注意線下安全。",
   "rate": "評分",
   "teacher": "老師",

@@ -290,7 +290,7 @@ export default function AIScheduleViewScreen({ navigation, route }: Props) {
             </View>
             {/* Footer branding */}
             <View style={styles.exportFooter}>
-              <Text style={styles.exportFooterText}>ULink · AI Timetable</Text>
+              <Text style={styles.exportFooterText}>ULinks · AI Timetable</Text>
             </View>
           </View>
         </ViewShot>

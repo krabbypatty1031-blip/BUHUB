@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ULink",
+    "name": "ULinks",
     "slug": "ulink-rn",
     "scheme": "ulink",
     "version": "1.0.0",
@@ -24,11 +24,11 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false
         },
-        "NSCameraUsageDescription": "ULink needs camera access to take photos for posts, avatars, and messages.",
-        "NSPhotoLibraryUsageDescription": "ULink needs photo library access to select images for posts, avatars, and messages.",
-        "NSMicrophoneUsageDescription": "ULink needs microphone access for voice-to-text.",
+        "NSCameraUsageDescription": "ULinks needs camera access to take photos for posts, avatars, and messages.",
+        "NSPhotoLibraryUsageDescription": "ULinks needs photo library access to select images for posts, avatars, and messages.",
+        "NSMicrophoneUsageDescription": "ULinks needs microphone access for voice-to-text.",
         "ITSAppUsesNonExemptEncryption": false,
-        "NSSpeechRecognitionUsageDescription": "ULink needs speech recognition access to convert voice to text."
+        "NSSpeechRecognitionUsageDescription": "ULinks needs speech recognition access to convert voice to text."
       }
     },
     "android": {
@@ -73,21 +73,21 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "ULink needs camera access to scan QR codes and take photos."
+          "cameraPermission": "ULinks needs camera access to scan QR codes and take photos."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "ULink needs photo library access to save QR code images.",
-          "savePhotosPermission": "ULink needs permission to save QR code images to your photo library."
+          "photosPermission": "ULinks needs photo library access to save QR code images.",
+          "savePhotosPermission": "ULinks needs permission to save QR code images to your photo library."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "ULink needs microphone access for voice-to-text.",
-          "speechRecognitionPermission": "ULink needs speech recognition access to convert voice to text.",
+          "microphonePermission": "ULinks needs microphone access for voice-to-text.",
+          "speechRecognitionPermission": "ULinks needs speech recognition access to convert voice to text.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox"
           ]

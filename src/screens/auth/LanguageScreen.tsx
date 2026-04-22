@@ -45,7 +45,7 @@ export default function LanguageScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>ULink</Text>
+          <Text style={styles.logoText}>ULinks</Text>
           <Text style={styles.subtitle}>{t('selectLanguage')}</Text>
         </View>
 

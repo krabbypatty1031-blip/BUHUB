@@ -1,5 +1,5 @@
 {
-  "appName": "ULink",
+  "appName": "ULinks",
   "manageEmails": "管理邮箱",
   "currentLoginEmail": "当前登录邮箱",
   "primaryEmailTag": "主要",
@@ -172,8 +172,8 @@
   "condition": "成色",
   "message": "私信",
   "disclaimer": "平台仅提供信息撮合，线下交易请注意安全",
-  "secondhandDisclaimer": "ULink交易须知",
-  "errandDisclaimerTitle": "ULink跑腿须知",
+  "secondhandDisclaimer": "ULinks交易须知",
+  "errandDisclaimerTitle": "ULinks跑腿须知",
   "errandDisclaimer": "平台仅提供信息撮合，接单前请自行确认需求细节并注意线下安全",
   "rate": "评分",
   "teacher": "老师",

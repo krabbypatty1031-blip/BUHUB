@@ -1,6 +1,6 @@
 {
-  "NSCameraUsageDescription": "ULink needs camera access to take photos for posts, avatars, and messages.",
-  "NSPhotoLibraryUsageDescription": "ULink needs photo library access to select images for posts, avatars, and messages.",
-  "NSMicrophoneUsageDescription": "ULink needs microphone access to record voice messages.",
-  "NSSpeechRecognitionUsageDescription": "ULink needs speech recognition access to convert voice to text."
+  "NSCameraUsageDescription": "ULinks needs camera access to take photos for posts, avatars, and messages.",
+  "NSPhotoLibraryUsageDescription": "ULinks needs photo library access to select images for posts, avatars, and messages.",
+  "NSMicrophoneUsageDescription": "ULinks needs microphone access to record voice messages.",
+  "NSSpeechRecognitionUsageDescription": "ULinks needs speech recognition access to convert voice to text."
 }

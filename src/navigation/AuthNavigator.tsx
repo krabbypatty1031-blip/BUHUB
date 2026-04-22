@@ -9,7 +9,6 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import EmailInputScreen from '../screens/auth/EmailInputScreen';
 import SetPasswordScreen from '../screens/auth/SetPasswordScreen';
-import InviteCodeScreen from '../screens/auth/InviteCodeScreen';
 import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -30,7 +29,6 @@ export default function AuthNavigator() {
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="EmailInput" component={EmailInputScreen} />
       <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
-      <Stack.Screen name="InviteCode" component={InviteCodeScreen} />
       <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
     </Stack.Navigator>
   );

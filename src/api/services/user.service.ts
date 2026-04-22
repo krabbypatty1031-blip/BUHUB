@@ -10,7 +10,6 @@ import type {
   WantedItem,
   FollowListItem,
   Language,
-  MyInviteCode,
   LinkedEmail,
 } from '../../types';
 import { normalizeAvatarUrl, normalizeImageUrl } from '../../utils/imageUrl';
@@ -96,18 +95,6 @@ export const userService = {
       ...data,
       avatar: normalizeNullableAvatarValue(data?.avatar),
     };
-  },
-
-  async getMyInviteCodes(): Promise<MyInviteCode[]> {
-    if (USE_MOCK) {
-      return [
-        { id: 'mock-1', code: 'AB12CD34', createdAt: new Date().toISOString(), usedAt: null, status: 'unused', usedBy: null },
-        { id: 'mock-2', code: 'EF56GH78', createdAt: new Date().toISOString(), usedAt: null, status: 'unused', usedBy: null },
-        { id: 'mock-3', code: 'JK90LM12', createdAt: new Date().toISOString(), usedAt: null, status: 'unused', usedBy: null },
-      ];
-    }
-    const { data } = await apiClient.get(ENDPOINTS.USER.INVITE_CODES);
-    return Array.isArray(data) ? (data as MyInviteCode[]) : [];
   },
 
   async updateProfile(profile: Partial<User>): Promise<{ success: boolean }> {

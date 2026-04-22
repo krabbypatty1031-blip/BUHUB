@@ -106,7 +106,7 @@ export default function LoginScreen({ navigation }: Props) {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.contentInner}>
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>ULink</Text>
+          <Text style={styles.logoText}>ULinks</Text>
           <Text style={styles.subtitle}>{t('loginDesc')}</Text>
         </View>
 
@@ -179,7 +179,7 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.registerRow}>
           <Text style={styles.registerText}>{t('noAccount')}</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('InviteCode')}
+            onPress={() => navigation.navigate('EmailInput')}
             activeOpacity={0.7}
           >
             <Text style={styles.registerLink}>{t('registerNow')}</Text>

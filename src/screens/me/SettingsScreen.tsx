@@ -31,7 +31,6 @@ import { ChevronRightIcon } from '../../components/common/icons';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import ScrollPickerSheet from '../../components/common/ScrollPickerSheet';
 import { PRIVACY_URL, TERMS_URL } from '../../config/legal';
-import type { MyInviteCode } from '../../types';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'Settings'>;
 
@@ -73,29 +72,6 @@ export default function SettingsScreen({ navigation }: Props) {
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [taskReminder, setTaskReminder] = useState(true);
   const [dmNotification, setDmNotification] = useState(true);
-  const [inviteCodes, setInviteCodes] = useState<MyInviteCode[]>([]);
-  const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    setInviteCodesLoading(true);
-    userService
-      .getMyInviteCodes()
-      .then((list) => {
-        if (mounted) setInviteCodes(list);
-      })
-      .catch(() => {
-        if (mounted) showSnackbar({ message: t('saveFailed'), type: 'error' });
-      })
-      .finally(() => {
-        if (mounted) setInviteCodesLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [showSnackbar, t]);
-
   useEffect(() => {
     if (!notificationSettings) {
       return;
@@ -332,39 +308,6 @@ export default function SettingsScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.row} onPress={handleLogout}>
             <Text style={[styles.rowLabelError, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('logout')}</Text>
           </TouchableOpacity>
-        </View>
-
-        <Text style={[styles.sectionHeader, getLocalizedFontStyle(currentLanguage, 'medium')]}>{t('myInviteCodes')}</Text>
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHintBlock}>
-            <Text style={[styles.sectionHint, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('inviteCodesHint')}</Text>
-          </View>
-          <View style={styles.divider} />
-          {inviteCodesLoading ? (
-            <View style={styles.row}>
-              <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>...</Text>
-            </View>
-          ) : inviteCodes.length === 0 ? (
-            <View style={styles.row}>
-              <Text style={[styles.rowValueMuted, getLocalizedFontStyle(currentLanguage, 'regular')]}>---</Text>
-            </View>
-          ) : (
-            inviteCodes.map((item) => (
-              <View key={item.id}>
-                <View style={styles.row}>
-                  <View style={styles.inviteCodeLeft}>
-                    <Text style={[styles.inviteCodeText, getLocalizedFontStyle(currentLanguage, 'medium')]}>{item.code}</Text>
-                    <Text style={[styles.inviteCodeMeta, getLocalizedFontStyle(currentLanguage, 'regular')]}>
-                      {item.status === 'used'
-                        ? `${t('inviteCodeStatusUsed')} · ${t('inviteCodeUsedBy')}: ${item.usedBy?.nickname || item.usedBy?.userName || '---'}`
-                        : t('inviteCodeStatusUnused')}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.divider} />
-              </View>
-            ))
-          )}
         </View>
 
         {/* ── Section 2: Privacy ── */}
@@ -627,37 +570,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     flexShrink: 1,
   },
-  inviteCodeLeft: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  inviteCodeText: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-    letterSpacing: 1.2,
-    fontWeight: '600',
-  },
-  inviteCodeMeta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
-  },
   rowHint: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
     marginTop: -spacing.xs,
-  },
-  sectionHintBlock: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  sectionHint: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

@@ -147,7 +147,6 @@ export type AuthStackParamList = {
   ResetPassword: { email: string };
   EmailInput: undefined;
   SetPassword: { email: string; registrationToken?: string; agreedToTerms?: boolean };
-  InviteCode: undefined;
   ProfileSetup: { email: string };
 };
 
