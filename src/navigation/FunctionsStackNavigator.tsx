@@ -28,6 +28,7 @@ import AIScheduleViewScreen from '../screens/functions/AIScheduleViewScreen';
 import FeedbackListScreen from '../screens/functions/FeedbackListScreen';
 import FeedbackSubmitScreen from '../screens/functions/FeedbackSubmitScreen';
 import FeedbackDetailScreen from '../screens/functions/FeedbackDetailScreen';
+import LockerSFSCScreen from '../screens/functions/LockerSFSCScreen';
 
 const Stack = createNativeStackNavigator<FunctionsStackParamList>();
 
@@ -66,6 +67,7 @@ export default function FunctionsStackNavigator() {
       <Stack.Screen name="FeedbackList" component={FeedbackListScreen} />
       <Stack.Screen name="FeedbackSubmit" component={FeedbackSubmitScreen} />
       <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
+      <Stack.Screen name="LockerSFSC" component={LockerSFSCScreen} />
     </Stack.Navigator>
   );
 }

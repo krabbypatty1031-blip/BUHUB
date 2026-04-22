@@ -188,6 +188,7 @@ export type FunctionsStackParamList = {
   FeedbackList: undefined;
   FeedbackSubmit: undefined;
   FeedbackDetail: { id: string };
+  LockerSFSC: undefined;
 };
 
 // Messages Stack

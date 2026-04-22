@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   StatusBar,
   Image,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -22,8 +23,10 @@ import {
   AIScheduleFnIcon,
   ArrowRightFnIcon,
 } from '../../components/functions/FunctionHubIcons';
+import { LockerSFSCFnIcon } from '../../components/functions/LockerSFSCFnIcon';
 import { useSchedule } from '../../hooks/useSchedule';
 import { useScheduleStore } from '../../store/scheduleStore';
+import { useAuthStore } from '../../store/authStore';
 import { getLocalizedFontStyle } from '../../theme/typography';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -36,7 +39,8 @@ type FunctionsHubRouteName =
   | 'SecondhandList'
   | 'AISchedule'
   | 'RatingList'
-  | 'FacilityBooking';
+  | 'FacilityBooking'
+  | 'LockerSFSC';
 
 interface FunctionEntry {
   key: string;
@@ -46,6 +50,7 @@ interface FunctionEntry {
   iconColor: string;
   arrowColor: string;
   route: FunctionsHubRouteName;
+  fullWidth?: boolean;
 }
 
 const ENTRIES: FunctionEntry[] = [
@@ -55,6 +60,7 @@ const ENTRIES: FunctionEntry[] = [
   { key: 'rating', titleKey: 'ratings', subtitleKey: 'ratingsDesc', Icon: RatingFnIcon, iconColor: '#FFA814', arrowColor: '#C1C1C1', route: 'RatingList' },
   { key: 'facility', titleKey: 'facilityBooking', subtitleKey: 'facilityBookingDesc', Icon: FacilityFnIcon, iconColor: '#C76FF6', arrowColor: '#C1C1C1', route: 'FacilityBooking' },
   { key: 'aiSchedule', titleKey: 'aiSchedule', subtitleKey: 'aiScheduleDesc', Icon: AIScheduleFnIcon, iconColor: '#5B73FF', arrowColor: '#C1C1C1', route: 'AISchedule' },
+  { key: 'lockerSfsc', titleKey: 'lockerSfsc', subtitleKey: 'lockerSfscDesc', Icon: LockerSFSCFnIcon as React.FC<{ size?: number; color?: string }>, iconColor: '#000000', arrowColor: '#C1C1C1', route: 'LockerSFSC', fullWidth: true },
 ];
 
 const HEADER_BG_COLOR = '#333333';
@@ -67,6 +73,8 @@ const GRID_PADDING = 24;
 const CARD_RADIUS = 16;
 const CARD_HEIGHT = 131;
 
+const LIFE_EMAIL_SUFFIX = '@life.hkbu.edu.hk';
+
 export default function FunctionsHubScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
@@ -74,7 +82,14 @@ export default function FunctionsHubScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const schedule = useScheduleStore((s) => s.schedule);
   const { data: fetchedSchedule, refetch: refetchSchedule } = useSchedule();
+  const authUser = useAuthStore((s) => s.user);
   const cardWidth = (screenWidth - GRID_PADDING * 2 - GRID_GAP) / 2;
+
+  const hasLifeEmail = Boolean(
+    authUser?.linkedEmails?.some(
+      (e) => e.verified && e.email.toLowerCase().endsWith(LIFE_EMAIL_SUFFIX),
+    ),
+  );
 
   const handlePress = useCallback(
     async (targetRoute: FunctionsHubRouteName) => {
@@ -112,19 +127,31 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');
           return;
+        case 'LockerSFSC':
+          if (!hasLifeEmail) {
+            Alert.alert(
+              t('lockerSfscEligibilityTitle'),
+              t('lockerSfscEligibilityBody'),
+            );
+            return;
+          }
+          navigation.navigate('LockerSFSC');
+          return;
       }
     },
-    [fetchedSchedule, navigation, refetchSchedule, schedule],
+    [fetchedSchedule, navigation, refetchSchedule, schedule, hasLifeEmail, t],
   );
 
-  const renderCard = (entry: FunctionEntry, index: number) => {
-    const isRight = index % 2 === 1;
+  const fullCardWidth = screenWidth - GRID_PADDING * 2;
+
+  const renderCard = (entry: FunctionEntry, isRight: boolean) => {
+    const width = entry.fullWidth ? fullCardWidth : cardWidth;
     return (
       <TouchableOpacity
         key={entry.key}
         style={[
           styles.card,
-          { width: cardWidth, marginLeft: isRight ? GRID_GAP : 0 },
+          { width, marginLeft: isRight ? GRID_GAP : 0 },
         ]}
         activeOpacity={1}
         onPress={() => {
@@ -150,11 +177,25 @@ export default function FunctionsHubScreen({ navigation }: Props) {
     );
   };
 
-  // Build rows of 2
+  // Build rows: full-width entries occupy their own row; half-width entries pack 2 per row.
   const rows: FunctionEntry[][] = [];
-  for (let i = 0; i < ENTRIES.length; i += 2) {
-    rows.push(ENTRIES.slice(i, i + 2));
+  let buffer: FunctionEntry[] = [];
+  for (const entry of ENTRIES) {
+    if (entry.fullWidth) {
+      if (buffer.length > 0) {
+        rows.push(buffer);
+        buffer = [];
+      }
+      rows.push([entry]);
+      continue;
+    }
+    buffer.push(entry);
+    if (buffer.length === 2) {
+      rows.push(buffer);
+      buffer = [];
+    }
   }
+  if (buffer.length > 0) rows.push(buffer);
 
   return (
     <View style={styles.container}>
@@ -182,9 +223,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         <View style={styles.grid}>
           {rows.map((row, rowIndex) => (
             <View key={rowIndex} style={styles.row}>
-              {row.map((entry, colIndex) =>
-                renderCard(entry, rowIndex * 2 + colIndex),
-              )}
+              {row.map((entry, colIndex) => renderCard(entry, colIndex === 1))}
             </View>
           ))}
         </View>

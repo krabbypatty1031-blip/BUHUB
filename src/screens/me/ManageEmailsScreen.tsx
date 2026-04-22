@@ -173,6 +173,10 @@ export default function ManageEmailsScreen({ navigation }: Props) {
 
   const handleUnlink = useCallback(
     (linkedEmail: LinkedEmail) => {
+      if (linkedEmail.email.toLowerCase().endsWith('@life.hkbu.edu.hk')) {
+        Alert.alert(t('unlinkEmail'), t('hkbuEmailLocked'), [{ text: t('confirmBtn') }]);
+        return;
+      }
       Alert.alert(t('unlinkEmail'), t('unlinkEmailConfirm'), [
         { text: t('cancel'), style: 'cancel' },
         {
@@ -238,7 +242,11 @@ export default function ManageEmailsScreen({ navigation }: Props) {
                     <TouchableOpacity
                       activeOpacity={0.88}
                       delayLongPress={250}
-                      disabled={!canLongPressToUnlink || unlinkingEmailId === item.id}
+                      disabled={
+                        !canLongPressToUnlink ||
+                        unlinkingEmailId === item.id ||
+                        item.email.toLowerCase().endsWith('@life.hkbu.edu.hk')
+                      }
                       onLongPress={() => handleUnlink(item)}
                       style={[
                         styles.emailCard,

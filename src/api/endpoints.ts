@@ -164,6 +164,12 @@ const ENDPOINTS = {
     SUBMIT: '/feedback',
     REPLY: (id: string) => `/feedback/${id}/reply`,
   },
+
+  // Locker by SFSC
+  LOCKER: {
+    SUBMIT: '/locker-requests',
+    LIST_MINE: '/locker-requests',
+  },
 } as const;
 
 export default ENDPOINTS;
