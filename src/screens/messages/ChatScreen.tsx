@@ -332,15 +332,7 @@ function resolveMessageTimestampMs(message: ChatMessage): number | null {
   return null;
 }
 
-function resolveMessageGroupSenderKey(message: ChatMessage): string {
-  return message.type === 'sent' ? 'me' : 'them';
-}
-
 function shouldMessagesShareGroup(current: ChatMessage, nextOlder: ChatMessage): boolean {
-  if (resolveMessageGroupSenderKey(current) !== resolveMessageGroupSenderKey(nextOlder)) {
-    return false;
-  }
-
   const currentTs = resolveMessageTimestampMs(current);
   const nextOlderTs = resolveMessageTimestampMs(nextOlder);
   if (currentTs != null && nextOlderTs != null) {
@@ -1787,6 +1779,8 @@ function ChatScreenContent({ navigation, route }: Props) {
   const olderHistoryTriggerCooldownUntilRef = useRef(0);
   const lastKnownMessageCountRef = useRef(0);
   const pendingNewMessageCountRef = useRef(0);
+  const listContentHeightRef = useRef(0);
+  const listLayoutHeightRef = useRef(0);
   const prefetchedUrisRef = useRef(new Set<string>());
 
   const handleBack = useCallback(() => {
@@ -3223,7 +3217,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         automaticallyAdjustContentInsets={false}
         contentInsetAdjustmentBehavior="never"
         inverted
-        keyboardLiftBehavior="always"
+        keyboardLiftBehavior="never"
         offset={keyboardChatScrollOffset}
         blankSpace={chatListBlankSpace}
       />
@@ -3410,6 +3404,8 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    listContentHeightRef.current = contentSize.height;
+    listLayoutHeightRef.current = layoutMeasurement.height;
     const nearLatest = contentOffset.y <= LATEST_PROXIMITY_PX;
     const distanceToOlderEdge = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     isNearLatestRef.current = nearLatest;
@@ -3483,7 +3479,8 @@ function ChatScreenContent({ navigation, route }: Props) {
     []
   );
 
-  const handleContentSizeChange = useCallback(() => {
+  const handleContentSizeChange = useCallback((_width: number, height: number) => {
+    listContentHeightRef.current = height;
     if (listData.length === 0) return;
     const itemDelta = listData.length - lastKnownListLengthRef.current;
     const messageDelta = messageItemCount - lastKnownMessageCountRef.current;
@@ -4677,6 +4674,9 @@ function ChatScreenContent({ navigation, route }: Props) {
             }
           }}
           onContentSizeChange={handleContentSizeChange}
+          onLayout={(e) => {
+            listLayoutHeightRef.current = e.nativeEvent.layout.height;
+          }}
           onScroll={handleListScroll}
           onScrollBeginDrag={handleListScrollBeginDrag}
           onEndReached={handleEndReached}
@@ -4901,6 +4901,9 @@ function ChatScreenContent({ navigation, route }: Props) {
                       kbScrollSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
                         kbScrollSubRef.current?.remove();
                         kbScrollSubRef.current = null;
+                        const contentH = listContentHeightRef.current;
+                        const layoutH = listLayoutHeightRef.current;
+                        if (contentH <= layoutH + 1) return;
                         const kbHeight = e.endCoordinates.height;
                         flatListRef.current?.scrollToOffset({ offset: -kbHeight, animated: true });
                       });

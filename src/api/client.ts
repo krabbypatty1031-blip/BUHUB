@@ -35,17 +35,18 @@ const getApiBaseUrl = () => {
     return devUrl.endsWith('/api') ? devUrl : `${devUrl.replace(/\/$/, '')}/api`;
   }
 
-  // 4) Last-resort hardcoded production URL
-  return 'https://www.uhub.help/api';
+  // 4) Last-resort hardcoded production URL — Cloudflare Worker proxy to bypass
+  //    HKBU campus PAN firewall SSL inspection on www.uhub.help.
+  return 'https://ulink-api.krabbypatty1031.workers.dev/api';
 };
 
 const API_BASE = getApiBaseUrl();
 
 if (__DEV__) {
   console.log('[API] Base URL:', API_BASE, '| Platform:', Platform.OS);
-  if (API_BASE.includes('uhub.help')) {
+  if (API_BASE.includes('workers.dev') || API_BASE.includes('uhub.help')) {
     console.warn(
-      '[API] Resolved production API (uhub.help). For local backend, set EXPO_PUBLIC_API_URL in BUHUB/.env, then restart Metro with a clean cache: npx expo start -c. ' +
+      '[API] Resolved production API. For local backend, set EXPO_PUBLIC_API_URL in BUHUB/.env, then restart Metro with a clean cache: npx expo start -c. ' +
         'If EXPO_PUBLIC_API_URL is empty at bundle time, app.json extra.apiUrl is used. ' +
         'Android emulator: http://10.0.2.2:3000/api; iOS simulator: http://localhost:3000/api; physical device: http://<your-LAN-IP>:3000/api.'
     );

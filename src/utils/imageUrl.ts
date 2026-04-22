@@ -2,6 +2,17 @@ import Constants from 'expo-constants';
 import { DEFAULT_AVATAR_IDS } from './defaultAvatars';
 
 const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
+const WORKER_BASE_URL = 'https://ulink-api.krabbypatty1031.workers.dev';
+const KNOWN_UPLOAD_HOSTS = new Set([
+  'www.uhub.help',
+  'uhub.help',
+  'ulink-api.krabbypatty1031.workers.dev',
+]);
+
+const getExpoExtraString = (key: 'apiUrl' | 'appUrl'): string | undefined => {
+  const value = Constants.expoConfig?.extra?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+};
 
 /**
  * Get the base URL for images (without /api path).
@@ -11,16 +22,18 @@ const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/
 const getImageBaseUrl = (): string => {
   const appUrl = process.env.EXPO_PUBLIC_APP_URL;
   if (appUrl) return normalizePublicBaseUrl(appUrl);
+  const extraAppUrl = getExpoExtraString('appUrl');
+  if (extraAppUrl) return normalizePublicBaseUrl(extraAppUrl);
 
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return normalizePublicBaseUrl(apiUrl);
-  const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
+  const extraApiUrl = getExpoExtraString('apiUrl');
   if (extraApiUrl) return normalizePublicBaseUrl(extraApiUrl);
 
   const devUrl = process.env.EXPO_PUBLIC_DEV_API_URL;
   if (__DEV__ && devUrl) return normalizePublicBaseUrl(devUrl);
 
-  return 'https://www.uhub.help';
+  return WORKER_BASE_URL;
 };
 
 const isIpv4Host = (hostname: string): boolean => {
@@ -35,11 +48,16 @@ const isLocalHost = (hostname: string): boolean => {
   return lower === 'localhost' || lower === '0.0.0.0' || isIpv4Host(lower);
 };
 
+const isKnownUploadHost = (hostname: string): boolean => {
+  const lower = hostname.toLowerCase();
+  return KNOWN_UPLOAD_HOSTS.has(lower) || isLocalHost(lower);
+};
+
 const rebaseLegacyAbsoluteUploadUrl = (url: string): string | null => {
   try {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) return null;
-    if (!isLocalHost(parsed.hostname)) return null;
+    if (!isKnownUploadHost(parsed.hostname)) return null;
     if (!parsed.pathname.startsWith('/uploads/') && !parsed.pathname.startsWith('/api/uploads/')) return null;
     return `${getImageBaseUrl()}${parsed.pathname}${parsed.search}`;
   } catch {

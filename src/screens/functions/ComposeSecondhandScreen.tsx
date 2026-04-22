@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import type { SecondhandCategory, SecondhandItem } from '../../types';
+import type { SecondhandCategory } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEditSecondhand, type SecondhandInfiniteData } from '../../hooks/useSecondhand';
 import { secondhandService } from '../../api/services/secondhand.service';
@@ -240,47 +240,8 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
       return;
     }
 
-    // ── Create mode: optimistic + background upload ──
-    const optimisticId = `optimistic-${Date.now()}`;
+    // ── Create mode: background upload, only show the post after success ──
     const allImages = [...images];
-    const optimisticItem: SecondhandItem = {
-      id: optimisticId,
-      category,
-      type: t(category),
-      title: title.trim(),
-      desc: description.trim(),
-      images: allImages,
-      price: `HK$${price.trim()}`,
-      condition: condition ?? '',
-      location: tradeLocation.trim(),
-      user: user.name,
-      userName: user.userName,
-      authorId: user.id,
-      avatar: user.avatar || '',
-      gender: user.gender || 'other',
-      bio: user.bio || '',
-      gradeKey: user.grade,
-      majorKey: user.major,
-      sold: false,
-      isWanted: false,
-      expiresAt: deadline!.toISOString(),
-      expired: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Insert optimistic item into cache
-    const insertOptimistic = (old: SecondhandInfiniteData | undefined) => {
-      if (!old || !old.pages.length) return old;
-      return {
-        ...old,
-        pages: [
-          { ...old.pages[0], items: [optimisticItem, ...old.pages[0].items] },
-          ...old.pages.slice(1),
-        ],
-      };
-    };
-    queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], insertOptimistic);
-    queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], insertOptimistic);
 
     // Navigate back immediately — zero perceived delay
     navigation.goBack();
@@ -322,35 +283,25 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
           createdAt: new Date().toISOString(),
         });
 
-        // Replace optimistic item with real server data
-        const replaceOptimistic = (old: SecondhandInfiniteData | undefined) => {
-          if (!old) return old;
+        // Insert the real server item only after creation succeeds.
+        const insertCreatedItem = (old: SecondhandInfiniteData | undefined) => {
+          if (!old || !old.pages.length) return old;
           return {
             ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => (item.id === optimisticId ? createdItem : item)),
-            })),
+            pages: [
+              { ...old.pages[0], items: [createdItem, ...old.pages[0].items] },
+              ...old.pages.slice(1),
+            ],
           };
         };
-        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], replaceOptimistic);
-        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], replaceOptimistic);
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], insertCreatedItem);
+        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], insertCreatedItem);
+        queryClient.setQueryData(['secondhandItem', createdItem.id], createdItem);
+        queryClient.invalidateQueries({ queryKey: ['secondhand', category] });
+        queryClient.invalidateQueries({ queryKey: ['secondhand', undefined] });
 
         showSnackbar({ message: t('postSuccess'), type: 'success' });
       } catch (error: unknown) {
-        // Remove optimistic item on failure
-        const removeOptimistic = (old: SecondhandInfiniteData | undefined) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              items: page.items.filter((item) => item.id !== optimisticId),
-            })),
-          };
-        };
-        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', category], removeOptimistic);
-        queryClient.setQueryData<SecondhandInfiniteData>(['secondhand', undefined], removeOptimistic);
         showSnackbar({ message: resolveSubmitErrorMessage(error), type: 'error' });
       } finally {
         postingLockRef.current = false;
@@ -754,4 +705,3 @@ const styles = StyleSheet.create({
     color: colors.outline,
   },
 });
-

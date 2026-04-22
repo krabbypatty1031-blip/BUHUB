@@ -95,7 +95,8 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://www.uhub.help/api",
+      "apiUrl": "https://ulink-api.krabbypatty1031.workers.dev/api",
+      "appUrl": "https://ulink-api.krabbypatty1031.workers.dev",
       "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
       "termsUrl": "https://www.uhub.help/terms",
       "privacyUrl": "https://www.uhub.help/privacy",
