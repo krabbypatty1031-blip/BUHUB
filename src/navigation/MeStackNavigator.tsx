@@ -14,6 +14,9 @@ import PostDetailScreen from '../screens/forum/PostDetailScreen';
 import SettingsScreen from '../screens/me/SettingsScreen';
 import ManageEmailsScreen from '../screens/me/ManageEmailsScreen';
 import BlocklistScreen from '../screens/me/BlocklistScreen';
+import FeedbackListScreen from '../screens/functions/FeedbackListScreen';
+import FeedbackSubmitScreen from '../screens/functions/FeedbackSubmitScreen';
+import FeedbackDetailScreen from '../screens/functions/FeedbackDetailScreen';
 
 const Stack = createNativeStackNavigator<MeStackParamList>();
 
@@ -38,6 +41,9 @@ export default function MeStackNavigator() {
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="ManageEmails" component={ManageEmailsScreen} />
       <Stack.Screen name="Blocklist" component={BlocklistScreen} />
+      <Stack.Screen name="FeedbackList" component={FeedbackListScreen} />
+      <Stack.Screen name="FeedbackSubmit" component={FeedbackSubmitScreen} />
+      <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
     </Stack.Navigator>
   );
 }

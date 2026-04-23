@@ -24,8 +24,10 @@ export interface ParseScheduleMeta {
   columnCount: number;
 }
 
+export type ParseScheduleWarningCode = 'DAY_HEADERS_UNCLEAR';
+
 export interface ParseScheduleWarning {
-  code: 'DAY_HEADERS_UNCLEAR';
+  codes: ParseScheduleWarningCode[];
 }
 
 export interface ParseScheduleResult {
