@@ -43,7 +43,10 @@ function deriveStudentIdFromEmail(email: string | undefined | null): string {
   if (!email) return '';
   const lower = email.toLowerCase();
   if (!lower.endsWith(LIFE_EMAIL_SUFFIX)) return '';
-  return email.slice(0, email.length - LIFE_EMAIL_SUFFIX.length);
+  const localPart = email.slice(0, email.length - LIFE_EMAIL_SUFFIX.length);
+  // Auto-fill only when the local-part is purely numeric (i.e. a HKBU student ID).
+  // If it contains letters (a named alias), leave blank so the user fills it manually.
+  return /^\d+$/.test(localPart) ? localPart : '';
 }
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'LockerSFSC'>;
@@ -301,12 +304,18 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscStudentId')}</Text>
         <TextInput
-          style={[styles.input, styles.inputReadOnly]}
+          style={[styles.input, isExpired && styles.inputReadOnly]}
           value={studentId}
-          editable={false}
-          selectTextOnFocus={false}
+          onChangeText={(text) => {
+            // Reject any change that contains non-digits (e.g. paste of "abc123",
+            // external keyboard letter, IME input). Keeps the previous value on reject.
+            if (/^\d*$/.test(text)) setStudentId(text);
+          }}
+          editable={!isExpired}
           placeholder={t('lockerSfscStudentIdPlaceholder')}
           placeholderTextColor={colors.outline}
+          keyboardType="number-pad"
+          maxLength={32}
         />
       </View>
       <View style={styles.section}>
