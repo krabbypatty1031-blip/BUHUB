@@ -45,8 +45,7 @@ function getApiOrigin(): string {
   return (fromEnv || '').replace(/\/api\/?$/i, '');
 }
 
-function resolveDevUploadUrl(uploadUrl: string, fileKey?: string): string {
-  if (!__DEV__) return uploadUrl;
+function resolveProxyUploadUrl(uploadUrl: string, fileKey?: string): string {
   if (!fileKey) return uploadUrl;
   const apiOrigin = getApiOrigin();
   if (!apiOrigin) return uploadUrl;
@@ -227,7 +226,7 @@ async function uploadViaPresigned(
   });
 
   const { uploadUrl, fileUrl, fileKey } = presignedData;
-  const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
+  const finalUploadUrl = resolveProxyUploadUrl(uploadUrl, fileKey);
 
   const headers: Record<string, string> = { 'Content-Type': uploadMimeType };
   const token = useAuthStore.getState().token;
@@ -315,7 +314,7 @@ export const uploadService = {
       mimeType: normalizedType,
     });
     const { uploadUrl, fileUrl, fileKey } = presignedData;
-    const finalUploadUrl = resolveDevUploadUrl(uploadUrl, fileKey);
+    const finalUploadUrl = resolveProxyUploadUrl(uploadUrl, fileKey);
     const headers: Record<string, string> = { 'Content-Type': normalizedType };
     const token = useAuthStore.getState().token;
     if (token) headers.Authorization = `Bearer ${token}`;
