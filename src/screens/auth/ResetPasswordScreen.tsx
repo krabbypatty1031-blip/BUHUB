@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,12 +27,14 @@ import { BackIcon, EyeIcon, EyeOffIcon } from '../../components/common/icons';
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen({ navigation, route }: Props) {
+  const CODE_LENGTH = 6;
   const { t } = useTranslation();
   const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
 
-  const [token, setToken] = useState('');
+  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const {
     value: password,
@@ -48,7 +50,8 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     toggleVisibility: toggleConfirmVisibility,
   } = usePasswordInput();
 
-  const canSubmit = token.trim().length > 0 && password.length > 0 && confirmPassword.length > 0;
+  const codeComplete = code.every((c) => c !== '');
+  const canSubmit = codeComplete && password.length > 0 && confirmPassword.length > 0;
 
   const getPasswordErrorMessage = useCallback(
     (value: string): string | null => {
@@ -59,6 +62,31 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
       return null;
     },
     [t]
+  );
+
+  const handleCodeChange = useCallback(
+    (text: string, index: number) => {
+      const digit = text.replace(/[^0-9]/g, '');
+      if (digit.length > 1) return;
+
+      const newCode = [...code];
+      newCode[index] = digit;
+      setCode(newCode);
+
+      if (digit.length === 1 && index < CODE_LENGTH - 1) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    },
+    [code]
+  );
+
+  const handleCodeKeyPress = useCallback(
+    (key: string, index: number) => {
+      if (key === 'Backspace' && code[index] === '' && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    },
+    [code]
   );
 
   const handleSubmit = useCallback(async () => {
@@ -77,7 +105,7 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
 
     setIsSubmitting(true);
     try {
-      await authService.resetPassword(token.trim(), password);
+      await authService.resetPassword(code.join(''), password);
       showSnackbar({ message: t('resetPasswordSuccess'), type: 'success' });
       navigation.navigate('Login');
     } catch (error: unknown) {
@@ -97,7 +125,7 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, isSubmitting, password, confirmPassword, token, getPasswordErrorMessage, navigation, showSnackbar, t]);
+  }, [canSubmit, code, isSubmitting, password, confirmPassword, getPasswordErrorMessage, navigation, showSnackbar, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -128,17 +156,23 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
 
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('resetCodeLabel')}</Text>
-                <View style={styles.inputField}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('resetCodePlaceholder')}
-                    placeholderTextColor={colors.onSurfaceVariant}
-                    value={token}
-                    onChangeText={setToken}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isSubmitting}
-                  />
+                <View style={styles.codeInputs}>
+                  {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+                    <TextInput
+                      key={i}
+                      ref={(ref) => {
+                        inputRefs.current[i] = ref;
+                      }}
+                      style={[styles.codeInput, code[i] !== '' && styles.codeInputFilled]}
+                      maxLength={1}
+                      keyboardType="number-pad"
+                      value={code[i]}
+                      onChangeText={(text) => handleCodeChange(text, i)}
+                      onKeyPress={({ nativeEvent }) => handleCodeKeyPress(nativeEvent.key, i)}
+                      editable={!isSubmitting}
+                      selectTextOnFocus
+                    />
+                  ))}
                 </View>
               </View>
 
@@ -290,6 +324,30 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.lg,
     minHeight: 56,
+  },
+  codeInputs: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+    gap: spacing.sm,
+  },
+  codeInput: {
+    width: 48,
+    height: 52,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.sm,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontFamily: typography.bodyLarge.fontFamily,
+    fontSize: 22,
+    fontWeight: '600',
+    color: colors.onSurface,
+    paddingVertical: 0,
+    includeFontPadding: false,
+  },
+  codeInputFilled: {
+    borderColor: colors.primary,
   },
   input: {
     fontFamily: typography.bodyLarge.fontFamily,
