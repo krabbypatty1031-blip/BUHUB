@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScrollPickerSheet, { type PickerOption } from '../../components/common/ScrollPickerSheet';
+import { HelpCircleIcon } from '../../components/common/icons';
 import { useTranslation } from 'react-i18next';
 import { Image as ExpoImage } from 'expo-image';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -22,7 +23,6 @@ import {
   type LockerRequestRecord,
   type LockerStatus,
   type DropOffDate,
-  type PickupDate,
 } from '../../api/services/locker.service';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -61,16 +61,6 @@ const DROP_OFF_OPTIONS: DropOffOption[] = [
   { date: '2026-05-16', label: '5.16 9am-15pm' },
 ];
 
-interface PickupOption {
-  date: PickupDate;
-  label: string;
-}
-const PICKUP_OPTIONS: PickupOption[] = [
-  { date: '2026-08-15', label: '8.15' },
-  { date: '2026-08-25', label: '8.25' },
-  { date: '2026-08-30', label: '8.30' },
-];
-
 // Metro bundler requires static require() paths — declare all three up front,
 // pick at render time based on the user's language.
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -85,6 +75,11 @@ const PROMO_BY_LANG: Record<string, number> = {
 };
 
 const MAX_MODIFICATIONS = 1;
+
+const FIRST_BOX_PRICE_HKD = 150;
+const ADDITIONAL_BOX_PRICE_HKD = 185;
+const MIN_BOXES = 1;
+const MAX_BOXES = 10;
 
 // Information-collection deadline: 2026-05-03 23:59 HKT (UTC+8).
 const COLLECTION_DEADLINE_MS = Date.parse('2026-05-03T23:59:00+08:00');
@@ -121,9 +116,11 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [residenceAddress, setResidenceAddress] = useState('');
   const [dropOffDate, setDropOffDate] = useState<DropOffDate | null>(null);
-  const [pickupDate, setPickupDate] = useState<PickupDate | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hallPickerOpen, setHallPickerOpen] = useState(false);
+  const [boxCount, setBoxCount] = useState<number>(MIN_BOXES);
+  const [boxPickerOpen, setBoxPickerOpen] = useState(false);
+  const [boxInfoOpen, setBoxInfoOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
 
   const selectedHall = useMemo(() => findHall(residenceAddress), [residenceAddress]);
@@ -138,6 +135,28 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     setResidenceAddress(value);
     setHallPickerOpen(false);
   }, []);
+
+  const boxPickerOptions: PickerOption[] = useMemo(
+    () =>
+      Array.from({ length: MAX_BOXES - MIN_BOXES + 1 }, (_, i) => {
+        const n = MIN_BOXES + i;
+        return { value: String(n), label: String(n) };
+      }),
+    [],
+  );
+
+  const handleBoxSelect = useCallback((value: string) => {
+    const n = Number.parseInt(value, 10);
+    if (Number.isFinite(n) && n >= MIN_BOXES && n <= MAX_BOXES) {
+      setBoxCount(n);
+    }
+    setBoxPickerOpen(false);
+  }, []);
+
+  const estimatedPriceHkd =
+    boxCount <= 1
+      ? FIRST_BOX_PRICE_HKD
+      : FIRST_BOX_PRICE_HKD + (boxCount - 1) * ADDITIONAL_BOX_PRICE_HKD;
 
   const promoHeight = screenHeight / 4;
 
@@ -171,9 +190,12 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     if (droppedIso && DROP_OFF_OPTIONS.some((o) => o.date === droppedIso)) {
       setDropOffDate(droppedIso as DropOffDate);
     }
-    const pickupIso = record.pickupDate?.slice(0, 10);
-    if (pickupIso && PICKUP_OPTIONS.some((o) => o.date === pickupIso)) {
-      setPickupDate(pickupIso as PickupDate);
+    if (
+      typeof record.boxCount === 'number' &&
+      record.boxCount >= MIN_BOXES &&
+      record.boxCount <= MAX_BOXES
+    ) {
+      setBoxCount(record.boxCount);
     }
   }, []);
 
@@ -225,7 +247,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       setPhoneNumber('');
       setResidenceAddress('');
       setDropOffDate(null);
-      setPickupDate(null);
+      setBoxCount(MIN_BOXES);
     }
     hadRecordRef.current = mineRecord !== null;
   }, [mineRecord, derivedStudentId]);
@@ -243,7 +265,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       setPhoneNumber('');
       setResidenceAddress('');
       setDropOffDate(null);
-      setPickupDate(null);
+      setBoxCount(MIN_BOXES);
     }
   }, [isExpired, mineRecord, applyRecord]);
 
@@ -256,6 +278,23 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     residenceAddress.trim().length > 0 &&
     dropOffDate !== null;
 
+  // In modify mode, require at least one field to differ from the existing record.
+  // Fresh-submit mode (no record yet) always counts as "changed".
+  const hasChanges = useMemo(() => {
+    if (!mineRecord) return true;
+    const recordDropOff = mineRecord.dropOffDate?.slice(0, 10) ?? null;
+    return (
+      fullName.trim() !== mineRecord.fullName ||
+      studentId.trim() !== mineRecord.studentId ||
+      phoneNumber.trim() !== mineRecord.phoneNumber ||
+      residenceAddress.trim() !== mineRecord.residenceAddress ||
+      dropOffDate !== recordDropOff ||
+      boxCount !== mineRecord.boxCount
+    );
+  }, [mineRecord, fullName, studentId, phoneNumber, residenceAddress, dropOffDate, boxCount]);
+
+  const canSubmit = isValid && (!isModifying || hasChanges);
+
   const performSubmit = useCallback(async () => {
     if (!isValid || !dropOffDate) return;
     setSubmitting(true);
@@ -266,7 +305,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         phoneNumber: phoneNumber.trim(),
         residenceAddress: residenceAddress.trim(),
         dropOffDate,
-        pickupDate,
+        boxCount,
       };
       const record = await lockerService.submit(payload);
       applyRecord(record);
@@ -276,12 +315,12 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [isValid, dropOffDate, pickupDate, fullName, studentId, phoneNumber, residenceAddress, showSnackbar, t, applyRecord]);
+  }, [isValid, dropOffDate, fullName, studentId, phoneNumber, residenceAddress, boxCount, showSnackbar, t, applyRecord]);
 
   const onSubmitPressed = useCallback(() => {
-    if (!isValid || submitting) return;
+    if (!canSubmit || submitting) return;
     setReviewOpen(true);
-  }, [isValid, submitting]);
+  }, [canSubmit, submitting]);
 
   const onReviewConfirm = useCallback(() => {
     setReviewOpen(false);
@@ -347,6 +386,34 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
       <View style={styles.section}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, styles.labelInRow]}>{t('lockerSfscBoxCount')}</Text>
+          <TouchableOpacity
+            onPress={() => setBoxInfoOpen(true)}
+            accessibilityLabel={t('lockerSfscBoxInfoTitle')}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.infoButton}
+          >
+            <HelpCircleIcon size={16} color="#86909C" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            (isExpired || modifyExhausted) && styles.inputReadOnly,
+          ]}
+          onPress={() => setBoxPickerOpen(true)}
+          activeOpacity={0.7}
+          disabled={isExpired || modifyExhausted}
+        >
+          <Text style={styles.pickerValue} numberOfLines={1}>{String(boxCount)}</Text>
+        </TouchableOpacity>
+        <Text style={styles.estimatedPrice}>
+          {t('lockerSfscEstimatedPrice', { amount: estimatedPriceHkd })}
+        </Text>
+      </View>
+      <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscDropOffDate')}</Text>
         <View style={styles.chipRow}>
           {DROP_OFF_OPTIONS.map((opt) => {
@@ -376,20 +443,9 @@ export default function LockerSFSCScreen({ navigation }: Props) {
           })}
         </View>
       </View>
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('lockerSfscPickupDate')}</Text>
-        <View style={styles.chipRow}>
-          {PICKUP_OPTIONS.map((opt) => (
-            <View key={opt.date} style={[styles.chip, styles.chipDisabled]}>
-              <Text style={[styles.chipText, styles.chipTextDisabled]}>{opt.label}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.hintText}>{t('lockerSfscPickupHint')}</Text>
-      </View>
       <TouchableOpacity
-        style={[styles.submitBtn, (!isValid || submitting) && styles.submitBtnDisabled]}
-        disabled={!isValid || submitting}
+        style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
+        disabled={!canSubmit || submitting}
         onPress={onSubmitPressed}
         activeOpacity={0.85}
       >
@@ -462,6 +518,40 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         title={t('lockerSfscHallPickerTitle')}
       />
 
+      <ScrollPickerSheet
+        visible={boxPickerOpen}
+        onClose={() => setBoxPickerOpen(false)}
+        onConfirm={handleBoxSelect}
+        options={boxPickerOptions}
+        initialValue={String(boxCount)}
+        title={t('lockerSfscBoxCount')}
+      />
+
+      <Modal
+        visible={boxInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBoxInfoOpen(false)}
+      >
+        <View style={styles.reviewBackdrop}>
+          <View style={styles.reviewSheet}>
+            <Text style={styles.reviewTitle}>{t('lockerSfscBoxInfoTitle')}</Text>
+            <View style={styles.boxInfoBody}>
+              <Text style={styles.boxInfoLine}>1. {t('lockerSfscBoxInfoSize')}</Text>
+              <Text style={styles.boxInfoLine}>2. {t('lockerSfscBoxInfoPrice')}</Text>
+              <Text style={styles.boxInfoLine}>3. {t('lockerSfscBoxInfoStorage')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.reviewBtn, styles.reviewBtnConfirm, styles.boxInfoCloseBtn]}
+              onPress={() => setBoxInfoOpen(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.reviewBtnTextConfirm}>{t('lockerSfscBoxInfoClose')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={reviewOpen}
         transparent
@@ -480,16 +570,14 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 { label: t('lockerSfscPhone'), value: phoneNumber.trim() },
                 { label: t('lockerSfscAddress'), value: selectedHallLabel },
                 {
+                  label: t('lockerSfscBoxCount'),
+                  value: `${boxCount}  (HK$${estimatedPriceHkd})`,
+                },
+                {
                   label: t('lockerSfscDropOffDate'),
                   value:
                     DROP_OFF_OPTIONS.find((o) => o.date === dropOffDate)?.label ??
                     (dropOffDate ?? ''),
-                },
-                {
-                  label: t('lockerSfscPickupDate'),
-                  value:
-                    (pickupDate && PICKUP_OPTIONS.find((o) => o.date === pickupDate)?.label) ??
-                    '—',
                 },
               ].map((row) => (
                 <View key={row.label} style={styles.reviewRow}>
@@ -528,6 +616,40 @@ const styles = StyleSheet.create({
   promo: { width: '100%', backgroundColor: '#F3F5F7' },
   section: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   label: { fontSize: 14, fontFamily: 'SourceHanSansCN-Medium', color: '#0C1015', marginBottom: 12 },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  labelInRow: {
+    marginBottom: 0,
+  },
+  infoButton: {
+    marginLeft: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  estimatedPrice: {
+    marginTop: 8,
+    fontSize: 13,
+    fontFamily: 'SourceHanSansCN-Medium',
+    color: '#DC2626',
+    textAlign: 'right',
+  },
+  boxInfoBody: {
+    marginBottom: spacing.lg,
+  },
+  boxInfoCloseBtn: {
+    flex: 0,
+    alignSelf: 'stretch',
+  },
+  boxInfoLine: {
+    fontSize: 14,
+    fontFamily: 'SourceHanSansCN-Regular',
+    color: '#0C1015',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
   input: {
     minHeight: 44,
     borderWidth: 1,

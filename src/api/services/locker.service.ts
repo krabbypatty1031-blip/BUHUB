@@ -2,7 +2,6 @@ import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
 export type DropOffDate = '2026-05-06' | '2026-05-11' | '2026-05-16';
-export type PickupDate = '2026-08-15' | '2026-08-25' | '2026-08-30';
 
 export interface LockerRequestInput {
   fullName: string;
@@ -10,7 +9,7 @@ export interface LockerRequestInput {
   phoneNumber: string;
   residenceAddress: string;
   dropOffDate: DropOffDate;
-  pickupDate: PickupDate | null;
+  boxCount: number;
 }
 
 export type LockerStatus =
@@ -27,9 +26,9 @@ export interface LockerRequestRecord {
   phoneNumber: string;
   residenceAddress: string;
   dropOffDate: string; // ISO timestamp from server (Prisma @db.Date serialises to ISO)
-  pickupDate: string | null;
   status: LockerStatus;
   modifyCount: number;
+  boxCount: number;
   createdAt: string;
   updatedAt: string;
 }
