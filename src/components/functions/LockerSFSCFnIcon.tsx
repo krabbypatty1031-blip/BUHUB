@@ -1,13 +1,11 @@
 import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
-// SF sits at the same 28px as the other SVG function-hub icons. The DHL
-// wordmark is shortened so its visual weight doesn't dominate the SF circle.
+// SF and DHL both render at 28px to match the other function-hub icons.
 type IconProps = { size?: number };
 
 const SF_SIZE = 28;
-const DHL_HEIGHT = 16;
-const DHL_WIDTH = 80;
+const DHL_SIZE = 28;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sfLogo = require('../../../assets/images/sf-logo.png');
@@ -35,7 +33,7 @@ const styles = StyleSheet.create({
     height: SF_SIZE,
   },
   dhlLogo: {
-    width: DHL_WIDTH,
-    height: DHL_HEIGHT,
+    width: DHL_SIZE,
+    height: DHL_SIZE,
   },
 });
