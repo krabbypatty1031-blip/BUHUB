@@ -15,13 +15,13 @@ import ScrollPickerSheet, { type PickerOption } from '../../components/common/Sc
 import { HelpCircleIcon } from '../../components/common/icons';
 import { useTranslation } from 'react-i18next';
 import { Image as ExpoImage } from 'expo-image';
+import * as Notifications from 'expo-notifications';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import {
   lockerService,
   type LockerRequestInput,
   type LockerRequestRecord,
-  type LockerStatus,
   type DropOffDate,
 } from '../../api/services/locker.service';
 import { useUIStore } from '../../store/uiStore';
@@ -53,12 +53,12 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'LockerSFSC'>;
 
 interface DropOffOption {
   date: DropOffDate;
-  label: string;
+  labelKey: string;
 }
 const DROP_OFF_OPTIONS: DropOffOption[] = [
-  { date: '2026-05-06', label: '5.6 9am-15pm' },
-  { date: '2026-05-11', label: '5.11 9am-15pm' },
-  { date: '2026-05-16', label: '5.16 9am-15pm' },
+  { date: '2026-05-07', labelKey: 'lockerSfscDropOffOption1' },
+  { date: '2026-05-11', labelKey: 'lockerSfscDropOffOption2' },
+  { date: '2026-05-16', labelKey: 'lockerSfscDropOffOption3' },
 ];
 
 // Metro bundler requires static require() paths — declare all three up front,
@@ -84,18 +84,7 @@ const MAX_BOXES = 10;
 // Information-collection deadline: 2026-05-03 23:59 HKT (UTC+8).
 const COLLECTION_DEADLINE_MS = Date.parse('2026-05-03T23:59:00+08:00');
 
-const STATUS_I18N: Record<LockerStatus, string> = {
-  DROP_OFF_PROCESSING: 'lockerSfscStatusDropOffProcessing',
-  DROP_OFF_COMPLETE: 'lockerSfscStatusDropOffComplete',
-  PICK_UP_PROCESSING: 'lockerSfscStatusPickUpProcessing',
-  PICK_UP_COMPLETE: 'lockerSfscStatusPickUpComplete',
-};
-const STATUS_TONE: Record<LockerStatus, { bg: string; fg: string }> = {
-  DROP_OFF_PROCESSING: { bg: '#EEF2FF', fg: '#4338CA' },
-  DROP_OFF_COMPLETE: { bg: '#ECFDF5', fg: '#047857' },
-  PICK_UP_PROCESSING: { bg: '#FEF3C7', fg: '#92400E' },
-  PICK_UP_COMPLETE: { bg: '#F3F5F7', fg: '#0C1015' },
-};
+const BROADCAST_POLL_INTERVAL_MS = 30_000;
 
 export default function LockerSFSCScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
@@ -122,6 +111,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [boxInfoOpen, setBoxInfoOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
 
   const selectedHall = useMemo(() => findHall(residenceAddress), [residenceAddress]);
   const selectedHallLabel = selectedHall ? hallLabel(selectedHall, i18n.language) : '';
@@ -180,6 +170,62 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     return () => clearTimeout(timer);
   }, [isExpired]);
 
+  // Poll the admin broadcast message every 30s while the banner is visible
+  // (post-deadline, user has a record). A single fetch kicks off immediately;
+  // the interval keeps users in sync with admin edits without WebSocket infra.
+  // Depend on a boolean rather than `mineRecord` itself — the 10s record poll
+  // mutates `mineRecord.status` frequently, and depending on the object would
+  // tear down + restart this interval every 10s (firing an extra broadcast
+  // fetch each time).
+  // Force an immediate broadcast refetch when a locker-broadcast push lands,
+  // whether the user is in the app (received listener) or tapped the
+  // notification from the lock screen (response listener). Otherwise the
+  // banner would be up to 30s stale relative to the push that just arrived.
+  useEffect(() => {
+    const matches = (data: unknown): boolean => {
+      if (!data || typeof data !== 'object') return false;
+      return (data as { type?: unknown }).type === 'locker_broadcast';
+    };
+    const refetch = async () => {
+      try {
+        const { message } = await lockerService.fetchBroadcast();
+        setBroadcastMessage(message);
+      } catch {
+        // Leave prior message visible; regular 30s poll will retry.
+      }
+    };
+    const recv = Notifications.addNotificationReceivedListener((n) => {
+      if (matches(n.request?.content?.data)) refetch();
+    });
+    const resp = Notifications.addNotificationResponseReceivedListener((r) => {
+      if (matches(r.notification.request?.content?.data)) refetch();
+    });
+    return () => {
+      recv.remove();
+      resp.remove();
+    };
+  }, []);
+
+  const hasRecord = mineRecord !== null;
+  useEffect(() => {
+    if (!isExpired || !hasRecord) return undefined;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { message } = await lockerService.fetchBroadcast();
+        if (!cancelled) setBroadcastMessage(message);
+      } catch {
+        // Keep prior message on transient failure; default shows if never set.
+      }
+    };
+    load();
+    const interval = setInterval(load, BROADCAST_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isExpired, hasRecord]);
+
   const applyRecord = useCallback((record: LockerRequestRecord) => {
     setMineRecord(record);
     setFullName(record.fullName);
@@ -216,20 +262,17 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     };
   }, [applyRecord]);
 
-  // Poll every 10s to surface admin-driven status changes.
-  // We intentionally do NOT call applyRecord here — that would clobber any
-  // in-progress edits (e.g. switching a drop-off chip) with the DB value.
-  // Only `status` is merged; local form state is owned by the user until submit.
-  // If the server returns null, the admin deleted the row — drop mineRecord so
-  // the screen falls back to the fresh-submit UX.
+  // Poll every 10s to surface admin-driven status changes. Only merges `status`
+  // so local form edits aren't clobbered. A transient null from the server is
+  // ignored (keeps prev state) — the admin-delete case is resolved on the next
+  // screen remount via fetch-on-mount, which avoids wiping the form mid-session
+  // on a flaky response.
   useEffect(() => {
     const id = setInterval(async () => {
       try {
         const record = await lockerService.getMine();
-        setMineRecord((prev) => {
-          if (!record) return null;
-          return prev ? { ...prev, status: record.status } : record;
-        });
+        if (!record) return;
+        setMineRecord((prev) => (prev ? { ...prev, status: record.status } : record));
       } catch {
         // Swallow — network blips are non-fatal for polling.
       }
@@ -252,11 +295,17 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     hadRecordRef.current = mineRecord !== null;
   }, [mineRecord, derivedStudentId]);
 
-  // When deadline crosses, wipe typed-but-unsaved edits:
+  // When the deadline crosses MID-SESSION, wipe typed-but-unsaved edits:
   //  - no existing record → blank the form
   //  - has existing record → restore the original DB values
+  // On a remount where `isExpired` is already true (user re-opens the screen
+  // after deadline), DO NOT run the wipe — the fetch-on-mount effect below is
+  // responsible for restoring the submitted record, and the wipe branch would
+  // race the fetch and erase the form before the network call resolves.
+  const expiredOnMountRef = useRef(isExpired);
   useEffect(() => {
     if (!isExpired) return;
+    if (expiredOnMountRef.current) return;
     if (mineRecord) {
       applyRecord(mineRecord);
     } else {
@@ -426,7 +475,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                   selected && styles.chipSelected,
                   isExpired && !selected && styles.chipDisabled,
                 ]}
-                onPress={() => setDropOffDate(opt.date)}
+                onPress={() => setDropOffDate(selected ? null : opt.date)}
                 disabled={isExpired}
               >
                 <Text
@@ -435,8 +484,11 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                     selected && styles.chipTextSelected,
                     isExpired && !selected && styles.chipTextDisabled,
                   ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -486,17 +538,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       >
         <ExpoImage source={promoImg} style={[styles.promo, { height: promoHeight }]} contentFit="cover" />
         {isExpired && mineRecord && (
-          <View
-            style={[
-              styles.statusBanner,
-              { backgroundColor: STATUS_TONE[mineRecord.status].bg },
-            ]}
-          >
-            <Text style={[styles.statusBannerHeading, { color: STATUS_TONE[mineRecord.status].fg }]}>
-              {t('lockerSfscStatusHeading')}
-            </Text>
-            <Text style={[styles.statusBannerValue, { color: STATUS_TONE[mineRecord.status].fg }]}>
-              {t(STATUS_I18N[mineRecord.status])}
+          <View style={styles.broadcastCard}>
+            <Text style={styles.broadcastNoticeTag}>{t('lockerSfscBroadcastNoticeTag')}</Text>
+            <Text style={styles.broadcastText}>
+              {broadcastMessage?.trim() ? broadcastMessage : t('lockerSfscBroadcastDefault')}
             </Text>
           </View>
         )}
@@ -575,9 +620,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 },
                 {
                   label: t('lockerSfscDropOffDate'),
-                  value:
-                    DROP_OFF_OPTIONS.find((o) => o.date === dropOffDate)?.label ??
-                    (dropOffDate ?? ''),
+                  value: (() => {
+                    const opt = DROP_OFF_OPTIONS.find((o) => o.date === dropOffDate);
+                    return opt ? t(opt.labelKey) : (dropOffDate ?? '');
+                  })(),
                 },
               ].map((row) => (
                 <View key={row.label} style={styles.reviewRow}>
@@ -677,18 +723,21 @@ const styles = StyleSheet.create({
     color: colors.outline,
     lineHeight: 20,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRow: { flexDirection: 'row', gap: 8 },
   chip: {
-    paddingHorizontal: 14,
+    flex: 1,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#DEE2E5',
     backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
   chipDisabled: { backgroundColor: '#F3F5F7', borderColor: '#E5E7EB' },
-  chipText: { fontSize: 14, fontFamily: 'SourceHanSansCN-Regular', color: '#0C1015' },
+  chipText: { fontSize: 13, fontFamily: 'SourceHanSansCN-Regular', color: '#0C1015', textAlign: 'center' },
   chipTextSelected: { color: colors.onPrimary },
   chipTextDisabled: { color: '#C1C1C1' },
   hintText: {
@@ -806,23 +855,27 @@ const styles = StyleSheet.create({
     fontFamily: 'SourceHanSansCN-Bold',
     color: colors.onPrimary,
   },
-  statusBanner: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
+  broadcastCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFF4E0',
+    borderWidth: 1,
+    borderColor: '#F5C97A',
   },
-  statusBannerHeading: {
-    fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Medium',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  statusBannerValue: {
-    fontSize: 18,
+  broadcastNoticeTag: {
     fontFamily: 'SourceHanSansCN-Bold',
+    fontSize: 13,
+    color: '#DC2626',
+    marginBottom: 2,
+  },
+  broadcastText: {
+    fontFamily: 'SourceHanSansCN-Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#0C1015',
+    textAlign: 'center',
+    transform: [{ skewX: '-10deg' }],
   },
 });

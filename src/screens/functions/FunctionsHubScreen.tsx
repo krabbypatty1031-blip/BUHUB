@@ -53,6 +53,10 @@ interface FunctionEntry {
   fullWidth?: boolean;
 }
 
+// Locker-by-SFSC launches 2026-05-02 00:00 HKT. Before this moment, tapping
+// the card shows a "coming soon" alert instead of navigating.
+const LOCKER_LAUNCH_MS = Date.parse('2026-05-02T00:00:00+08:00');
+
 const ENTRIES: FunctionEntry[] = [
   { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', arrowColor: '#C1C1C1', route: 'PartnerList' },
   { key: 'errand', titleKey: 'errands', subtitleKey: 'errandsDesc', Icon: ErrandFnIcon, iconColor: '#FF9145', arrowColor: '#C1C1C1', route: 'ErrandList' },
@@ -128,6 +132,13 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           navigation.navigate('FacilityBooking');
           return;
         case 'LockerSFSC':
+          if (Date.now() < LOCKER_LAUNCH_MS) {
+            Alert.alert(
+              t('lockerSfscLaunchTitle'),
+              t('lockerSfscLaunchBody'),
+            );
+            return;
+          }
           if (!hasLifeEmail) {
             Alert.alert(
               t('lockerSfscEligibilityTitle'),

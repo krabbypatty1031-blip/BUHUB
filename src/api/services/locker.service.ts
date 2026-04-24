@@ -1,7 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
-export type DropOffDate = '2026-05-06' | '2026-05-11' | '2026-05-16';
+export type DropOffDate = '2026-05-07' | '2026-05-11' | '2026-05-16';
 
 export interface LockerRequestInput {
   fullName: string;
@@ -33,6 +33,11 @@ export interface LockerRequestRecord {
   updatedAt: string;
 }
 
+export interface LockerBroadcastPayload {
+  message: string | null;
+  updatedAt: string | null;
+}
+
 export const lockerService = {
   async submit(payload: LockerRequestInput): Promise<LockerRequestRecord> {
     const { data } = await apiClient.post(ENDPOINTS.LOCKER.SUBMIT, payload);
@@ -41,5 +46,12 @@ export const lockerService = {
   async getMine(): Promise<LockerRequestRecord | null> {
     const { data } = await apiClient.get(ENDPOINTS.LOCKER.LIST_MINE);
     return data ?? null;
+  },
+  async fetchBroadcast(): Promise<LockerBroadcastPayload> {
+    const { data } = await apiClient.get(ENDPOINTS.LOCKER.BROADCAST);
+    return {
+      message: data?.message ?? null,
+      updatedAt: data?.updatedAt ?? null,
+    };
   },
 };

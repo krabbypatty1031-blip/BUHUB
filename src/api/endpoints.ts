@@ -169,6 +169,7 @@ const ENDPOINTS = {
   LOCKER: {
     SUBMIT: '/locker-requests',
     LIST_MINE: '/locker-requests',
+    BROADCAST: '/locker-broadcast',
   },
 } as const;
 

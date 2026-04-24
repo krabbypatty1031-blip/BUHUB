@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import SwipeableBottomSheet from '../common/SwipeableBottomSheet';
@@ -27,7 +28,11 @@ interface CourseEditSheetProps {
   onDelete?: (id: string) => void;
 }
 
-const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
+const DAY_LABELS_BY_LANG: Record<string, string[]> = {
+  tc: ['一', '二', '三', '四', '五', '六', '日'],
+  sc: ['一', '二', '三', '四', '五', '六', '日'],
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
 
 function validateTime(value: string): boolean {
   if (!/^\d{1,2}:\d{2}$/.test(value)) return false;
@@ -50,7 +55,9 @@ export default function CourseEditSheet({
   onSave,
   onDelete,
 }: CourseEditSheetProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language === 'sc' ? 'sc' : i18n.language === 'en' ? 'en' : 'tc') as 'tc' | 'sc' | 'en';
+  const dayLabels = DAY_LABELS_BY_LANG[lang] || DAY_LABELS_BY_LANG.tc;
   const isEdit = course !== undefined;
 
   const [name, setName] = useState('');
@@ -90,10 +97,17 @@ export default function CourseEditSheet({
   }, [name, location, dayOfWeek, startTime, endTime, onSave]);
 
   const handleDelete = useCallback(() => {
-    if (course?.id && onDelete) {
-      onDelete(course.id);
-    }
-  }, [course, onDelete]);
+    if (!course?.id || !onDelete) return;
+    const id = course.id;
+    Alert.alert(
+      t('deleteCourseTitle'),
+      t('deleteCourseMessage'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => onDelete(id) },
+      ],
+    );
+  }, [course, onDelete, t]);
 
   return (
     <SwipeableBottomSheet visible={visible} onClose={onClose}>
@@ -130,7 +144,7 @@ export default function CourseEditSheet({
         {/* Day of Week */}
         <Text style={styles.label}>{t('dayOfWeekLabel')}</Text>
         <View style={styles.dayRow}>
-          {DAY_LABELS.map((label, index) => {
+          {dayLabels.map((label, index) => {
             const day = index + 1;
             const isActive = dayOfWeek === day;
             return (
@@ -241,10 +255,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DEE2E5',
     paddingHorizontal: 14,
+    paddingVertical: 0,
     fontFamily: 'SourceHanSansCN-Regular',
     fontSize: 15,
     color: '#0C1015',
     marginBottom: 16,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   dayRow: {
     flexDirection: 'row',
@@ -286,7 +303,10 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     backgroundColor: '#F3F5F7',
+    paddingVertical: 0,
     textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
     fontFamily: 'SourceHanSansCN-Regular',
     fontSize: 15,
     color: '#0C1015',
