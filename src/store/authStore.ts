@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from '../utils/storage';
 import { setOnUnauthorized } from '../api/client';
-import { normalizeLanguage } from '../i18n';
+import { normalizeLanguage, changeLanguage } from '../i18n';
 import { useForumStore } from './forumStore';
 import type { User, Language } from '../types';
 import { normalizeAvatarUrl } from '../utils/imageUrl';
@@ -68,6 +68,9 @@ export const useAuthStore = create<AuthState>()(
             ? { ...normalizedUser, language: normalizedUserLanguage }
             : normalizedUser;
           const nextLanguage = normalizedUserLanguage ?? state.language;
+          if (nextLanguage !== state.language) {
+            void changeLanguage(nextLanguage);
+          }
           return {
             user: sanitizedUser,
             isLoggedIn: true,
@@ -86,6 +89,9 @@ export const useAuthStore = create<AuthState>()(
             : normalizedAvatarUpdates;
           const nextUser = state.user ? { ...state.user, ...normalizedUpdates } : null;
           if (normalizedUpdateLanguage) {
+            if (normalizedUpdateLanguage !== state.language) {
+              void changeLanguage(normalizedUpdateLanguage);
+            }
             return {
               user: nextUser,
               language: normalizedUpdateLanguage,
@@ -94,7 +100,13 @@ export const useAuthStore = create<AuthState>()(
           }
           return { user: nextUser };
         }),
-      setLanguage: (language) => set({ language, hasSelectedLanguage: true }),
+      setLanguage: (language) => {
+        const prev = useAuthStore.getState().language;
+        set({ language, hasSelectedLanguage: true });
+        if (prev !== language) {
+          void changeLanguage(language);
+        }
+      },
       setToken: (token) => set({ token }),
       markPasswordSet: () =>
         set({
@@ -108,6 +120,7 @@ export const useAuthStore = create<AuthState>()(
       deleteAccount: () =>
         {
           useForumStore.getState().clearVotedPolls();
+          const prev = useAuthStore.getState().language;
           set({
             user: null,
             token: null,
@@ -117,6 +130,9 @@ export const useAuthStore = create<AuthState>()(
             forceLanguageOnNextLaunch: true,
             language: 'tc',
           });
+          if (prev !== 'tc') {
+            void changeLanguage('tc');
+          }
         },
     }),
     {

@@ -23,6 +23,7 @@ import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import Constants from 'expo-constants';
 import { BackIcon, CheckIcon } from '../../components/common/icons';
 import HCaptchaCaptcha, { type HCaptchaCaptchaRef } from '../../components/auth/HCaptchaCaptcha';
@@ -30,6 +31,7 @@ import { TERMS_URL, PRIVACY_URL } from '../../config/legal';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailInput'>;
 type AuthErrorLike = {
+  code?: number;
   message?: string;
   errorCode?: string;
 };
@@ -114,13 +116,13 @@ export default function EmailInputScreen({ navigation }: Props) {
           inputRefs.current[0]?.focus();
         }
       } catch (error: unknown) {
-        const authError = (typeof error === 'object' && error
-          ? error as AuthErrorLike
-          : undefined);
-        let msg = authError?.message || t('sendCodeFailed');
-        if (authError?.errorCode === 'EMAIL_ALREADY_REGISTERED') msg = t('emailAlreadyRegistered');
-        else if (authError?.errorCode === 'CAPTCHA_FAILED') msg = t('captchaFailed');
-        showSnackbar({ message: msg, type: 'error' });
+        const { message, isNetwork } = getAuthErrorMessage(error, t, 'sendCodeFailed');
+        if (isNetwork) {
+          captchaRef.current?.hide();
+          Alert.alert(message);
+        } else {
+          showSnackbar({ message, type: 'error' });
+        }
       } finally {
         setIsSendingCode(false);
       }
@@ -128,7 +130,7 @@ export default function EmailInputScreen({ navigation }: Props) {
     [showSnackbar, t, startCountdown]
   );
 
-  const handleRequestCode = useCallback(() => {
+  const handleRequestCode = useCallback(async () => {
     const trimmed = email.trim();
     if (!trimmed) return;
     if (!trimmed.includes('@') || !trimmed.includes('.')) {
@@ -139,11 +141,15 @@ export default function EmailInputScreen({ navigation }: Props) {
       showSnackbar({ message: t('captchaNotConfigured'), type: 'error' });
       return;
     }
+    setIsSendingCode(true);
+    const online = await ensureOnlineOrAlert(t);
+    setIsSendingCode(false);
+    if (!online) return;
     pendingCaptchaRef.current = 'send';
     captchaRef.current?.show();
   }, [email, showSnackbar, t, siteKey]);
 
-  const handleResend = useCallback(() => {
+  const handleResend = useCallback(async () => {
     if (countdown > 0 || isSendingCode) return;
     const currentEmail = email.trim();
     if (!currentEmail) return;
@@ -151,14 +157,23 @@ export default function EmailInputScreen({ navigation }: Props) {
       showSnackbar({ message: t('captchaNotConfigured'), type: 'error' });
       return;
     }
+    setIsSendingCode(true);
+    const online = await ensureOnlineOrAlert(t);
+    setIsSendingCode(false);
+    if (!online) return;
     pendingCaptchaRef.current = 'resend';
     captchaRef.current?.show();
-  }, [countdown, email, isSendingCode, showSnackbar, siteKey]);
+  }, [countdown, email, isSendingCode, showSnackbar, t, siteKey]);
 
   const handleContinue = useCallback(async () => {
     if (!codeComplete || !agreed || isVerifying) return;
 
     setIsVerifying(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsVerifying(false);
+      return;
+    }
     try {
       const result = await authService.verify(email.trim(), code.join(''));
       if (result.token) {
@@ -173,8 +188,13 @@ export default function EmailInputScreen({ navigation }: Props) {
           agreedToTerms: result.registrationToken ? agreed : undefined,
         });
       }, 300);
-    } catch {
-      showSnackbar({ message: t('verifyFailed'), type: 'error' });
+    } catch (error: unknown) {
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'verifyFailed');
+      if (isNetwork) {
+        Alert.alert(message);
+      } else {
+        showSnackbar({ message, type: 'error' });
+      }
     } finally {
       setIsVerifying(false);
     }

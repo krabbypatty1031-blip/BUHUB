@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { authService } from '../../api/services/auth.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { BackIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
@@ -37,17 +39,21 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     if (!canSubmit || isSubmitting) return;
 
     setIsSubmitting(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsSubmitting(false);
+      return;
+    }
     try {
       await authService.forgotPassword(email.trim());
       showSnackbar({ message: t('forgotPasswordSuccess'), type: 'success' });
       navigation.navigate('ResetPassword', { email: email.trim() });
     } catch (error: unknown) {
-      const err = error as { message?: string; errorCode?: string };
-      const code = err?.errorCode ?? '';
-      if (code === 'RATE_LIMITED' || (err?.message ?? '').includes('Too many attempts')) {
-        showSnackbar({ message: t('rateLimited') || '请求过于频繁，请稍后再试', type: 'error' });
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'forgotPasswordFailed');
+      if (isNetwork) {
+        Alert.alert(message);
       } else {
-        showSnackbar({ message: t('forgotPasswordFailed'), type: 'error' });
+        showSnackbar({ message, type: 'error' });
       }
     } finally {
       setIsSubmitting(false);

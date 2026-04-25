@@ -17,6 +17,9 @@ import {
 } from './icons';
 import FunctionForwardSheet from './FunctionForwardSheet';
 import { navigateToForumComposeSelection } from '../../utils/forumComposeNavigation';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
+import { useAuthStore } from '../../store/authStore';
 import type { FunctionRefType, FunctionShareNavigation, RatingCategory } from '../../types';
 
 interface FunctionShareLayoutProps {
@@ -55,10 +58,50 @@ export default function FunctionShareLayout({
 }: FunctionShareLayoutProps) {
   const { t } = useTranslation();
   const [forwardVisible, setForwardVisible] = useState(false);
+  const authUser = useAuthStore((s) => s.user);
+  const canShareToHkbu = canPublishCommunityContent(authUser);
 
   const dismiss = useCallback(() => {
     navigation.popToTop();
   }, [navigation]);
+
+  const goToManageEmails = useCallback(() => {
+    // Cross-tab navigation: jump to MeTab > ManageEmails so the user can bind
+    // their HKBU email without losing context. initial:false preserves MeHome
+    // beneath ManageEmails so the tab-press reset and back-press behave correctly.
+    navigation.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
+  const handleShareToForum = useCallback(() => {
+    if (!canShareToHkbu) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    navigateToForumComposeSelection({
+      navigation,
+      functionType,
+      functionTitle,
+      functionId,
+      ratingCategory,
+    });
+  }, [
+    canShareToHkbu,
+    functionId,
+    functionTitle,
+    functionType,
+    goToManageEmails,
+    navigation,
+    ratingCategory,
+    t,
+  ]);
+
+  const handleShareToDm = useCallback(() => {
+    if (!canShareToHkbu) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    setForwardVisible(true);
+  }, [canShareToHkbu, goToManageEmails, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,15 +129,7 @@ export default function FunctionShareLayout({
             <TouchableOpacity
               style={styles.actionRow}
               activeOpacity={0.7}
-              onPress={() => {
-                navigateToForumComposeSelection({
-                  navigation,
-                  functionType,
-                  functionTitle,
-                  functionId,
-                  ratingCategory,
-                });
-              }}
+              onPress={handleShareToForum}
             >
               <View style={styles.actionLeft}>
                 <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.blue.bg }]}>
@@ -108,7 +143,7 @@ export default function FunctionShareLayout({
           <TouchableOpacity
             style={[styles.actionRow, !allowForumShare ? styles.actionRowLast : null]}
             activeOpacity={0.7}
-            onPress={() => setForwardVisible(true)}
+            onPress={handleShareToDm}
           >
             <View style={styles.actionLeft}>
               <View style={[styles.actionIcon, { backgroundColor: shareActionThemes.lemon.bg }]}>

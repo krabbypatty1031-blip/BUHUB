@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -52,13 +52,27 @@ export default function FeedbackListScreen({ navigation }: Props) {
   const {
     data,
     isLoading,
-    isRefetching,
     refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useMyFeedback();
   const items = useMemo(() => flattenFeedbackPages(data), [data]);
+
+  // Local refresh state — only true while the user-initiated swipe is in
+  // flight. Decoupled from React Query's `isRefetching`, which would also
+  // turn true on cache invalidations (e.g. after `useSubmitFeedback`
+  // invalidates the list on success), causing the RefreshControl to show
+  // a frozen spinner without a swipe gesture.
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -131,14 +145,14 @@ export default function FeedbackListScreen({ navigation }: Props) {
         data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isRefetching}
-        onRefresh={refetch}
+        refreshing={isUserRefreshing}
+        onRefresh={handleRefresh}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          !isLoading && !isRefetching ? (
+          !isLoading && !isUserRefreshing ? (
             <EmptyState
               title={t('feedbackEmpty')}
               message={t('feedbackEmptyMessage')}

@@ -25,6 +25,8 @@ import { useUserPosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePo
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -170,14 +172,26 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     [navigation]
   );
 
+  const goToManageEmails = useCallback(() => {
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleForward = useCallback((post: ForumPost) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     setForwardPost(post);
-  }, []);
+  }, [currentUser, goToManageEmails, t]);
 
   const handleQuote = useCallback((post: ForumPost) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     setQuotePostId(post.id);
     setComposeSheetVisible(true);
-  }, []);
+  }, [currentUser, goToManageEmails, t]);
 
   const closeComposeSheet = useCallback(() => {
     setComposeSheetVisible(false);

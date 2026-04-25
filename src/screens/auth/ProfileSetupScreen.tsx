@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +21,7 @@ import { changeLanguage } from '../../i18n';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { authService } from '../../api/services/auth.service';
 import { uploadService } from '../../api/services/upload.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { HKBU_MAJOR_KEYS, getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -120,6 +122,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const handleDone = useCallback(async () => {
     const resolvedGender: Gender = gender || 'other';
     setIsSaving(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsSaving(false);
+      return;
+    }
     try {
       let finalAvatarUrl: string | null = null;
       if (avatarUri) {
@@ -161,8 +168,13 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         language,
         isLoggedIn: true,
       });
-    } catch {
-      showSnackbar({ message: t('setupFailed'), type: 'error' });
+    } catch (error: unknown) {
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'setupFailed');
+      if (isNetwork) {
+        Alert.alert(message);
+      } else {
+        showSnackbar({ message, type: 'error' });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -170,6 +182,11 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
 
   const handleSkip = useCallback(async () => {
     setIsSaving(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsSaving(false);
+      return;
+    }
     try {
       const generatedProfile = await authService.setupProfile({
         autoGenerate: true,
@@ -196,8 +213,13 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
         language,
         isLoggedIn: true,
       });
-    } catch {
-      showSnackbar({ message: t('setupFailed'), type: 'error' });
+    } catch (error: unknown) {
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'setupFailed');
+      if (isNetwork) {
+        Alert.alert(message);
+      } else {
+        showSnackbar({ message, type: 'error' });
+      }
     } finally {
       setIsSaving(false);
     }

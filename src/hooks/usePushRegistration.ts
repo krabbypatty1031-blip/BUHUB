@@ -8,6 +8,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
+import { canPublishCommunityContent } from '../utils/publishPermission';
+import { promptHkbuVerification } from '../utils/hkbuPrompt';
+import i18n from '../i18n';
 import type { MainTabParamList } from '../types/navigation';
 
 const PUSH_REGISTRATION_CACHE_KEY = 'ulink-expo-push-registration';
@@ -111,7 +114,38 @@ function buildPushNavigationTarget(data: Record<string, unknown>): PushNavigatio
   }
 }
 
+// HKBU-gated deep-link targets. Tapping these from a push notification while
+// the user is not HKBU-verified would otherwise bypass the in-app gates we
+// added in MainTabNavigator/FunctionsHubScreen, since deep-link navigation is
+// programmatic and never triggers `tabPress` listeners.
+//
+// Reading-only deep-links (PostDetail, UserProfile, Notify{Likes,Comments,
+// Followers}) remain unrestricted because non-HKBU users are explicitly
+// allowed to read those.
+function isHkbuGatedTarget(target: PushNavigationTarget): boolean {
+  if (target.tab === 'MessagesTab' && target.screen === 'Chat') return true;
+  if (target.tab === 'FunctionsTab') return true;
+  return false;
+}
+
+function redirectToManageEmails(navigationRef: PushNavigationRef) {
+  promptHkbuVerification(i18n.t.bind(i18n), () => {
+    navigationRef.navigate('MeTab', {
+      screen: 'ManageEmails',
+      initial: false,
+    } as never);
+  });
+}
+
 function navigateToPushTarget(navigationRef: PushNavigationRef, target: PushNavigationTarget) {
+  if (isHkbuGatedTarget(target)) {
+    const user = useAuthStore.getState().user;
+    if (!canPublishCommunityContent(user)) {
+      redirectToManageEmails(navigationRef);
+      return;
+    }
+  }
+
   switch (target.tab) {
     case 'ForumTab':
       navigationRef.navigate('ForumTab', {
@@ -360,7 +394,14 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
       // MainTabNavigator will reconcile with the server value once refetch resolves.
       const data = notification.request.content.data as Record<string, unknown> | undefined;
       const type = typeof data?.type === 'string' ? data.type : '';
-      if (type === 'like' || type === 'follow' || type === 'comment' || type === 'reply' || type === 'mention') {
+      if (
+        type === 'like' ||
+        type === 'follow' ||
+        type === 'comment' ||
+        type === 'reply' ||
+        type === 'mention' ||
+        type === 'message'
+      ) {
         const store = useNotificationStore.getState();
         switch (type) {
           case 'like':
@@ -373,6 +414,9 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
           case 'reply':
           case 'mention':
             store.setUnreadComments(store.unreadComments + 1);
+            break;
+          case 'message':
+            store.setUnreadMessages(store.unreadMessages + 1);
             break;
         }
       }

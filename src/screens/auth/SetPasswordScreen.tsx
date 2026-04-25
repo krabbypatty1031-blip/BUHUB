@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { getPasswordValidationReason } from '../../utils/validators';
 import { BackIcon, EyeIcon, EyeOffIcon } from '../../components/common/icons';
@@ -76,6 +78,11 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
     }
 
     setIsSubmitting(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsSubmitting(false);
+      return;
+    }
     try {
       if (registrationToken && agreedToTerms) {
         await authService.completeRegistration(email, registrationToken, password, agreedToTerms);
@@ -84,8 +91,13 @@ export default function SetPasswordScreen({ navigation, route }: Props) {
       }
       markPasswordSet();
       navigation.navigate('ProfileSetup', { email });
-    } catch {
-      showSnackbar({ message: t('setPasswordFailed'), type: 'error' });
+    } catch (error: unknown) {
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'setPasswordFailed');
+      if (isNetwork) {
+        Alert.alert(message);
+      } else {
+        showSnackbar({ message, type: 'error' });
+      }
     } finally {
       setIsSubmitting(false);
     }

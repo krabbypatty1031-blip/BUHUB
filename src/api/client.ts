@@ -35,9 +35,10 @@ const getApiBaseUrl = () => {
     return devUrl.endsWith('/api') ? devUrl : `${devUrl.replace(/\/$/, '')}/api`;
   }
 
-  // 4) Last-resort hardcoded production URL — Cloudflare Worker proxy to bypass
-  //    HKBU campus PAN firewall SSL inspection on www.uhub.help.
-  return 'https://ulink-api.krabbypatty1031.workers.dev/api';
+  // 4) Last-resort hardcoded production URL — geo-steered Cloudflare Load
+  //    Balancer. HK users → CF-fronted (bypasses HKBU PAN firewall via
+  //    cloudflare.com TLS); non-HK users → direct to Aliyun origin.
+  return 'https://api.uhub.help/api';
 };
 
 const API_BASE = getApiBaseUrl();

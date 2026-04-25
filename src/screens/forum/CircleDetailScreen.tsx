@@ -14,6 +14,8 @@ import type { ForumStackParamList } from '../../types/navigation';
 import { usePosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useCircleFollow, useToggleCircleFollow } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { spacing } from '../../theme/spacing';
 import { fontFamily } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
@@ -95,18 +97,30 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
     [navigation]
   );
 
+  const goToManageEmails = useCallback(() => {
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleForward = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       setForwardPost(post);
     },
-    []
+    [currentUser, goToManageEmails, t]
   );
 
   const handleQuote = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
     },
-    [navigation]
+    [currentUser, goToManageEmails, navigation, t]
   );
 
   const handleFunctionPress = useCallback(

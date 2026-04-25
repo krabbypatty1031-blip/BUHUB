@@ -7,7 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 
-import { i18nReady } from './src/i18n';
+import i18n, { i18nReady, changeLanguage } from './src/i18n';
+import { useAuthStore } from './src/store/authStore';
 import AppNavigator from './src/navigation/AppNavigator';
 
 const queryClient = new QueryClient({
@@ -42,11 +43,40 @@ export default function App() {
     };
   }, []);
 
+  // Block first render until the persisted auth store is rehydrated, so
+  // language / token / login state are read from disk before any screen
+  // mounts. Without this gate, the initial paint can use the default
+  // Zustand values and produce a UI/Accept-Language drift.
+  const [authHydrated, setAuthHydrated] = useState(() =>
+    Boolean(useAuthStore.persist?.hasHydrated?.())
+  );
+  useEffect(() => {
+    if (authHydrated) return;
+    if (useAuthStore.persist?.hasHydrated?.()) {
+      setAuthHydrated(true);
+      return;
+    }
+    const unsub = useAuthStore.persist?.onFinishHydration?.(() => setAuthHydrated(true));
+    return unsub;
+  }, [authHydrated]);
+
+  // Reconcile i18n.language with authStore.language once both have hydrated.
+  // The store is the user-confirmed source of truth (set in LanguageScreen,
+  // SettingsScreen, ProfileSetupScreen, or via setUser from server). If they
+  // disagree at boot, push the store value into i18n + AsyncStorage.
+  useEffect(() => {
+    if (!i18nLoaded || !authHydrated) return;
+    const stored = useAuthStore.getState().language;
+    if (stored && stored !== i18n.language) {
+      void changeLanguage(stored);
+    }
+  }, [i18nLoaded, authHydrated]);
+
   if (fontError && __DEV__) {
     console.warn('[Font] Failed to load custom fonts. Continuing with system fallback.', fontError);
   }
 
-  if ((!fontsLoaded && !fontError) || !i18nLoaded) {
+  if ((!fontsLoaded && !fontError) || !i18nLoaded || !authHydrated) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" />

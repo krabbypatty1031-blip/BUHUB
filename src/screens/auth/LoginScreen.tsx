@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,24 +22,11 @@ import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { EyeIcon, EyeOffIcon } from '../../components/common/icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
-type AuthErrorLike = {
-  message?: string;
-  errorCode?: string;
-  code?: number;
-};
-
-function isNetworkOrConnectivityError(err: AuthErrorLike): boolean {
-  const msg = (err?.message ?? '').toLowerCase();
-  if (err?.code === 0) return true;
-  if (msg.includes('network error') || msg.includes('no response')) return true;
-  if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('enotfound')) return true;
-  if (msg.includes('network request failed') || msg.includes('failed to fetch')) return true;
-  return false;
-}
 
 export default function LoginScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -62,6 +50,11 @@ export default function LoginScreen({ navigation }: Props) {
     if (!canLogin || isLoading) return;
 
     setIsLoading(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsLoading(false);
+      return;
+    }
     try {
       const loginResult = await authService.login(email.trim(), password);
       if (loginResult.token) {
@@ -74,23 +67,13 @@ export default function LoginScreen({ navigation }: Props) {
         if (user) setUser(user);
       }
     } catch (error: unknown) {
-      const err = error as AuthErrorLike;
-      const msg = typeof err?.message === 'string' ? err.message : '';
-      const code = typeof err?.errorCode === 'string' ? err.errorCode : '';
-      if (isNetworkOrConnectivityError(err)) {
-        showSnackbar({ message: t('networkError') || '网络错误，请检查网络或稍后重试', type: 'error' });
-      } else if (code === 'EMAIL_NOT_VERIFIED' || msg.includes('verify your email')) {
-        showSnackbar({ message: t('emailNotVerified'), type: 'error' });
-      } else if (code === 'ACCOUNT_DISABLED' || msg.includes('disabled')) {
-        showSnackbar({ message: t('accountDisabled'), type: 'error' });
-      } else if (code === 'RATE_LIMITED' || msg.includes('Too many attempts')) {
-        showSnackbar({ message: t('rateLimited') || '请求过于频繁，请稍后再试', type: 'error' });
-      } else if (code === 'SERVICE_UNAVAILABLE' || msg.includes('temporarily unavailable')) {
-        showSnackbar({ message: t('serviceUnavailable') || '服务暂时不可用，请稍后再试', type: 'error' });
-      } else if (code === 'SESSION_EXPIRED' || msg.includes('Session expired')) {
-        showSnackbar({ message: t('sessionExpired') || '登录已过期，请重新登录', type: 'error' });
+      // Default fallback for login is invalidCredentials so an unknown 4xx
+      // doesn't accuse the server when bad input is the more likely cause.
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'invalidCredentials');
+      if (isNetwork) {
+        Alert.alert(message);
       } else {
-        showSnackbar({ message: t('invalidCredentials'), type: 'error' });
+        showSnackbar({ message, type: 'error' });
       }
     } finally {
       setIsLoading(false);

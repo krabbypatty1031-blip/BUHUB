@@ -99,6 +99,7 @@ import { hapticLight } from '../../utils/haptics';
 import { transcribeAudioFileWithNativeSpeech } from '../../utils/nativeSpeechToText';
 import { getSpeechRecognitionModule } from '../../utils/speechRecognition';
 import { normalizeImageUrl as normalizeMediaUrl } from '../../utils/imageUrl';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import {
   appendMessageToHistory,
   buildPreviewFromChatMessage,
@@ -707,7 +708,7 @@ export const SINGLE_MEDIA_FALLBACK_HEIGHT = 165;  // 220 * (3/4) — 4:3 aspect 
 export const GRID_MEDIA_FALLBACK_HEIGHT   = 83;   // 110 * (3/4) — 4:3 aspect ratio fallback
 export const MEDIA_SIZE_TOLERANCE         = 2;    // px — suppresses float-rounding micro-jumps (D-06)
 const chatMediaSizeCache = new Map<string, { width: number; height: number }>();
-const CHAT_ITEM_VERTICAL_SPACING = 8;
+const CHAT_ITEM_VERTICAL_SPACING = 16;
 
 const ChatMediaThumbnail = React.memo(function ChatMediaThumbnail({
   uri,
@@ -2389,6 +2390,27 @@ function ChatScreenContent({ navigation, route }: Props) {
     },
     [sendMessage, showSnackbar, t]
   );
+
+  // When a non-HKBU user is forwarded into this screen with a card draft,
+  // surface a clear popup instead of silently dropping the auto-send.
+  const hkbuBlockPromptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!forwardedCardDraft) return;
+    if (canSendReason !== 'HKBU_BIND_REQUIRED') return;
+    if (hkbuBlockPromptedRef.current === forwardedCardDraft.dedupeKey) return;
+    hkbuBlockPromptedRef.current = forwardedCardDraft.dedupeKey;
+    promptHkbuVerification(t, () => {
+      const parent = navigation.getParent<NavigationProp<MainTabParamList>>();
+      if (parent) {
+        // initial:false keeps MeHome under ManageEmails so the existing
+        // tab-press reset in MainTabNavigator can detect the stack as "nested"
+        // and pop back to MeHome when the user switches tabs and returns.
+        parent.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+      }
+    });
+    // Pop back so the user is not stranded on a chat they cannot send to.
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [canSendReason, forwardedCardDraft, navigation, t]);
 
   useEffect(() => {
     if (isLoading || canSendMessage !== true || !forwardedCardDraft) return;
@@ -5317,7 +5339,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xxl,
     flexGrow: 1,
     justifyContent: 'flex-end',
   },
@@ -5333,7 +5355,7 @@ const styles = StyleSheet.create({
   minuteTimeWrap: {
     alignSelf: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 10,
   },
   minuteTimeText: {
     fontSize: 11,
@@ -5344,7 +5366,7 @@ const styles = StyleSheet.create({
   /* ----- Date separator ----- */
   dateSeparator: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 20,
   },
   dateLine: {
     display: 'none',
@@ -5387,7 +5409,7 @@ const styles = StyleSheet.create({
   bubbleCol: {
     position: 'relative',
     flexShrink: 1,
-    marginHorizontal: spacing.sm,
+    marginHorizontal: spacing.md,
   },
   replySwipeHintWrap: {
     position: 'absolute',
@@ -5775,17 +5797,17 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   cardBubble: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    maxWidth: 240,
-    minWidth: 200,
-    padding: 14,
+    maxWidth: 260,
+    minWidth: 220,
+    padding: 18,
   },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   cardIconCircle: {
     width: 24,
@@ -5804,11 +5826,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'SourceHanSansCN-Bold',
     lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   cardDivider: {
     height: 0.5,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   cardPosterText: {
     fontSize: 11,

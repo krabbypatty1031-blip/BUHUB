@@ -13,8 +13,12 @@ import { TabBarAnimationProvider, hideTabBar, showTabBar } from '../hooks/TabBar
 import AnimatedTabBar from '../components/common/AnimatedTabBar';
 import { useUnreadCount } from '../hooks/useNotifications';
 import { useNotificationStore } from '../store/notificationStore';
+import { useAuthStore } from '../store/authStore';
 import { useMessageRealtime } from '../hooks/useMessageRealtime';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat';
+import { canPublishCommunityContent } from '../utils/publishPermission';
+import { promptHkbuVerification } from '../utils/hkbuPrompt';
+import { useTranslation } from 'react-i18next';
 
 import ForumStackNavigator from './ForumStackNavigator';
 import FunctionsStackNavigator from './FunctionsStackNavigator';
@@ -41,10 +45,20 @@ function getFocusedLeafRouteName(route: { state?: NavigationStateLike } | undefi
 export default function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const hiddenTabBarOffset = layout.bottomNavHeight + insets.bottom;
+  const { t } = useTranslation();
+  const authUser = useAuthStore((s) => s.user);
+  const canUseHkbuFeatures = canPublishCommunityContent(authUser);
   useMessageRealtime();
   usePresenceHeartbeat();
   const { data: unreadData } = useUnreadCount();
+  const unreadLikes = useNotificationStore((s) => s.unreadLikes);
+  const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
+  const unreadComments = useNotificationStore((s) => s.unreadComments);
   const unreadMessages = useNotificationStore((s) => s.unreadMessages);
+  const seenAtChatLikes = useNotificationStore((s) => s.seenAtChatLikes);
+  const seenAtChatFollowers = useNotificationStore((s) => s.seenAtChatFollowers);
+  const seenAtChatComments = useNotificationStore((s) => s.seenAtChatComments);
+  const seenAtChatMessages = useNotificationStore((s) => s.seenAtChatMessages);
   const setUnreadLikes = useNotificationStore((s) => s.setUnreadLikes);
   const setUnreadFollowers = useNotificationStore((s) => s.setUnreadFollowers);
   const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
@@ -64,6 +78,12 @@ export default function MainTabNavigator() {
       Notifications.setBadgeCountAsync(total).catch(() => {});
     }
   }, [unreadData, setUnreadLikes, setUnreadFollowers, setUnreadComments, setUnreadMessages]);
+
+  const tabBadgeCount =
+    Math.max(0, unreadLikes - seenAtChatLikes) +
+    Math.max(0, unreadFollowers - seenAtChatFollowers) +
+    Math.max(0, unreadComments - seenAtChatComments) +
+    Math.max(0, unreadMessages - seenAtChatMessages);
 
   return (
     <TabBarAnimationProvider>
@@ -96,6 +116,17 @@ export default function MainTabNavigator() {
           hideTabBar(hiddenTabBarOffset);
         },
         tabPress: (e) => {
+          // Block non-HKBU users from opening the Messages tab and prompt
+          // them to bind a verified HKBU email instead.
+          if (route.name === 'MessagesTab' && !canUseHkbuFeatures) {
+            e.preventDefault();
+            promptHkbuVerification(t, () => {
+              // initial:false keeps MeHome under ManageEmails so back-press and
+              // the tab-press reset both behave naturally.
+              navigation.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+            });
+            return;
+          }
           const state = navigation.getState();
           const targetIndex = state.routes.findIndex(
             (r) => r.name === route.name,
@@ -185,7 +216,7 @@ export default function MainTabNavigator() {
         component={MessagesStackNavigator}
         options={{
           tabBarIcon: ({ focused }) => <TabMessagesIcon size={36} focused={focused} />,
-          tabBarBadge: unreadMessages > 0 ? (unreadMessages > 99 ? '99+' : unreadMessages) : undefined,
+          tabBarBadge: tabBadgeCount > 0 ? (tabBadgeCount > 99 ? '99+' : tabBadgeCount) : undefined,
         }}
       />
       <Tab.Screen

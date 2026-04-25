@@ -174,6 +174,8 @@ export default function MessagesScreen({ navigation }: Props) {
   const readContacts = useMessageStore((s) => s.readContacts);
   const inboxSeenContacts = useMessageStore((s) => s.inboxSeenContacts);
   const setUnreadMessages = useNotificationStore((s) => s.setUnreadMessages);
+  const markChatscreenViewed = useNotificationStore((s) => s.markChatscreenViewed);
+  const setMessagesScreenFocused = useNotificationStore((s) => s.setMessagesScreenFocused);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
@@ -257,6 +259,8 @@ export default function MessagesScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       shouldSnapshotInboxSeenRef.current = true;
+      setMessagesScreenFocused(true);
+      markChatscreenViewed();
       void queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'], type: 'active' });
       const now = Date.now();
       if (now - lastRefetchRef.current > 10_000) {
@@ -265,8 +269,9 @@ export default function MessagesScreen({ navigation }: Props) {
       }
       return () => {
         shouldSnapshotInboxSeenRef.current = false;
+        setMessagesScreenFocused(false);
       };
-    }, [queryClient, refetch])
+    }, [markChatscreenViewed, queryClient, refetch, setMessagesScreenFocused])
   );
 
   useEffect(() => {

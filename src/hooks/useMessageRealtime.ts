@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { useMessageStore } from '../store/messageStore';
 import { useMessageRealtimeStore } from '../store/messageRealtimeStore';
+import { useNotificationStore } from '../store/notificationStore';
 import {
   appendMessageToHistory,
   markMessageAsReadInHistory,
@@ -124,6 +125,46 @@ export function useMessageRealtime() {
 
       if (messageEvents.length > 0 || notificationEvents.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+      }
+
+      // Optimistically bump notification counters in real time so the tab
+      // badge / chatscreen card badges update instantly. The server-authoritative
+      // refetch above will reconcile the values.
+      if (notificationEvents.length > 0) {
+        const store = useNotificationStore.getState();
+        let likeDelta = 0;
+        let followDelta = 0;
+        let commentDelta = 0;
+        for (const event of notificationEvents) {
+          switch (event.notificationType) {
+            case 'like':
+              likeDelta += 1;
+              break;
+            case 'follow':
+              followDelta += 1;
+              break;
+            case 'comment':
+              commentDelta += 1;
+              break;
+          }
+        }
+        if (likeDelta > 0) store.setUnreadLikes(store.unreadLikes + likeDelta);
+        if (followDelta > 0) store.setUnreadFollowers(store.unreadFollowers + followDelta);
+        if (commentDelta > 0) store.setUnreadComments(store.unreadComments + commentDelta);
+      }
+
+      // Optimistically bump unreadMessages on incoming peer messages so the tab
+      // badge updates instantly even when MessagesScreen is not mounted.
+      if (messageEvents.length > 0) {
+        const incomingPeerMessages = messageEvents.filter(
+          (event) =>
+            event.type === 'message:new' &&
+            (!currentUserId || event.fromUserId !== currentUserId)
+        ).length;
+        if (incomingPeerMessages > 0) {
+          const store = useNotificationStore.getState();
+          store.setUnreadMessages(store.unreadMessages + incomingPeerMessages);
+        }
       }
 
       if (messageEvents.length > 0) {

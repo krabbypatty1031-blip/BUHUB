@@ -25,6 +25,8 @@ import { useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useForumStore } from '../../store/forumStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -221,14 +223,34 @@ export default function MeScreen({ navigation }: Props) {
     (postId: string, commentId: string, shouldReply?: boolean) => navigation.navigate('PostDetail', { postId, commentId, shouldReply }),
     [navigation]
   );
+  const goToManageEmails = useCallback(() => {
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleForward = useCallback((post: ForumPost) => {
+    if (!canPublishCommunityContent(user)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     setForwardComment(post);
-  }, []);
+  }, [goToManageEmails, t, user]);
 
   const handleQuote = useCallback((post: ForumPost) => {
+    if (!canPublishCommunityContent(user)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     setQuotePostId(post.id);
     setComposeSheetVisible(true);
-  }, []);
+  }, [goToManageEmails, t, user]);
+
+  const handleForwardComment = useCallback((commentAsPost: ForumPost) => {
+    if (!canPublishCommunityContent(user)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    setForwardComment(commentAsPost);
+  }, [goToManageEmails, t, user]);
 
   const handleHelpPress = useCallback(() => {
     navigation.navigate('FeedbackList');
@@ -600,7 +622,7 @@ export default function MeScreen({ navigation }: Props) {
                     queryClient.invalidateQueries({ queryKey: ['myContent'] });
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
-                  onForward={() => setForwardComment(commentAsPost)}
+                  onForward={() => handleForwardComment(commentAsPost)}
                   showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
@@ -743,7 +765,7 @@ export default function MeScreen({ navigation }: Props) {
                     queryClient.invalidateQueries({ queryKey: ['myContent'] });
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
-                  onForward={() => setForwardComment(commentAsPost)}
+                  onForward={() => handleForwardComment(commentAsPost)}
                   showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
@@ -796,7 +818,7 @@ export default function MeScreen({ navigation }: Props) {
             onAvatarPress={() => handleCommentAvatarPress(c)}
           onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
           onComment={() => goToComment(c.postId, c.commentId, true)}
-          onForward={() => setForwardComment(commentAsPost)}
+          onForward={() => handleForwardComment(commentAsPost)}
           showDelete={Boolean(c.isOwnedByCurrentUser ?? true)}
         />
       );

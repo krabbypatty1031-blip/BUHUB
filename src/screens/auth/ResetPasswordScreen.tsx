@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
 import { authService } from '../../api/services/auth.service';
+import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { usePasswordInput } from '../../hooks/usePasswordInput';
 import { getPasswordValidationReason } from '../../utils/validators';
 import { BackIcon, EyeIcon, EyeOffIcon } from '../../components/common/icons';
@@ -104,23 +106,21 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     }
 
     setIsSubmitting(true);
+    const online = await ensureOnlineOrAlert(t);
+    if (!online) {
+      setIsSubmitting(false);
+      return;
+    }
     try {
       await authService.resetPassword(code.join(''), password);
       showSnackbar({ message: t('resetPasswordSuccess'), type: 'success' });
       navigation.navigate('Login');
     } catch (error: unknown) {
-      const err = error as { message?: string; errorCode?: string };
-      const code = err?.errorCode ?? '';
-      const msg = (err?.message ?? '').toLowerCase();
-
-      if (code === 'INVALID_TOKEN' || msg.includes('invalid')) {
-        showSnackbar({ message: t('invalidResetCode'), type: 'error' });
-      } else if (code === 'TOKEN_EXPIRED' || msg.includes('expired')) {
-        showSnackbar({ message: t('resetCodeExpired'), type: 'error' });
-      } else if (code === 'RATE_LIMITED' || msg.includes('too many')) {
-        showSnackbar({ message: t('rateLimited') || '请求过于频繁，请稍后再试', type: 'error' });
+      const { message, isNetwork } = getAuthErrorMessage(error, t, 'resetPasswordFailed');
+      if (isNetwork) {
+        Alert.alert(message);
       } else {
-        showSnackbar({ message: t('resetPasswordFailed'), type: 'error' });
+        showSnackbar({ message, type: 'error' });
       }
     } finally {
       setIsSubmitting(false);

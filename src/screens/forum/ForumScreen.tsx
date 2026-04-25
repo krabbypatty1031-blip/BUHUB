@@ -19,6 +19,8 @@ import { usePosts, useFollowingPosts, flattenPostPages, useLikePost, useBookmark
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
 import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { colors } from '../../theme/colors';
@@ -142,21 +144,37 @@ export default function ForumScreen({ navigation, route }: Props) {
     [navigation]
   );
 
+  const currentUser = useAuthStore((s) => s.user);
+
+  const goToManageEmails = useCallback(() => {
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleCommentPress = useCallback(
     (post: ForumPost) => {
+      // Tapping the comment icon expresses intent to write a comment. Non-HKBU
+      // users are blocked from posting comments, so surface the same Alert
+      // prompt as the function-page gate instead of taking them deeper.
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       navigation.navigate('PostDetail', { postId: post.id });
     },
-    [navigation]
+    [currentUser, goToManageEmails, navigation, t]
   );
 
   const handleForward = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       setForwardPost(post);
     },
-    []
+    [currentUser, goToManageEmails, t]
   );
 
-  const currentUser = useAuthStore((s) => s.user);
   const handleDeletePost = useCallback(
     (postId: string) => {
       Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
@@ -204,11 +222,15 @@ export default function ForumScreen({ navigation, route }: Props) {
 
   const handleQuote = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       setQuotePostId(post.id);
       setFunctionRef(undefined);
       setComposeSheetVisible(true);
     },
-    []
+    [currentUser, goToManageEmails, t]
   );
 
   const handleFunctionPress = useCallback(

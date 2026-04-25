@@ -25,7 +25,8 @@ import { useFollowersList, useFollowingList } from '../../hooks/useUser';
 import { useAuthStore } from '../../store/authStore';
 import { useForumStore } from '../../store/forumStore';
 import { reportService } from '../../api/services/report.service';
-import { isHkbuCommunityPermissionError } from '../../utils/publishPermission';
+import { canPublishCommunityContent, isHkbuCommunityPermissionError } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
@@ -1199,21 +1200,35 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     [currentUser, navigation]
   );
 
+  const goToManageEmails = useCallback(() => {
+    // initial:false keeps MeHome beneath ManageEmails so the user can pop back
+    // and the tab-press reset can detect the stack as "nested".
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleComment = useCallback(() => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     hapticLight();
     setReplyTo(null);
     setCommentText('');
     setIsAnonymous(false);
     inputRef.current?.focus();
-  }, []);
+  }, [currentUser, goToManageEmails, t]);
 
   const handleReply = useCallback((name: string, commentId?: string) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     setReplyTo(null);
     setCommentText('');
     setIsAnonymous(false);
     setReplyTo({ name, commentId: commentId || '' });
     inputRef.current?.focus();
-  }, []);
+  }, [currentUser, goToManageEmails, t]);
 
   const handleSendComment = useCallback(() => {
     if (!commentText.trim() || createCommentMutation.isPending) return;
@@ -1237,24 +1252,34 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             ? err as MutationErrorLike
             : undefined;
           const code = error?.errorCode || error?.code;
-          const msg = isHkbuCommunityPermissionError(code)
-            ? t('hkbuEmailRequiredForComment')
-            : code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
+          if (isHkbuCommunityPermissionError(code)) {
+            promptHkbuVerification(t, goToManageEmails);
+            return;
+          }
+          const msg = code === 'CONTENT_VIOLATION' ? t('contentViolation') : t('commentFailed');
           showSnackbar({ message: msg, type: 'error' });
         },
       }
     );
-  }, [commentText, isAnonymous, replyTo, createCommentMutation, showSnackbar, t]);
+  }, [commentText, goToManageEmails, isAnonymous, replyTo, createCommentMutation, showSnackbar, t]);
 
   const handleForward = useCallback(() => {
-    if (post) setForwardPost(post);
-  }, [post]);
+    if (!post) return;
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    setForwardPost(post);
+  }, [currentUser, goToManageEmails, post, t]);
 
   const handleQuote = useCallback(() => {
-    if (post) {
-      navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
+    if (!post) return;
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
     }
-  }, [post, navigation]);
+    navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
+  }, [currentUser, goToManageEmails, navigation, post, t]);
 
   const handleFunctionPress = useCallback(() => {
     if (!post?.isFunction || !post.functionType) return;

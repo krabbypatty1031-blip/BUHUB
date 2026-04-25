@@ -539,7 +539,7 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
       const optimisticMessage = buildOptimisticMessage(payload, images);
       const optimisticApplied = !isReaction && Boolean(optimisticMessage);
 
-      if (optimisticApplied && optimisticMessage) {
+      if (optimisticApplied && optimisticMessage && optimisticMessage.id) {
         sendMessageClientKeyRef.current = optimisticMessage.id;
         useMessageRealtimeStore.getState().addPendingClientKey(receiverId, optimisticMessage.id);
         patchChatQueries(queryClient, currentUserId, receiverId, (old, language) =>

@@ -28,6 +28,8 @@ import { useSchedule } from '../../hooks/useSchedule';
 import { useScheduleStore } from '../../store/scheduleStore';
 import { useAuthStore } from '../../store/authStore';
 import { getLocalizedFontStyle } from '../../theme/typography';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const headerBg = require('../../../assets/images/campus-header-bg.png');
@@ -95,8 +97,22 @@ export default function FunctionsHubScreen({ navigation }: Props) {
     ),
   );
 
+  const goToManageEmails = useCallback(() => {
+    // initial:false ensures the MeStack becomes [MeHome, ManageEmails] (index 1)
+    // instead of [ManageEmails] (index 0). Without it, the existing tab-press
+    // reset in MainTabNavigator can't tell the stack is "nested" and the user
+    // gets stuck on ManageEmails after switching tabs and back.
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handlePress = useCallback(
     async (targetRoute: FunctionsHubRouteName) => {
+      // Every function on the hub (including locker) requires HKBU verification.
+      // Non-HKBU users get a blocking alert with a CTA into ManageEmails.
+      if (!canPublishCommunityContent(authUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       switch (targetRoute) {
         case 'PartnerList':
           navigation.navigate('PartnerList', {});
@@ -150,7 +166,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           return;
       }
     },
-    [fetchedSchedule, navigation, refetchSchedule, schedule, hasLifeEmail, t],
+    [authUser, fetchedSchedule, goToManageEmails, hasLifeEmail, navigation, refetchSchedule, schedule, t],
   );
 
   const fullCardWidth = screenWidth - GRID_PADDING * 2;

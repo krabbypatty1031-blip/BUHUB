@@ -17,6 +17,8 @@ import type { ForumStackParamList } from '../../types/navigation';
 import { useSearch, useLikePost, useBookmarkPost, useVotePost } from '../../hooks/usePosts';
 import { useForumStore } from '../../store/forumStore';
 import { useAuthStore } from '../../store/authStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -96,18 +98,30 @@ export default function SearchScreen({ navigation }: Props) {
     [navigation]
   );
 
+  const goToManageEmails = useCallback(() => {
+    navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
+  }, [navigation]);
+
   const handleForward = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       setForwardPost(post);
     },
-    []
+    [currentUser, goToManageEmails, t]
   );
 
   const handleQuote = useCallback(
     (post: ForumPost) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
       navigation.navigate('Compose', { type: 'text', quotePostId: post.id });
     },
-    [navigation]
+    [currentUser, goToManageEmails, navigation, t]
   );
 
   const handleFunctionPress = useCallback(
