@@ -174,7 +174,8 @@ export default function AIScheduleUploadScreen({ navigation }: Props) {
         courses: parseResult.courses,
       });
 
-      const dayDetectionWarning = parseResult.warning?.code === 'DAY_HEADERS_UNCLEAR';
+      const dayDetectionWarning =
+        parseResult.warning?.codes.includes('DAY_HEADERS_UNCLEAR') ?? false;
 
       finishProgress();
       setTimeout(() => {

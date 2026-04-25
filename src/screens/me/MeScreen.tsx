@@ -231,9 +231,7 @@ export default function MeScreen({ navigation }: Props) {
   }, []);
 
   const handleHelpPress = useCallback(() => {
-    navigation.getParent()?.navigate('FunctionsTab', {
-      screen: 'FeedbackList',
-    });
+    navigation.navigate('FeedbackList');
   }, [navigation]);
 
   const closeComposeSheet = useCallback(() => {

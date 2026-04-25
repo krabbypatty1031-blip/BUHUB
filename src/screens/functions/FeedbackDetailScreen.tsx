@@ -15,8 +15,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { FunctionsStackParamList } from '../../types/navigation';
 import type { FeedbackCategory, FeedbackStatus } from '../../types/feedback';
+
+type FeedbackStackParamList = {
+  FeedbackList: undefined;
+  FeedbackSubmit: undefined;
+  FeedbackDetail: { id: string };
+};
 import { useFeedbackDetail, useReplyFeedback } from '../../hooks/useFeedback';
 import { colors } from '../../theme/colors';
 import { getLocalizedFontStyle } from '../../theme/typography';
@@ -25,7 +30,7 @@ import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { getRelativeTime } from '../../utils/formatTime';
 
-type Props = NativeStackScreenProps<FunctionsStackParamList, 'FeedbackDetail'>;
+type Props = NativeStackScreenProps<FeedbackStackParamList, 'FeedbackDetail'>;
 
 const STATUS_COLORS: Record<FeedbackStatus, { bg: string; text: string }> = {
   UNRESOLVED: { bg: '#FFF8E1', text: '#F59E0B' },

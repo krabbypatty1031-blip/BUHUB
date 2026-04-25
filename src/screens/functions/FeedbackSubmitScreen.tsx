@@ -12,8 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Image as ExpoImage } from 'expo-image';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { FunctionsStackParamList } from '../../types/navigation';
 import type { FeedbackCategory } from '../../types/feedback';
+
+type FeedbackStackParamList = {
+  FeedbackList: undefined;
+  FeedbackSubmit: undefined;
+  FeedbackDetail: { id: string };
+};
 import { useSubmitFeedback } from '../../hooks/useFeedback';
 import { useImagePicker } from '../../hooks/useImagePicker';
 import { uploadService } from '../../api/services/upload.service';
@@ -23,7 +28,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import Chip from '../../components/common/Chip';
 import ScreenHeader from '../../components/common/ScreenHeader';
 
-type Props = NativeStackScreenProps<FunctionsStackParamList, 'FeedbackSubmit'>;
+type Props = NativeStackScreenProps<FeedbackStackParamList, 'FeedbackSubmit'>;
 
 const CATEGORIES: Array<{ key: FeedbackCategory; labelKey: string }> = [
   { key: 'BUG', labelKey: 'feedbackCategoryBug' },

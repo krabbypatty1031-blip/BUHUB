@@ -299,7 +299,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
           {/* Delete Account */}
           <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
-            <Text style={[styles.rowLabelWarning, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('delete')}</Text>
+            <Text style={[styles.rowLabelWarning, getLocalizedFontStyle(currentLanguage, 'regular')]}>{t('deleteAccount')}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider} />

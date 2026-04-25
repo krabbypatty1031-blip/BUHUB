@@ -216,6 +216,9 @@ export type MeStackParamList = {
   Settings: undefined;
   ManageEmails: undefined;
   Blocklist: undefined;
+  FeedbackList: undefined;
+  FeedbackSubmit: undefined;
+  FeedbackDetail: { id: string };
 };
 
 // Bottom Tabs
