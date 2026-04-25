@@ -233,6 +233,28 @@ export default function ForumScreen({ navigation, route }: Props) {
     [currentUser, goToManageEmails, t]
   );
 
+  const handleLikePost = useCallback(
+    (postId: string) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
+      likePostMutation.mutate(postId);
+    },
+    [currentUser, goToManageEmails, likePostMutation, t]
+  );
+
+  const handleBookmarkPost = useCallback(
+    (postId: string) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
+      bookmarkPostMutation.mutate(postId);
+    },
+    [bookmarkPostMutation, currentUser, goToManageEmails, t]
+  );
+
   const handleFunctionPress = useCallback(
     (post: ForumPost) => {
       const functionId =
@@ -312,10 +334,10 @@ export default function ForumScreen({ navigation, route }: Props) {
           post={post}
           onPress={() => handlePostPress(post)}
           onAvatarPress={!post.isAnonymous ? () => handleAvatarPress(post) : undefined}
-          onLike={() => likePostMutation.mutate(post.id)}
+          onLike={() => handleLikePost(post.id)}
           onComment={() => handleCommentPress(post)}
           onForward={() => handleForward(post)}
-          onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+          onBookmark={() => handleBookmarkPost(post.id)}
           onQuote={() => handleQuote(post)}
           onTagPress={(tag) => handleTagPress(post, tag)}
           onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}

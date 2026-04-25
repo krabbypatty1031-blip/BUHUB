@@ -193,6 +193,22 @@ export default function UserProfileScreen({ navigation, route }: Props) {
     setComposeSheetVisible(true);
   }, [currentUser, goToManageEmails, t]);
 
+  const handleLikePost = useCallback((postId: string) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    likePostMutation.mutate(postId);
+  }, [currentUser, goToManageEmails, likePostMutation, t]);
+
+  const handleBookmarkPost = useCallback((postId: string) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    bookmarkPostMutation.mutate(postId);
+  }, [bookmarkPostMutation, currentUser, goToManageEmails, t]);
+
   const closeComposeSheet = useCallback(() => {
     setComposeSheetVisible(false);
     setQuotePostId(undefined);
@@ -434,10 +450,10 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         <PostCard
           post={post}
           onPress={() => handlePostPress(post)}
-          onLike={() => likePostMutation.mutate(post.id)}
+          onLike={() => handleLikePost(post.id)}
           onComment={() => handleCommentPress(post)}
           onForward={() => handleForward(post)}
-          onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+          onBookmark={() => handleBookmarkPost(post.id)}
           onQuote={() => handleQuote(post)}
           onTagPress={(tag) => handleTagPress(tag)}
           onFunctionPress={post.isFunction ? () => handleFunctionPress(post) : undefined}

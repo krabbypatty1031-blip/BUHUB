@@ -458,9 +458,6 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         >
           <Text style={styles.pickerValue} numberOfLines={1}>{String(boxCount)}</Text>
         </TouchableOpacity>
-        <Text style={styles.estimatedPrice}>
-          {t('lockerSfscEstimatedPrice', { amount: estimatedPriceHkd })}
-        </Text>
       </View>
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscDropOffDate')}</Text>
@@ -583,8 +580,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
             <Text style={styles.reviewTitle}>{t('lockerSfscBoxInfoTitle')}</Text>
             <View style={styles.boxInfoBody}>
               <Text style={styles.boxInfoLine}>1. {t('lockerSfscBoxInfoSize')}</Text>
-              <Text style={styles.boxInfoLine}>2. {t('lockerSfscBoxInfoPrice')}</Text>
-              <Text style={styles.boxInfoLine}>3. {t('lockerSfscBoxInfoStorage')}</Text>
+              <Text style={styles.boxInfoLine}>2. {t('lockerSfscBoxInfoStorage')}</Text>
             </View>
             <TouchableOpacity
               style={[styles.reviewBtn, styles.reviewBtnConfirm, styles.boxInfoCloseBtn]}
@@ -616,7 +612,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 { label: t('lockerSfscAddress'), value: selectedHallLabel },
                 {
                   label: t('lockerSfscBoxCount'),
-                  value: `${boxCount}  (HK$${estimatedPriceHkd})`,
+                  value: String(boxCount),
                 },
                 {
                   label: t('lockerSfscDropOffDate'),

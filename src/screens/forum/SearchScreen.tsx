@@ -124,6 +124,28 @@ export default function SearchScreen({ navigation }: Props) {
     [currentUser, goToManageEmails, navigation, t]
   );
 
+  const handleLikePost = useCallback(
+    (postId: string) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
+      likePostMutation.mutate(postId);
+    },
+    [currentUser, goToManageEmails, likePostMutation, t]
+  );
+
+  const handleBookmarkPost = useCallback(
+    (postId: string) => {
+      if (!canPublishCommunityContent(currentUser)) {
+        promptHkbuVerification(t, goToManageEmails);
+        return;
+      }
+      bookmarkPostMutation.mutate(postId);
+    },
+    [bookmarkPostMutation, currentUser, goToManageEmails, t]
+  );
+
   const handleFunctionPress = useCallback(
     (post: ForumPost) => {
       const functionId =
@@ -168,10 +190,10 @@ export default function SearchScreen({ navigation }: Props) {
         post={item}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         onAvatarPress={!item.isAnonymous ? () => handleAvatarPress(item) : undefined}
-        onLike={() => likePostMutation.mutate(item.id)}
+        onLike={() => handleLikePost(item.id)}
         onComment={() => handleCommentPress(item)}
         onForward={() => handleForward(item)}
-        onBookmark={() => bookmarkPostMutation.mutate(item.id)}
+        onBookmark={() => handleBookmarkPost(item.id)}
         onQuote={() => handleQuote(item)}
         onTagPress={(tag) => handleTagPress(tag)}
         onFunctionPress={item.isFunction ? () => handleFunctionPress(item) : undefined}

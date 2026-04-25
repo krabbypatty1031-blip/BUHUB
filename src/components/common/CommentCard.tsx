@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { UserComment, Language } from '../../types';
 import { useDeleteComment, useLikeComment, useBookmarkComment } from '../../hooks/usePosts';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
+import { canPublishCommunityContent } from '../../utils/publishPermission';
+import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -32,6 +35,12 @@ export interface CommentCardProps {
   onLikeUpdate?: (liked: boolean) => void;
   onBookmarkUpdate?: (bookmarked: boolean) => void;
   showDelete?: boolean;
+  /**
+   * Optional callback fired when a non-HKBU user taps like / bookmark.
+   * Parent screens supply a navigation-aware "go to ManageEmails" handler.
+   * If absent, the prompt still pops but its CTA is a no-op.
+   */
+  onRequestHkbuVerification?: () => void;
 }
 
 const CommentCard = React.memo(function CommentCard({
@@ -46,12 +55,24 @@ const CommentCard = React.memo(function CommentCard({
   onLikeUpdate,
   onBookmarkUpdate,
   showDelete = true,
+  onRequestHkbuVerification,
 }: CommentCardProps) {
   const deleteCommentMutation = useDeleteComment(comment.postId);
   const likeCommentMutation = useLikeComment(comment.postId);
   const bookmarkCommentMutation = useBookmarkComment(comment.postId);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const showModal = useUIStore((s) => s.showModal);
+  const currentUser = useAuthStore((s) => s.user);
+  const ensureHkbu = useCallback((): boolean => {
+    if (canPublishCommunityContent(currentUser)) return true;
+    // CommentCard's `t` prop is a narrowed (key) => string; promptHkbuVerification
+    // expects an i18next TFunction shape, which is structurally compatible at runtime.
+    promptHkbuVerification(
+      t as unknown as Parameters<typeof promptHkbuVerification>[0],
+      onRequestHkbuVerification ?? (() => {})
+    );
+    return false;
+  }, [currentUser, onRequestHkbuVerification, t]);
 
   const displayAcademicMeta = useMemo(
     () => buildGradeMajorMeta(t, {
@@ -94,6 +115,7 @@ const CommentCard = React.memo(function CommentCard({
   }, [comment.commentId, deleteCommentMutation, showModal, showSnackbar, t, onUpdate]);
 
   const handleLike = useCallback(() => {
+    if (!ensureHkbu()) return;
     hapticLight();
     likeCommentMutation.mutate(comment.commentId, {
       onSuccess: (res) => {
@@ -106,9 +128,10 @@ const CommentCard = React.memo(function CommentCard({
       },
       onError: () => showSnackbar({ message: t('likeFailed'), type: 'error' }),
     });
-  }, [comment.commentId, comment.liked, likeCommentMutation, showSnackbar, t, onLikeUpdate, onUpdate]);
+  }, [comment.commentId, comment.liked, ensureHkbu, likeCommentMutation, showSnackbar, t, onLikeUpdate, onUpdate]);
 
   const handleBookmark = useCallback(() => {
+    if (!ensureHkbu()) return;
     hapticLight();
     bookmarkCommentMutation.mutate(comment.commentId, {
       onSuccess: (res) => {
@@ -121,7 +144,7 @@ const CommentCard = React.memo(function CommentCard({
       },
       onError: () => showSnackbar({ message: t('bookmarkFailed'), type: 'error' }),
     });
-  }, [comment.commentId, comment.bookmarked, bookmarkCommentMutation, showSnackbar, t, onBookmarkUpdate, onUpdate]);
+  }, [comment.commentId, comment.bookmarked, bookmarkCommentMutation, ensureHkbu, showSnackbar, t, onBookmarkUpdate, onUpdate]);
 
   return (
     <PageTranslationProvider>

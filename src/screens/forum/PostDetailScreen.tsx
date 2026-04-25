@@ -1325,24 +1325,40 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   }, [post, navigation]);
 
   const handleLikeComment = useCallback((cId: string) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     hapticLight();
     likeCommentMutation.mutate(cId);
-  }, [likeCommentMutation]);
+  }, [currentUser, goToManageEmails, likeCommentMutation, t]);
 
   const handleBookmarkComment = useCallback((cId: string) => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     hapticLight();
     bookmarkCommentMutation.mutate(cId);
-  }, [bookmarkCommentMutation]);
+  }, [bookmarkCommentMutation, currentUser, goToManageEmails, t]);
 
   const handleLikePostPress = useCallback(() => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     hapticLight();
     likePostMutation.mutate(postId);
-  }, [likePostMutation, postId]);
+  }, [currentUser, goToManageEmails, likePostMutation, postId, t]);
 
   const handleBookmarkPostPress = useCallback(() => {
+    if (!canPublishCommunityContent(currentUser)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
     hapticLight();
     bookmarkPostMutation.mutate(postId);
-  }, [bookmarkPostMutation, postId]);
+  }, [bookmarkPostMutation, currentUser, goToManageEmails, postId, t]);
 
   const handleReportPost = useCallback(() => {
     setPopoverVisible(true);

@@ -244,6 +244,22 @@ export default function MeScreen({ navigation }: Props) {
     setComposeSheetVisible(true);
   }, [goToManageEmails, t, user]);
 
+  const handleLikePost = useCallback((postId: string) => {
+    if (!canPublishCommunityContent(user)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    likePostMutation.mutate(postId);
+  }, [goToManageEmails, likePostMutation, t, user]);
+
+  const handleBookmarkPost = useCallback((postId: string) => {
+    if (!canPublishCommunityContent(user)) {
+      promptHkbuVerification(t, goToManageEmails);
+      return;
+    }
+    bookmarkPostMutation.mutate(postId);
+  }, [bookmarkPostMutation, goToManageEmails, t, user]);
+
   const handleForwardComment = useCallback((commentAsPost: ForumPost) => {
     if (!canPublishCommunityContent(user)) {
       promptHkbuVerification(t, goToManageEmails);
@@ -504,6 +520,10 @@ export default function MeScreen({ navigation }: Props) {
               onPress={() => goToPost(post.id)}
               onAvatarPress={!post.isAnonymous ? () => handleAvatarPress(post) : undefined}
               onLike={() => {
+                if (!canPublishCommunityContent(user)) {
+                  promptHkbuVerification(t, goToManageEmails);
+                  return;
+                }
                 likePostMutation.mutate(post.id, {
                   onSuccess: (res) => {
                     if (res?.liked === false) {
@@ -522,7 +542,7 @@ export default function MeScreen({ navigation }: Props) {
                   },
                 });
               }}
-              onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+              onBookmark={() => handleBookmarkPost(post.id)}
               onComment={() => goToPost(post.id)}
               onForward={() => handleForward(post)}
               onQuote={() => handleQuote(post)}
@@ -623,6 +643,7 @@ export default function MeScreen({ navigation }: Props) {
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
                   onForward={() => handleForwardComment(commentAsPost)}
+                  onRequestHkbuVerification={goToManageEmails}
                   showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
@@ -647,8 +668,12 @@ export default function MeScreen({ navigation }: Props) {
               post={post}
               onPress={() => goToPost(post.id)}
               onAvatarPress={!post.isAnonymous ? () => handleAvatarPress(post) : undefined}
-              onLike={() => likePostMutation.mutate(post.id)}
+              onLike={() => handleLikePost(post.id)}
               onBookmark={() => {
+                if (!canPublishCommunityContent(user)) {
+                  promptHkbuVerification(t, goToManageEmails);
+                  return;
+                }
                 bookmarkPostMutation.mutate(post.id, {
                   onSuccess: (res) => {
                     if (res?.bookmarked === false) {
@@ -766,6 +791,7 @@ export default function MeScreen({ navigation }: Props) {
                   }}
                   onComment={() => goToComment(c.postId, c.commentId, true)}
                   onForward={() => handleForwardComment(commentAsPost)}
+                  onRequestHkbuVerification={goToManageEmails}
                   showDelete={Boolean(c.isOwnedByCurrentUser)}
                 />
               );
@@ -819,6 +845,7 @@ export default function MeScreen({ navigation }: Props) {
           onUpdate={() => queryClient.invalidateQueries({ queryKey: ['myContent'] })}
           onComment={() => goToComment(c.postId, c.commentId, true)}
           onForward={() => handleForwardComment(commentAsPost)}
+          onRequestHkbuVerification={goToManageEmails}
           showDelete={Boolean(c.isOwnedByCurrentUser ?? true)}
         />
       );
@@ -832,8 +859,8 @@ export default function MeScreen({ navigation }: Props) {
         post={post}
         onPress={() => goToPost(post.id)}
         onAvatarPress={!post.isAnonymous ? () => handleAvatarPress(post) : undefined}
-        onLike={() => likePostMutation.mutate(post.id)}
-        onBookmark={() => bookmarkPostMutation.mutate(post.id)}
+        onLike={() => handleLikePost(post.id)}
+        onBookmark={() => handleBookmarkPost(post.id)}
         onComment={() => goToPost(post.id)}
         onForward={() => handleForward(post)}
         onQuote={() => handleQuote(post)}

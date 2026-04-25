@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -58,9 +58,19 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
   const GENDER_KEYS: Gender[] = ['male', 'female', 'other', 'secret'];
 
+  // Sort majors A→Z by their localized display label so the picker is
+  // alphabetical in whichever language the user is currently in.
+  const sortedMajorKeys = useMemo(
+    () =>
+      [...HKBU_MAJOR_KEYS].sort((a, b) =>
+        getLocalizedMajorLabel(a, t).localeCompare(getLocalizedMajorLabel(b, t))
+      ),
+    [t]
+  );
+
   const pickerData: Record<PickerType, string[]> = {
     grade: GRADE_KEYS,
-    major: HKBU_MAJOR_KEYS,
+    major: sortedMajorKeys,
     gender: GENDER_KEYS,
   };
 
