@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../api/services/message.service';
 import type { SendMessagePayload } from '../api/services/message.service';
 import { normalizeLanguage } from '../i18n';
 import type { ChatHistory, ChatMessage, Contact } from '../types';
 import { useAuthStore } from '../store/authStore';
+import { useMessageRealtimeStore } from '../store/messageRealtimeStore';
 import { normalizeImageUrl as normalizeMediaUrl } from '../utils/imageUrl';
 import {
   appendMessageToHistory,
@@ -23,6 +24,7 @@ import {
   persistContactsCache,
   rememberRecentSentMessage,
   replaceMessageInHistory,
+  sortGroupMessagesByCreatedAt,
   upsertContact,
   writeChatSnapshot,
   writeContactsSnapshot,
@@ -99,12 +101,21 @@ function shouldPreserveMissingCachedMessage(
   return createdAtMs >= oldestFetchedTimestampMs - HISTORY_EDGE_TOLERANCE_MS;
 }
 
+function withSortedMessageGroups(history: ChatHistory[]): ChatHistory[] {
+  return history.map((group) => ({
+    ...group,
+    messages: sortGroupMessagesByCreatedAt(group.messages ?? []),
+  }));
+}
+
 function reconcileFetchedChatHistory(
   currentHistory: ChatHistory[] | undefined,
   fetchedHistory: ChatHistory[]
 ): ChatHistory[] {
   if (!Array.isArray(fetchedHistory)) return [];
-  if (!Array.isArray(currentHistory) || currentHistory.length === 0) return fetchedHistory;
+  if (!Array.isArray(currentHistory) || currentHistory.length === 0) {
+    return withSortedMessageGroups(fetchedHistory);
+  }
 
   const currentMessageById = new Map<string, ChatMessage>();
   const currentMessageByClientKey = new Map<string, ChatMessage>();
@@ -217,16 +228,16 @@ function reconcileFetchedChatHistory(
       (history, message) => appendMessageToHistory(history, message),
       nextHistory
     );
-    return result;
+    return withSortedMessageGroups(result);
   }
 
   if (hasFetchedMessageNotInCurrent) {
-    return nextHistory;
+    return withSortedMessageGroups(nextHistory);
   }
 
   // Return currentHistory (same reference) when unchanged — prevents React Query
   // from treating identical data as "new", which would re-render the entire FlashList
-  return changed ? nextHistory : currentHistory;
+  return changed ? withSortedMessageGroups(nextHistory) : currentHistory;
 }
 
 function formatMessageTime(date: Date) {
@@ -508,10 +519,17 @@ export function usePresence(userId: string) {
 export function useSendMessage(receiverId: string, contactSeed?: SendMessageContactSeed) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const sendMessageClientKeyRef = useRef<string | undefined>(undefined);
   return useMutation({
     mutationFn: ({ payload, images }: SendMessageRequest) =>
-      messageService.sendMessage(receiverId, payload, images),
+      messageService.sendMessage(
+        receiverId,
+        payload,
+        images,
+        sendMessageClientKeyRef.current
+      ),
     onMutate: async ({ payload, images }): Promise<SendMutationContext> => {
+      sendMessageClientKeyRef.current = undefined;
       await queryClient.cancelQueries({ queryKey: ['chat', receiverId] });
       await queryClient.cancelQueries({ queryKey: ['contacts'] });
       const previousChats = queryClient.getQueriesData<ChatHistory[]>({
@@ -522,6 +540,8 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
       const optimisticApplied = !isReaction && Boolean(optimisticMessage);
 
       if (optimisticApplied && optimisticMessage) {
+        sendMessageClientKeyRef.current = optimisticMessage.id;
+        useMessageRealtimeStore.getState().addPendingClientKey(receiverId, optimisticMessage.id);
         patchChatQueries(queryClient, currentUserId, receiverId, (old, language) =>
           appendMessageToHistory(old, optimisticMessage, language)
         );
@@ -584,6 +604,12 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
       queryClient.invalidateQueries({ queryKey: ['chat-can-send', receiverId] });
       queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
+    },
+    onSettled: (_data, _error, _variables, context) => {
+      sendMessageClientKeyRef.current = undefined;
+      if (context?.optimisticMessageId) {
+        useMessageRealtimeStore.getState().removePendingClientKey(receiverId, context.optimisticMessageId);
+      }
     },
   });
 }

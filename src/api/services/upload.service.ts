@@ -26,6 +26,7 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/x-caf',
   'audio/wav',
   'audio/aac',
+  'audio/amr-wb',
 ]);
 
 type UploadInput = { uri: string; type: string; name: string };

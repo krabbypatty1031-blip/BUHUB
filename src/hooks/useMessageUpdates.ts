@@ -64,10 +64,21 @@ export function useMessageUpdates(contactId: string, enabled: boolean) {
       if (event.type === 'typing' && event.contactId) {
         store.setTyping(event.contactId, event.isTyping ?? false, event.timestamp);
       } else if (event.type === 'message' && event.message) {
-        const msgId = event.message.id || (event.message as { clientKey?: string }).clientKey;
-        if (msgId && event.contactId) {
-          const pending = store.pendingClientKeysByContact[event.contactId];
-          if (pending?.has(msgId)) continue;
+        const contactIdForEvent = event.contactId;
+        if (contactIdForEvent) {
+          const pending = store.pendingClientKeysByContact[contactIdForEvent];
+          if (pending && pending.size > 0) {
+            const m = event.message;
+            const ck =
+              typeof m.clientKey === 'string' && m.clientKey.trim().length > 0
+                ? m.clientKey.trim()
+                : undefined;
+            if (typeof m.id === 'string' && m.id.length > 0 && pending.has(m.id)) continue;
+            if (ck && pending.has(ck)) continue;
+            // Match WebSocket path: while a send is in flight, long-poll may echo the
+            // same message without clientKey — skip to avoid a duplicate next to the optimistic row.
+            if (m.type === 'sent' && !ck && event.contactId === cId) continue;
+          }
         }
         queryClient.invalidateQueries({ queryKey: ['contacts'] });
         if (event.contactId === cId) {

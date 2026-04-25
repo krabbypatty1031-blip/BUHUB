@@ -164,6 +164,18 @@ function sortGroups(history: ChatHistory[]): ChatHistory[] {
   });
 }
 
+/** Ascending by createdAt within one date group; stable when timestamps tie. */
+export function sortGroupMessagesByCreatedAt(messages: ChatMessage[]): ChatMessage[] {
+  return [...messages].sort((a, b) => {
+    const aTs = Date.parse(a.createdAt ?? '') || 0;
+    const bTs = Date.parse(b.createdAt ?? '') || 0;
+    if (aTs !== bTs) return aTs - bTs;
+    const aKey = `${a.clientKey ?? ''}\t${a.id ?? ''}`;
+    const bKey = `${b.clientKey ?? ''}\t${b.id ?? ''}`;
+    return aKey.localeCompare(bKey);
+  });
+}
+
 export function appendMessageToHistory(
   history: ChatHistory[] | undefined,
   message: ChatMessage,
@@ -194,11 +206,7 @@ export function appendMessageToHistory(
   }
 
   next.forEach((group) => {
-    group.messages.sort((a, b) => {
-      const aTs = Date.parse(a.createdAt ?? '') || 0;
-      const bTs = Date.parse(b.createdAt ?? '') || 0;
-      return aTs - bTs;
-    });
+    group.messages = sortGroupMessagesByCreatedAt(group.messages);
   });
 
   return sortGroups(next);
@@ -227,7 +235,7 @@ export function replaceMessageInHistory(
         mediaGroupId: nextMessage.mediaGroupId ?? message.mediaGroupId,
       };
     });
-    return groupChanged ? { ...group, messages } : group;
+    return groupChanged ? { ...group, messages: sortGroupMessagesByCreatedAt(messages) } : group;
   });
   return changed ? next : history;
 }

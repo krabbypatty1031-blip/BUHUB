@@ -81,6 +81,7 @@ export type PersistedDirectMessage = {
   senderId?: string;
   receiverId?: string;
   isMine?: boolean;
+  clientKey?: string;
 };
 
 type MessageLanguage = 'tc' | 'sc' | 'en';
@@ -468,6 +469,9 @@ export function buildSentChatMessage(message: PersistedDirectMessage): ChatMessa
       isRecalled: true,
       time: formatChatTime(timestamp),
       status: message.isRead ? 'read' : 'delivered',
+      ...(typeof message.clientKey === 'string' && message.clientKey.length > 0
+        ? { clientKey: message.clientKey }
+        : {}),
     };
   }
 
@@ -499,6 +503,9 @@ export function buildSentChatMessage(message: PersistedDirectMessage): ChatMessa
     time: formatChatTime(timestamp),
     status: message.isRead ? 'read' : 'delivered',
     ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
+    ...(typeof message.clientKey === 'string' && message.clientKey.length > 0
+      ? { clientKey: message.clientKey }
+      : {}),
   };
 }
 
@@ -522,6 +529,9 @@ export function buildChatMessageFromPersistedMessage(
       isRecalled: true,
       time: formatChatTime(timestamp),
       ...(isMine ? { status: (message.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
+      ...(typeof message.clientKey === 'string' && message.clientKey.length > 0
+        ? { clientKey: message.clientKey }
+        : {}),
     };
   }
 
@@ -553,6 +563,9 @@ export function buildChatMessageFromPersistedMessage(
     time: formatChatTime(timestamp),
     ...(isMine ? { status: (message.isRead ? 'read' : 'delivered') as 'read' | 'delivered' } : {}),
     ...(parsed.functionCard ? { functionCard: parsed.functionCard } : {}),
+    ...(typeof message.clientKey === 'string' && message.clientKey.length > 0
+      ? { clientKey: message.clientKey }
+      : {}),
   };
 }
 

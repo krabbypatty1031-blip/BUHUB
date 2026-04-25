@@ -112,6 +112,7 @@ import {
   persistHiddenChatMessages,
   rememberRecentSentMessage,
   replaceMessageInHistory,
+  sortGroupMessagesByCreatedAt,
   upsertContact,
 } from '../../utils/messageCache';
 import { recordMessageMetric, recordTimedMessageMetric } from '../../utils/messageMetrics';
@@ -232,6 +233,9 @@ function getAudioUploadMetaFromUri(uri: string): { type: string; name: string } 
   }
   if (ext === 'm4a') {
     return { type: 'audio/x-m4a', name: `voice-${Date.now()}.m4a` };
+  }
+  if (ext === 'awb') {
+    return { type: 'audio/amr-wb', name: `voice-${Date.now()}.awb` };
   }
 
   return { type: 'audio/m4a', name: `voice-${Date.now()}.m4a` };
@@ -579,14 +583,15 @@ function appendPendingMessagesToHistory(
   if (visiblePendingMessages.length === 0) return base;
 
   const lastGroup = base.length > 0 ? base[base.length - 1] : null;
-  if (lastGroup?.date === todayLabel) {
-    lastGroup.messages.push(...visiblePendingMessages);
-    return base;
-  }
+    if (lastGroup?.date === todayLabel) {
+      lastGroup.messages.push(...visiblePendingMessages);
+      lastGroup.messages = sortGroupMessagesByCreatedAt(lastGroup.messages);
+      return base;
+    }
 
   base.push({
     date: todayLabel,
-    messages: [...visiblePendingMessages],
+    messages: sortGroupMessagesByCreatedAt([...visiblePendingMessages]),
   });
   return base;
 }
@@ -616,12 +621,13 @@ function mergeChatHistories(
     const lastGroup = merged.length > 0 ? merged[merged.length - 1] : null;
     if (lastGroup?.date === group.date) {
       lastGroup.messages.push(...nextMessages);
+      lastGroup.messages = sortGroupMessagesByCreatedAt(lastGroup.messages);
       return;
     }
 
     merged.push({
       ...group,
-      messages: [...nextMessages],
+      messages: sortGroupMessagesByCreatedAt([...nextMessages]),
     });
   };
 
@@ -1314,6 +1320,14 @@ const EMPTY_AUDIO_PLAYBACK_STATE: AudioPlaybackState = {
   positionMillis: 0,
   durationMillis: 0,
 };
+
+/** Prefer clientKey so playback matches the bubble after optimistic/local id → server id reconciliation. */
+function resolveAudioPlaybackKey(message: ChatMessage): string | null {
+  const ck = typeof message.clientKey === 'string' ? message.clientKey.trim() : '';
+  if (ck.length > 0) return ck;
+  const id = typeof message.id === 'string' ? message.id.trim() : '';
+  return id.length > 0 ? id : null;
+}
 
 type MessageDeliveryStatusProps = {
   message: ChatMessage;
@@ -3668,7 +3682,8 @@ function ChatScreenContent({ navigation, route }: Props) {
     if (actionTarget && resolveLocalVisibilityKey(actionTarget) === visibilityKey) {
       setActionTarget(null);
     }
-    if (playingAudioMessageId && message.id && playingAudioMessageId === message.id) {
+    const hiddenPlaybackKey = resolveAudioPlaybackKey(message);
+    if (playingAudioMessageId && hiddenPlaybackKey && playingAudioMessageId === hiddenPlaybackKey) {
       const sound = audioSoundRef.current;
       if (sound) {
         void sound.unloadAsync().catch(() => {
@@ -4154,6 +4169,8 @@ function ChatScreenContent({ navigation, route }: Props) {
             web: {},
           };
 
+      // Android: AMR-WB keeps live speech / voice-to-text reliable (AAC+M4A conflicts with that path).
+      // Upload uses real .awb + audio/amr-wb; see getAudioUploadMetaFromUri + backend upload allowlist.
       await recording.prepareToRecordAsync(
         Platform.OS === 'android'
           ? {
@@ -4403,8 +4420,9 @@ function ChatScreenContent({ navigation, route }: Props) {
 
   const handlePlayAudio = useCallback(async (message: ChatMessage) => {
     if (!message.audio?.url) return;
+    const playbackKey = resolveAudioPlaybackKey(message);
+    if (!playbackKey) return;
     const resolvedAudioUrl = normalizeMediaUrl(message.audio.url) ?? message.audio.url;
-    const messageId = message.id ?? null;
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -4417,7 +4435,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         audioSoundRef.current = null;
       }
 
-      if (playingAudioMessageId && messageId && playingAudioMessageId === messageId) {
+      if (playingAudioMessageId && playingAudioMessageId === playbackKey) {
         clearAudioPlayback();
         return;
       }
@@ -4427,10 +4445,10 @@ function ChatScreenContent({ navigation, route }: Props) {
         { shouldPlay: true, progressUpdateIntervalMillis: 150 }
       );
       audioSoundRef.current = sound;
-      setPlayingAudioMessageId(messageId);
+      setPlayingAudioMessageId(playbackKey);
       if (status.isLoaded) {
         setAudioPlaybackState({
-          messageId,
+          messageId: playbackKey,
           isPlaying: status.isPlaying,
           isBuffering: Boolean(status.isBuffering),
           positionMillis: status.positionMillis ?? 0,
@@ -4438,7 +4456,7 @@ function ChatScreenContent({ navigation, route }: Props) {
         });
       } else {
         setAudioPlaybackState({
-          messageId,
+          messageId: playbackKey,
           isPlaying: false,
           isBuffering: true,
           positionMillis: 0,
@@ -4451,9 +4469,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           clearAudioPlayback();
           return;
         }
-        if (messageId) {
-          setPlayingAudioMessageId(messageId);
-        }
+        setPlayingAudioMessageId(playbackKey);
         if (status.didJustFinish) {
           clearAudioPlayback();
           void sound.unloadAsync();
@@ -4463,7 +4479,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           return;
         }
         setAudioPlaybackState({
-          messageId,
+          messageId: playbackKey,
           isPlaying: status.isPlaying,
           isBuffering: Boolean(status.isBuffering),
           positionMillis: status.positionMillis ?? 0,
@@ -4561,6 +4577,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           </View>
         );
       }
+      const itemPlaybackKey = resolveAudioPlaybackKey(item.message);
       return (
         <View style={[styles.invertedListItem, styles.chatListItem]}>
           {item.timeLabel ? (
@@ -4582,19 +4599,19 @@ function ChatScreenContent({ navigation, route }: Props) {
             onPressReaction={handlePressReaction}
             onRetryFailedMessage={retryFailedMessage}
             isAudioPlaying={Boolean(
-              item.message.id &&
-                playingAudioMessageId === item.message.id &&
+              itemPlaybackKey &&
+                playingAudioMessageId === itemPlaybackKey &&
                 audioPlaybackState.isPlaying &&
                 !audioPlaybackState.isBuffering
             )}
             isAudioBuffering={Boolean(
-              item.message.id &&
-                audioPlaybackState.messageId === item.message.id &&
+              itemPlaybackKey &&
+                audioPlaybackState.messageId === itemPlaybackKey &&
                 audioPlaybackState.isBuffering
             )}
             audioProgress={
-              item.message.id &&
-              audioPlaybackState.messageId === item.message.id &&
+              itemPlaybackKey &&
+              audioPlaybackState.messageId === itemPlaybackKey &&
               audioPlaybackState.durationMillis > 0
                 ? Math.max(
                     0,
