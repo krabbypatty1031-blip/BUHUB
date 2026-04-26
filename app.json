@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "23",
+      "buildNumber": "24",
       "bundleIdentifier": "com.ulinks.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
