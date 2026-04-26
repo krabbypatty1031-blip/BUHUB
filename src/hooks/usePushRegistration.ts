@@ -7,7 +7,6 @@ import type { NavigationContainerRef } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
 import { useAuthStore } from '../store/authStore';
-import { useNotificationStore } from '../store/notificationStore';
 import { canPublishCommunityContent } from '../utils/publishPermission';
 import { promptHkbuVerification } from '../utils/hkbuPrompt';
 import i18n from '../i18n';
@@ -390,36 +389,6 @@ export function usePushRegistration(navigationRef: PushNavigationRef) {
       // unread count flows into the store via MainTabNavigator's useEffect.
       queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'] });
 
-      // Optimistically bump the specific counter so the badge updates instantly.
-      // MainTabNavigator will reconcile with the server value once refetch resolves.
-      const data = notification.request.content.data as Record<string, unknown> | undefined;
-      const type = typeof data?.type === 'string' ? data.type : '';
-      if (
-        type === 'like' ||
-        type === 'follow' ||
-        type === 'comment' ||
-        type === 'reply' ||
-        type === 'mention' ||
-        type === 'message'
-      ) {
-        const store = useNotificationStore.getState();
-        switch (type) {
-          case 'like':
-            store.setUnreadLikes(store.unreadLikes + 1);
-            break;
-          case 'follow':
-            store.setUnreadFollowers(store.unreadFollowers + 1);
-            break;
-          case 'comment':
-          case 'reply':
-          case 'mention':
-            store.setUnreadComments(store.unreadComments + 1);
-            break;
-          case 'message':
-            store.setUnreadMessages(store.unreadMessages + 1);
-            break;
-        }
-      }
     });
 
     return () => {
