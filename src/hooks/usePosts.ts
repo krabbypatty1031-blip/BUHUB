@@ -68,6 +68,28 @@ function setAllUserPostLists(
   queryClient.setQueriesData<PostsInfiniteData>({ queryKey: ['userPosts'] }, updater);
 }
 
+function getAllSearchLists(queryClient: QueryClient) {
+  return queryClient.getQueriesData<ForumPost[]>({ queryKey: ['search'] });
+}
+
+function setAllSearchLists(
+  queryClient: QueryClient,
+  updater: (post: ForumPost) => ForumPost,
+) {
+  queryClient.setQueriesData<ForumPost[]>({ queryKey: ['search'] }, (old) =>
+    old ? old.map(updater) : old,
+  );
+}
+
+function restoreAllSearchLists(
+  queryClient: QueryClient,
+  previousSearchLists: Array<[readonly unknown[], ForumPost[] | undefined]> | undefined,
+) {
+  previousSearchLists?.forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, data);
+  });
+}
+
 function restoreAllPostLists(
   queryClient: QueryClient,
   previousPostLists: Array<[readonly unknown[], PostsInfiniteData | undefined]> | undefined,
@@ -294,6 +316,7 @@ function findSourcePostForBookmark(
   return (
     myContent.posts.find((item) => item.postId === postId) ??
     myContent.anonPosts.find((item) => item.postId === postId) ??
+    myContent.myLikes.posts.find((item) => item.postId === postId) ??
     myContent.myBookmarks.posts.find((item) => item.postId === postId)
   );
 }
@@ -546,9 +569,13 @@ export function useCreateComment(postId: string) {
             : post
         )
       );
+      setAllSearchLists(queryClient, (post) =>
+        post.id === postId ? { ...post, comments: post.comments + 1 } : post
+      );
 
       queryClient.invalidateQueries({ queryKey: ['comments', postId], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['post', postId], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['search'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
     },
   });
@@ -582,6 +609,10 @@ export function useDeleteComment(postId: string) {
             : post
         )
       );
+      setAllSearchLists(queryClient, (post) =>
+        post.id === postId ? { ...post, comments: Math.max(0, post.comments - 1) } : post
+      );
+      queryClient.invalidateQueries({ queryKey: ['search'], refetchType: 'inactive' });
     },
   });
 }
@@ -598,6 +629,7 @@ export function useLikePost() {
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
       const previousUserPostLists = getAllUserPostLists(queryClient);
+      const previousSearchLists = getAllSearchLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({
@@ -619,6 +651,7 @@ export function useLikePost() {
       setAllUserPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
+      setAllSearchLists(queryClient, (p) => (p.id === postId ? toggle(p) : p));
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
@@ -631,7 +664,7 @@ export function useLikePost() {
             }
           : old
       );
-      return { previousPostLists, previousUserPostLists, previousDetail, previousMyContent };
+      return { previousPostLists, previousUserPostLists, previousSearchLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
       if (typeof res.likeCount === 'number') {
@@ -644,6 +677,7 @@ export function useLikePost() {
         setAllUserPostLists(queryClient, (old) =>
           mapPostsPages(old, update)
         );
+        setAllSearchLists(queryClient, update);
         const detail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
         if (detail) {
           queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), { ...detail, liked: res.liked, likes: res.likeCount });
@@ -662,12 +696,14 @@ export function useLikePost() {
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
       restoreAllPostLists(queryClient, context?.previousUserPostLists);
+      restoreAllSearchLists(queryClient, context?.previousSearchLists);
       if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (res, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['search'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
       if (typeof res?.likeCount !== 'number') {
         queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
@@ -699,7 +735,7 @@ export function useLikeComment(postId: string) {
           ...item,
           liked: !item.liked,
           likes: item.liked ? Math.max(0, item.likes - 1) : item.likes + 1,
-        }), { includeReactionLists: false })
+        }), { includeReactionLists: true })
       );
       return { previous, previousMyContent };
     },
@@ -832,7 +868,7 @@ export function useBookmarkComment(postId: string) {
         updateMyContentCommentById(old, commentId, (item) => ({
           ...item,
           bookmarked: !item.bookmarked,
-        }), { includeReactionLists: false })
+        }), { includeReactionLists: true })
       );
       return { previous, previousMyContent };
     },
@@ -867,6 +903,7 @@ export function useBookmarkPost() {
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
       const previousUserPostLists = getAllUserPostLists(queryClient);
+      const previousSearchLists = getAllSearchLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const listSourcePost = findPostInPostLists(previousPostLists, postId);
@@ -882,13 +919,14 @@ export function useBookmarkPost() {
       setAllUserPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
+      setAllSearchLists(queryClient, (p) => (p.id === postId ? toggle(p) : p));
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
       );
-      return { previousPostLists, previousUserPostLists, previousDetail, previousMyContent };
+      return { previousPostLists, previousUserPostLists, previousSearchLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
       setAllPostLists(queryClient, (old) =>
@@ -911,6 +949,9 @@ export function useBookmarkPost() {
             : post
         )
       );
+      setAllSearchLists(queryClient, (post) =>
+        post.id === postId ? { ...post, bookmarked: res.bookmarked } : post
+      );
       queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), (old) =>
         old
           ? {
@@ -932,12 +973,14 @@ export function useBookmarkPost() {
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
       restoreAllPostLists(queryClient, context?.previousUserPostLists);
+      restoreAllSearchLists(queryClient, context?.previousSearchLists);
       if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (_data, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['search'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
