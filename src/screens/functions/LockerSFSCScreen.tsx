@@ -81,8 +81,8 @@ const ADDITIONAL_BOX_PRICE_HKD = 185;
 const MIN_BOXES = 1;
 const MAX_BOXES = 10;
 
-// Information-collection deadline: 2026-05-03 23:59 HKT (UTC+8).
-const COLLECTION_DEADLINE_MS = Date.parse('2026-05-03T23:59:00+08:00');
+const DEFAULT_OPEN_AT_MS = Date.parse('2026-05-02T00:00:00+08:00');
+const DEFAULT_CLOSE_AT_MS = Date.parse('2026-05-03T23:59:00+08:00');
 
 const BROADCAST_POLL_INTERVAL_MS = 30_000;
 
@@ -112,6 +112,23 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   const [boxInfoOpen, setBoxInfoOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
+  const [lockerOpenAtMs, setLockerOpenAtMs] = useState<number>(DEFAULT_OPEN_AT_MS);
+  const [lockerCloseAtMs, setLockerCloseAtMs] = useState<number>(DEFAULT_CLOSE_AT_MS);
+  const [announcementStartAtMs, setAnnouncementStartAtMs] = useState<number | null>(null);
+  const [announcementEndAtMs, setAnnouncementEndAtMs] = useState<number | null>(null);
+  const launchHintText = useMemo(() => {
+    const locale = i18n.language === 'en' ? 'en-GB' : 'zh-HK';
+    const dt = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Hong_Kong',
+    }).format(new Date(lockerOpenAtMs));
+    return `${t('lockerSfscLaunchBody')} ${dt}`;
+  }, [i18n.language, lockerOpenAtMs, t]);
 
   const selectedHall = useMemo(() => findHall(residenceAddress), [residenceAddress]);
   const selectedHallLabel = selectedHall ? hallLabel(selectedHall, i18n.language) : '';
@@ -155,20 +172,23 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     ? Math.max(0, MAX_MODIFICATIONS - mineRecord.modifyCount)
     : MAX_MODIFICATIONS;
   const modifyExhausted = isModifying && remainingModifies === 0;
-  const [isExpired, setIsExpired] = useState(() => Date.now() > COLLECTION_DEADLINE_MS);
+  const [isExpired, setIsExpired] = useState(() => Date.now() > DEFAULT_CLOSE_AT_MS);
+  const [isNotOpen, setIsNotOpen] = useState(() => Date.now() < DEFAULT_OPEN_AT_MS);
 
-  // One-shot timer aligned to the exact deadline moment — flips `isExpired`
-  // ~100ms after the cutoff with no recurring ticks.
+  // Keep open/expired status in sync with admin-configured timeline.
   useEffect(() => {
-    if (isExpired) return undefined;
-    const ms = COLLECTION_DEADLINE_MS - Date.now();
-    if (ms <= 0) {
-      setIsExpired(true);
-      return undefined;
-    }
-    const timer = setTimeout(() => setIsExpired(true), ms + 100);
+    const now = Date.now();
+    setIsNotOpen(now < lockerOpenAtMs);
+    setIsExpired(now > lockerCloseAtMs);
+    const nextSwitch = now < lockerOpenAtMs ? lockerOpenAtMs : now < lockerCloseAtMs ? lockerCloseAtMs : null;
+    if (!nextSwitch) return undefined;
+    const timer = setTimeout(() => {
+      const current = Date.now();
+      setIsNotOpen(current < lockerOpenAtMs);
+      setIsExpired(current > lockerCloseAtMs);
+    }, Math.max(200, nextSwitch - now + 120));
     return () => clearTimeout(timer);
-  }, [isExpired]);
+  }, [lockerCloseAtMs, lockerOpenAtMs]);
 
   // Poll the admin broadcast message every 30s while the banner is visible
   // (post-deadline, user has a record). A single fetch kicks off immediately;
@@ -188,8 +208,12 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     };
     const refetch = async () => {
       try {
-        const { message } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, announcementStartAt, announcementEndAt } = await lockerService.fetchBroadcast();
         setBroadcastMessage(message);
+        if (openAt) setLockerOpenAtMs(Date.parse(openAt));
+        if (closeAt) setLockerCloseAtMs(Date.parse(closeAt));
+        setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
+        setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
       } catch {
         // Leave prior message visible; regular 30s poll will retry.
       }
@@ -212,8 +236,12 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     let cancelled = false;
     const load = async () => {
       try {
-        const { message } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, announcementStartAt, announcementEndAt } = await lockerService.fetchBroadcast();
         if (!cancelled) setBroadcastMessage(message);
+        if (!cancelled && openAt) setLockerOpenAtMs(Date.parse(openAt));
+        if (!cancelled && closeAt) setLockerCloseAtMs(Date.parse(closeAt));
+        if (!cancelled) setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
+        if (!cancelled) setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
       } catch {
         // Keep prior message on transient failure; default shows if never set.
       }
@@ -249,6 +277,14 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     let active = true;
     (async () => {
       try {
+        const broadcast = await lockerService.fetchBroadcast();
+        if (active) {
+          setBroadcastMessage(broadcast.message);
+          if (broadcast.openAt) setLockerOpenAtMs(Date.parse(broadcast.openAt));
+          if (broadcast.closeAt) setLockerCloseAtMs(Date.parse(broadcast.closeAt));
+          setAnnouncementStartAtMs(broadcast.announcementStartAt ? Date.parse(broadcast.announcementStartAt) : null);
+          setAnnouncementEndAtMs(broadcast.announcementEndAt ? Date.parse(broadcast.announcementEndAt) : null);
+        }
         const record = await lockerService.getMine();
         if (active && record) applyRecord(record);
       } catch {
@@ -320,6 +356,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
 
   const isValid =
     !modifyExhausted &&
+    !isNotOpen &&
     !isExpired &&
     fullName.trim().length > 0 &&
     studentId.trim().length > 0 &&
@@ -376,15 +413,26 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     void performSubmit();
   }, [performSubmit]);
 
+  const showAnnouncement = useMemo(() => {
+    if (!broadcastMessage?.trim()) return false;
+    const now = Date.now();
+    // If no announcement times are set, default to old behavior (show if expired and has record)
+    if (announcementStartAtMs === null || announcementEndAtMs === null) {
+      return isExpired && hasRecord;
+    }
+    // Otherwise check the specific announcement window
+    return now >= announcementStartAtMs && now < announcementEndAtMs;
+  }, [broadcastMessage, announcementStartAtMs, announcementEndAtMs, isExpired, hasRecord]);
+
   const renderForm = () => (
     <>
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscFullName')}</Text>
         <TextInput
-          style={[styles.input, isExpired && styles.inputReadOnly]}
+          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
           value={fullName}
           onChangeText={setFullName}
-          editable={!isExpired}
+          editable={!isExpired && !isNotOpen}
           placeholder={t('lockerSfscFullNamePlaceholder')}
           placeholderTextColor={colors.outline}
         />
@@ -392,14 +440,14 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscStudentId')}</Text>
         <TextInput
-          style={[styles.input, isExpired && styles.inputReadOnly]}
+          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
           value={studentId}
           onChangeText={(text) => {
             // Reject any change that contains non-digits (e.g. paste of "abc123",
             // external keyboard letter, IME input). Keeps the previous value on reject.
             if (/^\d*$/.test(text)) setStudentId(text);
           }}
-          editable={!isExpired}
+          editable={!isExpired && !isNotOpen}
           placeholder={t('lockerSfscStudentIdPlaceholder')}
           placeholderTextColor={colors.outline}
           keyboardType="number-pad"
@@ -409,10 +457,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscPhone')}</Text>
         <TextInput
-          style={[styles.input, isExpired && styles.inputReadOnly]}
+          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
           value={phoneNumber}
           onChangeText={setPhoneNumber}
-          editable={!isExpired}
+          editable={!isExpired && !isNotOpen}
           placeholder={t('lockerSfscPhonePlaceholder')}
           placeholderTextColor={colors.outline}
           keyboardType="phone-pad"
@@ -421,10 +469,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscAddress')}</Text>
         <TouchableOpacity
-          style={[styles.input, isExpired && styles.inputReadOnly]}
+          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
           onPress={() => setHallPickerOpen(true)}
           activeOpacity={0.7}
-          disabled={isExpired}
+          disabled={isExpired || isNotOpen}
         >
           <Text
             style={selectedHallLabel ? styles.pickerValue : styles.pickerPlaceholder}
@@ -450,11 +498,11 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         <TouchableOpacity
           style={[
             styles.input,
-            (isExpired || modifyExhausted) && styles.inputReadOnly,
+            (isExpired || isNotOpen || modifyExhausted) && styles.inputReadOnly,
           ]}
           onPress={() => setBoxPickerOpen(true)}
           activeOpacity={0.7}
-          disabled={isExpired || modifyExhausted}
+          disabled={isExpired || isNotOpen || modifyExhausted}
         >
           <Text style={styles.pickerValue} numberOfLines={1}>{String(boxCount)}</Text>
         </TouchableOpacity>
@@ -470,16 +518,16 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 style={[
                   styles.chip,
                   selected && styles.chipSelected,
-                  isExpired && !selected && styles.chipDisabled,
+                  (isExpired || isNotOpen) && !selected && styles.chipDisabled,
                 ]}
                 onPress={() => setDropOffDate(selected ? null : opt.date)}
-                disabled={isExpired}
+                disabled={isExpired || isNotOpen}
               >
                 <Text
                   style={[
                     styles.chipText,
                     selected && styles.chipTextSelected,
-                    isExpired && !selected && styles.chipTextDisabled,
+                    (isExpired || isNotOpen) && !selected && styles.chipTextDisabled,
                   ]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -507,9 +555,13 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         )}
       </TouchableOpacity>
       <Text style={styles.deadlineText}>
-        {isExpired ? t('lockerSfscDeadlineEnded') : t('lockerSfscDeadlineBefore')}
+        {isNotOpen
+          ? launchHintText
+          : isExpired
+            ? t('lockerSfscDeadlineEnded')
+            : t('lockerSfscDeadlineBefore')}
       </Text>
-      {isModifying && !isExpired && (
+      {isModifying && !isExpired && !isNotOpen && (
         <Text style={styles.modifyHint}>
           {remainingModifies > 0
             ? t('lockerSfscModifyHint', { count: remainingModifies })
@@ -534,7 +586,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
       >
         <ExpoImage source={promoImg} style={[styles.promo, { height: promoHeight }]} contentFit="cover" />
-        {isExpired && mineRecord && (
+        {showAnnouncement && (
           <View style={styles.broadcastCard}>
             <Text style={styles.broadcastNoticeTag}>{t('lockerSfscBroadcastNoticeTag')}</Text>
             <Text style={styles.broadcastText}>

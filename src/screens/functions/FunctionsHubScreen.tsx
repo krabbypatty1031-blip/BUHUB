@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import { useAuthStore } from '../../store/authStore';
 import { getLocalizedFontStyle } from '../../theme/typography';
 import { canPublishCommunityContent } from '../../utils/publishPermission';
 import { promptHkbuVerification } from '../../utils/hkbuPrompt';
+import { lockerService } from '../../api/services/locker.service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const headerBg = require('../../../assets/images/campus-header-bg.png');
@@ -55,9 +56,8 @@ interface FunctionEntry {
   fullWidth?: boolean;
 }
 
-// Locker-by-SFSC launches 2026-05-02 00:00 HKT. Before this moment, tapping
-// the card shows a "coming soon" alert instead of navigating.
-const LOCKER_LAUNCH_MS = Date.parse('2026-05-02T00:00:00+08:00');
+const DEFAULT_LOCKER_OPEN_MS = Date.parse('2026-05-02T00:00:00+08:00');
+const DEFAULT_LOCKER_CLOSE_MS = Date.parse('2026-05-03T23:59:00+08:00');
 
 const ENTRIES: FunctionEntry[] = [
   { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', arrowColor: '#C1C1C1', route: 'PartnerList' },
@@ -90,6 +90,22 @@ export default function FunctionsHubScreen({ navigation }: Props) {
   const { data: fetchedSchedule, refetch: refetchSchedule } = useSchedule();
   const authUser = useAuthStore((s) => s.user);
   const cardWidth = (screenWidth - GRID_PADDING * 2 - GRID_GAP) / 2;
+  const [lockerFeatureEnabled, setLockerFeatureEnabled] = useState(true);
+  const [lockerOpenMs, setLockerOpenMs] = useState<number>(DEFAULT_LOCKER_OPEN_MS);
+  const [lockerCloseMs, setLockerCloseMs] = useState<number>(DEFAULT_LOCKER_CLOSE_MS);
+
+  const formatLockerTime = useCallback((ms: number) => {
+    const locale = language === 'en' ? 'en-GB' : 'zh-HK';
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Hong_Kong',
+    }).format(new Date(ms));
+  }, [language]);
 
   const hasLifeEmail = Boolean(
     authUser?.linkedEmails?.some(
@@ -104,6 +120,32 @@ export default function FunctionsHubScreen({ navigation }: Props) {
     // gets stuck on ManageEmails after switching tabs and back.
     navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
   }, [navigation]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const config = await lockerService.fetchBroadcast();
+        if (!active) return;
+        if (typeof config.featureEnabled === 'boolean') {
+          setLockerFeatureEnabled(config.featureEnabled);
+        }
+        if (config.openAt) {
+          const ms = Date.parse(config.openAt);
+          if (Number.isFinite(ms)) setLockerOpenMs(ms);
+        }
+        if (config.closeAt) {
+          const ms = Date.parse(config.closeAt);
+          if (Number.isFinite(ms)) setLockerCloseMs(ms);
+        }
+      } catch {
+        // Keep defaults on transient failures.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handlePress = useCallback(
     async (targetRoute: FunctionsHubRouteName) => {
@@ -147,11 +189,26 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'FacilityBooking':
           navigation.navigate('FacilityBooking');
           return;
-        case 'LockerSFSC':
-          if (Date.now() < LOCKER_LAUNCH_MS) {
+        case 'LockerSFSC': {
+          const now = Date.now();
+          if (!lockerFeatureEnabled) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
-              t('lockerSfscLaunchBody'),
+              `${t('lockerSfscLaunchBody')} ${formatLockerTime(lockerOpenMs)}`,
+            );
+            return;
+          }
+          if (now < lockerOpenMs) {
+            Alert.alert(
+              t('lockerSfscLaunchTitle'),
+              `${t('lockerSfscLaunchBody')} ${formatLockerTime(lockerOpenMs)}`,
+            );
+            return;
+          }
+          if (now >= lockerCloseMs) {
+            Alert.alert(
+              t('lockerSfscLaunchTitle'),
+              `${t('lockerSfscDeadlineEnded')} (${t('deadline')}: ${formatLockerTime(lockerCloseMs)})`,
             );
             return;
           }
@@ -164,9 +221,10 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           }
           navigation.navigate('LockerSFSC');
           return;
+        }
       }
     },
-    [authUser, fetchedSchedule, goToManageEmails, hasLifeEmail, navigation, refetchSchedule, schedule, t],
+    [authUser, fetchedSchedule, formatLockerTime, goToManageEmails, hasLifeEmail, lockerCloseMs, lockerFeatureEnabled, lockerOpenMs, navigation, refetchSchedule, schedule, t],
   );
 
   const fullCardWidth = screenWidth - GRID_PADDING * 2;

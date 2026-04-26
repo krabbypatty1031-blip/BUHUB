@@ -171,6 +171,10 @@ const ENDPOINTS = {
     LIST_MINE: '/locker-requests',
     BROADCAST: '/locker-broadcast',
   },
+
+  ANNOUNCEMENT: {
+    LATEST: '/announcements/latest',
+  },
 } as const;
 
 export default ENDPOINTS;

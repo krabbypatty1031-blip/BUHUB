@@ -36,6 +36,11 @@ export interface LockerRequestRecord {
 export interface LockerBroadcastPayload {
   message: string | null;
   updatedAt: string | null;
+  openAt: string | null;
+  closeAt: string | null;
+  announcementStartAt: string | null;
+  announcementEndAt: string | null;
+  isPublished?: boolean;
 }
 
 export const lockerService = {
@@ -52,6 +57,11 @@ export const lockerService = {
     return {
       message: data?.message ?? null,
       updatedAt: data?.updatedAt ?? null,
+      openAt: data?.openAt ?? null,
+      closeAt: data?.closeAt ?? null,
+      announcementStartAt: data?.announcementStartAt ?? null,
+      announcementEndAt: data?.announcementEndAt ?? null,
+      isPublished: data?.isPublished ?? undefined,
     };
   },
 };
