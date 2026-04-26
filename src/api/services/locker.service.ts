@@ -38,11 +38,10 @@ export interface LockerBroadcastPayload {
   updatedAt: string | null;
   openAt: string | null;
   closeAt: string | null;
-  announcementStartAt: string | null;
-  announcementEndAt: string | null;
   dropOffDate1: string | null;
   dropOffDate2: string | null;
   dropOffDate3: string | null;
+  featureEnabled: boolean;
   isPublished?: boolean;
 }
 
@@ -62,11 +61,10 @@ export const lockerService = {
       updatedAt: data?.updatedAt ?? null,
       openAt: data?.openAt ?? null,
       closeAt: data?.closeAt ?? null,
-      announcementStartAt: data?.announcementStartAt ?? null,
-      announcementEndAt: data?.announcementEndAt ?? null,
       dropOffDate1: data?.dropOffDate1 ?? null,
       dropOffDate2: data?.dropOffDate2 ?? null,
       dropOffDate3: data?.dropOffDate3 ?? null,
+      featureEnabled: data?.featureEnabled ?? true,
       isPublished: data?.isPublished ?? undefined,
     };
   },

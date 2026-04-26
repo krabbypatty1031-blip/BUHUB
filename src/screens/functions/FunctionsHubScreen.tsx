@@ -56,7 +56,6 @@ interface FunctionEntry {
 }
 
 const DEFAULT_LOCKER_OPEN_MS = Date.parse('2026-05-02T00:00:00+08:00');
-const DEFAULT_LOCKER_CLOSE_MS = Date.parse('2026-05-03T23:59:00+08:00');
 
 const ENTRIES: FunctionEntry[] = [
   { key: 'partner', titleKey: 'findPartner', subtitleKey: 'findPartnerDesc', Icon: PartnerFnIcon, iconColor: '#3B82F6', arrowColor: '#C1C1C1', route: 'PartnerList' },
@@ -91,7 +90,6 @@ export default function FunctionsHubScreen({ navigation }: Props) {
   const cardWidth = (screenWidth - GRID_PADDING * 2 - GRID_GAP) / 2;
   const [lockerFeatureEnabled, setLockerFeatureEnabled] = useState(true);
   const [lockerOpenMs, setLockerOpenMs] = useState<number>(DEFAULT_LOCKER_OPEN_MS);
-  const [lockerCloseMs, setLockerCloseMs] = useState<number>(DEFAULT_LOCKER_CLOSE_MS);
 
   const formatLockerTime = useCallback((ms: number) => {
     const locale = language === 'en' ? 'en-GB' : 'zh-HK';
@@ -167,7 +165,6 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         case 'LockerSFSC': {
           let currentEnabled = lockerFeatureEnabled;
           let currentOpenMs = lockerOpenMs;
-          let currentCloseMs = lockerCloseMs;
 
           try {
             const config = await lockerService.fetchBroadcast();
@@ -185,8 +182,6 @@ export default function FunctionsHubScreen({ navigation }: Props) {
             if (config.closeAt) {
               const ms = Date.parse(config.closeAt);
               if (Number.isFinite(ms)) {
-                currentCloseMs = ms;
-                setLockerCloseMs(ms);
               }
             }
           } catch {
@@ -197,7 +192,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           if (!currentEnabled) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
-              `${t('lockerSfscLaunchBody')} ${formatLockerTime(currentOpenMs)}`,
+              t('lockerSfscFeatureTemporarilyClosed'),
             );
             return;
           }
@@ -205,13 +200,6 @@ export default function FunctionsHubScreen({ navigation }: Props) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
               `${t('lockerSfscLaunchBody')} ${formatLockerTime(currentOpenMs)}`,
-            );
-            return;
-          }
-          if (now >= currentCloseMs) {
-            Alert.alert(
-              t('lockerSfscLaunchTitle'),
-              `${t('lockerSfscDeadlineEnded')} (${t('deadline')}: ${formatLockerTime(currentCloseMs)})`,
             );
             return;
           }
@@ -227,7 +215,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
         }
       }
     },
-    [authUser, fetchedSchedule, formatLockerTime, goToManageEmails, hasLifeEmail, lockerCloseMs, lockerFeatureEnabled, lockerOpenMs, navigation, refetchSchedule, schedule, t],
+    [authUser, fetchedSchedule, formatLockerTime, goToManageEmails, hasLifeEmail, lockerFeatureEnabled, lockerOpenMs, navigation, refetchSchedule, schedule, t],
   );
 
   const fullCardWidth = screenWidth - GRID_PADDING * 2;

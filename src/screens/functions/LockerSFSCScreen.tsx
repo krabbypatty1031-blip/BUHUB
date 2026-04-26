@@ -57,24 +57,14 @@ const DEFAULT_DROP_OFF_OPTIONS: DropOffOption[] = [
   { date: '2026-05-16', labelKey: 'lockerSfscDropOffOption3' },
 ];
 
-function formatDropOffLabel(iso: string, lang: string, fallbackKey: string, t: any): string {
+function formatDropOffLabel(iso: string, lang: string, fallbackKey: string, t: (k: string) => string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return t(fallbackKey);
-  
   const locale = lang === 'en' ? 'en-US' : 'zh-HK';
-  const options: Intl.DateTimeFormatOptions = lang === 'en' 
+  const options: Intl.DateTimeFormatOptions = lang === 'en'
     ? { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' }
     : { month: 'numeric', day: 'numeric', timeZone: 'Asia/Hong_Kong' };
-  
-  let datePart = new Intl.DateTimeFormat(locale, options).format(d);
-  if (lang !== 'en') {
-    // Standard zh-HK format might be "M月D日" or "M/D", let's make it consistent
-    const parts = new Intl.DateTimeFormat('zh-HK', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Hong_Kong' }).formatToParts(d);
-    const m = parts.find(p => p.type === 'month')?.value;
-    const day = parts.find(p => p.type === 'day')?.value;
-    datePart = `${m}月${day}日`;
-  }
-
+  const datePart = new Intl.DateTimeFormat(locale, options).format(d);
   return `${datePart} 10am-4pm`;
 }
 
@@ -127,8 +117,6 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
   const [lockerOpenAtMs, setLockerOpenAtMs] = useState<number>(DEFAULT_OPEN_AT_MS);
   const [lockerCloseAtMs, setLockerCloseAtMs] = useState<number>(DEFAULT_CLOSE_AT_MS);
-  const [announcementStartAtMs, setAnnouncementStartAtMs] = useState<number | null>(null);
-  const [announcementEndAtMs, setAnnouncementEndAtMs] = useState<number | null>(null);
   const [dropOffDate1, setDropOffDate1] = useState<string | null>(null);
   const [dropOffDate2, setDropOffDate2] = useState<string | null>(null);
   const [dropOffDate3, setDropOffDate3] = useState<string | null>(null);
@@ -146,6 +134,20 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     }).format(new Date(lockerOpenAtMs));
     return `${t('lockerSfscLaunchBody')} ${dt}`;
   }, [i18n.language, lockerOpenAtMs, t]);
+
+  const closeHintText = useMemo(() => {
+    const locale = i18n.language === 'en' ? 'en-GB' : 'zh-HK';
+    const dt = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Hong_Kong',
+    }).format(new Date(lockerCloseAtMs));
+    return `${t('lockerSfscDeadlineBefore')} ${dt}`;
+  }, [i18n.language, lockerCloseAtMs, t]);
 
   const selectedHall = useMemo(() => findHall(residenceAddress), [residenceAddress]);
   const selectedHallLabel = selectedHall ? hallLabel(selectedHall, i18n.language) : '';
@@ -209,12 +211,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     };
     const refetch = async () => {
       try {
-        const { message, openAt, closeAt, announcementStartAt, announcementEndAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
         setBroadcastMessage(message);
         if (openAt) setLockerOpenAtMs(Date.parse(openAt));
         if (closeAt) setLockerCloseAtMs(Date.parse(closeAt));
-        setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
-        setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
         setDropOffDate1(dropOffDate1);
         setDropOffDate2(dropOffDate2);
         setDropOffDate3(dropOffDate3);
@@ -232,7 +232,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       recv.remove();
       resp.remove();
     };
-  }, [dynamicDropOffOptions]);
+  }, []);
 
   const hasRecord = mineRecord !== null;
   useEffect(() => {
@@ -240,12 +240,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     let cancelled = false;
     const load = async () => {
       try {
-        const { message, openAt, closeAt, announcementStartAt, announcementEndAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
         if (!cancelled) setBroadcastMessage(message);
         if (!cancelled && openAt) setLockerOpenAtMs(Date.parse(openAt));
         if (!cancelled && closeAt) setLockerCloseAtMs(Date.parse(closeAt));
-        if (!cancelled) setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
-        if (!cancelled) setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
         if (!cancelled) {
           setDropOffDate1(dropOffDate1);
           setDropOffDate2(dropOffDate2);
@@ -273,8 +271,6 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         setBroadcastMessage(config.message);
         if (config.openAt) setLockerOpenAtMs(Date.parse(config.openAt));
         if (config.closeAt) setLockerCloseAtMs(Date.parse(config.closeAt));
-        setAnnouncementStartAtMs(config.announcementStartAt ? Date.parse(config.announcementStartAt) : null);
-        setAnnouncementEndAtMs(config.announcementEndAt ? Date.parse(config.announcementEndAt) : null);
         setDropOffDate1(config.dropOffDate1);
         setDropOffDate2(config.dropOffDate2);
         setDropOffDate3(config.dropOffDate3);
@@ -288,38 +284,37 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     return () => {
       active = false;
     };
-  }, [dynamicDropOffOptions]);
+  }, []);
 
-  const dynamicDropOffOptions = useMemo(() => {
-    const options: { date: string; label: string }[] = [];
-    if (dropOffDate1) {
-      options.push({
-        date: dropOffDate1.split('T')[0],
-        label: formatDropOffLabel(dropOffDate1, i18n.language, 'lockerSfscDropOffOption1', t),
-      });
-    }
-    if (dropOffDate2) {
-      options.push({
-        date: dropOffDate2.split('T')[0],
-        label: formatDropOffLabel(dropOffDate2, i18n.language, 'lockerSfscDropOffOption2', t),
-      });
-    }
-    if (dropOffDate3) {
-      options.push({
-        date: dropOffDate3.split('T')[0],
-        label: formatDropOffLabel(dropOffDate3, i18n.language, 'lockerSfscDropOffOption3', t),
-      });
-    }
-
-    // Fallback if no dates set in admin
-    if (options.length === 0) {
+  const dropOffOptions = useMemo(
+    () => {
+      const options: { date: string; label: string }[] = [];
+      if (dropOffDate1) {
+        options.push({
+          date: dropOffDate1.split('T')[0],
+          label: formatDropOffLabel(dropOffDate1, i18n.language, 'lockerSfscDropOffOption1', t),
+        });
+      }
+      if (dropOffDate2) {
+        options.push({
+          date: dropOffDate2.split('T')[0],
+          label: formatDropOffLabel(dropOffDate2, i18n.language, 'lockerSfscDropOffOption2', t),
+        });
+      }
+      if (dropOffDate3) {
+        options.push({
+          date: dropOffDate3.split('T')[0],
+          label: formatDropOffLabel(dropOffDate3, i18n.language, 'lockerSfscDropOffOption3', t),
+        });
+      }
+      if (options.length > 0) return options;
       return DEFAULT_DROP_OFF_OPTIONS.map((opt) => ({
         date: opt.date,
         label: t(opt.labelKey),
       }));
-    }
-    return options;
-  }, [dropOffDate1, dropOffDate2, dropOffDate3, i18n.language, t]);
+    },
+    [dropOffDate1, dropOffDate2, dropOffDate3, i18n.language, t],
+  );
 
   const applyRecord = useCallback((record: LockerRequestRecord) => {
     setMineRecord(record);
@@ -328,10 +323,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     setPhoneNumber(record.phoneNumber);
     setResidenceAddress(record.residenceAddress);
     const droppedIso = record.dropOffDate?.slice(0, 10);
-    if (droppedIso && (
-      dynamicDropOffOptions.some((o) => o.date === droppedIso) || 
-      DEFAULT_DROP_OFF_OPTIONS.some((o) => o.date === droppedIso)
-    )) {
+    if (droppedIso && dropOffOptions.some((o) => o.date === droppedIso)) {
       setDropOffDate(droppedIso as DropOffDate);
     }
     if (
@@ -341,7 +333,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     ) {
       setBoxCount(record.boxCount);
     }
-  }, [dynamicDropOffOptions]);
+  }, [dropOffOptions]);
 
   useEffect(() => {
     let active = true;
@@ -352,8 +344,9 @@ export default function LockerSFSCScreen({ navigation }: Props) {
           setBroadcastMessage(broadcast.message);
           if (broadcast.openAt) setLockerOpenAtMs(Date.parse(broadcast.openAt));
           if (broadcast.closeAt) setLockerCloseAtMs(Date.parse(broadcast.closeAt));
-          setAnnouncementStartAtMs(broadcast.announcementStartAt ? Date.parse(broadcast.announcementStartAt) : null);
-          setAnnouncementEndAtMs(broadcast.announcementEndAt ? Date.parse(broadcast.announcementEndAt) : null);
+          setDropOffDate1(broadcast.dropOffDate1);
+          setDropOffDate2(broadcast.dropOffDate2);
+          setDropOffDate3(broadcast.dropOffDate3);
         }
         const record = await lockerService.getMine();
         if (active && record) applyRecord(record);
@@ -485,14 +478,8 @@ export default function LockerSFSCScreen({ navigation }: Props) {
 
   const showAnnouncement = useMemo(() => {
     if (!broadcastMessage?.trim()) return false;
-    const now = Date.now();
-    // If no announcement times are set, default to old behavior (show if expired and has record)
-    if (announcementStartAtMs === null || announcementEndAtMs === null) {
-      return isExpired && hasRecord;
-    }
-    // Otherwise check the specific announcement window
-    return now >= announcementStartAtMs && now < announcementEndAtMs;
-  }, [broadcastMessage, announcementStartAtMs, announcementEndAtMs, isExpired, hasRecord]);
+    return isExpired;
+  }, [broadcastMessage, isExpired]);
 
   const renderForm = () => (
     <>
@@ -580,7 +567,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscDropOffDate')}</Text>
         <View style={styles.chipRow}>
-          {dynamicDropOffOptions.map((opt) => {
+          {dropOffOptions.map((opt) => {
             const selected = dropOffDate === opt.date;
             return (
               <TouchableOpacity
@@ -629,7 +616,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
           ? launchHintText
           : isExpired
             ? t('lockerSfscDeadlineEnded')
-            : t('lockerSfscDeadlineBefore')}
+            : closeHintText}
       </Text>
       {isModifying && !isExpired && !isNotOpen && (
         <Text style={styles.modifyHint}>
@@ -739,7 +726,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 {
                   label: t('lockerSfscDropOffDate'),
                   value: (() => {
-                    const opt = dynamicDropOffOptions.find((o) => o.date === dropOffDate);
+                    const opt = dropOffOptions.find((o) => o.date === dropOffDate);
                     return opt ? opt.label : (dropOffDate ?? '');
                   })(),
                 },
