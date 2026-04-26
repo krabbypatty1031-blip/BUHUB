@@ -4,6 +4,7 @@ import { DEFAULT_AVATAR_IDS } from './defaultAvatars';
 const normalizePublicBaseUrl = (value: string): string => value.replace(/\/api\/?$/, '').replace(/\/$/, '');
 const WORKER_BASE_URL = 'https://ulink-api.krabbypatty1031.workers.dev';
 const KNOWN_UPLOAD_HOSTS = new Set([
+  'api.uhub.help',
   'www.uhub.help',
   'uhub.help',
   'ulink-api.krabbypatty1031.workers.dev',

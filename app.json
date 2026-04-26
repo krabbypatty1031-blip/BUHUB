@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "20",
+      "buildNumber": "22",
       "bundleIdentifier": "com.ulinks.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -37,10 +37,10 @@
         "foregroundImage": "./assets/android-icon.png",
         "backgroundColor": "#000000"
       },
-      "versionCode": 3,
+      "versionCode": 4,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.ulinks.app",
+      "package": "com.uhub.ulink",
       "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": false,
       "permissions": [
@@ -98,8 +98,8 @@
       "apiUrl": "https://api.uhub.help/api",
       "appUrl": "https://api.uhub.help",
       "hcaptchaSiteKey": "7a9ce63a-8a04-4cee-b196-ee9874482480",
-      "termsUrl": "https://www.uhub.help/terms",
-      "privacyUrl": "https://www.uhub.help/privacy",
+      "termsUrl": "https://api.uhub.help/terms",
+      "privacyUrl": "https://api.uhub.help/privacy",
       "eas": {
         "projectId": "b995e2cb-f484-4127-aac9-f11a4841f10b"
       }
