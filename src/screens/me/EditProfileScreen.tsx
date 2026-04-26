@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -10,14 +11,19 @@ import {
   Image,
   Modal,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { User } from '../../types';
 import { useProfile, useUpdateProfile } from '../../hooks/useUser';
-import { useImagePicker } from '../../hooks/useImagePicker';
 import { uploadService } from '../../api/services/upload.service';
 import { HKBU_MAJOR_KEYS, getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { useAuthStore } from '../../store/authStore';
@@ -37,6 +43,8 @@ type Props = NativeStackScreenProps<MeStackParamList, 'EditProfile'>;
 
 export default function EditProfileScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
+  const cropSize = Math.min(screenWidth - spacing.xl * 2, 320);
   const bioMaxLength = i18n.language === 'en' ? 80 : 20;
   const { data: profile } = useProfile();
   const user = useAuthStore((s) => s.user);
@@ -47,8 +55,7 @@ export default function EditProfileScreen({ navigation }: Props) {
   // Use same data source as MeScreen: profile query > authStore
   const currentUser = profile || user;
 
-  const { images: avatarImages, pickImages: pickAvatar } = useImagePicker();
-  const pickedAvatar = avatarImages[0] || null;
+  const [pickedAvatar, setPickedAvatar] = useState<string | null>(null);
   const persistedAvatarUri = normalizeAvatarUrl(currentUser?.avatar);
   const avatarUri = pickedAvatar || persistedAvatarUri;
   const showAvatarImage = Boolean(
@@ -66,9 +73,53 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState<'grade' | 'major'>('grade');
+  const [cropperVisible, setCropperVisible] = useState(false);
+  const [cropSourceUri, setCropSourceUri] = useState<string | null>(null);
   const getMajorLabel = useCallback((value: string) => getLocalizedMajorLabel(value, t), [t]);
+  const [isCropping, setIsCropping] = useState(false);
 
   const GRADE_KEYS = ['gradeUndergradY1', 'gradeUndergradY2', 'gradeUndergradY3', 'gradeUndergradY4', 'gradePostgrad', 'gradePhD'];
+
+  const pickAvatar = useCallback(async () => {
+    const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (existing.status === 'denied') {
+      Alert.alert('', t('photoPermissionMessage'));
+      return;
+    }
+
+    if (existing.status !== 'granted') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('', t('photoPermissionMessage'));
+        return;
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: false,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const sourceUri = result.assets[0]?.uri;
+      if (sourceUri) {
+        setCropSourceUri(sourceUri);
+        setCropperVisible(true);
+      }
+    }
+  }, [t]);
+
+  const handleCropConfirm = useCallback(async (uri: string) => {
+    setPickedAvatar(uri);
+    setCropperVisible(false);
+    setCropSourceUri(null);
+  }, []);
+
+  const handleCropCancel = useCallback(() => {
+    setCropperVisible(false);
+    setCropSourceUri(null);
+  }, []);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -294,8 +345,313 @@ export default function EditProfileScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <AvatarCropperModal
+        visible={cropperVisible}
+        imageUri={cropSourceUri}
+        cropSize={cropSize}
+        isCropping={isCropping}
+        onCroppingChange={setIsCropping}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+        t={t}
+      />
     </SafeAreaView>
   );
+}
+
+type AvatarCropperModalProps = {
+  visible: boolean;
+  imageUri: string | null;
+  cropSize: number;
+  isCropping: boolean;
+  onCroppingChange: (value: boolean) => void;
+  onCancel: () => void;
+  onConfirm: (uri: string) => void;
+  t: (key: string) => string;
+};
+
+function AvatarCropperModal({
+  visible,
+  imageUri,
+  cropSize,
+  isCropping,
+  onCroppingChange,
+  onCancel,
+  onConfirm,
+  t,
+}: AvatarCropperModalProps) {
+  const scale = useSharedValue(1);
+  const scaleOffset = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const translateXOffset = useSharedValue(0);
+  const translateYOffset = useSharedValue(0);
+  const [naturalSize, setNaturalSize] = useState({ width: cropSize, height: cropSize });
+
+  useEffect(() => {
+    if (!visible || !imageUri) return;
+    Image.getSize(
+      imageUri,
+      (width, height) => {
+        setNaturalSize({
+          width: Math.max(1, width),
+          height: Math.max(1, height),
+        });
+      },
+      () => {
+        setNaturalSize({ width: cropSize, height: cropSize });
+      }
+    );
+    scale.value = 1;
+    scaleOffset.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    translateXOffset.value = 0;
+    translateYOffset.value = 0;
+  }, [
+    cropSize,
+    imageUri,
+    scale,
+    scaleOffset,
+    translateX,
+    translateXOffset,
+    translateY,
+    translateYOffset,
+    visible,
+  ]);
+
+  const baseScale = Math.max(cropSize / naturalSize.width, cropSize / naturalSize.height);
+  const baseWidth = naturalSize.width * baseScale;
+  const baseHeight = naturalSize.height * baseScale;
+
+  const pinchGesture = Gesture.Pinch()
+    .shouldCancelWhenOutside(false)
+    .onStart(() => {
+      scaleOffset.value = scale.value;
+    })
+    .onUpdate((event) => {
+      const nextScale = Math.min(Math.max(scaleOffset.value * event.scale, 1), 4);
+      scale.value = nextScale;
+      translateX.value = clampTranslateWorklet(translateX.value, nextScale, baseWidth, cropSize);
+      translateY.value = clampTranslateWorklet(translateY.value, nextScale, baseHeight, cropSize);
+    })
+    .onEnd(() => {
+      scaleOffset.value = scale.value;
+      translateXOffset.value = translateX.value;
+      translateYOffset.value = translateY.value;
+    });
+
+  const panGesture = Gesture.Pan()
+    .shouldCancelWhenOutside(false)
+    .averageTouches(true)
+    .minDistance(0)
+    .onStart(() => {
+      translateXOffset.value = translateX.value;
+      translateYOffset.value = translateY.value;
+    })
+    .onUpdate((event) => {
+      if (event.numberOfPointers > 1) return;
+      translateX.value = clampTranslateWorklet(
+        translateXOffset.value + event.translationX,
+        scale.value,
+        baseWidth,
+        cropSize
+      );
+      translateY.value = clampTranslateWorklet(
+        translateYOffset.value + event.translationY,
+        scale.value,
+        baseHeight,
+        cropSize
+      );
+    })
+    .onEnd(() => {
+      translateXOffset.value = translateX.value;
+      translateYOffset.value = translateY.value;
+    });
+
+  const gesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const imageStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const applyScaleFromJs = useCallback(
+    (nextScale: number) => {
+      const clampedScale = Math.min(Math.max(nextScale, 1), 4);
+      scale.value = clampedScale;
+      scaleOffset.value = clampedScale;
+      translateX.value = clampTranslateWorklet(translateX.value, clampedScale, baseWidth, cropSize);
+      translateY.value = clampTranslateWorklet(translateY.value, clampedScale, baseHeight, cropSize);
+      translateXOffset.value = translateX.value;
+      translateYOffset.value = translateY.value;
+    },
+    [
+      baseHeight,
+      baseWidth,
+      cropSize,
+      scale,
+      scaleOffset,
+      translateX,
+      translateXOffset,
+      translateY,
+      translateYOffset,
+    ]
+  );
+
+  const handleZoomIn = useCallback(() => {
+    applyScaleFromJs(scale.value + 0.25);
+  }, [applyScaleFromJs, scale]);
+
+  const handleZoomOut = useCallback(() => {
+    applyScaleFromJs(scale.value - 0.25);
+  }, [applyScaleFromJs, scale]);
+
+  const handleZoomReset = useCallback(() => {
+    applyScaleFromJs(1);
+    translateX.value = 0;
+    translateY.value = 0;
+    translateXOffset.value = 0;
+    translateYOffset.value = 0;
+  }, [applyScaleFromJs, translateX, translateXOffset, translateY, translateYOffset]);
+
+  const handleConfirm = useCallback(async () => {
+    if (!imageUri) return;
+    onCroppingChange(true);
+    try {
+      const currentScale = scale.value;
+      const currentTranslateX = translateX.value;
+      const currentTranslateY = translateY.value;
+      const ratioX = naturalSize.width / baseWidth;
+      const ratioY = naturalSize.height / baseHeight;
+      const cropWidth = (cropSize / currentScale) * ratioX;
+      const cropHeight = (cropSize / currentScale) * ratioY;
+      const offsetXFromCenter = (currentTranslateX / currentScale) * ratioX;
+      const offsetYFromCenter = (currentTranslateY / currentScale) * ratioY;
+      const maxOriginX = Math.max(0, naturalSize.width - cropWidth);
+      const maxOriginY = Math.max(0, naturalSize.height - cropHeight);
+
+      const originX = Math.min(
+        Math.max((naturalSize.width - cropWidth) / 2 - offsetXFromCenter, 0),
+        maxOriginX
+      );
+      const originY = Math.min(
+        Math.max((naturalSize.height - cropHeight) / 2 - offsetYFromCenter, 0),
+        maxOriginY
+      );
+
+      const cropped = await manipulateAsync(
+        imageUri,
+        [
+          {
+            crop: {
+              originX,
+              originY,
+              width: Math.max(1, cropWidth),
+              height: Math.max(1, cropHeight),
+            },
+          },
+          { resize: { width: 320, height: 320 } },
+        ],
+        { compress: 0.9, format: SaveFormat.JPEG }
+      );
+      onConfirm(cropped.uri);
+    } finally {
+      onCroppingChange(false);
+    }
+  }, [
+    baseHeight,
+    baseWidth,
+    cropSize,
+    imageUri,
+    naturalSize.height,
+    naturalSize.width,
+    onConfirm,
+    onCroppingChange,
+    scale,
+    translateX,
+    translateY,
+  ]);
+
+  if (!visible || !imageUri) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <GestureHandlerRootView style={styles.cropperOverlay}>
+        <View style={styles.cropperSheet}>
+          <Text style={styles.cropperTitle}>{t('changeAvatar')}</Text>
+          <Text style={styles.cropperHint}>{t('avatarCropperHint')}</Text>
+
+          <View style={[styles.cropArea, { width: cropSize, height: cropSize, borderRadius: cropSize / 2 }]}>
+            <GestureDetector gesture={gesture}>
+              <View style={styles.cropGestureLayer} collapsable={false}>
+                <Animated.View style={[{ width: baseWidth, height: baseHeight }, imageStyle]}>
+                  <ExpoImage source={imageUri} style={styles.cropImage} contentFit="cover" pointerEvents="none" />
+                </Animated.View>
+              </View>
+            </GestureDetector>
+            <View
+              pointerEvents="none"
+              style={[
+                styles.cropRing,
+                {
+                  width: cropSize,
+                  height: cropSize,
+                  borderRadius: cropSize / 2,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.zoomControls}>
+            <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomOut} activeOpacity={0.75}>
+              <Text style={styles.zoomBtnText}>-</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.zoomResetBtn} onPress={handleZoomReset} activeOpacity={0.75}>
+              <Text style={styles.zoomResetText}>100%</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomIn} activeOpacity={0.75}>
+              <Text style={styles.zoomBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cropActions}>
+            <TouchableOpacity style={styles.cropCancelBtn} onPress={onCancel} activeOpacity={0.75}>
+              <Text style={styles.cropCancelText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.cropConfirmBtn, isCropping && styles.cropConfirmBtnDisabled]}
+              onPress={handleConfirm}
+              activeOpacity={0.75}
+              disabled={isCropping}
+            >
+              {isCropping ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <Text style={styles.cropConfirmText}>{t('confirm')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+function clampTranslateWorklet(
+  value: number,
+  currentScale: number,
+  contentDimension: number,
+  cropDimension: number
+) {
+  'worklet';
+  const scaled = contentDimension * currentScale;
+  const maxOffset = Math.max(0, (scaled - cropDimension) / 2);
+  return Math.min(Math.max(value, -maxOffset), maxOffset);
 }
 
 const styles = StyleSheet.create({
@@ -472,6 +828,122 @@ const styles = StyleSheet.create({
   },
   pickerItemTextSelected: {
     color: colors.onSurface,
+    fontWeight: '700',
+  },
+  cropperOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  cropperSheet: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  cropperTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+    fontWeight: '700',
+  },
+  cropperHint: {
+    ...typography.bodySmall,
+    color: colors.outline,
+  },
+  cropArea: {
+    overflow: 'hidden',
+    backgroundColor: colors.surface3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cropGestureLayer: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cropImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cropRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  cropActions: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  zoomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  zoomBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface3,
+  },
+  zoomBtnText: {
+    ...typography.titleLarge,
+    color: colors.onSurface,
+    fontWeight: '700',
+    lineHeight: 28,
+  },
+  zoomResetBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface3,
+  },
+  zoomResetText: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  cropCancelBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface3,
+  },
+  cropCancelText: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  cropConfirmBtn: {
+    minWidth: 86,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  cropConfirmBtnDisabled: {
+    opacity: 0.8,
+  },
+  cropConfirmText: {
+    ...typography.labelLarge,
+    color: colors.onPrimary,
     fontWeight: '700',
   },
 
