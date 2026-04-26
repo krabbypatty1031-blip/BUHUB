@@ -50,11 +50,22 @@ function getAllPostLists(queryClient: QueryClient) {
   return queryClient.getQueriesData<PostsInfiniteData>({ queryKey: ['posts'] });
 }
 
+function getAllUserPostLists(queryClient: QueryClient) {
+  return queryClient.getQueriesData<PostsInfiniteData>({ queryKey: ['userPosts'] });
+}
+
 function setAllPostLists(
   queryClient: QueryClient,
   updater: (data: PostsInfiniteData | undefined) => PostsInfiniteData | undefined,
 ) {
   queryClient.setQueriesData<PostsInfiniteData>({ queryKey: ['posts'] }, updater);
+}
+
+function setAllUserPostLists(
+  queryClient: QueryClient,
+  updater: (data: PostsInfiniteData | undefined) => PostsInfiniteData | undefined,
+) {
+  queryClient.setQueriesData<PostsInfiniteData>({ queryKey: ['userPosts'] }, updater);
 }
 
 function restoreAllPostLists(
@@ -578,9 +589,11 @@ export function useLikePost() {
     mutationFn: (postId: string) => forumService.likePost(postId),
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['userPosts'] });
       await queryClient.cancelQueries({ queryKey: postDetailKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
+      const previousUserPostLists = getAllUserPostLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const toggle = (p: ForumPost) => ({
@@ -599,6 +612,9 @@ export function useLikePost() {
       setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
+      setAllUserPostLists(queryClient, (old) =>
+        mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
+      );
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
@@ -611,7 +627,7 @@ export function useLikePost() {
             }
           : old
       );
-      return { previousPostLists, previousDetail, previousMyContent };
+      return { previousPostLists, previousUserPostLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
       if (typeof res.likeCount === 'number') {
@@ -619,6 +635,9 @@ export function useLikePost() {
         const updateUserPost = (p: UserPost) =>
           p.postId === postId ? { ...p, liked: res.liked, likes: res.likeCount! } : p;
         setAllPostLists(queryClient, (old) =>
+          mapPostsPages(old, update)
+        );
+        setAllUserPostLists(queryClient, (old) =>
           mapPostsPages(old, update)
         );
         const detail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
@@ -638,11 +657,13 @@ export function useLikePost() {
     },
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
+      restoreAllPostLists(queryClient, context?.previousUserPostLists);
       if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (res, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
       if (typeof res?.likeCount !== 'number') {
         queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
