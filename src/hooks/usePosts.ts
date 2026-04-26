@@ -335,6 +335,10 @@ function updateMyContentPostBookmark(
     ...myContent,
     posts: myContent.posts.map(updateUserPost),
     anonPosts: myContent.anonPosts.map(updateUserPost),
+    myLikes: {
+      ...myContent.myLikes,
+      posts: myContent.myLikes.posts.map(updateUserPost),
+    },
     myBookmarks: {
       ...myContent.myBookmarks,
       posts: nextBookmarks,
