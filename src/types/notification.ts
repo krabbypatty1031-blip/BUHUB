@@ -25,6 +25,7 @@ export interface FollowerNotification {
   major?: string;
   time: string;
   isFollowed: boolean;
+  isMutuallyFollowing?: boolean;
 }
 
 export interface CommentNotification {

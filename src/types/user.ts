@@ -66,6 +66,8 @@ export interface UserPublicProfile {
     followingCount: number;
   };
   isFollowedByMe: boolean;
+  isFollowedByThem?: boolean;
+  isMutuallyFollowing?: boolean;
 }
 
 export interface UserPost {
@@ -212,6 +214,7 @@ export interface FollowListItem {
   gender: Gender;
   bio: string;
   isFollowed: boolean;
+  isMutuallyFollowing?: boolean;
   major?: string;
   grade?: string;
 }

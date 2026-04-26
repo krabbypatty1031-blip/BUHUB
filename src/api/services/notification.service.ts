@@ -42,6 +42,7 @@ type RawFollowerNotification = {
   bio?: string;
   time?: string;
   isFollowed?: boolean;
+  isMutuallyFollowing?: boolean;
 };
 
 type CommentAction = CommentNotification['action'];
@@ -156,6 +157,7 @@ export const notificationService = {
       bio: item.bio ?? '',
       time: normalizeNotificationTime(item.time),
       isFollowed: !!item.isFollowed,
+      isMutuallyFollowing: !!item.isMutuallyFollowing,
     }));
   },
 

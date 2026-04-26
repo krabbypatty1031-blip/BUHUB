@@ -39,7 +39,14 @@ function applyFollowStateToFollowerNotifications(
   if (!list) return list;
   return list.map((item) =>
     isSameHandle(item.userName ?? item.user, userName)
-      ? { ...item, isFollowed: followed }
+      ? {
+          ...item,
+          isFollowed: followed,
+          // Mutual cannot survive me unfollowing. When I follow, defer to the
+          // API's value (refetched on settle); we don't optimistically promote
+          // to mutual because we don't know if they still follow me.
+          isMutuallyFollowing: followed ? (item.isMutuallyFollowing ?? false) : false,
+        }
       : item
   );
 }
@@ -88,10 +95,12 @@ function applyFollowStateToCache(
       0,
       (publicProfile.stats?.followerCount ?? 0) + (followed ? 1 : -1)
     );
+    const isFollowedByThem = publicProfile.isFollowedByThem ?? false;
     return {
       publicProfile: {
         ...publicProfile,
         isFollowedByMe: followed,
+        isMutuallyFollowing: followed && isFollowedByThem,
         stats: {
           ...publicProfile.stats,
           followerCount: nextFollowerCount,
@@ -101,14 +110,24 @@ function applyFollowStateToCache(
         ? followed
           ? followingList.some((item) => item.userName === userName)
             ? followingList.map((item) =>
-                item.userName === userName ? { ...item, isFollowed: true } : item
+                item.userName === userName
+                  ? { ...item, isFollowed: true, isMutuallyFollowing: isFollowedByThem }
+                  : item
               )
-            : [buildFollowListItem(userName, publicProfile, followersList), ...followingList]
+            : [
+                {
+                  ...buildFollowListItem(userName, publicProfile, followersList),
+                  isMutuallyFollowing: isFollowedByThem,
+                },
+                ...followingList,
+              ]
           : followingList.filter((item) => item.userName !== userName)
         : followingList,
       followersList: followersList
         ? followersList.map((item) =>
-            item.userName === userName ? { ...item, isFollowed: followed } : item
+            item.userName === userName
+              ? { ...item, isFollowed: followed, isMutuallyFollowing: followed }
+              : item
           )
         : followersList,
       followerNotifications: applyFollowStateToFollowerNotifications(
@@ -141,7 +160,9 @@ function applyFollowStateToCache(
       : followingList,
     followersList: followersList
       ? followersList.map((item) =>
-          item.userName === userName ? { ...item, isFollowed: followed } : item
+          item.userName === userName
+            ? { ...item, isFollowed: followed, isMutuallyFollowing: followed }
+            : item
         )
       : followersList,
     followerNotifications: applyFollowStateToFollowerNotifications(
