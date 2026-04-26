@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,6 @@ import { canPublishCommunityContent } from '../../utils/publishPermission';
 import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { lockerService } from '../../api/services/locker.service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const headerBg = require('../../../assets/images/campus-header-bg.png');
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'FunctionsHub'>;
@@ -121,31 +120,7 @@ export default function FunctionsHubScreen({ navigation }: Props) {
     navigation.getParent()?.navigate('MeTab', { screen: 'ManageEmails', initial: false } as never);
   }, [navigation]);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const config = await lockerService.fetchBroadcast();
-        if (!active) return;
-        if (typeof config.featureEnabled === 'boolean') {
-          setLockerFeatureEnabled(config.featureEnabled);
-        }
-        if (config.openAt) {
-          const ms = Date.parse(config.openAt);
-          if (Number.isFinite(ms)) setLockerOpenMs(ms);
-        }
-        if (config.closeAt) {
-          const ms = Date.parse(config.closeAt);
-          if (Number.isFinite(ms)) setLockerCloseMs(ms);
-        }
-      } catch {
-        // Keep defaults on transient failures.
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Remove startup useEffect to comply with user request for real-time fetch on click
 
   const handlePress = useCallback(
     async (targetRoute: FunctionsHubRouteName) => {
@@ -190,25 +165,53 @@ export default function FunctionsHubScreen({ navigation }: Props) {
           navigation.navigate('FacilityBooking');
           return;
         case 'LockerSFSC': {
+          let currentEnabled = lockerFeatureEnabled;
+          let currentOpenMs = lockerOpenMs;
+          let currentCloseMs = lockerCloseMs;
+
+          try {
+            const config = await lockerService.fetchBroadcast();
+            if (typeof config.featureEnabled === 'boolean') {
+              currentEnabled = config.featureEnabled;
+              setLockerFeatureEnabled(config.featureEnabled);
+            }
+            if (config.openAt) {
+              const ms = Date.parse(config.openAt);
+              if (Number.isFinite(ms)) {
+                currentOpenMs = ms;
+                setLockerOpenMs(ms);
+              }
+            }
+            if (config.closeAt) {
+              const ms = Date.parse(config.closeAt);
+              if (Number.isFinite(ms)) {
+                currentCloseMs = ms;
+                setLockerCloseMs(ms);
+              }
+            }
+          } catch {
+            // Use cached/default values if fetch fails
+          }
+
           const now = Date.now();
-          if (!lockerFeatureEnabled) {
+          if (!currentEnabled) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
-              `${t('lockerSfscLaunchBody')} ${formatLockerTime(lockerOpenMs)}`,
+              `${t('lockerSfscLaunchBody')} ${formatLockerTime(currentOpenMs)}`,
             );
             return;
           }
-          if (now < lockerOpenMs) {
+          if (now < currentOpenMs) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
-              `${t('lockerSfscLaunchBody')} ${formatLockerTime(lockerOpenMs)}`,
+              `${t('lockerSfscLaunchBody')} ${formatLockerTime(currentOpenMs)}`,
             );
             return;
           }
-          if (now >= lockerCloseMs) {
+          if (now >= currentCloseMs) {
             Alert.alert(
               t('lockerSfscLaunchTitle'),
-              `${t('lockerSfscDeadlineEnded')} (${t('deadline')}: ${formatLockerTime(lockerCloseMs)})`,
+              `${t('lockerSfscDeadlineEnded')} (${t('deadline')}: ${formatLockerTime(currentCloseMs)})`,
             );
             return;
           }

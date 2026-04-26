@@ -51,23 +51,38 @@ function deriveStudentIdFromEmail(email: string | undefined | null): string {
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'LockerSFSC'>;
 
-interface DropOffOption {
-  date: DropOffDate;
-  labelKey: string;
-}
-const DROP_OFF_OPTIONS: DropOffOption[] = [
+const DEFAULT_DROP_OFF_OPTIONS: DropOffOption[] = [
   { date: '2026-05-07', labelKey: 'lockerSfscDropOffOption1' },
   { date: '2026-05-11', labelKey: 'lockerSfscDropOffOption2' },
   { date: '2026-05-16', labelKey: 'lockerSfscDropOffOption3' },
 ];
 
+function formatDropOffLabel(iso: string, lang: string, fallbackKey: string, t: any): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return t(fallbackKey);
+  
+  const locale = lang === 'en' ? 'en-US' : 'zh-HK';
+  const options: Intl.DateTimeFormatOptions = lang === 'en' 
+    ? { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' }
+    : { month: 'numeric', day: 'numeric', timeZone: 'Asia/Hong_Kong' };
+  
+  let datePart = new Intl.DateTimeFormat(locale, options).format(d);
+  if (lang !== 'en') {
+    // Standard zh-HK format might be "M月D日" or "M/D", let's make it consistent
+    const parts = new Intl.DateTimeFormat('zh-HK', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Hong_Kong' }).formatToParts(d);
+    const m = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    datePart = `${m}月${day}日`;
+  }
+
+  return `${datePart} 10am-4pm`;
+}
+
 // Metro bundler requires static require() paths — declare all three up front,
 // pick at render time based on the user's language.
-/* eslint-disable @typescript-eslint/no-var-requires */
 const promoImgEn = require('../../../assets/images/locker-sfsc-promo-en.png');
 const promoImgSc = require('../../../assets/images/locker-sfsc-promo-sc.png');
 const promoImgTc = require('../../../assets/images/locker-sfsc-promo-tc.png');
-/* eslint-enable @typescript-eslint/no-var-requires */
 const PROMO_BY_LANG: Record<string, number> = {
   en: promoImgEn,
   sc: promoImgSc,
@@ -76,8 +91,6 @@ const PROMO_BY_LANG: Record<string, number> = {
 
 const MAX_MODIFICATIONS = 1;
 
-const FIRST_BOX_PRICE_HKD = 150;
-const ADDITIONAL_BOX_PRICE_HKD = 185;
 const MIN_BOXES = 1;
 const MAX_BOXES = 10;
 
@@ -116,6 +129,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   const [lockerCloseAtMs, setLockerCloseAtMs] = useState<number>(DEFAULT_CLOSE_AT_MS);
   const [announcementStartAtMs, setAnnouncementStartAtMs] = useState<number | null>(null);
   const [announcementEndAtMs, setAnnouncementEndAtMs] = useState<number | null>(null);
+  const [dropOffDate1, setDropOffDate1] = useState<string | null>(null);
+  const [dropOffDate2, setDropOffDate2] = useState<string | null>(null);
+  const [dropOffDate3, setDropOffDate3] = useState<string | null>(null);
+
   const launchHintText = useMemo(() => {
     const locale = i18n.language === 'en' ? 'en-GB' : 'zh-HK';
     const dt = new Intl.DateTimeFormat(locale, {
@@ -160,11 +177,6 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     setBoxPickerOpen(false);
   }, []);
 
-  const estimatedPriceHkd =
-    boxCount <= 1
-      ? FIRST_BOX_PRICE_HKD
-      : FIRST_BOX_PRICE_HKD + (boxCount - 1) * ADDITIONAL_BOX_PRICE_HKD;
-
   const promoHeight = screenHeight / 4;
 
   const isModifying = mineRecord !== null;
@@ -190,17 +202,6 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     return () => clearTimeout(timer);
   }, [lockerCloseAtMs, lockerOpenAtMs]);
 
-  // Poll the admin broadcast message every 30s while the banner is visible
-  // (post-deadline, user has a record). A single fetch kicks off immediately;
-  // the interval keeps users in sync with admin edits without WebSocket infra.
-  // Depend on a boolean rather than `mineRecord` itself — the 10s record poll
-  // mutates `mineRecord.status` frequently, and depending on the object would
-  // tear down + restart this interval every 10s (firing an extra broadcast
-  // fetch each time).
-  // Force an immediate broadcast refetch when a locker-broadcast push lands,
-  // whether the user is in the app (received listener) or tapped the
-  // notification from the lock screen (response listener). Otherwise the
-  // banner would be up to 30s stale relative to the push that just arrived.
   useEffect(() => {
     const matches = (data: unknown): boolean => {
       if (!data || typeof data !== 'object') return false;
@@ -208,12 +209,15 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     };
     const refetch = async () => {
       try {
-        const { message, openAt, closeAt, announcementStartAt, announcementEndAt } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, announcementStartAt, announcementEndAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
         setBroadcastMessage(message);
         if (openAt) setLockerOpenAtMs(Date.parse(openAt));
         if (closeAt) setLockerCloseAtMs(Date.parse(closeAt));
         setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
         setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
+        setDropOffDate1(dropOffDate1);
+        setDropOffDate2(dropOffDate2);
+        setDropOffDate3(dropOffDate3);
       } catch {
         // Leave prior message visible; regular 30s poll will retry.
       }
@@ -228,7 +232,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       recv.remove();
       resp.remove();
     };
-  }, []);
+  }, [dynamicDropOffOptions]);
 
   const hasRecord = mineRecord !== null;
   useEffect(() => {
@@ -236,14 +240,19 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     let cancelled = false;
     const load = async () => {
       try {
-        const { message, openAt, closeAt, announcementStartAt, announcementEndAt } = await lockerService.fetchBroadcast();
+        const { message, openAt, closeAt, announcementStartAt, announcementEndAt, dropOffDate1, dropOffDate2, dropOffDate3 } = await lockerService.fetchBroadcast();
         if (!cancelled) setBroadcastMessage(message);
         if (!cancelled && openAt) setLockerOpenAtMs(Date.parse(openAt));
         if (!cancelled && closeAt) setLockerCloseAtMs(Date.parse(closeAt));
         if (!cancelled) setAnnouncementStartAtMs(announcementStartAt ? Date.parse(announcementStartAt) : null);
         if (!cancelled) setAnnouncementEndAtMs(announcementEndAt ? Date.parse(announcementEndAt) : null);
+        if (!cancelled) {
+          setDropOffDate1(dropOffDate1);
+          setDropOffDate2(dropOffDate2);
+          setDropOffDate3(dropOffDate3);
+        }
       } catch {
-        // Keep prior message on transient failure; default shows if never set.
+        // Keep prior
       }
     };
     load();
@@ -252,7 +261,65 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isExpired, hasRecord]);
+  }, [hasRecord, isExpired]);
+
+  // Initial fetch to sync with admin-configured dates and timeline
+  useEffect(() => {
+    let active = true;
+    const loadConfig = async () => {
+      try {
+        const config = await lockerService.fetchBroadcast();
+        if (!active) return;
+        setBroadcastMessage(config.message);
+        if (config.openAt) setLockerOpenAtMs(Date.parse(config.openAt));
+        if (config.closeAt) setLockerCloseAtMs(Date.parse(config.closeAt));
+        setAnnouncementStartAtMs(config.announcementStartAt ? Date.parse(config.announcementStartAt) : null);
+        setAnnouncementEndAtMs(config.announcementEndAt ? Date.parse(config.announcementEndAt) : null);
+        setDropOffDate1(config.dropOffDate1);
+        setDropOffDate2(config.dropOffDate2);
+        setDropOffDate3(config.dropOffDate3);
+      } catch {
+        // Keep defaults
+      } finally {
+        if (active) setFetching(false);
+      }
+    };
+    loadConfig();
+    return () => {
+      active = false;
+    };
+  }, [dynamicDropOffOptions]);
+
+  const dynamicDropOffOptions = useMemo(() => {
+    const options: { date: string; label: string }[] = [];
+    if (dropOffDate1) {
+      options.push({
+        date: dropOffDate1.split('T')[0],
+        label: formatDropOffLabel(dropOffDate1, i18n.language, 'lockerSfscDropOffOption1', t),
+      });
+    }
+    if (dropOffDate2) {
+      options.push({
+        date: dropOffDate2.split('T')[0],
+        label: formatDropOffLabel(dropOffDate2, i18n.language, 'lockerSfscDropOffOption2', t),
+      });
+    }
+    if (dropOffDate3) {
+      options.push({
+        date: dropOffDate3.split('T')[0],
+        label: formatDropOffLabel(dropOffDate3, i18n.language, 'lockerSfscDropOffOption3', t),
+      });
+    }
+
+    // Fallback if no dates set in admin
+    if (options.length === 0) {
+      return DEFAULT_DROP_OFF_OPTIONS.map((opt) => ({
+        date: opt.date,
+        label: t(opt.labelKey),
+      }));
+    }
+    return options;
+  }, [dropOffDate1, dropOffDate2, dropOffDate3, i18n.language, t]);
 
   const applyRecord = useCallback((record: LockerRequestRecord) => {
     setMineRecord(record);
@@ -261,7 +328,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     setPhoneNumber(record.phoneNumber);
     setResidenceAddress(record.residenceAddress);
     const droppedIso = record.dropOffDate?.slice(0, 10);
-    if (droppedIso && DROP_OFF_OPTIONS.some((o) => o.date === droppedIso)) {
+    if (droppedIso && (
+      dynamicDropOffOptions.some((o) => o.date === droppedIso) || 
+      DEFAULT_DROP_OFF_OPTIONS.some((o) => o.date === droppedIso)
+    )) {
       setDropOffDate(droppedIso as DropOffDate);
     }
     if (
@@ -271,7 +341,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     ) {
       setBoxCount(record.boxCount);
     }
-  }, []);
+  }, [dynamicDropOffOptions]);
 
   useEffect(() => {
     let active = true;
@@ -510,7 +580,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscDropOffDate')}</Text>
         <View style={styles.chipRow}>
-          {DROP_OFF_OPTIONS.map((opt) => {
+          {dynamicDropOffOptions.map((opt) => {
             const selected = dropOffDate === opt.date;
             return (
               <TouchableOpacity
@@ -533,7 +603,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                   adjustsFontSizeToFit
                   minimumFontScale={0.8}
                 >
-                  {t(opt.labelKey)}
+                  {opt.label}
                 </Text>
               </TouchableOpacity>
             );
@@ -669,8 +739,8 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 {
                   label: t('lockerSfscDropOffDate'),
                   value: (() => {
-                    const opt = DROP_OFF_OPTIONS.find((o) => o.date === dropOffDate);
-                    return opt ? t(opt.labelKey) : (dropOffDate ?? '');
+                    const opt = dynamicDropOffOptions.find((o) => o.date === dropOffDate);
+                    return opt ? opt.label : (dropOffDate ?? '');
                   })(),
                 },
               ].map((row) => (

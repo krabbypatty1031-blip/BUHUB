@@ -1,7 +1,7 @@
 import apiClient from '../client';
 import ENDPOINTS from '../endpoints';
 
-export type DropOffDate = '2026-05-07' | '2026-05-11' | '2026-05-16';
+export type DropOffDate = string;
 
 export interface LockerRequestInput {
   fullName: string;
@@ -40,6 +40,9 @@ export interface LockerBroadcastPayload {
   closeAt: string | null;
   announcementStartAt: string | null;
   announcementEndAt: string | null;
+  dropOffDate1: string | null;
+  dropOffDate2: string | null;
+  dropOffDate3: string | null;
   isPublished?: boolean;
 }
 
@@ -61,6 +64,9 @@ export const lockerService = {
       closeAt: data?.closeAt ?? null,
       announcementStartAt: data?.announcementStartAt ?? null,
       announcementEndAt: data?.announcementEndAt ?? null,
+      dropOffDate1: data?.dropOffDate1 ?? null,
+      dropOffDate2: data?.dropOffDate2 ?? null,
+      dropOffDate3: data?.dropOffDate3 ?? null,
       isPublished: data?.isPublished ?? undefined,
     };
   },

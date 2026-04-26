@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Modal, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, Modal, Text, TouchableOpacity, ScrollView, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { authService } from '../api/services/auth.service';
@@ -26,6 +27,7 @@ const AppTheme = {
   },
 };
 const ANNOUNCEMENT_SEEN_KEY = 'ulink-global-announcement-seen-updated-at';
+const ANNOUNCEMENT_REFRESH_MIN_INTERVAL_MS = 15_000;
 
 function isAuthFailure(error: unknown): boolean {
   const apiError = error as Partial<ApiError> | undefined;
@@ -62,7 +64,38 @@ export default function AppNavigator() {
   const [lastForumLanguage, setLastForumLanguage] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState<GlobalAnnouncement | null>(null);
   const [announcementVisible, setAnnouncementVisible] = useState(false);
+  const announcementFetchInFlightRef = useRef(false);
+  const lastAnnouncementFetchAtRef = useRef(0);
   usePushRegistration(navigationRef);
+
+  const refreshAnnouncement = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!hasHydrated || !isLoggedIn) return;
+      if (announcementFetchInFlightRef.current) return;
+
+      const now = Date.now();
+      if (!opts?.force && now - lastAnnouncementFetchAtRef.current < ANNOUNCEMENT_REFRESH_MIN_INTERVAL_MS) {
+        return;
+      }
+
+      announcementFetchInFlightRef.current = true;
+      lastAnnouncementFetchAtRef.current = now;
+      try {
+        const latest = await announcementService.fetchLatest();
+        if (!latest?.updatedAt) return;
+        const seenUpdatedAt = await AsyncStorage.getItem(ANNOUNCEMENT_SEEN_KEY);
+        if (!seenUpdatedAt || seenUpdatedAt !== latest.updatedAt) {
+          setAnnouncement(latest);
+          setAnnouncementVisible(true);
+        }
+      } catch {
+        // Silent: announcement is non-critical.
+      } finally {
+        announcementFetchInFlightRef.current = false;
+      }
+    },
+    [hasHydrated, isLoggedIn],
+  );
 
   // Keep the rendering language in sync with the persisted/store language.
   // This also covers login/verify-token flows that update the auth store
@@ -121,25 +154,34 @@ export default function AppNavigator() {
   }, [hasHydrated, isLoggedIn, token, logout, setUser, showSnackbar]); // Re-run when hydration completes
 
   useEffect(() => {
+    void refreshAnnouncement({ force: true });
+  }, [refreshAnnouncement]);
+
+  useEffect(() => {
     if (!hasHydrated || !isLoggedIn) return;
-    let active = true;
-    (async () => {
-      try {
-        const latest = await announcementService.fetchLatest();
-        if (!active || !latest?.updatedAt) return;
-        const seenUpdatedAt = await AsyncStorage.getItem(ANNOUNCEMENT_SEEN_KEY);
-        if (!seenUpdatedAt || seenUpdatedAt !== latest.updatedAt) {
-          setAnnouncement(latest);
-          setAnnouncementVisible(true);
-        }
-      } catch {
-        // Silent: announcement is non-critical.
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void refreshAnnouncement({ force: true });
       }
-    })();
+    });
     return () => {
-      active = false;
+      appStateSub.remove();
     };
-  }, [hasHydrated, isLoggedIn]);
+  }, [hasHydrated, isLoggedIn, refreshAnnouncement]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isLoggedIn) return;
+    const receivedSub = Notifications.addNotificationReceivedListener(() => {
+      void refreshAnnouncement();
+    });
+    const responseSub = Notifications.addNotificationResponseReceivedListener(() => {
+      void refreshAnnouncement({ force: true });
+    });
+    return () => {
+      receivedSub.remove();
+      responseSub.remove();
+    };
+  }, [hasHydrated, isLoggedIn, refreshAnnouncement]);
 
   const closeAnnouncement = async () => {
     setAnnouncementVisible(false);
@@ -161,6 +203,13 @@ export default function AppNavigator() {
       ref={navigationRef}
       theme={AppTheme}
       onReady={() => flushPendingPushNavigation(navigationRef)}
+      onStateChange={() => {
+        const currentRoute = navigationRef.getCurrentRoute();
+        const currentName = currentRoute?.name;
+        if (currentName === 'ForumTab' || currentName === 'ForumHome') {
+          void refreshAnnouncement();
+        }
+      }}
     >
       {isLoggedIn ? <MainTabNavigator /> : <AuthNavigator />}
       <Snackbar />

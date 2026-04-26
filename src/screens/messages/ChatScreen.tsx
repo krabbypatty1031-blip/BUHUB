@@ -1700,6 +1700,7 @@ function getContainedMediaSize(
 function ChatScreenPlaceholder({ navigation, route }: Props) {
   const { contactName } = route.params;
   const [ready, setReady] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => setReady(true));
@@ -1709,8 +1710,6 @@ function ChatScreenPlaceholder({ navigation, route }: Props) {
   if (ready) {
     return <ChatScreenContent navigation={navigation} route={route} />;
   }
-
-  const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
