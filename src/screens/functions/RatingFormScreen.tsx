@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -198,10 +199,12 @@ export default function RatingFormScreen({ navigation, route }: Props) {
         titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
       />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        bottomOffset={24}
       >
         {/* Target Info */}
         <View style={styles.targetSection}>
@@ -314,7 +317,7 @@ export default function RatingFormScreen({ navigation, route }: Props) {
             </Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -331,6 +334,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
   },
   targetSection: {
     padding: spacing.lg,

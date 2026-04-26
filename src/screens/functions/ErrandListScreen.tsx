@@ -6,13 +6,14 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { Errand, ErrandCategory } from '../../types';
-import { useErrands } from '../../hooks/useErrands';
+import { useErrands, useDeleteErrand, useCloseErrand } from '../../hooks/useErrands';
 import { useErrandStore } from '../../store/errandStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -57,6 +58,15 @@ export default function ErrandListScreen({ navigation }: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useErrands(selectedCategory || undefined);
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+  const handlePullToRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
   const errands = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const now = useExpirationTick(30000);
   const visibleErrands = useMemo(
@@ -138,6 +148,47 @@ export default function ErrandListScreen({ navigation }: Props) {
       actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.post.authorId, actionItem.post.user) : false,
     [actionItem, currentUser]
   );
+
+  const deleteErrandMutation = useDeleteErrand();
+  const closeErrandMutation = useCloseErrand();
+
+  const handleEndAction = useCallback(() => {
+    const a = actionItem;
+    setActionItem(null);
+    if (!a) return;
+    Alert.alert(t('endPostTitle'), t('endPostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          closeErrandMutation.mutate(a.id, {
+            onSuccess: () => showSnackbar({ message: t('postEnded'), type: 'success' }),
+            onError: () => showSnackbar({ message: t('endFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [actionItem, closeErrandMutation, showSnackbar, t]);
+
+  const handleDeleteAction = useCallback(() => {
+    const a = actionItem;
+    setActionItem(null);
+    if (!a) return;
+    Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          deleteErrandMutation.mutate(a.id, {
+            onSuccess: () => showSnackbar({ message: t('postDeleted'), type: 'success' }),
+            onError: () => showSnackbar({ message: t('deleteFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [actionItem, deleteErrandMutation, showSnackbar, t]);
 
   const handleAvatarPress = useCallback(
     (item: Errand) => {
@@ -235,8 +286,8 @@ export default function ErrandListScreen({ navigation }: Props) {
         data={filteredErrands}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isRefetching}
-        onRefresh={refetch}
+        refreshing={isUserRefreshing}
+        onRefresh={handlePullToRefresh}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
@@ -275,22 +326,30 @@ export default function ErrandListScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {isActionItemOwnPost ? (
-              <TouchableOpacity
-                style={styles.actionRowCenter}
-                onPress={() => {
-                  const a = actionItem;
-                  setActionItem(null);
-                  if (!a) return;
-                  navigateToForumComposeSelection({
-                    navigation,
-                    functionType: 'errand',
-                    functionTitle: a.post.title,
-                    functionId: a.id,
-                  });
-                }}
-              >
-                <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.actionRowCenter}
+                  onPress={() => {
+                    const a = actionItem;
+                    setActionItem(null);
+                    if (!a) return;
+                    navigateToForumComposeSelection({
+                      navigation,
+                      functionType: 'errand',
+                      functionTitle: a.post.title,
+                      functionId: a.id,
+                    });
+                  }}
+                >
+                  <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular')]}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionRowCenter} onPress={handleEndAction}>
+                  <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular'), { color: '#ED4956' }]}>{t('endPost')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionRowCenter} onPress={handleDeleteAction}>
+                  <Text style={[styles.actionText, getLocalizedFontStyle(lang, 'regular'), { color: '#ED4956' }]}>{t('deletePost')}</Text>
+                </TouchableOpacity>
+              </>
             ) : null}
 
             {!isActionItemOwnPost ? (

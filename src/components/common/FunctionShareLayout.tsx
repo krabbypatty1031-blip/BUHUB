@@ -42,6 +42,8 @@ interface FunctionShareLayoutProps {
   ratingCategory?: RatingCategory;
   /** Disable forum repost when a function type should stay in DM only */
   allowForumShare?: boolean;
+  /** Override the dismiss behavior. Defaults to navigation.popToTop(). */
+  onDismiss?: () => void;
 }
 
 export default function FunctionShareLayout({
@@ -55,6 +57,7 @@ export default function FunctionShareLayout({
   functionId,
   ratingCategory,
   allowForumShare = true,
+  onDismiss,
 }: FunctionShareLayoutProps) {
   const { t } = useTranslation();
   const [forwardVisible, setForwardVisible] = useState(false);
@@ -62,8 +65,12 @@ export default function FunctionShareLayout({
   const canShareToHkbu = canPublishCommunityContent(authUser);
 
   const dismiss = useCallback(() => {
+    if (onDismiss) {
+      onDismiss();
+      return;
+    }
     navigation.popToTop();
-  }, [navigation]);
+  }, [navigation, onDismiss]);
 
   const goToManageEmails = useCallback(() => {
     // Cross-tab navigation: jump to MeTab > ManageEmails so the user can bind

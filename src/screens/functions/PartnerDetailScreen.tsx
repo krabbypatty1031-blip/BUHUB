@@ -7,13 +7,14 @@ import {
   ScrollView,
   BackHandler,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
-import { usePartnerDetail } from '../../hooks/usePartners';
+import { usePartnerDetail, useDeletePartner, useClosePartner } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
@@ -56,6 +57,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
     navigation.setOptions({ gestureEnabled: !backTo && !backToChat });
@@ -135,6 +137,48 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
     });
   }, [partner, navigation]);
 
+  const deletePartnerMutation = useDeletePartner();
+  const closePartnerMutation = useClosePartner();
+
+  const handleEnd = useCallback(() => {
+    if (!partner) return;
+    setPopoverVisible(false);
+    Alert.alert(t('endPostTitle'), t('endPostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          closePartnerMutation.mutate(partner.id, {
+            onSuccess: () => showSnackbar({ message: t('postEnded'), type: 'success' }),
+            onError: () => showSnackbar({ message: t('endFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [partner, closePartnerMutation, showSnackbar, t]);
+
+  const handleDelete = useCallback(() => {
+    if (!partner) return;
+    setPopoverVisible(false);
+    Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          deletePartnerMutation.mutate(partner.id, {
+            onSuccess: () => {
+              showSnackbar({ message: t('postDeleted'), type: 'success' });
+              navigation.goBack();
+            },
+            onError: () => showSnackbar({ message: t('deleteFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [partner, deletePartnerMutation, showSnackbar, t, navigation]);
+
   if (!partner) {
     return (
       <PageTranslationProvider>
@@ -191,7 +235,7 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
           activeOpacity={1}
           onPress={() => setPopoverVisible(false)}
         >
-          <View style={styles.popoverBubble}>
+          <View style={[styles.popoverBubble, { top: insets.top + 54 }]}>
             <TouchableOpacity
               style={styles.popoverItem}
               onPress={() => {
@@ -208,6 +252,12 @@ export default function PartnerDetailScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.popoverItem} onPress={handleEdit}>
                   <Text style={[styles.popoverItemText, getLocalizedFontStyle(lang, 'regular')]}>{t('editPost')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleEnd}>
+                  <Text style={[styles.popoverItemTextDanger, getLocalizedFontStyle(lang, 'regular')]}>{t('endPost')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.popoverItem} onPress={handleDelete}>
+                  <Text style={[styles.popoverItemTextDanger, getLocalizedFontStyle(lang, 'regular')]}>{t('deletePost')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -530,20 +580,18 @@ const styles = StyleSheet.create({
 
   /* ----- Popover ----- */
   popoverOverlay: {
-    position: 'absolute' as const,
-    top: 62,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     backgroundColor: 'transparent',
   },
   popoverBubble: {
     position: 'absolute' as const,
-    top: spacing.sm,
+    top: 78,
     right: spacing.md,
     backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     paddingVertical: spacing.xs,
     minWidth: 160,
     ...elevation[3],

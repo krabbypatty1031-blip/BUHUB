@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -106,7 +106,10 @@ function FollowerItem({
             minimumFontScale={0.85}
             numberOfLines={1}
           >
-            {followed ? t('alreadyFollowed') : t('follow')}
+            {/* Every row on this screen is someone who follows the current user.
+              When `followed` is also true (current user follows them back),
+              the relationship is mutual. */}
+            {followed ? t('mutuallyFollowing') : t('follow')}
           </Text>
         )}
       </TouchableOpacity>
@@ -118,6 +121,24 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const { data: notifications, isLoading, refetch } = useFollowerNotifications();
+
+  // Dedupe repeat follows by the same user (keep newest). The list is already
+  // newest-first, so the first occurrence per userName is the latest event.
+  // Notifications without a userName (e.g. fully-deleted accounts) are kept
+  // as-is so two unrelated deleted users don't visually merge.
+  const dedupedNotifications = useMemo(() => {
+    if (!notifications) return [];
+    const seen = new Set<string>();
+    const result: typeof notifications = [];
+    for (const item of notifications) {
+      if (item.userName) {
+        if (seen.has(item.userName)) continue;
+        seen.add(item.userName);
+      }
+      result.push(item);
+    }
+    return result;
+  }, [notifications]);
   const markAsRead = useMarkAsRead();
   const setUnreadFollowers = useNotificationStore((s) => s.setUnreadFollowers);
   const currentUser = useAuthStore((s) => s.user);
@@ -172,7 +193,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={notifications || []}
+          data={dedupedNotifications}
           renderItem={renderItem}
           keyExtractor={(_, index) => String(index)}
           contentContainerStyle={styles.listContent}

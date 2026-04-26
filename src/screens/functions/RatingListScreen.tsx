@@ -102,6 +102,16 @@ export default function RatingListScreen({ navigation }: Props) {
     [data]
   );
 
+  const filteredRatings = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (!q) return ratings;
+    return ratings.filter((item) => {
+      const display = translateLabel(item.name, lang).toLowerCase();
+      const raw = (item.name ?? '').toLowerCase();
+      return display.includes(q) || raw.includes(q);
+    });
+  }, [ratings, deferredSearchQuery, lang]);
+
   const isInitialLoading = isLoading && ratings.length === 0;
   const isRefreshing = isRefetching && !isFetchingNextPage;
   const hasSearchQuery = deferredSearchQuery.trim().length > 0;
@@ -290,8 +300,8 @@ export default function RatingListScreen({ navigation }: Props) {
         <View style={styles.listWrapper}>
           <FlashList
             ref={listRef}
-            data={ratings}
-            extraData={`${category}:${deferredSearchQuery.trim()}:${ratings.length}:${isFetchingNextPage ? 'fetching' : 'idle'}`}
+            data={filteredRatings}
+            extraData={`${category}:${deferredSearchQuery.trim()}:${filteredRatings.length}:${isFetchingNextPage ? 'fetching' : 'idle'}`}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}

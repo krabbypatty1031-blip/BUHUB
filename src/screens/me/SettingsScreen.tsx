@@ -69,7 +69,14 @@ export default function SettingsScreen({ navigation }: Props) {
     '---';
 
   // Local state
-  const [visibility, setVisibility] = useState<Visibility>('public');
+  const [visibility, setVisibility] = useState<Visibility>(
+    (profile?.profileVisibility as Visibility | undefined) ?? 'public'
+  );
+  useEffect(() => {
+    if (profile?.profileVisibility) {
+      setVisibility(profile.profileVisibility as Visibility);
+    }
+  }, [profile?.profileVisibility]);
   const [taskReminder, setTaskReminder] = useState(true);
   const [dmNotification, setDmNotification] = useState(true);
   useEffect(() => {
@@ -160,11 +167,26 @@ export default function SettingsScreen({ navigation }: Props) {
           [t('visibilityMutualOnly')]: 'mutual',
           [t('visibilityHidden')]: 'hidden',
         };
-        setVisibility(visibilityMap[value] || 'public');
+        const next = visibilityMap[value] || 'public';
+        const previous = visibility;
+        setVisibility(next);
+        if (next !== previous) {
+          userService
+            .updateProfile({ profileVisibility: next })
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['profile'] });
+              queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
+              queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+            })
+            .catch(() => {
+              setVisibility(previous);
+              showSnackbar({ message: t('saveFailed'), type: 'error' });
+            });
+        }
       }
       setPickerVisible(false);
     },
-    [pickerType, t]
+    [pickerType, t, visibility, queryClient, showSnackbar]
   );
 
   const handleLanguageSelect = useCallback(

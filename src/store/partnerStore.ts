@@ -20,7 +20,6 @@ interface PartnerState {
 interface PersistedPartnerState {
   joinedActivityIds: string[];
   closedPostIds: string[];
-  expiredNotified: boolean;
 }
 
 export const usePartnerStore = create<PartnerState>()(
@@ -58,7 +57,6 @@ export const usePartnerStore = create<PartnerState>()(
       partialize: (state): PersistedPartnerState => ({
         joinedActivityIds: Object.keys(state.joinedActivities),
         closedPostIds: Object.keys(state.closedPosts),
-        expiredNotified: state.expiredNotified,
       }),
       merge: (persisted, currentState) => {
         const saved = persisted as PersistedPartnerState | undefined;
@@ -66,11 +64,13 @@ export const usePartnerStore = create<PartnerState>()(
         const closed: Record<string, true> = {};
         for (const id of saved?.joinedActivityIds ?? []) joined[id] = true;
         for (const id of saved?.closedPostIds ?? []) closed[id] = true;
+        // expiredNotified is intentionally NOT rehydrated — we want the
+        // session-banner to fire once per cold start, not once per install.
         return {
           ...currentState,
           joinedActivities: joined,
           closedPosts: closed,
-          expiredNotified: saved?.expiredNotified ?? false,
+          expiredNotified: false,
         };
       },
     }
