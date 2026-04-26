@@ -21,6 +21,7 @@ import type {
 } from '../../types/navigation';
 import type { ForumPost, Language } from '../../types';
 import { usePublicProfile, useFollowUser, useBlockUser } from '../../hooks/useUser';
+import { getFollowLabel } from '../../utils/followLabel';
 import { useUserPosts, flattenPostPages, useLikePost, useBookmarkPost, useVotePost, useDeletePost } from '../../hooks/usePosts';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -424,7 +425,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
                     adjustsFontSizeToFit
                     minimumFontScale={0.82}
                   >
-                    {isFollowing ? t('alreadyFollowed') : t('follow')}
+                    {getFollowLabel({ isFollowedByMe: isFollowing, isMutuallyFollowing: profile?.isMutuallyFollowing }, t)}
                   </Text>
                 </>
               )}

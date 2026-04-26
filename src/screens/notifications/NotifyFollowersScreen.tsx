@@ -17,6 +17,7 @@ import { useFollowerNotifications, useMarkAsRead } from '../../hooks/useNotifica
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useFollowUser } from '../../hooks/useUser';
+import { getFollowLabel } from '../../utils/followLabel';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -42,6 +43,7 @@ function FollowerItem({
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const targetUserName = item.userName ?? item.user;
   const followed = item.isFollowed;
+  const mutual = item.isMutuallyFollowing ?? false;
 
   const handleFollow = useCallback(() => {
     if (!targetUserName) return;
@@ -106,10 +108,9 @@ function FollowerItem({
             minimumFontScale={0.85}
             numberOfLines={1}
           >
-            {/* Every row on this screen is someone who follows the current user.
-              When `followed` is also true (current user follows them back),
-              the relationship is mutual. */}
-            {followed ? t('mutuallyFollowing') : t('follow')}
+            {/* The notification row is historical. Mutual is only true when
+              both directions still exist right now — read it from the API. */}
+            {getFollowLabel({ isFollowedByMe: followed, isMutuallyFollowing: mutual }, t)}
           </Text>
         )}
       </TouchableOpacity>

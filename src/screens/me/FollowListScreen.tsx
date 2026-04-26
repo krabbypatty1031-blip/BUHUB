@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import type { FollowListItem, ForumCircleSummary } from '../../types';
 import { useFollowingList, useFollowersList, useFollowUser, useFollowedCircles } from '../../hooks/useUser';
+import { getFollowLabel } from '../../utils/followLabel';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -31,16 +32,12 @@ const FollowItem = React.memo(function FollowItem({
   item,
   onPress,
   onToggleFollow,
-  followedLabel,
-  followLabel,
   t,
   language,
 }: {
   item: FollowListItem;
   onPress: () => void;
   onToggleFollow: () => void;
-  followedLabel: string;
-  followLabel: string;
   t: (key: string) => string;
   language: string;
 }) {
@@ -69,7 +66,7 @@ const FollowItem = React.memo(function FollowItem({
           adjustsFontSizeToFit
           minimumFontScale={0.85}
         >
-          {item.isFollowed ? followedLabel : followLabel}
+          {getFollowLabel({ isFollowedByMe: item.isFollowed, isMutuallyFollowing: item.isMutuallyFollowing }, t)}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>
@@ -122,9 +119,6 @@ export default function FollowListScreen({ navigation, route }: Props) {
     followUser(userName);
   }, [followUser]);
 
-  const followedLabel = t('alreadyFollowed');
-  const followLabel = t('follow');
-
   const renderItem = useCallback(({ item }: { item: FollowListItem }) => {
     const handlePress = () => {
       handleAvatarPressNavigation({
@@ -142,13 +136,11 @@ export default function FollowListScreen({ navigation, route }: Props) {
         item={item}
         onPress={handlePress}
         onToggleFollow={() => handleToggleFollow(item.userName)}
-        followedLabel={followedLabel}
-        followLabel={followLabel}
         t={t}
         language={language}
       />
     );
-  }, [navigation, currentUser, handleToggleFollow, followedLabel, followLabel, language, t]);
+  }, [navigation, currentUser, handleToggleFollow, language, t]);
 
   const title = type === 'following' ? t('followingListTitle') : t('followersListTitle');
   const emptyText = type === 'following' ? t('noFollowingYet') : t('noFollowersYet');
