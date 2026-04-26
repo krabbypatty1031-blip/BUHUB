@@ -8,6 +8,16 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'RatingShare'>;
 export default function RatingShareScreen({ navigation, route }: Props) {
   const { itemName, posterName, functionId, ratingCategory } = route.params;
 
+  const handleDismiss = () => {
+    const stackState = navigation.getState();
+    const hasRatingList = stackState?.routes?.some((r) => r.name === 'RatingList');
+    if (hasRatingList) {
+      navigation.popTo('RatingList');
+    } else {
+      navigation.navigate('RatingList');
+    }
+  };
+
   return (
     <FunctionShareLayout
       navigation={navigation}
@@ -20,6 +30,7 @@ export default function RatingShareScreen({ navigation, route }: Props) {
       functionId={functionId}
       ratingCategory={ratingCategory}
       allowForumShare={false}
+      onDismiss={handleDismiss}
     />
   );
 }

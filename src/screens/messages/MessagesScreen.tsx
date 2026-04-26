@@ -297,14 +297,11 @@ export default function MessagesScreen({ navigation }: Props) {
     if (showSearch) {
       const q = normalizedSearchQuery.toLowerCase();
       if (q.length > 0) {
-        const localMatches = visible.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            (c.userName ?? '').toLowerCase().includes(q) ||
-            c.message.toLowerCase().includes(q)
-        );
+        const matchesQuery = (c: Contact) =>
+          c.name.toLowerCase().includes(q);
+        const localMatches = visible.filter(matchesQuery);
         const remoteMatches = (searchedContacts ?? []).filter(
-          (c) => !isBlocked(c.userName ?? c.name)
+          (c) => !isBlocked(c.userName ?? c.name) && matchesQuery(c)
         );
         const mergedMatches = new Map<string, Contact>();
 

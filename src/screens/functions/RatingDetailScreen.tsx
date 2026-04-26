@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -67,6 +67,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [isResolvingCategory, setIsResolvingCategory] = useState(!initialCategory);
+  const insets = useSafeAreaInsets();
   const [visibleComments, setVisibleComments] = useState<RatingComment[]>([]);
   const [commentCount, setCommentCount] = useState(0);
   const [commentsPage, setCommentsPage] = useState(1);
@@ -264,7 +265,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
           activeOpacity={1}
           onPress={() => setPopoverVisible(false)}
         >
-          <View style={styles.popoverBubble}>
+          <View style={[styles.popoverBubble, { top: insets.top + 54 }]}>
             <TouchableOpacity style={styles.popoverItem} onPress={handleShareToContact}>
               <Text style={styles.popoverItemText}>{t('forwardToContact')}</Text>
             </TouchableOpacity>
@@ -435,6 +436,8 @@ const styles = StyleSheet.create({
     minWidth: 160,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     paddingVertical: spacing.xs,
     ...elevation[2],
   },

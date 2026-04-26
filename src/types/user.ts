@@ -12,6 +12,8 @@ export interface LinkedEmail {
   createdAt: string;
 }
 
+export type ProfileVisibility = 'public' | 'mutual' | 'hidden';
+
 export interface User {
   id?: string;
   userName?: string;
@@ -31,6 +33,7 @@ export interface User {
   hkbuEmail?: string;
   role?: string;
   isLoggedIn: boolean;
+  profileVisibility?: ProfileVisibility;
 }
 
 export interface MyInviteCode {

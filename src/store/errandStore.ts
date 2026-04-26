@@ -20,7 +20,6 @@ interface ErrandState {
 interface PersistedErrandState {
   acceptedErrandIds: string[];
   closedPostIds: string[];
-  expiredNotified: boolean;
 }
 
 export const useErrandStore = create<ErrandState>()(
@@ -54,7 +53,6 @@ export const useErrandStore = create<ErrandState>()(
       partialize: (state): PersistedErrandState => ({
         acceptedErrandIds: Object.keys(state.acceptedErrands),
         closedPostIds: Object.keys(state.closedPosts),
-        expiredNotified: state.expiredNotified,
       }),
       merge: (persisted, currentState) => {
         const saved = persisted as PersistedErrandState | undefined;
@@ -62,11 +60,13 @@ export const useErrandStore = create<ErrandState>()(
         const closed: Record<string, true> = {};
         for (const id of saved?.acceptedErrandIds ?? []) accepted[id] = true;
         for (const id of saved?.closedPostIds ?? []) closed[id] = true;
+        // expiredNotified is intentionally NOT rehydrated — fires once per
+        // cold start, not once per install.
         return {
           ...currentState,
           acceptedErrands: accepted,
           closedPosts: closed,
-          expiredNotified: saved?.expiredNotified ?? false,
+          expiredNotified: false,
         };
       },
     }

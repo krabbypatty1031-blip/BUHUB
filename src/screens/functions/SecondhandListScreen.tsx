@@ -6,13 +6,14 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FunctionsStackParamList } from '../../types/navigation';
 import type { SecondhandItem, SecondhandCategory } from '../../types';
-import { useSecondhand } from '../../hooks/useSecondhand';
+import { useSecondhand, useDeleteSecondhand, useCloseSecondhand } from '../../hooks/useSecondhand';
 import { useSecondhandStore } from '../../store/secondhandStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -58,6 +59,15 @@ export default function SecondhandListScreen({ navigation }: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const { data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSecondhand(selectedCategory || undefined);
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+  const handlePullToRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const now = useExpirationTick(30000);
   const visibleItems = useMemo(
@@ -145,6 +155,47 @@ export default function SecondhandListScreen({ navigation }: Props) {
       actionItem ? isCurrentUserFunctionAuthor(currentUser, actionItem.item.authorId, actionItem.item.user) : false,
     [actionItem, currentUser]
   );
+
+  const deleteSecondhandMutation = useDeleteSecondhand();
+  const closeSecondhandMutation = useCloseSecondhand();
+
+  const handleEndAction = useCallback(() => {
+    const a = actionItem;
+    setActionItem(null);
+    if (!a) return;
+    Alert.alert(t('endPostTitle'), t('endPostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          closeSecondhandMutation.mutate(a.id, {
+            onSuccess: () => showSnackbar({ message: t('postEnded'), type: 'success' }),
+            onError: () => showSnackbar({ message: t('endFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [actionItem, closeSecondhandMutation, showSnackbar, t]);
+
+  const handleDeleteAction = useCallback(() => {
+    const a = actionItem;
+    setActionItem(null);
+    if (!a) return;
+    Alert.alert(t('deletePostTitle'), t('deletePostMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('confirmBtn'),
+        style: 'destructive',
+        onPress: () => {
+          deleteSecondhandMutation.mutate(a.id, {
+            onSuccess: () => showSnackbar({ message: t('postDeleted'), type: 'success' }),
+            onError: () => showSnackbar({ message: t('deleteFailed'), type: 'error' }),
+          });
+        },
+      },
+    ]);
+  }, [actionItem, deleteSecondhandMutation, showSnackbar, t]);
 
   const handleAvatarPress = useCallback(
     (item: SecondhandItem) => {
@@ -254,8 +305,8 @@ export default function SecondhandListScreen({ navigation }: Props) {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
-        refreshing={isRefetching}
-        onRefresh={refetch}
+        refreshing={isUserRefreshing}
+        onRefresh={handlePullToRefresh}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
@@ -294,22 +345,30 @@ export default function SecondhandListScreen({ navigation }: Props) {
             </TouchableOpacity>
 
             {isActionItemOwnPost ? (
-              <TouchableOpacity
-                style={styles.actionRowCenter}
-                onPress={() => {
-                  const a = actionItem;
-                  setActionItem(null);
-                  if (!a) return;
-                  navigateToForumComposeSelection({
-                    navigation,
-                    functionType: 'secondhand',
-                    functionTitle: a.item.title,
-                    functionId: a.id,
-                  });
-                }}
-              >
-                <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular')]}>{t('forwardToForum')}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.actionRowCenter}
+                  onPress={() => {
+                    const a = actionItem;
+                    setActionItem(null);
+                    if (!a) return;
+                    navigateToForumComposeSelection({
+                      navigation,
+                      functionType: 'secondhand',
+                      functionTitle: a.item.title,
+                      functionId: a.id,
+                    });
+                  }}
+                >
+                  <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular')]}>{t('forwardToForum')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionRowCenter} onPress={handleEndAction}>
+                  <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular'), { color: '#ED4956' }]}>{t('endPost')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionRowCenter} onPress={handleDeleteAction}>
+                  <Text style={[styles.actionText, getLocalizedFontStyle(language, 'regular'), { color: '#ED4956' }]}>{t('deletePost')}</Text>
+                </TouchableOpacity>
+              </>
             ) : null}
 
             {!isActionItemOwnPost ? (

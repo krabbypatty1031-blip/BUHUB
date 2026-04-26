@@ -20,7 +20,6 @@ interface SecondhandState {
 interface PersistedSecondhandState {
   wantedItemIds: string[];
   closedPostIds: string[];
-  expiredNotified: boolean;
 }
 
 export const useSecondhandStore = create<SecondhandState>()(
@@ -58,7 +57,6 @@ export const useSecondhandStore = create<SecondhandState>()(
       partialize: (state): PersistedSecondhandState => ({
         wantedItemIds: Object.keys(state.wantedItems),
         closedPostIds: Object.keys(state.closedPosts),
-        expiredNotified: state.expiredNotified,
       }),
       merge: (persisted, currentState) => {
         const saved = persisted as PersistedSecondhandState | undefined;
@@ -66,11 +64,13 @@ export const useSecondhandStore = create<SecondhandState>()(
         const closed: Record<string, true> = {};
         for (const id of saved?.wantedItemIds ?? []) wanted[id] = true;
         for (const id of saved?.closedPostIds ?? []) closed[id] = true;
+        // expiredNotified is intentionally NOT rehydrated — fires once per
+        // cold start, not once per install.
         return {
           ...currentState,
           wantedItems: wanted,
           closedPosts: closed,
-          expiredNotified: saved?.expiredNotified ?? false,
+          expiredNotified: false,
         };
       },
     }

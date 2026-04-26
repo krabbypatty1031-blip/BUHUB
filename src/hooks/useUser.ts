@@ -283,6 +283,14 @@ export function useFollowUser() {
         queryClient.setQueryData(['myContent'], next.myContent);
       }
 
+      // When unfollowing, optimistically empty the target's posts cache so any
+      // active UserProfileScreen for them immediately stops showing posts (in
+      // case they have a MUTUAL profile that now becomes invisible). The next
+      // refetch (in onSettled) restores the canonical state from the server.
+      if (!nextFollowed) {
+        queryClient.removeQueries({ queryKey: ['userPosts', userName], exact: false });
+      }
+
       return {
         userName,
         previousPublicProfile,
@@ -363,6 +371,7 @@ export function useFollowUser() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       queryClient.invalidateQueries({ queryKey: ['followingList'] });
       queryClient.invalidateQueries({ queryKey: ['followersList'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });

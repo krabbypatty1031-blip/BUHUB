@@ -71,7 +71,12 @@ export default function UserProfileScreen({ navigation, route }: Props) {
   const cachedGender: Gender | undefined = validGenders.includes(rawCachedGender as Gender) ? (rawCachedGender as Gender) : undefined;
   const queryClient = useQueryClient();
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = usePublicProfile(userName);
-  const { data: postsData, isLoading: postsLoading, refetch: refetchPosts, fetchNextPage, hasNextPage, isFetchingNextPage } = useUserPosts(userName);
+  const { data: postsData, isLoading: postsLoading, error: postsError, refetch: refetchPosts, fetchNextPage, hasNextPage, isFetchingNextPage } = useUserPosts(userName);
+  const postsHidden =
+    !!postsError &&
+    typeof postsError === 'object' &&
+    'errorCode' in postsError &&
+    (postsError as { errorCode?: string }).errorCode === 'PROFILE_HIDDEN';
   const allPosts = useMemo(() => flattenPostPages(postsData), [postsData]);
   const followUser = useFollowUser();
   const blockUserMutation = useBlockUser();
@@ -532,18 +537,23 @@ export default function UserProfileScreen({ navigation, route }: Props) {
       )}
 
       <FlashList
-        data={userPosts}
+        data={postsHidden ? [] : userPosts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         extraData={listExtraData}
         refreshing={isRefreshing}
         onRefresh={handleRefresh}
-        onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+        onEndReached={() => { if (!postsHidden && hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
-          loading ? (
+          postsHidden ? (
+            <EmptyState
+              icon={<EditIcon size={36} color={colors.onSurfaceVariant} />}
+              title={t('profileIsPrivate')}
+            />
+          ) : loading ? (
             <ForumListSkeleton />
           ) : (
             <EmptyState
