@@ -40,6 +40,8 @@ type AudioPayload = {
 type ReactionPayload = {
   messageId: string;
   emoji?: string | null;
+  op?: 'add' | 'remove';
+  v?: number;
 };
 
 type ImageAlbumPayload = {
@@ -381,6 +383,8 @@ export function parseMessageContent(raw: string): {
         reaction: {
           messageId: payload.messageId,
           emoji: typeof payload.emoji === 'string' ? payload.emoji : '',
+          ...(payload.op === 'add' || payload.op === 'remove' ? { op: payload.op } : {}),
+          ...(typeof payload.v === 'number' ? { v: payload.v } : {}),
         },
       };
     } catch {
@@ -611,7 +615,7 @@ function groupMessagesByDate(
 ): ChatHistory[] {
   const groups = new Map<string, ChatHistory>();
   const renderedMessageById = new Map<string, NonNullable<ChatHistory['messages'][number]>>();
-  const actorReactionByTarget = new Map<string, { me?: string; them?: string }>();
+  const actorReactionByTarget = new Map<string, { me: Set<string>; them: Set<string> }>();
   const now = new Date();
   const language = getCurrentLanguage();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -626,17 +630,17 @@ function groupMessagesByDate(
     }
 
     const entries = new Map<string, { emoji: string; count: number; reactedByMe?: boolean }>();
-    if (actorState.me) {
-      const current = entries.get(actorState.me) ?? { emoji: actorState.me, count: 0 };
+    actorState.me.forEach((emoji) => {
+      const current = entries.get(emoji) ?? { emoji, count: 0 };
       current.count += 1;
       current.reactedByMe = true;
-      entries.set(actorState.me, current);
-    }
-    if (actorState.them) {
-      const current = entries.get(actorState.them) ?? { emoji: actorState.them, count: 0 };
+      entries.set(emoji, current);
+    });
+    actorState.them.forEach((emoji) => {
+      const current = entries.get(emoji) ?? { emoji, count: 0 };
       current.count += 1;
-      entries.set(actorState.them, current);
-    }
+      entries.set(emoji, current);
+    });
     target.reactions = Array.from(entries.values());
   };
 
@@ -668,17 +672,29 @@ function groupMessagesByDate(
     const parsed = parseMessageContent(rawText);
     if (parsed.reaction) {
       const actor = m.isMine ? 'me' : 'them';
-      const current = actorReactionByTarget.get(parsed.reaction.messageId) ?? {};
-      if (parsed.reaction.emoji) {
-        current[actor] = parsed.reaction.emoji;
-        actorReactionByTarget.set(parsed.reaction.messageId, current);
-      } else {
-        delete current[actor];
-        if (current.me || current.them) {
-          actorReactionByTarget.set(parsed.reaction.messageId, current);
+      const current =
+        actorReactionByTarget.get(parsed.reaction.messageId) ??
+        { me: new Set<string>(), them: new Set<string>() };
+      const { emoji, op, v } = parsed.reaction;
+      if (v === 2 && emoji) {
+        // v2 protocol: explicit add/remove for one specific emoji.
+        if (op === 'remove') {
+          current[actor].delete(emoji);
         } else {
-          actorReactionByTarget.delete(parsed.reaction.messageId);
+          current[actor].add(emoji);
         }
+      } else if (emoji) {
+        // Legacy v1: replace semantics — one emoji per actor, last write wins.
+        current[actor].clear();
+        current[actor].add(emoji);
+      } else {
+        // Legacy v1: empty emoji clears all of this actor's reactions.
+        current[actor].clear();
+      }
+      if (current.me.size === 0 && current.them.size === 0) {
+        actorReactionByTarget.delete(parsed.reaction.messageId);
+      } else {
+        actorReactionByTarget.set(parsed.reaction.messageId, current);
       }
       applyReactions(parsed.reaction.messageId);
       continue;

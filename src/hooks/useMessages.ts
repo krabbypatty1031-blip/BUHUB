@@ -244,6 +244,27 @@ function formatMessageTime(date: Date) {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 }
 
+function toggleMyReaction(
+  current: ChatMessage['reactions'],
+  emoji: string
+): ChatMessage['reactions'] {
+  const list = Array.isArray(current) ? current : [];
+  const existing = list.find((r) => r.emoji === emoji);
+  if (existing && existing.reactedByMe) {
+    return existing.count > 1
+      ? list.map((r) =>
+          r.emoji === emoji ? { ...r, count: r.count - 1, reactedByMe: false } : r
+        )
+      : list.filter((r) => r.emoji !== emoji);
+  }
+  if (existing) {
+    return list.map((r) =>
+      r.emoji === emoji ? { ...r, count: r.count + 1, reactedByMe: true } : r
+    );
+  }
+  return [...list, { emoji, count: 1, reactedByMe: true }];
+}
+
 function buildOptimisticMessage(
   payload: SendMessagePayload,
   images?: string[]
@@ -553,6 +574,19 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
             buildConversationContact(receiverId, optimisticMessage, existing, contactSeed)
           );
         });
+      } else if (isReaction && typeof payload !== 'string' && payload.reaction) {
+        const targetId = payload.reaction.messageId;
+        const emoji = payload.reaction.emoji;
+        if (targetId && emoji) {
+          patchChatQueries(queryClient, currentUserId, receiverId, (old) =>
+            old?.map((group) => ({
+              ...group,
+              messages: group.messages.map((m) =>
+                m.id === targetId ? { ...m, reactions: toggleMyReaction(m.reactions, emoji) } : m
+              ),
+            })) ?? old
+          );
+        }
       }
 
       return {

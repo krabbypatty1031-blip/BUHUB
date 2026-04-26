@@ -78,7 +78,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
   const [to, setTo] = useState(initialData?.to ?? '');
   const [item, setItem] = useState(initialData?.item ?? '');
   const [deadline, setDeadline] = useState<Date | null>(
-    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : null),
   );
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -188,7 +188,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
       onSuccess: (created) => {
         navigation.replace('ErrandShare', {
           taskName: title,
-          posterName: user.name,
+          posterName: user.nickname || user.name,
           functionId: created.id,
         });
       },

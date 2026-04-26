@@ -114,7 +114,7 @@ export default function ComposeSecondhandScreen({ navigation, route }: Props) {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [tradeLocation, setTradeLocation] = useState(initialData?.location ?? '');
   const [deadline, setDeadline] = useState<Date | null>(
-    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+    () => (initialData?.expiresAt ? new Date(initialData.expiresAt) : null),
   );
   const [pickerVisible, setPickerVisible] = useState(false);
 

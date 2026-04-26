@@ -178,11 +178,12 @@ export default function RatingListScreen({ navigation }: Props) {
   const renderItem = useCallback(
     ({ item }: { item: RatingItem }) => {
       const topTags = getTopTags(item);
-      const overallScore =
-        item.overallScore ??
-        (item.scores.length > 0
-          ? Math.round(item.scores.reduce((sum, score) => sum + score.value, 0) / item.scores.length)
-          : 0);
+      // Compute from the same scores[] that drive the bars so the headline
+      // value is always on the same scale as the per-criterion display
+      // (matches RatingDetailScreen's derivation).
+      const overallScore = item.scores.length > 0
+        ? Math.round(item.scores.reduce((sum, score) => sum + score.value, 0) / item.scores.length)
+        : 0;
       return (
         <TouchableOpacity
           style={styles.card}

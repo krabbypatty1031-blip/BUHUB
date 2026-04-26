@@ -206,7 +206,7 @@ export default function AppNavigator() {
       onStateChange={() => {
         const currentRoute = navigationRef.getCurrentRoute();
         const currentName = currentRoute?.name;
-        if (currentName === 'ForumTab' || currentName === 'ForumHome') {
+        if (currentName === 'ForumHome') {
           void refreshAnnouncement();
         }
       }}

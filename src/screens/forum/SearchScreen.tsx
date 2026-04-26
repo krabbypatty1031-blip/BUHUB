@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -49,7 +49,6 @@ export default function SearchScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim();
-  const inputRef = useRef<TextInput>(null);
   const { data: rawResults } = useSearch(normalizedQuery);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
@@ -63,10 +62,18 @@ export default function SearchScreen({ navigation }: Props) {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const didFocusOnceRef = useRef(false);
 
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 300);
-  }, []);
+    const unsubscribe = navigation.addListener('transitionEnd', (e) => {
+      if ((e.data as { closing?: boolean } | undefined)?.closing) return;
+      if (didFocusOnceRef.current) return;
+      didFocusOnceRef.current = true;
+      inputRef.current?.focus();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleTagPress = useCallback(
     (tag: string) => {

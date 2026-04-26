@@ -54,13 +54,11 @@ type ApiRatingItemRecord = {
 
 const toApiCategory = (category: RatingCategory) => category.toUpperCase();
 
-const clampToFive = (value: number) => Math.max(0, Math.min(5, value));
-
+// API now accepts 0..100 directly (schema: z.number().min(0).max(100)).
+// Backend converts to 0..5 storage at the ingest boundary.
 const normalizeScoreForSubmit = (value: number) => {
-  if (value > 5) {
-    return clampToFive(Number((value / 20).toFixed(2)));
-  }
-  return clampToFive(Number(value.toFixed(2)));
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Number(value.toFixed(2))));
 };
 
 const mapScore = (score: ApiScoreRecord) => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -90,17 +90,6 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
 
   const placeholders = getPlaceholders();
 
-  // When activityTime changes, auto-set deadline = activityTime if no deadline,
-  // or lift deadline forward if it now falls before activityTime
-  useEffect(() => {
-    if (!activityTime) {
-      setDeadlineTime(null);
-    } else if (!deadlineTime) {
-      setDeadlineTime(activityTime);
-    } else if (deadlineTime.getTime() < activityTime.getTime()) {
-      setDeadlineTime(activityTime);
-    }
-  }, [activityTime]);
 
   const handleTitleChange = useCallback((text: string) => {
     setTitle(enforceTitleLimit(text));
@@ -186,7 +175,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
       onSuccess: (created) => {
         navigation.replace('PartnerShare', {
           activityName: title,
-          posterName: user.name,
+          posterName: user.nickname || user.name,
           functionId: created.id,
         });
       },
@@ -331,27 +320,23 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
               <ClockIcon size={14} color={colors.primary} />{' '}
               {t('deadlineLabel')} <Text style={styles.required}>*</Text>
             </Text>
-            {!activityTime ? (
-              <Text style={styles.hintText}>{t('selectActivityFirst')}</Text>
-            ) : (
-              <TouchableOpacity
-                style={styles.selectWrapper}
-                activeOpacity={0.7}
-                onPress={() => setDeadlinePickerVisible(true)}
+            <TouchableOpacity
+              style={styles.selectWrapper}
+              activeOpacity={0.7}
+              onPress={() => setDeadlinePickerVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.selectText,
+                  !deadlineTime && styles.selectPlaceholder,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.selectText,
-                    !deadlineTime && styles.selectPlaceholder,
-                  ]}
-                >
-                  {deadlineTime
-                    ? formatDeadline(deadlineTime)
-                    : t('deadlinePlaceholder')}
-                </Text>
-                <ChevronRightIcon size={18} color={colors.onSurface} />
-              </TouchableOpacity>
-            )}
+                {deadlineTime
+                  ? formatDeadline(deadlineTime)
+                  : t('deadlinePlaceholder')}
+              </Text>
+              <ChevronRightIcon size={18} color={colors.onSurface} />
+            </TouchableOpacity>
           </View>
 
         </View>
@@ -367,19 +352,16 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
           title={t('activityTime')}
         />
 
-        {activityTime && (
-          <DateTimePickerSheet
-            visible={deadlinePickerVisible}
-            onClose={() => setDeadlinePickerVisible(false)}
-            onConfirm={(date) => {
-              setDeadlineTime(date);
-              setDeadlinePickerVisible(false);
-            }}
-            initialDate={deadlineTime || activityTime}
-            minimumDate={activityTime}
-            title={t('deadlineLabel')}
-          />
-        )}
+        <DateTimePickerSheet
+          visible={deadlinePickerVisible}
+          onClose={() => setDeadlinePickerVisible(false)}
+          onConfirm={(date) => {
+            setDeadlineTime(date);
+            setDeadlinePickerVisible(false);
+          }}
+          initialDate={deadlineTime || undefined}
+          title={t('deadlineLabel')}
+        />
       </ScrollView>
     </SafeAreaView>
   );

@@ -66,6 +66,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import { uploadService } from '../../api/services/upload.service';
 import { messageService } from '../../api/services/message.service';
@@ -292,6 +293,7 @@ type ChatBubbleProps = {
   onPlayAudio?: (message: ChatMessage) => void;
   onImagePress?: (images: string[], index: number) => void;
   onPressReaction?: (message: ChatMessage, emoji: string, reactedByMe: boolean) => void;
+  onAvatarPress?: (isMine: boolean) => void;
   onRetryFailedMessage?: (message: ChatMessage) => void;
   isAudioPlaying?: boolean;
   isAudioBuffering?: boolean;
@@ -1416,6 +1418,7 @@ const ChatBubble = React.memo(function ChatBubble({
   onPlayAudio,
   onImagePress,
   onPressReaction,
+  onAvatarPress,
   onRetryFailedMessage,
   isAudioPlaying,
   isAudioBuffering,
@@ -1591,9 +1594,13 @@ const ChatBubble = React.memo(function ChatBubble({
       ]}
     >
       {!isMine && (
-        <View style={styles.avatarWrap}>
+        <TouchableOpacity
+          style={styles.avatarWrap}
+          activeOpacity={0.85}
+          onPress={() => onAvatarPress?.(false)}
+        >
           <Avatar text={theirAvatarText} uri={theirAvatarUri} size="chat" />
-        </View>
+        </TouchableOpacity>
       )}
       <Animated.View
         style={[
@@ -1657,9 +1664,13 @@ const ChatBubble = React.memo(function ChatBubble({
         ) : null}
       </Animated.View>
       {isMine && (
-        <View style={styles.avatarWrap}>
+        <TouchableOpacity
+          style={styles.avatarWrap}
+          activeOpacity={0.85}
+          onPress={() => onAvatarPress?.(true)}
+        >
           <Avatar text={myAvatarText} uri={myAvatarUri} size="chat" />
-        </View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -3725,18 +3736,23 @@ function ChatScreenContent({ navigation, route }: Props) {
     []
   );
 
-  const actionCurrentReactionEmoji =
-    actionTarget?.reactions?.find((reaction) => reaction.reactedByMe)?.emoji ?? null;
+  const actionMyReactedEmojis = useMemo(() => {
+    const set = new Set<string>();
+    actionTarget?.reactions?.forEach((reaction) => {
+      if (reaction.reactedByMe && reaction.emoji) set.add(reaction.emoji);
+    });
+    return set;
+  }, [actionTarget]);
   const actionTargetIsRecalled = Boolean(actionTarget?.isRecalled);
 
   const handleSendReaction = useCallback(
     (emoji: string) => {
       if (!actionTarget?.id) return;
       const targetMessageId = actionTarget.id;
-      const nextEmoji = actionCurrentReactionEmoji === emoji ? '' : emoji;
+      const op: 'add' | 'remove' = actionMyReactedEmojis.has(emoji) ? 'remove' : 'add';
       setActionTarget(null);
       sendMessageMutation.mutate(
-        { payload: { reaction: { messageId: targetMessageId, emoji: nextEmoji } } },
+        { payload: { reaction: { messageId: targetMessageId, emoji, op, v: 2 } } },
         {
           onError: () => {
             showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
@@ -3744,14 +3760,15 @@ function ChatScreenContent({ navigation, route }: Props) {
         }
       );
     },
-    [actionCurrentReactionEmoji, actionTarget, sendMessageMutation, showSnackbar, t]
+    [actionTarget, actionMyReactedEmojis, sendMessageMutation, showSnackbar, t]
   );
 
   const handlePressReaction = useCallback(
     (message: ChatMessage, emoji: string, reactedByMe: boolean) => {
       if (!message.id) return;
+      const op: 'add' | 'remove' = reactedByMe ? 'remove' : 'add';
       sendMessageMutation.mutate(
-        { payload: { reaction: { messageId: message.id, emoji: reactedByMe ? '' : emoji } } },
+        { payload: { reaction: { messageId: message.id, emoji, op, v: 2 } } },
         {
           onError: () => {
             showSnackbar({ message: t('dataLoadFailed'), type: 'error' });
@@ -3760,6 +3777,20 @@ function ChatScreenContent({ navigation, route }: Props) {
       );
     },
     [sendMessageMutation, showSnackbar, t]
+  );
+
+  const handleAvatarPress = useCallback(
+    (isMine: boolean) => {
+      handleAvatarPressNavigation({
+        navigation,
+        currentUser: user ?? null,
+        userName: isMine ? user?.userName ?? null : null,
+        displayName: isMine ? user?.nickname ?? user?.name ?? null : contactName,
+        cachedAvatar: isMine ? user?.avatar ?? null : contactAvatar ?? null,
+        cachedNickname: isMine ? user?.nickname ?? null : contactName,
+      });
+    },
+    [navigation, user, contactName, contactAvatar]
   );
 
   /* ----- Send message ----- */
@@ -4618,6 +4649,7 @@ function ChatScreenContent({ navigation, route }: Props) {
             onPlayAudio={handlePlayAudio}
             onImagePress={handleOpenImagePreview}
             onPressReaction={handlePressReaction}
+            onAvatarPress={handleAvatarPress}
             onRetryFailedMessage={retryFailedMessage}
             isAudioPlaying={Boolean(
               itemPlaybackKey &&
@@ -5082,7 +5114,7 @@ function ChatScreenContent({ navigation, route }: Props) {
                       key={emoji}
                       style={[
                         styles.actionEmojiBtn,
-                        actionCurrentReactionEmoji === emoji ? styles.actionEmojiBtnActive : undefined,
+                        actionMyReactedEmojis.has(emoji) ? styles.actionEmojiBtnActive : undefined,
                       ]}
                       activeOpacity={0.7}
                       onPress={() => handleSendReaction(emoji)}

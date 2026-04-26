@@ -51,6 +51,8 @@ function deriveStudentIdFromEmail(email: string | undefined | null): string {
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'LockerSFSC'>;
 
+type DropOffOption = { date: string; labelKey: string };
+
 const DEFAULT_DROP_OFF_OPTIONS: DropOffOption[] = [
   { date: '2026-05-07', labelKey: 'lockerSfscDropOffOption1' },
   { date: '2026-05-11', labelKey: 'lockerSfscDropOffOption2' },
@@ -442,7 +444,8 @@ export default function LockerSFSCScreen({ navigation }: Props) {
     );
   }, [mineRecord, fullName, studentId, phoneNumber, residenceAddress, dropOffDate, boxCount]);
 
-  const canSubmit = isValid && (!isModifying || hasChanges);
+  const isFormLocked = isExpired || isNotOpen || modifyExhausted;
+  const canSubmit = isValid && (!isModifying || hasChanges) && !isFormLocked;
 
   const performSubmit = useCallback(async () => {
     if (!isValid || !dropOffDate) return;
@@ -477,19 +480,18 @@ export default function LockerSFSCScreen({ navigation }: Props) {
   }, [performSubmit]);
 
   const showAnnouncement = useMemo(() => {
-    if (!broadcastMessage?.trim()) return false;
-    return isExpired;
-  }, [broadcastMessage, isExpired]);
+    return Boolean(broadcastMessage?.trim());
+  }, [broadcastMessage]);
 
   const renderForm = () => (
     <>
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscFullName')}</Text>
         <TextInput
-          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
+          style={[styles.input, isFormLocked && styles.inputReadOnly]}
           value={fullName}
           onChangeText={setFullName}
-          editable={!isExpired && !isNotOpen}
+          editable={!isFormLocked}
           placeholder={t('lockerSfscFullNamePlaceholder')}
           placeholderTextColor={colors.outline}
         />
@@ -497,14 +499,14 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscStudentId')}</Text>
         <TextInput
-          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
+          style={[styles.input, isFormLocked && styles.inputReadOnly]}
           value={studentId}
           onChangeText={(text) => {
             // Reject any change that contains non-digits (e.g. paste of "abc123",
             // external keyboard letter, IME input). Keeps the previous value on reject.
             if (/^\d*$/.test(text)) setStudentId(text);
           }}
-          editable={!isExpired && !isNotOpen}
+          editable={!isFormLocked}
           placeholder={t('lockerSfscStudentIdPlaceholder')}
           placeholderTextColor={colors.outline}
           keyboardType="number-pad"
@@ -514,10 +516,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscPhone')}</Text>
         <TextInput
-          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
+          style={[styles.input, isFormLocked && styles.inputReadOnly]}
           value={phoneNumber}
           onChangeText={setPhoneNumber}
-          editable={!isExpired && !isNotOpen}
+          editable={!isFormLocked}
           placeholder={t('lockerSfscPhonePlaceholder')}
           placeholderTextColor={colors.outline}
           keyboardType="phone-pad"
@@ -526,10 +528,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.label}>{t('lockerSfscAddress')}</Text>
         <TouchableOpacity
-          style={[styles.input, (isExpired || isNotOpen) && styles.inputReadOnly]}
+          style={[styles.input, isFormLocked && styles.inputReadOnly]}
           onPress={() => setHallPickerOpen(true)}
           activeOpacity={0.7}
-          disabled={isExpired || isNotOpen}
+          disabled={isFormLocked}
         >
           <Text
             style={selectedHallLabel ? styles.pickerValue : styles.pickerPlaceholder}
@@ -553,13 +555,10 @@ export default function LockerSFSCScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
         <TouchableOpacity
-          style={[
-            styles.input,
-            (isExpired || isNotOpen || modifyExhausted) && styles.inputReadOnly,
-          ]}
+          style={[styles.input, isFormLocked && styles.inputReadOnly]}
           onPress={() => setBoxPickerOpen(true)}
           activeOpacity={0.7}
-          disabled={isExpired || isNotOpen || modifyExhausted}
+          disabled={isFormLocked}
         >
           <Text style={styles.pickerValue} numberOfLines={1}>{String(boxCount)}</Text>
         </TouchableOpacity>
@@ -575,16 +574,16 @@ export default function LockerSFSCScreen({ navigation }: Props) {
                 style={[
                   styles.chip,
                   selected && styles.chipSelected,
-                  (isExpired || isNotOpen) && !selected && styles.chipDisabled,
+                  isFormLocked && !selected && styles.chipDisabled,
                 ]}
                 onPress={() => setDropOffDate(selected ? null : opt.date)}
-                disabled={isExpired || isNotOpen}
+                disabled={isFormLocked}
               >
                 <Text
                   style={[
                     styles.chipText,
                     selected && styles.chipTextSelected,
-                    (isExpired || isNotOpen) && !selected && styles.chipTextDisabled,
+                    isFormLocked && !selected && styles.chipTextDisabled,
                   ]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
