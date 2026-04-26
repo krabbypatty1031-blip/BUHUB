@@ -67,7 +67,7 @@ function formatDropOffLabel(iso: string, lang: string, fallbackKey: string, t: (
     ? { day: 'numeric', month: 'short', timeZone: 'Asia/Hong_Kong' }
     : { month: 'numeric', day: 'numeric', timeZone: 'Asia/Hong_Kong' };
   const datePart = new Intl.DateTimeFormat(locale, options).format(d);
-  return `${datePart} 10am-4pm`;
+  return `${datePart} 11am-5pm`;
 }
 
 // Metro bundler requires static require() paths — declare all three up front,
