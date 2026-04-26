@@ -858,9 +858,11 @@ export function useBookmarkPost() {
     mutationFn: (postId: string) => forumService.bookmarkPost(postId),
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['userPosts'] });
       await queryClient.cancelQueries({ queryKey: postDetailKey(postId, language) });
       await queryClient.cancelQueries({ queryKey: ['myContent'] });
       const previousPostLists = getAllPostLists(queryClient);
+      const previousUserPostLists = getAllUserPostLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
       const listSourcePost = findPostInPostLists(previousPostLists, postId);
@@ -873,16 +875,29 @@ export function useBookmarkPost() {
       setAllPostLists(queryClient, (old) =>
         mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
       );
+      setAllUserPostLists(queryClient, (old) =>
+        mapPostsPages(old, (p) => (p.id === postId ? toggle(p) : p))
+      );
       if (previousDetail) {
         queryClient.setQueryData<ForumPost>(postDetailKey(postId, language), toggle(previousDetail));
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
       );
-      return { previousPostLists, previousDetail, previousMyContent };
+      return { previousPostLists, previousUserPostLists, previousDetail, previousMyContent };
     },
     onSuccess: (res, postId) => {
       setAllPostLists(queryClient, (old) =>
+        mapPostsPages(old, (post) =>
+          post.id === postId
+            ? {
+                ...post,
+                bookmarked: res.bookmarked,
+              }
+            : post
+        )
+      );
+      setAllUserPostLists(queryClient, (old) =>
         mapPostsPages(old, (post) =>
           post.id === postId
             ? {
@@ -912,11 +927,13 @@ export function useBookmarkPost() {
     },
     onError: (_err, postId, context) => {
       restoreAllPostLists(queryClient, context?.previousPostLists);
+      restoreAllPostLists(queryClient, context?.previousUserPostLists);
       if (context?.previousDetail) queryClient.setQueryData(postDetailKey(postId, language), context.previousDetail);
       if (context?.previousMyContent) queryClient.setQueryData(['myContent'], context.previousMyContent);
     },
     onSettled: (_data, _err, postId) => {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
     },
