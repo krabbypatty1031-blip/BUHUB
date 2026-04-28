@@ -164,7 +164,6 @@ export default function MessagesScreen({ navigation }: Props) {
   const markAsUnread = useMessageStore((s) => s.markAsUnread);
   const markConversationAsRead = useMessageStore((s) => s.markAsRead);
   const clearUnread = useMessageStore((s) => s.clearUnread);
-  const markInboxSeen = useMessageStore((s) => s.markInboxSeen);
   const pinnedContacts = useMessageStore((s) => s.pinnedContacts);
   const isPinned = useMessageStore((s) => s.isPinned);
   const isMuted = useMessageStore((s) => s.isMuted);
@@ -174,8 +173,6 @@ export default function MessagesScreen({ navigation }: Props) {
   const readContacts = useMessageStore((s) => s.readContacts);
   const inboxSeenContacts = useMessageStore((s) => s.inboxSeenContacts);
   const setUnreadMessages = useNotificationStore((s) => s.setUnreadMessages);
-  const markChatscreenViewed = useNotificationStore((s) => s.markChatscreenViewed);
-  const setMessagesScreenFocused = useNotificationStore((s) => s.setMessagesScreenFocused);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const blockedUsers = useForumStore((s) => s.blockedUsers);
   const isBlocked = useForumStore((s) => s.isBlocked);
@@ -186,7 +183,6 @@ export default function MessagesScreen({ navigation }: Props) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetContact, setActionSheetContact] = useState<Contact | null>(null);
-  const shouldSnapshotInboxSeenRef = useRef(false);
   const normalizedSearchQuery = searchQuery.trim();
   const { data: searchedContacts } = useMessageSearch(normalizedSearchQuery, {
     enabled: showSearch && normalizedSearchQuery.length > 0,
@@ -258,31 +254,15 @@ export default function MessagesScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      shouldSnapshotInboxSeenRef.current = true;
-      setMessagesScreenFocused(true);
-      markChatscreenViewed();
       void queryClient.refetchQueries({ queryKey: ['notifications', 'unreadCount'], type: 'active' });
       const now = Date.now();
       if (now - lastRefetchRef.current > 10_000) {
         lastRefetchRef.current = now;
         void refetch();
       }
-      return () => {
-        shouldSnapshotInboxSeenRef.current = false;
-        setMessagesScreenFocused(false);
-      };
-    }, [markChatscreenViewed, queryClient, refetch, setMessagesScreenFocused])
+      return () => {};
+    }, [queryClient, refetch])
   );
-
-  useEffect(() => {
-    if (!isFocused || !contacts || isFetching) return;
-    if (!shouldSnapshotInboxSeenRef.current) return;
-    shouldSnapshotInboxSeenRef.current = false;
-    const unreadContactIds = contacts
-      .filter((contact) => getEffectiveUnread(contact.id, contact.unread) > 0)
-      .map((contact) => contact.id);
-    markInboxSeen(unreadContactIds);
-  }, [contacts, getEffectiveUnread, isFetching, isFocused, markInboxSeen]);
 
   const unreadCounts: Record<string, number> = {
     unreadLikes,

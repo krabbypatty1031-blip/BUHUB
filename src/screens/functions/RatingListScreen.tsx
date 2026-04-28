@@ -106,9 +106,17 @@ export default function RatingListScreen({ navigation }: Props) {
     const q = deferredSearchQuery.trim().toLowerCase();
     if (!q) return ratings;
     return ratings.filter((item) => {
-      const display = translateLabel(item.name, lang).toLowerCase();
-      const raw = (item.name ?? '').toLowerCase();
-      return display.includes(q) || raw.includes(q);
+      const haystack: string[] = [
+        translateLabel(item.name, lang),
+        item.name ?? '',
+        getLocalizedRatingDepartment(item, lang),
+        (item as { department?: string }).department ?? '',
+        (item as { code?: string }).code ?? '',
+        (item as { email?: string }).email ?? '',
+        getLocalizedRatingLocation(item as never, lang),
+        (item as { location?: string }).location ?? '',
+      ];
+      return haystack.some((field) => field.toLowerCase().includes(q));
     });
   }, [ratings, deferredSearchQuery, lang]);
 
