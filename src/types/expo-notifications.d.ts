@@ -50,6 +50,7 @@ declare module 'expo-notifications' {
   export function getPermissionsAsync(): Promise<NotificationPermissionsStatus>;
   export function requestPermissionsAsync(): Promise<NotificationPermissionsStatus>;
   export function getExpoPushTokenAsync(options?: { projectId?: string }): Promise<ExpoPushToken>;
+  export function unregisterForNotificationsAsync(): Promise<void>;
   export function getLastNotificationResponseAsync(): Promise<NotificationResponse | null>;
   export function addNotificationReceivedListener(
     listener: (notification: Notification) => void

@@ -222,6 +222,16 @@ export const notificationService = {
     return { success: true };
   },
 
+  async unregisterDevice(pushToken: string): Promise<{ success: boolean }> {
+    if (USE_MOCK) {
+      return { success: true };
+    }
+    await apiClient.delete(ENDPOINTS.NOTIFICATION.REGISTER_DEVICE, {
+      data: { token: pushToken },
+    });
+    return { success: true };
+  },
+
   async getSettings(): Promise<NotificationSettings> {
     if (USE_MOCK) {
       return { likes: true, comments: true, followers: true, messages: true, system: true };

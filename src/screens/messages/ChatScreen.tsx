@@ -1258,7 +1258,8 @@ const ImageMessageContent = React.memo(function ImageMessageContent({
     prevProps.onLongPressMessage === nextProps.onLongPressMessage &&
     prevProps.message.text === nextProps.message.text &&
     prevProps.message.imageAlbum?.count === nextProps.message.imageAlbum?.count &&
-    isSameStringArray(prevProps.message.images, nextProps.message.images)
+    isSameStringArray(prevProps.message.images, nextProps.message.images) &&
+    isSameReactions(prevProps.message.reactions, nextProps.message.reactions)
   );
 });
 
@@ -1304,7 +1305,8 @@ const AudioMessageContent = React.memo(function AudioMessageContent({
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.status === nextProps.message.status &&
     prevProps.message.audio?.url === nextProps.message.audio?.url &&
-    prevProps.message.audio?.durationMs === nextProps.message.audio?.durationMs
+    prevProps.message.audio?.durationMs === nextProps.message.audio?.durationMs &&
+    isSameReactions(prevProps.message.reactions, nextProps.message.reactions)
   );
 });
 
@@ -1566,8 +1568,10 @@ const ChatBubble = React.memo(function ChatBubble({
     </View>
   );
 
+  const bodyHasOwnTouchable = Boolean(card) || hasImages || hasAudio;
+
   const interactiveBodyNode = (() => {
-    const wrappedForLongPress = onLongPressMessage ? (
+    const wrappedForLongPress = onLongPressMessage && !bodyHasOwnTouchable ? (
       <TouchableOpacity
         activeOpacity={1}
         onLongPress={() => onLongPressMessage(message)}
