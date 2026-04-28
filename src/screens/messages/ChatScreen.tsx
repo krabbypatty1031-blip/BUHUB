@@ -106,6 +106,7 @@ import {
   buildPreviewFromChatMessage,
   formatConversationTime,
   hydrateHiddenChatMessages,
+  mergeChatHistories,
   patchChatQueries,
   patchContactsQueries,
   peekHiddenChatMessages,
@@ -604,43 +605,6 @@ function countMessagesInHistory(history: ChatHistory[] | undefined): number {
   return history.reduce((count, group) => count + (group.messages?.length ?? 0), 0);
 }
 
-function mergeChatHistories(
-  olderHistory: ChatHistory[] | undefined,
-  latestHistory: ChatHistory[] | undefined
-): ChatHistory[] {
-  const seenMessageIds = new Set<string>();
-  const merged: ChatHistory[] = [];
-
-  const appendGroup = (group: ChatHistory) => {
-    const nextMessages = (group.messages ?? []).filter((message) => {
-      if (!message.id) return true;
-      if (seenMessageIds.has(message.id)) return false;
-      seenMessageIds.add(message.id);
-      return true;
-    });
-
-    if (nextMessages.length === 0) return;
-
-    const lastGroup = merged.length > 0 ? merged[merged.length - 1] : null;
-    if (lastGroup?.date === group.date) {
-      lastGroup.messages.push(...nextMessages);
-      lastGroup.messages = sortGroupMessagesByCreatedAt(lastGroup.messages);
-      return;
-    }
-
-    merged.push({
-      ...group,
-      messages: sortGroupMessagesByCreatedAt([...nextMessages]),
-    });
-  };
-
-  [olderHistory, latestHistory].forEach((history) => {
-    if (!Array.isArray(history)) return;
-    history.forEach(appendGroup);
-  });
-
-  return merged;
-}
 
 function removeMessageFromHistory(
   history: ChatHistory[] | undefined,

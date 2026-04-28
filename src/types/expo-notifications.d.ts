@@ -44,7 +44,9 @@ declare module 'expo-notifications' {
   };
 
   export function setNotificationHandler(handler: {
-    handleNotification: () => Promise<NotificationBehavior> | NotificationBehavior;
+    handleNotification: (
+      notification: Notification
+    ) => Promise<NotificationBehavior> | NotificationBehavior;
   }): void;
 
   export function getPermissionsAsync(): Promise<NotificationPermissionsStatus>;

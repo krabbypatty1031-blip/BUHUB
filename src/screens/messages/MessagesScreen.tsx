@@ -126,7 +126,7 @@ const ContactRow = React.memo(function ContactRow({
             style={[styles.contactMessage, isMuted && styles.contactMessageMuted]}
             numberOfLines={1}
           >
-            {isMuted ? '\u{1F507} ' : ''}{item.message}
+            {item.message}
           </Text>
         </View>
         <View style={styles.contactRightCol}>

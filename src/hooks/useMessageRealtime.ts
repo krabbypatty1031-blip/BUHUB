@@ -216,9 +216,17 @@ export function useMessageRealtime() {
                     );
                   }
                 } else {
-                  // Incoming message from the other party — always append
+                  // Incoming message from the other party — append in-place
+                  // ONLY if a chat cache already exists for this contact.
+                  // Otherwise leave it empty and let the next observation
+                  // fetch fresh history from the server. Skipping the write
+                  // avoids overwriting the persisted full archive with a
+                  // single-message snapshot when current is undefined
+                  // (e.g. unobserved language variant or in-flight first fetch).
                   patchChatQueries(queryClient, currentUserId, contactId, (current, language) =>
-                    appendMessageToHistory(current, nextMessage, language)
+                    Array.isArray(current) && current.length > 0
+                      ? appendMessageToHistory(current, nextMessage, language)
+                      : undefined
                   );
                 }
               }

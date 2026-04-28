@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { userService } from '../api/services/user.service';
 import { forumService } from '../api/services/forum.service';
 import { useForumStore } from '../store/forumStore';
-import type { User, FollowListItem, MyContent, UserPublicProfile, FollowerNotification, ForumCircleSummary } from '../types';
+import type { User, FollowListItem, MyContent, UserPublicProfile, FollowerNotification, ForumCircleSummary, Contact } from '../types';
 
 function normalizeHandle(handle: string | null | undefined): string {
   return (handle ?? '').trim().toLowerCase();
@@ -408,13 +408,28 @@ export function useBlockUser() {
   return useMutation({
     mutationFn: (userName: string) => userService.blockUser(userName),
     onMutate: async (userName) => {
+      // Run optimistic updates SYNCHRONOUSLY before any await, so the contact
+      // row disappears in the same frame the Alert dismisses — no flicker /
+      // "spark" between alert close and forumStore update.
+      blockUser(userName);
+
+      const previousContactsByKey = queryClient.getQueriesData<Contact[]>({ queryKey: ['contacts'] });
+      previousContactsByKey.forEach(([queryKey, contacts]) => {
+        if (!contacts) return;
+        const next = contacts.filter(
+          (c) => !isSameHandle(c.userName, userName) && !isSameHandle(c.name, userName)
+        );
+        if (next.length !== contacts.length) {
+          queryClient.setQueryData(queryKey, next);
+        }
+      });
+
       await Promise.all([
         queryClient.cancelQueries({ queryKey: ['followingList'] }),
         queryClient.cancelQueries({ queryKey: ['followersList'] }),
         queryClient.cancelQueries({ queryKey: ['myContent'] }),
+        queryClient.cancelQueries({ queryKey: ['contacts'] }),
       ]);
-
-      blockUser(userName);
 
       const previousFollowingList = queryClient.getQueryData<FollowListItem[]>(['followingList']);
       const previousFollowersList = queryClient.getQueryData<FollowListItem[]>(['followersList']);
@@ -447,6 +462,7 @@ export function useBlockUser() {
         previousFollowingList,
         previousFollowersList,
         previousMyContent,
+        previousContactsByKey,
       };
     },
     onError: (_err, userName, context) => {
@@ -461,6 +477,9 @@ export function useBlockUser() {
       if (context?.previousMyContent) {
         queryClient.setQueryData(['myContent'], context.previousMyContent);
       }
+      context?.previousContactsByKey?.forEach(([queryKey, contacts]) => {
+        if (contacts) queryClient.setQueryData(queryKey, contacts);
+      });
     },
     onSuccess: (_data, userName) => {
       queryClient.invalidateQueries({ queryKey: ['blockedList'] });
@@ -469,6 +488,18 @@ export function useBlockUser() {
       queryClient.invalidateQueries({ queryKey: ['followersList'] });
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
       queryClient.invalidateQueries({ queryKey: ['publicProfile', userName] });
+      // Server-side block filters apply to every user-content + interaction
+      // surface. Invalidate each so the host's view drops the blocked user
+      // immediately (instead of after staleTime / next refetch interval).
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+      queryClient.invalidateQueries({ queryKey: ['errands'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+      queryClient.invalidateQueries({ queryKey: ['ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
@@ -492,6 +523,18 @@ export function useUnblockUser() {
       queryClient.invalidateQueries({ queryKey: ['myContent'] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['publicProfile', userName] });
+      // Symmetric to useBlockUser: every server-filtered surface must
+      // refetch so the previously-hidden content reappears immediately
+      // when the host unblocks the user.
+      queryClient.invalidateQueries({ queryKey: ['contacts'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+      queryClient.invalidateQueries({ queryKey: ['errands'] });
+      queryClient.invalidateQueries({ queryKey: ['secondhand'] });
+      queryClient.invalidateQueries({ queryKey: ['ratings'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }

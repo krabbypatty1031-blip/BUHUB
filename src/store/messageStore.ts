@@ -172,7 +172,11 @@ export const useMessageStore = create<MessageState>()(
       },
 
       getEffectiveTabUnread: (contactId, apiUnread) => {
-        const { inboxSeenContacts } = get();
+        const { inboxSeenContacts, mutedContacts } = get();
+        // Muted contacts do not contribute to the tab badge — matches the
+        // WeChat / iMessage convention. The per-row indicator still reflects
+        // the underlying unread count via getEffectiveUnread.
+        if (mutedContacts.has(contactId)) return 0;
         const effectiveUnread = get().getEffectiveUnread(contactId, apiUnread);
         if (effectiveUnread <= 0) return 0;
         if (inboxSeenContacts.has(contactId)) return 0;

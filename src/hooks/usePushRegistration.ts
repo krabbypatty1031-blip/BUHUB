@@ -7,12 +7,33 @@ import type { NavigationContainerRef } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
 import { useAuthStore } from '../store/authStore';
+import { useMessageStore } from '../store/messageStore';
 import { canPublishCommunityContent } from '../utils/publishPermission';
 import { promptHkbuVerification } from '../utils/hkbuPrompt';
 import i18n from '../i18n';
 import type { MainTabParamList } from '../types/navigation';
 
 const PUSH_REGISTRATION_CACHE_KEY = 'ulink-expo-push-registration';
+
+/**
+ * Returns the muted contactId if the push is a chat message from a contact
+ * the user has muted locally; otherwise null. Push payload shape is produced
+ * by buhub_back/src/services/expo-push.service.ts for direct messages:
+ *   data.path = "chat/{contactId}"
+ */
+function isMutedChatPush(data: Record<string, unknown> | undefined | null): boolean {
+  if (!data) return false;
+  const path = typeof data.path === 'string' ? data.path : '';
+  const segments = path.split('/').filter(Boolean);
+  if (segments[0] !== 'chat' || !segments[1]) return false;
+  let contactId: string;
+  try {
+    contactId = decodeURIComponent(segments[1]);
+  } catch {
+    contactId = segments[1];
+  }
+  return Boolean(contactId) && useMessageStore.getState().mutedContacts.has(contactId);
+}
 
 type PushNavigationRef = NavigationContainerRef<MainTabParamList>;
 type PushNavigationTarget =
@@ -29,12 +50,23 @@ type PushNavigationTarget =
 let pendingPushNavigationTarget: PushNavigationTarget | null = null;
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification?.request?.content?.data as Record<string, unknown> | undefined;
+    if (isMutedChatPush(data)) {
+      return {
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 type CachedPushRegistration = {

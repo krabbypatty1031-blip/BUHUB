@@ -176,6 +176,50 @@ export function sortGroupMessagesByCreatedAt(messages: ChatMessage[]): ChatMessa
   });
 }
 
+/**
+ * Merge an "older" page of chat history into the existing visible history.
+ * Dedupes by message id, coalesces same-date groups, sorts each group's
+ * messages by createdAt. Used by the chat-screen pagination flow when the
+ * user scrolls back to load page N+1 of the server's history.
+ */
+export function mergeChatHistories(
+  olderHistory: ChatHistory[] | undefined,
+  latestHistory: ChatHistory[] | undefined
+): ChatHistory[] {
+  const seenMessageIds = new Set<string>();
+  const merged: ChatHistory[] = [];
+
+  const appendGroup = (group: ChatHistory) => {
+    const nextMessages = (group.messages ?? []).filter((message) => {
+      if (!message.id) return true;
+      if (seenMessageIds.has(message.id)) return false;
+      seenMessageIds.add(message.id);
+      return true;
+    });
+
+    if (nextMessages.length === 0) return;
+
+    const lastGroup = merged.length > 0 ? merged[merged.length - 1] : null;
+    if (lastGroup?.date === group.date) {
+      lastGroup.messages.push(...nextMessages);
+      lastGroup.messages = sortGroupMessagesByCreatedAt(lastGroup.messages);
+      return;
+    }
+
+    merged.push({
+      ...group,
+      messages: sortGroupMessagesByCreatedAt([...nextMessages]),
+    });
+  };
+
+  [olderHistory, latestHistory].forEach((history) => {
+    if (!Array.isArray(history)) return;
+    history.forEach(appendGroup);
+  });
+
+  return merged;
+}
+
 export function appendMessageToHistory(
   history: ChatHistory[] | undefined,
   message: ChatMessage,

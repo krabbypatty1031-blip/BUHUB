@@ -93,8 +93,19 @@ function shouldPreserveMissingCachedMessage(
   ) {
     return true;
   }
-  if (message.type !== 'sent' || !message.clientKey) return false;
   const createdAtMs = resolveMessageCreatedAtMs(message);
+  // Cached messages older than the server's first page are NOT contradicted
+  // by the fetch — the paginated response just doesn't reach back that far.
+  // Preserve them so the local archive accumulates beyond the server's
+  // first-page window instead of being silently truncated on every refetch.
+  if (
+    createdAtMs != null &&
+    oldestFetchedTimestampMs != null &&
+    createdAtMs < oldestFetchedTimestampMs - HISTORY_EDGE_TOLERANCE_MS
+  ) {
+    return true;
+  }
+  if (message.type !== 'sent' || !message.clientKey) return false;
   if (createdAtMs == null) return false;
   if (Date.now() - createdAtMs > RECENT_CONFIRMED_MESSAGE_GRACE_MS) return false;
   if (oldestFetchedTimestampMs == null) return true;
@@ -621,13 +632,15 @@ export function useSendMessage(receiverId: string, contactSeed?: SendMessageCont
         if (currentUserId) {
           rememberRecentSentMessage(currentUserId, receiverId, sentMessage);
         }
-        patchContactsQueries(queryClient, currentUserId, (current) => {
-          const existing = current?.find((contact) => contact.id === receiverId);
-          return upsertContact(
-            current,
-            buildConversationContact(receiverId, sentMessage, existing, contactSeed)
-          );
-        });
+        if (!context?.isReaction) {
+          patchContactsQueries(queryClient, currentUserId, (current) => {
+            const existing = current?.find((contact) => contact.id === receiverId);
+            return upsertContact(
+              current,
+              buildConversationContact(receiverId, sentMessage, existing, contactSeed)
+            );
+          });
+        }
       }
       // Mark chat query stale so it refetches when next observed.
       // Using refetchType 'none' — the patched cache already has the correct message;

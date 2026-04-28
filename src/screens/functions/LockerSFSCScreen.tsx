@@ -54,7 +54,6 @@ type Props = NativeStackScreenProps<FunctionsStackParamList, 'LockerSFSC'>;
 type DropOffOption = { date: string; labelKey: string };
 
 const DEFAULT_DROP_OFF_OPTIONS: DropOffOption[] = [
-  { date: '2026-05-07', labelKey: 'lockerSfscDropOffOption1' },
   { date: '2026-05-11', labelKey: 'lockerSfscDropOffOption2' },
   { date: '2026-05-16', labelKey: 'lockerSfscDropOffOption3' },
 ];
