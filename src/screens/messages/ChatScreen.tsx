@@ -1682,8 +1682,23 @@ function ChatScreenPlaceholder({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => setReady(true));
-    return () => task.cancel();
+    // Wait for in-flight RN interactions / animations to settle before
+    // mounting the heavy ChatScreenContent — preserves the push-transition
+    // smoothness. Hard fallback at 300 ms so a stalled InteractionManager
+    // queue (leaked interaction handle elsewhere, interrupted transition,
+    // hot-reload race) cannot leave the spinner frozen forever.
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) setReady(true);
+    });
+    const fallback = setTimeout(() => {
+      if (!cancelled) setReady(true);
+    }, 300);
+    return () => {
+      cancelled = true;
+      task.cancel();
+      clearTimeout(fallback);
+    };
   }, []);
 
   if (ready) {
