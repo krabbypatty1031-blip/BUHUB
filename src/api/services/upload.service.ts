@@ -198,11 +198,13 @@ async function uploadBinary(
 
 async function uploadViaPresigned(
   file: UploadInput,
-  options?: { imageMode?: ImageCompressionMode }
+  options?: { imageMode?: ImageCompressionMode; skipCompression?: boolean }
 ): Promise<{ url: string }> {
   const normalizedType = normalizeMimeType(file.type);
   const preparedFile = isImageMimeType(normalizedType)
-    ? await compressImage(file, options?.imageMode ?? 'general')
+    ? options?.skipCompression
+      ? { ...file, type: normalizedType, name: ensureJpegName(file.name) }
+      : await compressImage(file, options?.imageMode ?? 'general')
     : {
         ...file,
         type: normalizedType,
@@ -349,7 +351,9 @@ export const uploadService = {
       const base = getMockBaseUrl();
       return { url: `${base}/mock/avatars/${file.name}` };
     }
-    return uploadViaPresigned(file, { imageMode: 'avatar' });
+    // Cropper already emits a 320×320 q=0.9 JPEG; skip the redundant
+    // second-pass manipulateAsync to save 100–300ms on JS thread.
+    return uploadViaPresigned(file, { imageMode: 'avatar', skipCompression: true });
   },
 
   async uploadImages(files: UploadInput[]): Promise<{ urls: string[] }> {

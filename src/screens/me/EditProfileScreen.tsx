@@ -388,6 +388,9 @@ function AvatarCropperModal({
   const translateXOffset = useSharedValue(0);
   const translateYOffset = useSharedValue(0);
   const [naturalSize, setNaturalSize] = useState({ width: cropSize, height: cropSize });
+  // Mirrors scale.value on the JS thread so the percentage label stays in
+  // sync with +/-, reset, and pinch gestures.
+  const [displayScale, setDisplayScale] = useState(1);
 
   useEffect(() => {
     if (!visible || !imageUri) return;
@@ -409,6 +412,7 @@ function AvatarCropperModal({
     translateY.value = 0;
     translateXOffset.value = 0;
     translateYOffset.value = 0;
+    setDisplayScale(1);
   }, [
     cropSize,
     imageUri,
@@ -440,6 +444,7 @@ function AvatarCropperModal({
       scaleOffset.value = scale.value;
       translateXOffset.value = translateX.value;
       translateYOffset.value = translateY.value;
+      runOnJS(setDisplayScale)(scale.value);
     });
 
   const panGesture = Gesture.Pan()
@@ -489,6 +494,7 @@ function AvatarCropperModal({
       translateY.value = clampTranslateWorklet(translateY.value, clampedScale, baseHeight, cropSize);
       translateXOffset.value = translateX.value;
       translateYOffset.value = translateY.value;
+      setDisplayScale(clampedScale);
     },
     [
       baseHeight,
@@ -612,7 +618,7 @@ function AvatarCropperModal({
               <Text style={styles.zoomBtnText}>-</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.zoomResetBtn} onPress={handleZoomReset} activeOpacity={0.75}>
-              <Text style={styles.zoomResetText}>100%</Text>
+              <Text style={styles.zoomResetText}>{`${Math.round(displayScale * 100)}%`}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.zoomBtn} onPress={handleZoomIn} activeOpacity={0.75}>
               <Text style={styles.zoomBtnText}>+</Text>
