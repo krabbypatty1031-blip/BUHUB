@@ -76,13 +76,15 @@ export default function ErrandListScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (errands.length > 0 && !expiredNotified) {
-      const hasExpired = errands.some((item) => item.expired);
-      if (hasExpired) {
+      const hasOwnExpired = errands.some(
+        (item) => item.expired && isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)
+      );
+      if (hasOwnExpired) {
         showSnackbar({ message: t('errandExpiryNotice'), type: 'info' });
         setExpiredNotified(true);
       }
     }
-  }, [errands, expiredNotified, showSnackbar, t, setExpiredNotified]);
+  }, [errands, expiredNotified, showSnackbar, t, setExpiredNotified, currentUser]);
 
   const categoryOptions = useMemo<SegmentedControlOption<ErrandCategory | 'all'>[]>(
     () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),

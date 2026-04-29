@@ -78,13 +78,15 @@ export default function PartnerListScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (partners.length > 0 && !expiredNotified) {
-      const hasExpired = partners.some((item) => item.expired);
-      if (hasExpired) {
+      const hasOwnExpired = partners.some(
+        (item) => item.expired && isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)
+      );
+      if (hasOwnExpired) {
         showSnackbar({ message: t('partnerExpiryNotice'), type: 'info' });
         setExpiredNotified(true);
       }
     }
-  }, [partners, expiredNotified, showSnackbar, t, setExpiredNotified]);
+  }, [partners, expiredNotified, showSnackbar, t, setExpiredNotified, currentUser]);
 
   const categoryOptions = useMemo<SegmentedControlOption<PartnerCategory | 'all'>[]>(
     () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),

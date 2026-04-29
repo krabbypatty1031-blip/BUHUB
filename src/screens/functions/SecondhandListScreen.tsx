@@ -97,13 +97,15 @@ export default function SecondhandListScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (items.length > 0 && !expiredNotified) {
-      const hasExpired = items.some((item) => item.expired);
-      if (hasExpired) {
+      const hasOwnExpired = items.some(
+        (item) => item.expired && isCurrentUserFunctionAuthor(currentUser, item.authorId, item.user)
+      );
+      if (hasOwnExpired) {
         showSnackbar({ message: t('secondhandExpiryNotice'), type: 'info' });
         setExpiredNotified(true);
       }
     }
-  }, [items, expiredNotified, showSnackbar, t, setExpiredNotified]);
+  }, [items, expiredNotified, showSnackbar, t, setExpiredNotified, currentUser]);
 
   const categoryOptions = useMemo<SegmentedControlOption<SecondhandCategory | 'all'>[]>(
     () => CATEGORIES.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),
