@@ -234,10 +234,11 @@ describe('Auth pipeline (happy path)', () => {
     });
   });
 
-  it('resetPassword posts token + newPassword', async () => {
+  it('resetPassword posts email + token + newPassword', async () => {
     mockApiClient.post.mockResolvedValueOnce({ data: { success: true } });
-    await authService.resetPassword('reset-token', 'NewStrongPass1');
+    await authService.resetPassword('user@example.com', 'reset-token', 'NewStrongPass1');
     expect(mockApiClient.post).toHaveBeenCalledWith('/auth/reset-password', {
+      email: 'user@example.com',
       token: 'reset-token',
       newPassword: 'NewStrongPass1',
     });
@@ -442,14 +443,14 @@ describe('Auth error handling', () => {
     it('resetPassword propagates expired/invalid reset token', async () => {
       const tokenInvalid = { code: 400, message: 'Invalid reset token', errorCode: 'INVALID_RESET_TOKEN' };
       mockApiClient.post.mockRejectedValueOnce(tokenInvalid);
-      await expect(authService.resetPassword('bad', 'New1234')).rejects.toMatchObject({
+      await expect(authService.resetPassword('u@e.com', 'bad', 'New1234a')).rejects.toMatchObject({
         errorCode: 'INVALID_RESET_TOKEN',
       });
     });
 
     it('resetPassword propagates network error', async () => {
       mockApiClient.post.mockRejectedValueOnce(networkApiError);
-      await expect(authService.resetPassword('t', 'New1234')).rejects.toMatchObject({ code: 0 });
+      await expect(authService.resetPassword('u@e.com', 't', 'New1234a')).rejects.toMatchObject({ code: 0 });
     });
   });
 });

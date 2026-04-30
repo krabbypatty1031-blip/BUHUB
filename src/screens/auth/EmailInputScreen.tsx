@@ -44,6 +44,7 @@ export default function EmailInputScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const showSnackbar = useUIStore((s) => s.showSnackbar);
   const setToken = useAuthStore((s) => s.setToken);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [email, setEmail] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
@@ -176,10 +177,22 @@ export default function EmailInputScreen({ navigation }: Props) {
     }
     try {
       const result = await authService.verify(email.trim(), code.join(''));
+
+      // Existing user: backend returned a session token (passwordless login).
+      // Hydrate the user into the auth store so AppNavigator switches to MainTab automatically.
       if (result.token) {
         setToken(result.token);
+        if (result.user) {
+          setUser(result.user);
+        } else {
+          const { user } = await authService.verifyToken();
+          if (user) setUser(user);
+        }
+        showSnackbar({ message: t('captchaSuccess'), type: 'success' });
+        return;
       }
 
+      // New user: backend returned a registration token; continue to SetPassword.
       showSnackbar({ message: t('captchaSuccess'), type: 'success' });
       setTimeout(() => {
         navigation.navigate('SetPassword', {
@@ -198,7 +211,7 @@ export default function EmailInputScreen({ navigation }: Props) {
     } finally {
       setIsVerifying(false);
     }
-  }, [agreed, code, codeComplete, email, isVerifying, navigation, setToken, showSnackbar, t]);
+  }, [agreed, code, codeComplete, email, isVerifying, navigation, setToken, setUser, showSnackbar, t]);
 
   const handleCodeChange = useCallback(
     (text: string, index: number) => {

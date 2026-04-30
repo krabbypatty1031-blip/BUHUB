@@ -20,6 +20,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../api/services/auth.service';
 import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { usePasswordInput } from '../../hooks/usePasswordInput';
@@ -33,6 +34,8 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { email } = route.params;
   const showSnackbar = useUIStore((s) => s.showSnackbar);
+  const setToken = useAuthStore((s) => s.setToken);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,9 +115,24 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
       return;
     }
     try {
-      await authService.resetPassword(code.join(''), password);
-      showSnackbar({ message: t('resetPasswordSuccess'), type: 'success' });
-      navigation.navigate('Login');
+      const result = await authService.resetPassword(email, code.join(''), password);
+      // Auto-login: new backend returns a fresh session token + user payload.
+      // Hydrate the auth store so AppNavigator switches to MainTab and the
+      // AuthStack unmounts (clearing this screen + ForgotPassword).
+      if (result.token) {
+        setToken(result.token);
+        if (result.user) {
+          setUser(result.user);
+        } else {
+          const { user } = await authService.verifyToken();
+          if (user) setUser(user);
+        }
+        showSnackbar({ message: t('resetPasswordSuccess'), type: 'success' });
+      } else {
+        // Older backend: no auto-login payload. Bounce back to Login like before.
+        showSnackbar({ message: t('resetPasswordSuccess'), type: 'success' });
+        navigation.navigate('Login');
+      }
     } catch (error: unknown) {
       const { message, isNetwork } = getAuthErrorMessage(error, t, 'resetPasswordFailed');
       if (isNetwork) {
@@ -125,7 +143,7 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, code, isSubmitting, password, confirmPassword, getPasswordErrorMessage, navigation, showSnackbar, t]);
+  }, [canSubmit, code, isSubmitting, password, confirmPassword, getPasswordErrorMessage, navigation, showSnackbar, t, email, setToken, setUser]);
 
   return (
     <SafeAreaView style={styles.container}>

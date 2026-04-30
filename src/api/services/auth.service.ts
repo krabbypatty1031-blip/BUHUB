@@ -144,11 +144,22 @@ export const authService = {
     return data;
   },
 
-  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean }> {
+  async resetPassword(
+    email: string,
+    token: string,
+    newPassword: string
+  ): Promise<{ success: boolean; token?: string; user?: User }> {
     if (USE_MOCK) {
       return { success: true };
     }
-    const { data } = await apiClient.post(ENDPOINTS.AUTH.RESET_PASSWORD, { token, newPassword });
+    const { data } = await apiClient.post(ENDPOINTS.AUTH.RESET_PASSWORD, {
+      email,
+      token,
+      newPassword,
+    });
+    if (data.token) {
+      await setToken(data.token);
+    }
     return data;
   },
 
