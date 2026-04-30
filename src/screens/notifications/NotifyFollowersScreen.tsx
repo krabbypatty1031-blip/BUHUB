@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -193,7 +193,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={dedupedNotifications}
           renderItem={renderItem}
           keyExtractor={(_, index) => String(index)}

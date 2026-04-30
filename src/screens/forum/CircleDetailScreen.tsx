@@ -2,11 +2,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   Image,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -266,7 +266,7 @@ export default function CircleDetailScreen({ navigation, route }: Props) {
 
       {/* Posts area with rounded top corners */}
       <View style={styles.postsWrapper}>
-        <FlatList
+        <FlashList
           data={posts}
           renderItem={renderPost}
           keyExtractor={(item) => item.id}

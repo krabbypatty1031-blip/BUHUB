@@ -3,13 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -275,7 +275,7 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
         </TouchableWithoutFeedback>
       ) : (
-        <FlatList
+        <FlashList
           data={results}
           renderItem={renderResult}
           keyExtractor={(item) => item.id}

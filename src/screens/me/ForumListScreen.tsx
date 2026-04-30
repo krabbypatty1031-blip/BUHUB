@@ -2,10 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,7 +14,7 @@ import type { ForumCircleSummary } from '../../types';
 import { useFollowedCircles } from '../../hooks/usePosts';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { ChevronRightIcon, UsersIcon } from '../../components/common/icons';
@@ -81,10 +81,10 @@ export default function ForumListScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('followedForumsTitle')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
-      <FlatList
+      <FlashList
         data={circles}
         keyExtractor={(item) => item.name}
         renderItem={renderItem}

@@ -2,10 +2,10 @@ import React, { useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -154,7 +154,7 @@ export default function FollowListScreen({ navigation, route }: Props) {
         titleStyle={getLocalizedFontStyle(language, 'bold')}
       />
 
-      <FlatList
+      <FlashList
         data={sourceData || []}
         keyExtractor={(item) => item.userName}
         renderItem={renderItem}

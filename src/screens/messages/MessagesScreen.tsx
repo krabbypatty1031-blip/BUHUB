@@ -4,13 +4,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
-  FlatList,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
   Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -29,6 +29,7 @@ import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
+import { fontFamily } from '../../theme/typography';
 import {
   CloseIcon,
   MessageIcon,
@@ -553,7 +554,7 @@ export default function MessagesScreen({ navigation }: Props) {
       {isLoading && !contacts ? (
         <MessageListSkeleton />
       ) : (
-        <FlatList
+        <FlashList
           data={filteredContacts}
           renderItem={renderContact}
           keyExtractor={(item) => item.id}
@@ -688,7 +689,7 @@ const styles = StyleSheet.create({
   topBarTitle: {
     fontSize: 32,
     lineHeight: 38,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     includeFontPadding: false,
   },
@@ -714,7 +715,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     height: 44,
     padding: 0,
@@ -765,7 +766,7 @@ const styles = StyleSheet.create({
   },
   notifyLabel: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#000000',
     textAlign: 'center',
   },
@@ -814,7 +815,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     lineHeight: 13,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     includeFontPadding: false,
     textAlign: 'center',
   },
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
   contactName: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#3F3F41',
     includeFontPadding: false,
   },
@@ -848,7 +849,7 @@ const styles = StyleSheet.create({
   contactMessage: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#999999',
     includeFontPadding: false,
   },
@@ -858,14 +859,14 @@ const styles = StyleSheet.create({
   /* Figma: 13px Regular #999, text-right, aligned top */
   contactTime: {
     fontSize: 13,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#999999',
   },
 
   /* Action Sheet Modal */
   actionSheetTitle: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#999999',
     textAlign: 'center',
     paddingVertical: 12,
@@ -877,7 +878,7 @@ const styles = StyleSheet.create({
   },
   actionSheetText: {
     fontSize: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   actionSheetDivider: {

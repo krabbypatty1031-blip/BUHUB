@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   Alert,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { getLocalizedFontStyle, typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography, fontFamily } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -276,7 +276,7 @@ export default function PartnerListScreen({ navigation }: Props) {
       </View>
 
       {/* Partner List */}
-      <FlatList
+      <FlashList
         data={filteredPartners}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     padding: 0,
     textAlignVertical: 'center',

@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
-  FlatList,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   Keyboard,
   Alert,
 } from 'react-native';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +30,7 @@ import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import PostImageGallery from '../../components/common/PostImageGallery';
@@ -874,7 +874,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   /* 鈹€鈹€ Refs 鈹€鈹€ */
   const inputRef = useRef<TextInput>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlashListRef<Comment>>(null);
   const postImages = useMemo(
     () => {
       if (post?.images && post.images.length > 0) return post.images;
@@ -1710,16 +1710,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   const keyExtractor = useCallback((item: Comment, index: number) => item.id || String(index), []);
 
-  const handleScrollToIndexFailed = useCallback((info: { index: number }) => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToIndex({
-        index: info.index,
-        animated: true,
-        viewPosition: 0.3,
-      });
-    }, 500);
-  }, []);
-
   if (isLoading || !post) {
     return (
       <View style={styles.container}>
@@ -1781,7 +1771,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       )}
 
       <View style={styles.flex1}>
-        <FlatList
+        <FlashList
           ref={flatListRef}
           style={styles.flex1}
           data={commentsData}
@@ -1789,7 +1779,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           renderItem={renderCommentItem}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
-          onScrollToIndexFailed={handleScrollToIndexFailed}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         />
@@ -1969,7 +1958,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   listContent: {
@@ -2026,7 +2015,7 @@ const styles = StyleSheet.create({
   postContent: {
     fontSize: 18,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   postTranslateBlock: {
@@ -2073,7 +2062,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   pollVoteCount: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 12 * 1.4,
     color: '#0C1015',
@@ -2091,7 +2080,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0463E2' + '18',
   },
   pollText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     flexShrink: 1,
     fontSize: 12,
     lineHeight: 12 * 1.4,
@@ -2099,7 +2088,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   pollTextVoted: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0463E2',
   },
   pollOptionUnvoted: {
@@ -2112,7 +2101,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   pollTextUnvoted: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 12 * 1.4,
     color: '#0C1015',
@@ -2122,14 +2111,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
   },
   pollFooterText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 16,
     color: '#9CA3AF',
     marginLeft: 'auto',
   },
   pollHintText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 16,
     color: '#9CA3AF',
@@ -2213,7 +2202,7 @@ const styles = StyleSheet.create({
   commentBody: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   commentTranslateBlock: {

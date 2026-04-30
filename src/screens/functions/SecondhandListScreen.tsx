@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   Alert,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -37,7 +37,7 @@ import {
   FigmaFabPlusIcon,
   FigmaInfoIcon,
 } from '../../components/functions/SecondhandFigmaIcons';
-import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'SecondhandList'>;
 
@@ -302,7 +302,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
       </View>
 
       {/* Figma: single column list, gap:16 */}
-      <FlatList
+      <FlashList
         data={filteredItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     padding: 0,
     textAlignVertical: 'center',
@@ -463,13 +463,13 @@ const styles = StyleSheet.create({
   disclaimerTitle: {
     fontSize: 13,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   disclaimerSubtext: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     alignSelf: 'stretch',
     paddingRight: 16,
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
 });
