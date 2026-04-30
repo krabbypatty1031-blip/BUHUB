@@ -195,12 +195,14 @@ function navigateToPushTarget(navigationRef: PushNavigationRef, target: PushNavi
         navigationRef.navigate('MessagesTab', {
           screen: 'Chat',
           params: target.params,
-        });
+          initial: false,
+        } as never);
         return;
       }
       navigationRef.navigate('MessagesTab', {
         screen: target.screen,
-      });
+        initial: false,
+      } as never);
       return;
     case 'MeTab':
       navigationRef.navigate('MeTab', {
