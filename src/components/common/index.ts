@@ -1,6 +1,5 @@
 export { default as Avatar } from './Avatar';
 export { default as DefaultAvatarPicker, DefaultAvatarSvg, InitialAvatar, getAvatarDef, getAutoAvatar, getInitialBgColor, DEFAULT_AVATARS } from './DefaultAvatarPicker';
-export { default as TopBar } from './TopBar';
 export { default as ScreenHeader } from './ScreenHeader';
 export { default as Snackbar } from './Snackbar';
 export { default as Chip } from './Chip';

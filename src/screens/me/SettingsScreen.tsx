@@ -281,7 +281,7 @@ export default function SettingsScreen({ navigation }: Props) {
         }
       }
     } catch (err) {
-      console.warn('[Export]', err);
+      if (__DEV__) console.warn('[Export]', err);
       showSnackbar({ message: t('exportDataFailed'), type: 'error' });
     }
   }, [t, showSnackbar]);
