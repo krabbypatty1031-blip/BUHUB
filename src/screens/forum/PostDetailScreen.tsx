@@ -360,8 +360,8 @@ function ReplyItem({
       const timer = setTimeout(() => {
         Animated.loop(
           Animated.sequence([
-            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
-            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
           ]),
           { iterations: 2 }
         ).start();
@@ -369,13 +369,6 @@ function ReplyItem({
       return () => clearTimeout(timer);
     }
   }, [isHighlighted, flashAnim]);
-
-  const highlightBg = isHighlighted
-    ? flashAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['transparent', colors.scrimLight],
-      })
-    : undefined;
 
   // Level 2 = direct reply to main comment (with indent and border)
   // Level 3+ = reply to reply (no indent, no border)
@@ -413,13 +406,25 @@ function ReplyItem({
 
   return (
     <PageTranslationProvider>
-      <Animated.View
-      ref={(node) => registerItemRef?.(reply.id, node as unknown as View | null)}
-      style={[
-        isNestedReply ? styles.nestedReplyItem : styles.replyItem,
-        highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
-      ]}
+      <View
+      ref={(node) => registerItemRef?.(reply.id, node)}
+      style={isNestedReply ? styles.nestedReplyItem : styles.replyItem}
     >
+      {isHighlighted ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: colors.scrimLight,
+            opacity: flashAnim,
+            borderRadius: borderRadius.sm,
+          }}
+        />
+      ) : null}
       <TouchableOpacity
         activeOpacity={1}
         onLongPress={canDelete ? undefined : () => onReport(reply.id)}
@@ -556,7 +561,7 @@ function ReplyItem({
           )}
         </>
       )}
-      </Animated.View>
+      </View>
     </PageTranslationProvider>
   );
 }
@@ -649,8 +654,8 @@ function CommentItem({
       const timer = setTimeout(() => {
         Animated.loop(
           Animated.sequence([
-            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: false }),
-            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+            Animated.timing(flashAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+            Animated.timing(flashAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
           ]),
           { iterations: 2 }
         ).start();
@@ -659,22 +664,27 @@ function CommentItem({
     }
   }, [isHighlighted, flashAnim]);
 
-  const highlightBg = isHighlighted
-    ? flashAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['transparent', colors.scrimLight],
-      })
-    : undefined;
-
   return (
     <PageTranslationProvider>
-      <Animated.View
-      ref={(node) => registerItemRef?.(comment.id, node as unknown as View | null)}
-      style={[
-        styles.commentItem,
-        highlightBg ? { backgroundColor: highlightBg, borderRadius: borderRadius.sm } : undefined,
-      ]}
+      <View
+      ref={(node) => registerItemRef?.(comment.id, node)}
+      style={styles.commentItem}
     >
+      {isHighlighted ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: colors.scrimLight,
+            opacity: flashAnim,
+            borderRadius: borderRadius.sm,
+          }}
+        />
+      ) : null}
       {/* Comment main */}
       <TouchableOpacity
         activeOpacity={1}
@@ -800,7 +810,7 @@ function CommentItem({
           )}
         </>
       )}
-      </Animated.View>
+      </View>
     </PageTranslationProvider>
   );
 }
