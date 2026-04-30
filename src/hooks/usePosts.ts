@@ -432,7 +432,22 @@ export function useFollowingPosts(enabled = true) {
 
 export function flattenPostPages(data: PostsInfiniteData | undefined): ForumPost[] {
   if (!data) return [];
-  return data.pages.flatMap((p) => p.posts);
+  // Dedup by post.id. Backend uses offset-based pagination (skip + take),
+  // so when a new post is created mid-scroll and TanStack refetches the
+  // already-loaded pages, the boundary item from page N can reappear at
+  // the head of page N+1. Without this Set guard, FlashList sees duplicate
+  // keys (React warns) and optimistic mutations may write to the wrong row.
+  const seen = new Set<string>();
+  const out: ForumPost[] = [];
+  for (const page of data.pages) {
+    for (const post of page.posts) {
+      if (!seen.has(post.id)) {
+        seen.add(post.id);
+        out.push(post);
+      }
+    }
+  }
+  return out;
 }
 
 export { useFollowedCircles } from './useUser';
