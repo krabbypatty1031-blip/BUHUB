@@ -40,6 +40,7 @@ import ReportModal from '../../components/common/ReportModal';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import IOSSwitch from '../../components/common/IOSSwitch';
 import PressScaleButton from '../../components/common/PressScaleButton';
+import AnimatedActionButton from '../../components/common/AnimatedActionButton';
 import TranslatableText from '../../components/common/TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from '../../components/common/PageTranslation';
 import QuoteCard from '../../components/common/QuoteCard';
@@ -264,7 +265,7 @@ function ItemActions({
 
   return (
     <View style={styles.itemActions}>
-      <PressScaleButton style={styles.itemActionBtn} onPress={handleLikePress}>
+      <AnimatedActionButton style={styles.itemActionBtn} onPress={handleLikePress} isActive={liked}>
         <LikeActionIcon
           size={size}
           color={liked ? colors.error : '#86909C'}
@@ -273,7 +274,7 @@ function ItemActions({
         <Text style={[styles.itemActionText, liked && { color: colors.error }]}>
           {likes}
         </Text>
-      </PressScaleButton>
+      </AnimatedActionButton>
       <PressScaleButton style={styles.itemActionBtn} onPress={handleCommentPress}>
         <CommentActionIcon size={size} color="#86909C" />
         {replyCount !== undefined && replyCount > 0 && (
@@ -283,13 +284,13 @@ function ItemActions({
       <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
         <ShareActionIcon size={size} color="#86909C" />
       </TouchableOpacity>
-      <PressScaleButton style={styles.itemActionBtn} onPress={handleBookmarkPress}>
+      <AnimatedActionButton style={styles.itemActionBtn} onPress={handleBookmarkPress} isActive={bookmarked}>
         <BookmarkActionIcon
           size={size}
           color={bookmarked ? colors.primary : '#86909C'}
           fill={bookmarked ? colors.primary : undefined}
         />
-      </PressScaleButton>
+      </AnimatedActionButton>
       {onDelete ? (
         <TouchableOpacity style={styles.itemActionBtn} onPress={handleDeletePress}>
           <TrashIcon size={size} color="#86909C" />
@@ -1644,9 +1645,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
           {/* Post actions */}
           <View style={styles.postActions}>
-            <PressScaleButton
+            <AnimatedActionButton
               style={styles.postActionBtn}
               onPress={handleLikePostPress}
+              isActive={isLiked}
             >
               <LikeActionIcon
                 size={18}
@@ -1656,7 +1658,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               <Text style={[styles.postActionText, isLiked && { color: colors.error }]}>
                 {post.likes}
               </Text>
-            </PressScaleButton>
+            </AnimatedActionButton>
 
             <PressScaleButton
               style={styles.postActionBtn}
@@ -1673,16 +1675,17 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               <ShareActionIcon size={18} color="#86909C" />
             </TouchableOpacity>
 
-            <PressScaleButton
+            <AnimatedActionButton
               style={styles.postActionBtn}
               onPress={handleBookmarkPostPress}
+              isActive={isBookmarked}
             >
               <BookmarkActionIcon
                 size={18}
                 color={isBookmarked ? colors.primary : '#86909C'}
                 fill={isBookmarked ? colors.primary : undefined}
               />
-            </PressScaleButton>
+            </AnimatedActionButton>
 
             <TouchableOpacity
               style={styles.postActionBtn}

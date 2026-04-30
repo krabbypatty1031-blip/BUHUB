@@ -13,6 +13,7 @@ import Avatar from './Avatar';
 import TranslatableText from './TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from './PageTranslation';
 import PressScaleButton from './PressScaleButton';
+import AnimatedActionButton from './AnimatedActionButton';
 import {
   LikeActionIcon,
   CommentActionIcon,
@@ -211,10 +212,10 @@ const CommentCard = React.memo(function CommentCard({
 
       <View style={styles.commentActionsRow}>
         <View style={styles.itemActions}>
-          <PressScaleButton style={styles.itemActionBtn} onPress={handleLike}>
+          <AnimatedActionButton style={styles.itemActionBtn} onPress={handleLike} isActive={comment.liked}>
             <LikeActionIcon size={18} color={comment.liked ? colors.error : '#86909C'} fill={comment.liked ? colors.error : undefined} />
             <Text style={[styles.itemActionText, comment.liked && { color: colors.error }]}>{comment.likes}</Text>
-          </PressScaleButton>
+          </AnimatedActionButton>
           <PressScaleButton style={styles.itemActionBtn} onPress={handleCommentPress}>
             <CommentActionIcon size={18} color="#86909C" />
             {comment.replyCount !== undefined && comment.replyCount > 0 && (
@@ -224,9 +225,9 @@ const CommentCard = React.memo(function CommentCard({
           <TouchableOpacity style={styles.itemActionBtn} onPress={onForward}>
             <ShareActionIcon size={18} color="#86909C" />
           </TouchableOpacity>
-          <PressScaleButton style={styles.itemActionBtn} onPress={handleBookmark}>
+          <AnimatedActionButton style={styles.itemActionBtn} onPress={handleBookmark} isActive={comment.bookmarked}>
             <BookmarkActionIcon size={18} color={comment.bookmarked ? colors.primary : '#86909C'} fill={comment.bookmarked ? colors.primary : undefined} />
-          </PressScaleButton>
+          </AnimatedActionButton>
           {showDelete && (
             <TouchableOpacity style={styles.itemActionBtn} onPress={handleDelete}>
               <TrashIcon size={18} color="#86909C" />
