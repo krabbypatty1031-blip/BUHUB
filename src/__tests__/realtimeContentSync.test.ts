@@ -111,6 +111,92 @@ describe('LIVE-SYNC — useUser.ts polling', () => {
 // someone else interacted with my post" path — the ≤1-second refresh case.
 // ---------------------------------------------------------------------------
 
+describe('LIVE-SYNC — post:new global broadcast (NEW-POST-BROADCAST)', () => {
+  it('declares post:new in the RealtimeEvent type union', () => {
+    const src = read('useMessageRealtime');
+    expect(src).toMatch(/'post:new'/);
+  });
+
+  it('filters out self-authored post:new events to avoid double-render', () => {
+    const src = read('useMessageRealtime');
+    expect(src).toMatch(/newPostEvents.*=\s*events\.filter\([\s\S]*?'post:new'/);
+    expect(src).toMatch(/event\.authorId\s*!==\s*currentUserId/);
+  });
+
+  it('invalidates posts + userPosts query keys on a non-self post:new event', () => {
+    const src = read('useMessageRealtime');
+    // Both invalidate calls must appear inside the post:new branch.
+    const branch = src.match(/newPostEvents[\s\S]+?refetchType:\s*'active'\s*\}\s*\);[\s\S]+?\}/);
+    expect(branch).toBeTruthy();
+    expect(branch![0]).toMatch(/queryKey:\s*\['posts'\][\s\S]*?refetchType:\s*'active'/);
+    expect(branch![0]).toMatch(/queryKey:\s*\['userPosts'\][\s\S]*?refetchType:\s*'active'/);
+  });
+});
+
+describe('LIVE-SYNC — backend post:new broadcast wiring', () => {
+  const backendRoot = resolve(__dirname, '../../../buhub_back');
+  const readBackend = (rel: string) =>
+    require('fs').readFileSync(`${backendRoot}/${rel}`, 'utf-8') as string;
+
+  it('messageEventBroker exposes a broadcast method', () => {
+    const src = readBackend('src/lib/message-events.ts');
+    // Method exists; precise type narrowing is asserted in a dedicated test below.
+    expect(src).toMatch(/\bbroadcast\(event:/);
+    expect(src).toMatch(/BROADCAST_CHANNEL\s*=\s*"message:events:broadcast"/);
+  });
+
+  it('post:new event variant is in MessageRealtimeEvent union', () => {
+    const src = readBackend('src/lib/message-events.ts');
+    expect(src).toMatch(/type:\s*"post:new"/);
+    expect(src).toMatch(/postId:\s*string/);
+    expect(src).toMatch(/authorId:\s*string/);
+  });
+
+  it('forum POST handler broadcasts post:new after prisma.post.create', () => {
+    const src = readBackend('app/api/forum/posts/route.ts');
+    expect(src).toMatch(/messageEventBroker\.broadcast\(\s*\{[\s\S]+?type:\s*"post:new"/);
+    expect(src).toMatch(/postId:\s*post\.id/);
+    expect(src).toMatch(/authorId:\s*user\.id/);
+  });
+
+  it('broadcast is guarded: skips reposts, non-forum categories, and anonymous posts (privacy)', () => {
+    const src = readBackend('app/api/forum/posts/route.ts');
+    // The broadcast call must sit inside an `if` that requires forum category,
+    // no quotedPostId, and not anonymous. Anonymous is the security-critical
+    // guard — without it, a WS listener can de-anonymize the author by
+    // cross-referencing broadcast payloads with the GET response.
+    expect(src).toMatch(
+      /if\s*\(\s*postCategory\s*===\s*"forum"\s*&&\s*!data\.quotedPostId\s*&&\s*!data\.isAnonymous\s*\)\s*\{[\s\S]+?messageEventBroker\.broadcast/
+    );
+  });
+
+  it('broadcast payload is minimal: no authorUserName / category leakage', () => {
+    const eventsSrc = readBackend('src/lib/message-events.ts');
+    // The post:new union variant should not declare authorUserName or category.
+    const variantBlock = eventsSrc.match(
+      /type:\s*"post:new";[\s\S]+?createdAt:\s*number;\s*\}/
+    );
+    expect(variantBlock).toBeTruthy();
+    expect(variantBlock![0]).not.toMatch(/authorUserName/);
+    expect(variantBlock![0]).not.toMatch(/category:/);
+  });
+
+  it('broker.broadcast type is narrowed to post:new only (compile-time API misuse guard)', () => {
+    const src = readBackend('src/lib/message-events.ts');
+    expect(src).toMatch(
+      /broadcast\(event:\s*Extract<MessageRealtimeEvent,\s*\{\s*type:\s*"post:new"\s*\}>\)/
+    );
+  });
+
+  it('server.js subscribes to BROADCAST_CHANNEL and fans out to all sockets', () => {
+    const src = readBackend('server.js');
+    expect(src).toMatch(/BROADCAST_CHANNEL\s*=\s*"message:events:broadcast"/);
+    expect(src).toMatch(/subscriber\.subscribe\(BROADCAST_CHANNEL\)/);
+    expect(src).toMatch(/pushEventsToAllSockets/);
+    expect(src).toMatch(/for \(const sockets of userSockets\.values\(\)\)/);
+  });
+});
+
 describe('LIVE-SYNC — useMessageRealtime notification:new fan-out', () => {
   it('still bumps unread badge counters for like/follow/comment', () => {
     const src = read('useMessageRealtime');

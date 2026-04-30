@@ -29,7 +29,13 @@ const RECONNECT_BASE_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 5000;
 
 type RealtimeEvent = {
-  type: 'message:new' | 'message:read' | 'message:recalled' | 'typing:update' | 'notification:new';
+  type:
+    | 'message:new'
+    | 'message:read'
+    | 'message:recalled'
+    | 'typing:update'
+    | 'notification:new'
+    | 'post:new';
   fromUserId?: string;
   isTyping?: boolean;
   conversationUserId?: string;
@@ -38,6 +44,9 @@ type RealtimeEvent = {
   message?: PersistedDirectMessage;
   conversation?: ConversationSummary | null;
   notificationType?: 'like' | 'follow' | 'comment';
+  // post:new fields (global broadcast for new forum posts)
+  postId?: string;
+  authorId?: string;
   createdAt?: number;
 };
 
@@ -122,6 +131,23 @@ export function useMessageRealtime() {
           event.type === 'message:recalled'
       );
       const notificationEvents = events.filter((event) => event.type === 'notification:new');
+
+      // Global new-post broadcast: skip self-authored events (we already
+      // optimistically rendered our own post). For posts from other users,
+      // invalidate the forum / user-posts caches so the new entry slides
+      // in without waiting for the 15s polling tick. refetchType:'active'
+      // means only mounted feeds refetch — when the user isn't on Forum,
+      // the cache just gets marked stale for the next mount.
+      const newPostEvents = events.filter((event) => event.type === 'post:new');
+      if (newPostEvents.length > 0) {
+        const fromOthers = newPostEvents.filter(
+          (event) => event.authorId && event.authorId !== currentUserId
+        );
+        if (fromOthers.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'active' });
+          queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'active' });
+        }
+      }
 
       if (messageEvents.length > 0 || notificationEvents.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
