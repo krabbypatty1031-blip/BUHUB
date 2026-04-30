@@ -373,6 +373,8 @@ function updateMyContentPostBookmark(
   };
 }
 
+const FORUM_LIVE_REFETCH_MS = 15 * 1000;
+
 export function usePosts(enabled = true) {
   const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
@@ -386,6 +388,9 @@ export function usePosts(enabled = true) {
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
     enabled,
+    refetchInterval: FORUM_LIVE_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -400,6 +405,9 @@ export function useUserPosts(userName: string) {
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     staleTime: 5 * 60 * 1000,
     enabled: userName.length > 0,
+    refetchInterval: FORUM_LIVE_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -416,6 +424,9 @@ export function useFollowingPosts(enabled = true) {
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
     enabled,
+    refetchInterval: FORUM_LIVE_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -466,12 +477,17 @@ export function useToggleCircleFollow(tag: string) {
   });
 }
 
+const POST_DETAIL_LIVE_REFETCH_MS = 2 * 1000;
+
 export function usePostDetail(postId: string) {
   const language = resolveForumLanguage(useAuthStore((s) => s.language));
   return useQuery({
     queryKey: postDetailKey(postId, language),
     queryFn: () => forumService.getPostDetail(postId),
     enabled: postId.length > 0,
+    refetchInterval: POST_DETAIL_LIVE_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -483,6 +499,9 @@ export function useComments(postId: string) {
       const data = await forumService.getComments(postId);
       return data[postId] || [];
     },
+    refetchInterval: POST_DETAIL_LIVE_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -661,6 +680,14 @@ export function useLikePost() {
               ...old,
               posts: old.posts.map(toggleUserPost),
               anonPosts: old.anonPosts.map(toggleUserPost),
+              myLikes: {
+                ...old.myLikes,
+                posts: old.myLikes.posts.map(toggleUserPost),
+              },
+              myBookmarks: {
+                ...old.myBookmarks,
+                posts: old.myBookmarks.posts.map(toggleUserPost),
+              },
             }
           : old
       );
@@ -688,6 +715,14 @@ export function useLikePost() {
                 ...old,
                 posts: old.posts.map(updateUserPost),
                 anonPosts: old.anonPosts.map(updateUserPost),
+                myLikes: {
+                  ...old.myLikes,
+                  posts: old.myLikes.posts.map(updateUserPost),
+                },
+                myBookmarks: {
+                  ...old.myBookmarks,
+                  posts: old.myBookmarks.posts.map(updateUserPost),
+                },
               }
             : old
         );

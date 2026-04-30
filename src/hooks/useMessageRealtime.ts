@@ -151,6 +151,21 @@ export function useMessageRealtime() {
         if (likeDelta > 0) store.setUnreadLikes(store.unreadLikes + likeDelta);
         if (followDelta > 0) store.setUnreadFollowers(store.unreadFollowers + followDelta);
         if (commentDelta > 0) store.setUnreadComments(store.unreadComments + commentDelta);
+
+        // Refresh post-content caches so like/comment counts update live on
+        // ForumScreen, PostDetailScreen, MeScreen, profile pages, and search.
+        // refetchType defaults to 'active' — only mounted queries refetch,
+        // so this is cheap when the user isn't on those screens.
+        if (likeDelta > 0 || commentDelta > 0) {
+          queryClient.invalidateQueries({ queryKey: ['posts'] });
+          queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+          queryClient.invalidateQueries({ queryKey: ['post'] });
+          queryClient.invalidateQueries({ queryKey: ['myContent'] });
+          queryClient.invalidateQueries({ queryKey: ['search'] });
+          if (commentDelta > 0) {
+            queryClient.invalidateQueries({ queryKey: ['comments'] });
+          }
+        }
       }
 
       // Optimistically bump unreadMessages on incoming peer messages so the tab

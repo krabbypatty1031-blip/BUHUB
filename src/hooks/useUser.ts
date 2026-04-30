@@ -199,6 +199,9 @@ export function useMyContent() {
     staleTime: 30 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
+    refetchInterval: 15 * 1000,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
   });
 }
 

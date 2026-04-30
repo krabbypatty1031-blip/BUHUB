@@ -31,12 +31,15 @@ jest.mock('../api/client', () => ({
   API_BASE: 'http://localhost:3000/api',
 }));
 
-jest.mock('../store/authStore', () => ({
-  useAuthStore: {
-    getState: () => ({ language: 'tc', isLoggedIn: false, logout: jest.fn() }),
-    subscribe: jest.fn(),
-  },
-}));
+jest.mock('../store/authStore', () => {
+  const state = { language: 'tc', isLoggedIn: false, logout: jest.fn(), token: null, user: null };
+  const useAuthStore: any = jest.fn((selector?: (s: typeof state) => unknown) =>
+    typeof selector === 'function' ? selector(state) : state
+  );
+  useAuthStore.getState = () => state;
+  useAuthStore.subscribe = jest.fn();
+  return { useAuthStore };
+});
 
 jest.mock('../store/forumStore', () => ({
   useForumStore: Object.assign(
