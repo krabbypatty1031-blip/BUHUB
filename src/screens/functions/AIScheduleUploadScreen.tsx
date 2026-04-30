@@ -19,6 +19,7 @@ import ImageSourcePopover from '../../components/functions/ImageSourcePopover';
 import { uploadService } from '../../api/services/upload.service';
 import { useParseSchedule, useSaveSchedule } from '../../hooks/useSchedule';
 import { useUIStore } from '../../store/uiStore';
+import { fontFamily } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'AIScheduleUpload'>;
 
@@ -277,7 +278,7 @@ export default function AIScheduleUploadScreen({ navigation }: Props) {
         variant="campus"
         title={t('uploadSchedule')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
       {/* Content area with gray background */}
@@ -356,13 +357,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   bigTitle: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 26,
     lineHeight: 34,
     color: 'black',
   },
   subtitle: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 14,
     lineHeight: 22,
     color: '#4E5969',
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   uploadText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 18,
     lineHeight: 24,
     color: '#0C1015',
@@ -456,13 +457,13 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   noticeTitle: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 16,
     lineHeight: 24,
     color: '#222222',
   },
   noticeItem: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 24,
     color: '#4E5969',
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C1015',
   },
   parseButtonText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 15,
   },
   parseButtonTextDisabled: {
@@ -520,12 +521,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   parsingTitle: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 28,
     color: '#0C1015',
   },
   parsingSubtitle: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 14,
     color: '#86909C',
     textAlign: 'center',
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C1015',
   },
   progressPercent: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     color: '#9CA3AF',
   },

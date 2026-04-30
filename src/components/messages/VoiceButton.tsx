@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import { ChatMicIcon } from '../functions/DetailInfoIcons';
 
 type ButtonState = 'idle' | 'pressing' | 'recording';
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   textPressed: {

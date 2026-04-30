@@ -29,6 +29,7 @@ import { useAuthStore } from '../../store/authStore';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 import { RESIDENCE_HALLS, findHall, type HallOption } from '../../data/residenceHalls';
 
 function hallLabel(h: HallOption, lang: string) {
@@ -632,7 +633,7 @@ export default function LockerSFSCScreen({ navigation }: Props) {
         variant="campus"
         title={t('lockerSfscFormTitle')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
       <ScrollView
         style={styles.scroll}
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: spacing.xxxl },
   promo: { width: '100%', backgroundColor: '#F3F5F7' },
   section: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  label: { fontSize: 14, fontFamily: 'SourceHanSansCN-Medium', color: '#0C1015', marginBottom: 12 },
+  label: { fontSize: 14, fontFamily: fontFamily.medium, color: '#0C1015', marginBottom: 12 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -781,7 +782,7 @@ const styles = StyleSheet.create({
   estimatedPrice: {
     marginTop: 8,
     fontSize: 13,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#DC2626',
     textAlign: 'right',
   },
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
   },
   boxInfoLine: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     lineHeight: 22,
     marginBottom: 8,
@@ -806,7 +807,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   multilineInput: { minHeight: 80 },
@@ -816,13 +817,13 @@ const styles = StyleSheet.create({
   },
   pickerValue: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     lineHeight: 20,
   },
   pickerPlaceholder: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: colors.outline,
     lineHeight: 20,
   },
@@ -840,13 +841,13 @@ const styles = StyleSheet.create({
   },
   chipSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
   chipDisabled: { backgroundColor: '#F3F5F7', borderColor: '#E5E7EB' },
-  chipText: { fontSize: 13, fontFamily: 'SourceHanSansCN-Regular', color: '#0C1015', textAlign: 'center' },
+  chipText: { fontSize: 13, fontFamily: fontFamily.regular, color: '#0C1015', textAlign: 'center' },
   chipTextSelected: { color: colors.onPrimary },
   chipTextDisabled: { color: '#C1C1C1' },
   hintText: {
     marginTop: 8,
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     lineHeight: 18,
   },
@@ -860,12 +861,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitBtnText: { fontSize: 16, fontFamily: 'SourceHanSansCN-Bold', color: colors.onPrimary },
+  submitBtnText: { fontSize: 16, fontFamily: fontFamily.bold, color: colors.onPrimary },
   modifyHint: {
     marginTop: 6,
     marginHorizontal: spacing.lg,
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     textAlign: 'center',
     lineHeight: 18,
@@ -874,7 +875,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginHorizontal: spacing.lg,
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#DC2626',
     textAlign: 'center',
     lineHeight: 18,
@@ -903,7 +904,7 @@ const styles = StyleSheet.create({
   },
   reviewTitle: {
     fontSize: 17,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     textAlign: 'center',
     marginBottom: spacing.lg,
@@ -921,13 +922,13 @@ const styles = StyleSheet.create({
   },
   reviewRowLabel: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     marginBottom: 4,
   },
   reviewRowValue: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   reviewActions: {
@@ -950,12 +951,12 @@ const styles = StyleSheet.create({
   },
   reviewBtnTextCancel: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   reviewBtnTextConfirm: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: colors.onPrimary,
   },
   broadcastCard: {
@@ -968,13 +969,13 @@ const styles = StyleSheet.create({
     borderColor: '#F5C97A',
   },
   broadcastNoticeTag: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 13,
     color: '#DC2626',
     marginBottom: 2,
   },
   broadcastText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 16,
     lineHeight: 24,
     color: '#0C1015',

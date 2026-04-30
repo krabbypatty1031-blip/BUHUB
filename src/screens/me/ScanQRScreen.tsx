@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MeStackParamList } from '../../types/navigation';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { ScanIcon } from '../../components/common/icons';
 import { useUIStore } from '../../store/uiStore';
@@ -69,7 +69,7 @@ export default function ScanQRScreen({ navigation }: Props) {
         <ScreenHeader
           title={t('scanQR')}
           onBack={() => navigation.goBack()}
-          titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+          titleStyle={{ fontFamily: fontFamily.bold }}
           backgroundColor={colors.background}
         />
         <View style={styles.center}>
@@ -89,7 +89,7 @@ export default function ScanQRScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('scanQR')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold', color: colors.white }}
+        titleStyle={{ fontFamily: fontFamily.bold, color: colors.white }}
         backIconColor={colors.white}
         backgroundColor="transparent"
         showBottomBorder={false}

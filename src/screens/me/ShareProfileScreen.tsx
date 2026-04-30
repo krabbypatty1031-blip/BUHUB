@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors, shareActionThemes } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import {
@@ -74,7 +74,7 @@ export default function ShareProfileScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('shareProfile')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
       <ScrollView

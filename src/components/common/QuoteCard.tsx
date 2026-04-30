@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/colors';
+import { fontFamily } from '../../theme/typography';
 import TranslatableText from './TranslatableText';
 
 type QuoteCardProps = {
@@ -126,12 +127,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F7F7',
   },
   label: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 12,
     color: '#86909C',
   },
   content: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 14,
     lineHeight: 20,
     color: '#0C1015',

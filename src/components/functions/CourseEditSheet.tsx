@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import SwipeableBottomSheet from '../common/SwipeableBottomSheet';
 import type { ScheduleCourse } from '../../types/schedule';
+import { fontFamily } from '../../theme/typography';
 
 interface CourseEditSheetProps {
   visible: boolean;
@@ -237,14 +238,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   title: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 18,
     color: '#0C1015',
     textAlign: 'center',
     marginBottom: 20,
   },
   label: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 14,
     color: '#4E5969',
     marginBottom: 8,
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
     borderColor: '#DEE2E5',
     paddingHorizontal: 14,
     paddingVertical: 0,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 15,
     color: '#0C1015',
     marginBottom: 16,
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F5F7',
   },
   dayButtonText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 13,
   },
   dayButtonTextActive: {
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 15,
     color: '#0C1015',
   },
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteButtonText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 15,
     color: '#FF4D4F',
   },
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButtonText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 15,
     color: '#FFFFFF',
   },

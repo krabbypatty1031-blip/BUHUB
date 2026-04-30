@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, fontFamily } from '../../theme';
 
 interface ChipProps {
   label: string;
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   selectedLabel: {

@@ -64,7 +64,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useMessageRealtimeStore } from '../../store/messageRealtimeStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
@@ -5251,7 +5251,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     textAlign: 'center',
   },
@@ -5373,7 +5373,7 @@ const styles = StyleSheet.create({
   },
   minuteTimeText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#C7C7CC',
   },
 
@@ -5387,7 +5387,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#C7C7CC',
   },
   recalledNoticeRow: {
@@ -5601,7 +5601,7 @@ const styles = StyleSheet.create({
   albumOverlayText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontWeight: '700',
   },
   mediaGrid: {
@@ -5634,7 +5634,7 @@ const styles = StyleSheet.create({
   bubbleText: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
   },
   bubbleTextMine: {
     color: '#FFFFFF',
@@ -5832,13 +5832,13 @@ const styles = StyleSheet.create({
   },
   cardTypeText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     letterSpacing: 0.5,
     flex: 1,
   },
   cardTitle: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     lineHeight: 20,
     marginBottom: 10,
   },
@@ -5848,7 +5848,7 @@ const styles = StyleSheet.create({
   },
   cardPosterText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
   },
 
   replyComposer: {
@@ -5959,7 +5959,7 @@ const styles = StyleSheet.create({
   },
   imageSendModeTitle: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     textAlign: 'center',
     marginBottom: 16,
@@ -5994,12 +5994,12 @@ const styles = StyleSheet.create({
   },
   imageSendModeRowTitle: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   imageSendModeRowDesc: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     marginTop: 2,
   },
@@ -6112,7 +6112,7 @@ const styles = StyleSheet.create({
   },
   plusMenuLabel: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   holdToTalkBtn: {

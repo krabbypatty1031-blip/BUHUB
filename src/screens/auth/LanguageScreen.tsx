@@ -13,7 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { changeLanguage } from '../../i18n';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import { CheckIcon } from '../../components/common/icons';
 
 type Language = 'tc' | 'sc' | 'en';
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 32,
     color: colors.onSurface,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     letterSpacing: -0.5,
   },
   subtitle: {

@@ -30,7 +30,7 @@ import { canPublishCommunityContent } from '../../utils/publishPermission';
 import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     fontSize: 24,
     lineHeight: 32,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   profileMeta: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     textAlign: 'center',
     marginBottom: 8,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   bio: {
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     fontStyle: 'italic',
     textAlign: 'center',
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 14,
     lineHeight: 22,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     marginTop: 2,
   },
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   },
   messageBtnText: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
   followBtn: {
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
   },
   followBtnText: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
   followBtnTextFollowing: {
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   popoverOverlay: {
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
   },
   popoverItemText: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#ED4956',
   },
   composeSheetHeader: {

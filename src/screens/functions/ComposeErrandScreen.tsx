@@ -16,7 +16,7 @@ import { useCreateErrand, useEditErrand } from '../../hooks/useErrands';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import {
   ClockIcon,
@@ -203,7 +203,7 @@ export default function ComposeErrandScreen({ navigation, route }: Props) {
         title={t(isEditMode ? 'editPost' : 'newErrandPost')}
         onBack={() => navigation.goBack()}
         leading="close"
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         showBottomBorder={false}
         rightAction={
           <TouchableOpacity

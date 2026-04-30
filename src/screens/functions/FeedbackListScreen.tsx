@@ -20,7 +20,7 @@ type FeedbackStackParamList = {
 import { useMyFeedback, flattenFeedbackPages } from '../../hooks/useFeedback';
 import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/spacing';
-import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { PlusIcon } from '../../components/common/icons';
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 13,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   statusTag: {
@@ -221,18 +221,18 @@ const styles = StyleSheet.create({
   },
   statusTagText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
   },
   descriptionPreview: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     lineHeight: 20,
     marginBottom: 8,
   },
   timeText: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
 

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, PanResponder } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { fontFamily } from '../../theme/typography';
 
 interface WeekCalendarHeaderProps {
   weekOffset: number;
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   monthAbbr: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 9,
     color: '#9CA3AF',
   },
@@ -175,13 +176,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   weekdayText: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 14,
     color: '#4E5969',
     letterSpacing: -0.33,
   },
   dateNumber: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 12,
     color: '#9CA3AF',
   },
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   todayText: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 10,
     color: '#FFFFFF',
     textAlign: 'center',

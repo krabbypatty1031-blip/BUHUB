@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { ScheduleCourse } from '../../types/schedule';
+import { fontFamily } from '../../theme/typography';
 
 interface CourseCardProps {
   course: ScheduleCourse;
@@ -67,13 +68,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   courseName: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 10,
     lineHeight: 12,
     color: '#0C1015',
   },
   location: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 9,
     lineHeight: 10,
     color: '#4E5969',

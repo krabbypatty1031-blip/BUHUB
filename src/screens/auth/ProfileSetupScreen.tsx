@@ -25,7 +25,7 @@ import { ensureOnlineOrAlert, getAuthErrorMessage } from '../../utils/network';
 import { HKBU_MAJOR_KEYS, getLocalizedMajorLabel } from '../../data/hkbuMajors';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { ChevronRightIcon, CameraIcon } from '../../components/common/icons';
 import DefaultAvatarPicker, { DefaultAvatarSvg, InitialAvatar } from '../../components/common/DefaultAvatarPicker';
@@ -240,7 +240,7 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
       <ScreenHeader
         title={t('profileSetup')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         showBottomBorder={false}
         rightAction={
           <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>

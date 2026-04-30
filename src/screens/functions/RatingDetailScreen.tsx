@@ -24,7 +24,7 @@ import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../
 import { handleFunctionDetailBack } from '../../utils/functionDetailNavigation';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { MoreHorizontalIcon, StarIcon } from '../../components/common/icons';
@@ -238,7 +238,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
   if (!item) {
     return (
       <SafeAreaView style={styles.container}>
-        <ScreenHeader title={t('ratings')} onBack={handleBack} titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }} />
+        <ScreenHeader title={t('ratings')} onBack={handleBack} titleStyle={{ fontFamily: fontFamily.bold }} />
         <View style={styles.loadingContainer}>
           <Text style={styles.emptyText}>{t('notFound')}</Text>
         </View>
@@ -251,7 +251,7 @@ export default function RatingDetailScreen({ navigation, route }: Props) {
       <ScreenHeader
         title={activeCategory ? t(activeCategory) : t('ratings')}
         onBack={handleBack}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         rightAction={
           <TouchableOpacity onPress={() => setPopoverVisible(true)} style={styles.iconBtn}>
             <MoreHorizontalIcon size={24} color={colors.onSurface} />
@@ -612,14 +612,14 @@ const styles = StyleSheet.create({
   },
   commentText: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     lineHeight: 20,
     marginBottom: 6,
   },
   commentTime: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#C7C7CC',
   },
   loadMoreCommentsButton: {

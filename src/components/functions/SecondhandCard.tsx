@@ -18,7 +18,7 @@ import {
 import { FigmaMoreDotsIcon } from './SecondhandFigmaIcons';
 import { getLocalizedSecondhandCondition } from '../../utils/secondhandCondition';
 import { isExpiredNow } from '../../hooks/useExpirationTick';
-import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 
 export interface SecondhandCardProps {
   item: SecondhandItem;
@@ -265,13 +265,13 @@ const styles = StyleSheet.create({
   },
   imageCountBadgeText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
   conditionBadgeText: {
     fontSize: 9,
     lineHeight: 13,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#FFFFFF',
   },
   categoryTag: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   categoryTagText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   expiredTag: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   expiredTagText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#ED4956',
   },
 
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#1F1F1F',
   },
   textDimmed: {
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   sellerName: {
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#999999',
     flexShrink: 1,
   },

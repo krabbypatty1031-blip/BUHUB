@@ -28,6 +28,7 @@ import {
 } from '../../hooks/useSchedule';
 import { useUIStore } from '../../store/uiStore';
 import { scheduleService } from '../../api/services/schedule.service';
+import { fontFamily } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<FunctionsStackParamList, 'AIScheduleView'>;
 
@@ -192,7 +193,7 @@ export default function AIScheduleViewScreen({ navigation, route }: Props) {
         variant="campus"
         title={t('aiScheduleTitle')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         rightAction={
           <View style={styles.topBarRight}>
             <TouchableOpacity activeOpacity={0.7} onPress={handleExport}>
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exportTitle: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 18,
     color: '#0C1015',
   },
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exportFooterText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 10,
     color: '#C7C7CC',
   },
@@ -356,13 +357,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   warningTitle: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 13,
     color: '#8A5A00',
     marginBottom: 2,
   },
   warningBody: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     color: '#8A5A00',
     lineHeight: 16,
@@ -377,7 +378,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   warningDismissText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     color: '#8A5A00',
   },
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5A623',
   },
   warningPrimaryText: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     fontSize: 12,
     color: '#FFFFFF',
   },

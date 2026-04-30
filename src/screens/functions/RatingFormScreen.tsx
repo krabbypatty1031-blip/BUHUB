@@ -21,7 +21,7 @@ import { translateLabel } from '../../utils/translate';
 import { canPublishCommunityContent, isPublishPermissionError } from '../../utils/publishPermission';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import Chip from '../../components/common/Chip';
 import { hapticSelection, hapticMedium } from '../../utils/haptics';
@@ -196,7 +196,7 @@ export default function RatingFormScreen({ navigation, route }: Props) {
       <ScreenHeader
         title={t('submitRating')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
       <KeyboardAwareScrollView
@@ -374,12 +374,12 @@ const styles = StyleSheet.create({
   },
   scoreName: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   scoreRange: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   scoreInput: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   stepBtnText: {
     fontSize: 16,
     color: '#86909C',
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
   },
   numberBox: {
     width: 52,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   numberText: {
     fontSize: 18,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     textAlign: 'center',
     padding: 0,
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   editNoticeText: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#8B6914',
     flex: 1,
   },

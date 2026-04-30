@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AlbumIcon, CameraIcon } from './AIScheduleIcons';
+import { fontFamily } from '../../theme/typography';
 
 interface ImageSourcePopoverProps {
   visible: boolean;
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   rowText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 16,
     color: '#0A0A0A',
   },

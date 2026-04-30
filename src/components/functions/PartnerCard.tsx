@@ -15,7 +15,7 @@ import {
   FemaleIcon,
 } from '../../components/common/icons';
 import { FigmaMoreDotsIcon } from '../../components/functions/SecondhandFigmaIcons';
-import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 
 export interface PartnerCardProps {
   item: PartnerPost;
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   categoryTag: {
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   categoryTagText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   expiredTag: {
@@ -185,13 +185,13 @@ const styles = StyleSheet.create({
   },
   expiredTagText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#ED4956',
   },
   cardDesc: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     marginBottom: 10,
   },
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#999999',
   },
   metaDot: {

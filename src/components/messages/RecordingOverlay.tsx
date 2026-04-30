@@ -15,6 +15,7 @@ import ReAnimated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { spacing } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 export type ActionType = 'send' | 'cancel' | 'transcribe';
 
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
   transcriptText: {
     fontSize: 18,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: 'rgba(255,255,255,0.96)',
     textAlign: 'center',
   },

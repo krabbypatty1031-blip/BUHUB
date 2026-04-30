@@ -29,7 +29,7 @@ import { canPublishCommunityContent } from '../../utils/publishPermission';
 import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
@@ -1298,21 +1298,21 @@ const styles = StyleSheet.create({
   nickname: {
     fontSize: 24,
     lineHeight: 32,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   /* Figma 9:849: Regular 14px, lineHeight:20, #4E5969 */
   meta: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     marginTop: 6,
   },
   bio: {
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     fontStyle: 'italic',
     marginTop: 4,
@@ -1342,7 +1342,7 @@ const styles = StyleSheet.create({
   miniStatLabel: {
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
 
@@ -1356,7 +1356,7 @@ const styles = StyleSheet.create({
   publishedActionText: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
 
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 15,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
     includeFontPadding: false,
     textAlignVertical: 'center',

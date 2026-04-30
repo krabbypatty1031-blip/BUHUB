@@ -21,7 +21,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import type { LinkedEmail, User } from '../../types';
 
@@ -219,7 +219,7 @@ export default function ManageEmailsScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('manageEmails')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         showBottomBorder={false}
       />
 

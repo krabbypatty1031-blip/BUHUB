@@ -18,7 +18,7 @@ import { useRatingStore } from '../../store/ratingStore';
 import { translateLabel } from '../../utils/translate';
 import { getLocalizedRatingDepartment, getLocalizedRatingLocation } from '../../utils/ratingMeta';
 import { colors } from '../../theme/colors';
-import { getLocalizedFontStyle } from '../../theme/typography';
+import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { CloseIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
     padding: 0,
     textAlignVertical: 'center',
@@ -415,13 +415,13 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 15,
     lineHeight: 20,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   cardSubtitle: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     marginTop: 2,
   },
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   ratingCountSmall: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   miniBarRow: {
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   miniBarLabel: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     width: 56,
     flexShrink: 0,
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   },
   miniBarValue: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     width: 22,
     textAlign: 'right',
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   },
   tagChipText: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
 });

@@ -8,7 +8,7 @@ import { canPublishCommunityContent } from '../../utils/publishPermission';
 import { promptHkbuVerification } from '../../utils/hkbuPrompt';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import Avatar from './Avatar';
 import TranslatableText from './TranslatableText';
 import { PageTranslationProvider, PageTranslationToggle } from './PageTranslation';
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   commentBody: {
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   commentActionsRow: {

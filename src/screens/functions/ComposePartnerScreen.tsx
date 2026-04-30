@@ -16,7 +16,7 @@ import { useCreatePartner, useEditPartner } from '../../hooks/usePartners';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import {
   ClockIcon,
@@ -190,7 +190,7 @@ export default function ComposePartnerScreen({ navigation, route }: Props) {
         title={t(isEditMode ? 'editPost' : 'newPartnerPost')}
         onBack={() => navigation.goBack()}
         leading="close"
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
         showBottomBorder={false}
         rightAction={
           <TouchableOpacity

@@ -8,6 +8,7 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import type { ScheduleCourse } from '../../types/schedule';
+import { fontFamily } from '../../theme/typography';
 import CourseCard from './CourseCard';
 
 interface TimetableGridProps {
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: TIME_LABEL_WIDTH,
     textAlign: 'center',
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     color: '#9CA3AF',
   },
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
     zIndex: 11,
   },
   timeLineLabel: {
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     fontSize: 9,
     color: '#FF3B30',
     backgroundColor: '#F3F5F7',

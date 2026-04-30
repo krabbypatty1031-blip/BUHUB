@@ -25,6 +25,7 @@ import { uploadService } from '../../api/services/upload.service';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 import Chip from '../../components/common/Chip';
 import ScreenHeader from '../../components/common/ScreenHeader';
 
@@ -98,7 +99,7 @@ export default function FeedbackSubmitScreen({ navigation }: Props) {
         variant="campus"
         title={t('feedbackSubmit')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
       <ScrollView
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 14,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
     marginBottom: 12,
   },
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#0C1015',
   },
   counterRow: {
@@ -231,12 +232,12 @@ const styles = StyleSheet.create({
   },
   minCharsWarning: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#F59E0B',
   },
   charCount: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   imageRow: {
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   removeBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     lineHeight: 14,
   },
   addImageBtn: {
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
   },
   addImageLabel: {
     fontSize: 10,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
     textAlign: 'center',
     marginTop: 2,
@@ -308,7 +309,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: colors.onPrimary,
   },
 });

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { colors } from '../../theme/colors';
 import { spacing, layout } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 import { BackIcon, CloseIcon } from './icons';
 
 export type ScreenHeaderVariant = 'default' | 'campus';
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   titleCjk: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
   },
   titleDefaultWeight: {
     fontWeight: '600',

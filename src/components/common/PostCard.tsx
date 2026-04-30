@@ -7,7 +7,7 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, fontFamily } from '../../theme';
 import { hapticLight } from '../../utils/haptics';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
 import type { ForumPost } from '../../types';
@@ -468,11 +468,11 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     fontSize: 18,
     lineHeight: 21,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   quoteMeta: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 16,
     color: '#9CA3AF',
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   /* Figma: vote count on the right, 12px Regular #0C1015 */
   pollVoteCount: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 12 * 1.4,
     color: '#0C1015',
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0463E2' + '18',
   },
   pollText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     flexShrink: 1,
     fontSize: 12,
     lineHeight: 12 * 1.4,
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   pollTextVoted: {
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0463E2',
   },
   pollOptionUnvoted: {
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   pollTextUnvoted: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 12 * 1.4,
     color: '#0C1015',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   /* Figma: "共 X 人投票" right-aligned, 12px Regular #9CA3AF */
   pollFooterText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 16,
     color: '#9CA3AF',
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   },
   /* Figma: "点击上方按钮，选择你的观点" left-aligned, 12px Regular #9CA3AF */
   pollHintText: {
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     fontSize: 12,
     lineHeight: 16,
     color: '#9CA3AF',

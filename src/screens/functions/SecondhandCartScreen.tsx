@@ -17,7 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { colors } from '../../theme/colors';
 import { borderRadius, elevation, spacing } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -288,7 +288,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('tabMyWants')}
         onBack={() => navigation.goBack()}
-        titleStyle={{ fontFamily: 'SourceHanSansCN-Bold' }}
+        titleStyle={{ fontFamily: fontFamily.bold }}
       />
 
       <SectionList

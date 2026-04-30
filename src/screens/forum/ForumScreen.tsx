@@ -25,7 +25,7 @@ import { useScrollTabBarAnimation } from '../../hooks/useScrollTabBarAnimation';
 import { useTabBarAnimation } from '../../hooks/TabBarAnimationContext';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
+import { typography, fontFamily } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import EmptyState from '../../components/common/EmptyState';
@@ -606,14 +606,14 @@ const styles = StyleSheet.create({
   feedTabTextActive: {
     fontSize: 18,
     lineHeight: 26,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
   },
   /* Figma: inactive 16px Regular #86909C */
   feedTabText: {
     fontSize: 16,
     lineHeight: 26,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   /* Figma: 15x3 black indicator bar below active tab */

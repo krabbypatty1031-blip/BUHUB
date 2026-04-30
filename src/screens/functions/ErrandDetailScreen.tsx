@@ -20,7 +20,7 @@ import { useAuthStore } from '../../store/authStore';
 import { reportService } from '../../api/services/report.service';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius, elevation } from '../../theme/spacing';
-import { getLocalizedFontStyle, typography } from '../../theme/typography';
+import { getLocalizedFontStyle, typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ReportModal from '../../components/common/ReportModal';
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
 
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   /* ----- Title ----- */
   contentTitle: {
     fontSize: 20,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#0C1015',
     lineHeight: 26,
   },
@@ -496,13 +496,13 @@ const styles = StyleSheet.create({
   },
   descLabel: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#86909C',
     letterSpacing: 0.5,
   },
   descText: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#4E5969',
     lineHeight: 22,
   },
@@ -523,12 +523,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
   infoValue: {
     fontSize: 16,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
 
@@ -565,12 +565,12 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Medium',
+    fontFamily: fontFamily.medium,
     color: '#0C1015',
   },
   userMeta: {
     fontSize: 12,
-    fontFamily: 'SourceHanSansCN-Regular',
+    fontFamily: fontFamily.regular,
     color: '#86909C',
   },
 
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   },
   expiredTagText: {
     fontSize: 11,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#ED4956',
   },
 
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   },
   bottomBtnText: {
     fontSize: 15,
-    fontFamily: 'SourceHanSansCN-Bold',
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
 
