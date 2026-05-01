@@ -30,7 +30,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyComments'>;
 export default function NotifyCommentsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { data: notifications, isLoading, refetch } = useCommentNotifications();
+  const { data: notifications, isLoading, isFetching, refetch } = useCommentNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
   const currentUser = useAuthStore((s) => s.user);
@@ -151,7 +151,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
           renderItem={renderItem}
           keyExtractor={(item, index) => item.id || String(index)}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>

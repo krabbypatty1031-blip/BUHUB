@@ -180,7 +180,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const showSnackbar = useUIStore((s) => s.showSnackbar);
-  const { data: cartItems = [], isLoading, refetch } = useWantedSecondhand();
+  const { data: cartItems = [], isLoading, isFetching, refetch } = useWantedSecondhand();
   const wantMutation = useWantSecondhand();
 
   const [actionItem, setActionItem] = useState<CartActionItem | null>(null);
@@ -302,7 +302,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
             <Text style={styles.sectionCount}>{section.data.length}</Text>
           </View>
         )}
-        refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         SectionSeparatorComponent={() => <View style={styles.sectionSpacer} />}

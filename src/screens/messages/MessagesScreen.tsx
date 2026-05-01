@@ -561,7 +561,7 @@ export default function MessagesScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={!showSearch ? renderHeader : undefined}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           ListEmptyComponent={

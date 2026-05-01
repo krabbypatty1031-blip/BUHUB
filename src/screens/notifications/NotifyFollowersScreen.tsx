@@ -122,7 +122,7 @@ function FollowerItem({
 export default function NotifyFollowersScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { data: notifications, isLoading, refetch } = useFollowerNotifications();
+  const { data: notifications, isLoading, isFetching, refetch } = useFollowerNotifications();
 
   // Dedupe repeat follows by the same user (keep newest). The list is already
   // newest-first, so the first occurrence per userName is the latest event.
@@ -197,9 +197,9 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
         <FlashList
           data={dedupedNotifications}
           renderItem={renderItem}
-          keyExtractor={(_, index) => String(index)}
+          keyExtractor={(item, index) => item.userName ?? `anon-${item.time}-${index}`}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>

@@ -30,7 +30,7 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyLikes'>;
 export default function NotifyLikesScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { data: notifications, isLoading, refetch } = useLikeNotifications();
+  const { data: notifications, isLoading, isFetching, refetch } = useLikeNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadLikes = useNotificationStore((s) => s.setUnreadLikes);
   const currentUser = useAuthStore((s) => s.user);
@@ -144,9 +144,11 @@ export default function NotifyLikesScreen({ navigation }: Props) {
         <FlashList
           data={notifications || []}
           renderItem={renderItem}
-          keyExtractor={(_, index) => String(index)}
+          keyExtractor={(item, index) =>
+            `${item.userName ?? item.user}-${item.postId}-${item.commentId ?? ''}-${item.time}-${index}`
+          }
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
