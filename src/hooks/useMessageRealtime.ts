@@ -27,6 +27,37 @@ import { recordMessageMetric } from '../utils/messageMetrics';
 // Realtime constants
 const RECONNECT_BASE_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 5000;
+const PRESENCE_REFRESH_MS = 20000;
+
+// Presence-aware push suppression (TICKET-017). Module-scoped so screens can
+// declare focus without prop-drilling the WebSocket. The latest open socket
+// is registered on connect / cleared on close, so setPresenceFocus() can
+// always reach it. Server-side TTL is 30s, so we refresh every 20s.
+let currentSocket: WebSocket | null = null;
+let currentFocusKey: string | null = null;
+let focusRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+function sendFocusFrame(key: string | null) {
+  const ws = currentSocket;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    ws.send(JSON.stringify({ action: 'focus', key }));
+  } catch {
+    // Ignore send failures; the next open replay will recover.
+  }
+}
+
+export function setPresenceFocus(key: string | null) {
+  currentFocusKey = key;
+  if (focusRefreshTimer) {
+    clearInterval(focusRefreshTimer);
+    focusRefreshTimer = null;
+  }
+  sendFocusFrame(key);
+  if (key) {
+    focusRefreshTimer = setInterval(() => sendFocusFrame(key), PRESENCE_REFRESH_MS);
+  }
+}
 
 type RealtimeEvent = {
   type:
@@ -357,6 +388,8 @@ export function useMessageRealtime() {
 
         ws.onopen = () => {
           if (socketRef.current !== ws) return;
+          currentSocket = ws;
+          if (currentFocusKey) sendFocusFrame(currentFocusKey);
           const wasReconnect = reconnectAttemptRef.current > 0;
           reconnectAttemptRef.current = 0;
           recordMessageMetric('message_ws_connected');
@@ -406,6 +439,9 @@ export function useMessageRealtime() {
           }
           if (socketRef.current === ws) {
             socketRef.current = null;
+          }
+          if (currentSocket === ws) {
+            currentSocket = null;
           }
           if (canceled) return;
           // Auth-related close codes: do not reconnect, trigger logout

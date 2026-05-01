@@ -22,6 +22,7 @@ import { colors } from '../../theme/colors';
 import { elevation } from '../../theme/spacing';
 import { getLocalizedFontStyle, fontFamily } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { PlusIcon } from '../../components/common/icons';
 import { getRelativeTime } from '../../utils/formatTime';
@@ -145,8 +146,7 @@ export default function FeedbackListScreen({ navigation }: Props) {
         data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isUserRefreshing}
-        onRefresh={handleRefresh}
+        refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handleRefresh} />}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}

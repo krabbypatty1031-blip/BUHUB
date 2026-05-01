@@ -23,6 +23,7 @@ import ScreenHeader from '../../components/common/ScreenHeader';
 import { CloseIcon, StarIcon } from '../../components/common/icons';
 import { FigmaSearchIcon26 } from '../../components/functions/SecondhandFigmaIcons';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import { TeacherAvatarIcon, CourseAvatarIcon, CanteenAvatarIcon, MajorAvatarIcon } from '../../components/functions/DetailInfoIcons';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 
@@ -314,8 +315,7 @@ export default function RatingListScreen({ navigation }: Props) {
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
-            refreshing={isRefreshing}
-            onRefresh={refetch}
+            refreshControl={<BrandRefreshControl refreshing={isRefreshing} onRefresh={refetch} />}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.35}
             drawDistance={500}

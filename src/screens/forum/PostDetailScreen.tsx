@@ -17,7 +17,9 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { setPresenceFocus } from '../../hooks/useMessageRealtime';
 import type { ForumStackParamList } from '../../types/navigation';
 import { usePostDetail, useComments, useCreateComment, useLikePost, useBookmarkPost, useLikeComment, useBookmarkComment, useVotePost, useDeletePost, useDeleteComment } from '../../hooks/usePosts';
 import { useContacts } from '../../hooks/useMessages';
@@ -859,6 +861,13 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       autoReplyHandledKeyRef.current = key;
     }
   }, [postId, commentId, comments, shouldReply]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setPresenceFocus(`post:${postId}`);
+      return () => setPresenceFocus(null);
+    }, [postId])
+  );
 
   // Track which comment's replies should be expanded (for navigating to nested comments)
   const [expandedReplies, setExpandedReplies] = useState<string[]>([]);

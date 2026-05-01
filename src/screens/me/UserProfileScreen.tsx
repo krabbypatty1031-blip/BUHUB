@@ -32,6 +32,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, fontFamily } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import PostCard from '../../components/common/PostCard';
@@ -542,8 +543,7 @@ export default function UserProfileScreen({ navigation, route }: Props) {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         extraData={listExtraData}
-        refreshing={isRefreshing}
-        onRefresh={handleRefresh}
+        refreshControl={<BrandRefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         onEndReached={() => { if (!postsHidden && hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}

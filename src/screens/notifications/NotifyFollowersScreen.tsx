@@ -24,6 +24,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import Avatar from '../../components/common/Avatar';
 import ScreenHeader from '../../components/common/ScreenHeader';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import { UsersIcon, MaleIcon, FemaleIcon } from '../../components/common/icons';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 
@@ -198,8 +199,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
           renderItem={renderItem}
           keyExtractor={(_, index) => String(index)}
           contentContainerStyle={styles.listContent}
-          refreshing={isLoading}
-          onRefresh={refetch}
+          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>

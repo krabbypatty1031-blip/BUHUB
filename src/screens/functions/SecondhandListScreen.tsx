@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
@@ -307,8 +308,7 @@ export default function SecondhandListScreen({ navigation }: Props) {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
-        refreshing={isUserRefreshing}
-        onRefresh={handlePullToRefresh}
+        refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handlePullToRefresh} />}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}

@@ -29,6 +29,7 @@ import { typography, fontFamily } from '../../theme/typography';
 import PostCard from '../../components/common/PostCard';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { ForumListSkeleton } from '../../components/common/Skeleton';
 import ForwardSheet from '../../components/common/ForwardSheet';
@@ -447,8 +448,12 @@ export default function ForumScreen({ navigation, route }: Props) {
             renderItem={renderPost}
             keyExtractor={keyExtractor}
             extraData={listExtraData}
-            refreshing={feedTab === 'discover' && isPullRefreshing}
-            onRefresh={handleRefresh}
+            refreshControl={
+              <BrandRefreshControl
+                refreshing={feedTab === 'discover' && isPullRefreshing}
+                onRefresh={handleRefresh}
+              />
+            }
             onEndReached={feedTab === 'discover' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'discover' ? onScroll : undefined}
@@ -475,8 +480,12 @@ export default function ForumScreen({ navigation, route }: Props) {
             renderItem={renderPost}
             keyExtractor={keyExtractor}
             extraData={listExtraData}
-            refreshing={feedTab === 'following' && isPullRefreshing}
-            onRefresh={handleRefresh}
+            refreshControl={
+              <BrandRefreshControl
+                refreshing={feedTab === 'following' && isPullRefreshing}
+                onRefresh={handleRefresh}
+              />
+            }
             onEndReached={feedTab === 'following' ? handleEndReached : undefined}
             onEndReachedThreshold={0.5}
             onScroll={feedTab === 'following' ? onScroll : undefined}

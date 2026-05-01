@@ -62,6 +62,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useMessageStore } from '../../store/messageStore';
 import { useUIStore } from '../../store/uiStore';
 import { useMessageRealtimeStore } from '../../store/messageRealtimeStore';
+import { setPresenceFocus } from '../../hooks/useMessageRealtime';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, fontFamily } from '../../theme/typography';
@@ -1889,6 +1890,7 @@ function ChatScreenContent({ navigation, route }: Props) {
       }
       setFocusVersion((prev) => prev + 1);
       setActiveChatContact(contactId);
+      setPresenceFocus(`chat:${contactId}`);
       clearUnread(contactId);
       const hasPendingSend = useMessageRealtimeStore.getState().hasPendingForContact(contactId);
       void Promise.allSettled([
@@ -1921,6 +1923,7 @@ function ChatScreenContent({ navigation, route }: Props) {
           olderHistoryLoadingTimerRef.current = null;
         }
         setActiveChatContact(null);
+        setPresenceFocus(null);
         sub.remove();
       };
     }, [clearUnread, contactId, handleBack, queryClient, setActiveChatContact])

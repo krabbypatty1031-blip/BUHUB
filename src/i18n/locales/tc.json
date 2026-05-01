@@ -950,6 +950,7 @@
   "checkEmailHint": "沒收到郵件？請檢查垃圾郵件",
   "backToLogin": "返回登入",
   "loading": "載入中...",
+  "refreshing": "刷新中...",
   "rateLimited": "請求過於頻繁，請稍後再試",
   "serviceUnavailable": "服務暫時不可用，請稍後再試",
   "sessionExpired": "登入已過期，請重新登入",

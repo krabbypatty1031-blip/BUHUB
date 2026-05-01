@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  RefreshControl,
 } from 'react-native';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -933,7 +933,7 @@ export default function MeScreen({ navigation }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          <BrandRefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
         {/* ==================== Upper Half: Profile ==================== */}

@@ -22,6 +22,7 @@ import { spacing, borderRadius, elevation } from '../../theme/spacing';
 import { getLocalizedFontStyle, typography, fontFamily } from '../../theme/typography';
 import SegmentedControl, { type SegmentedControlOption } from '../../components/common/SegmentedControl';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ErrandCard from '../../components/functions/ErrandCard';
 import { buildGradeMajorMeta, getRelativeTime } from '../../utils/formatTime';
@@ -288,8 +289,7 @@ export default function ErrandListScreen({ navigation }: Props) {
         data={filteredErrands}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        refreshing={isUserRefreshing}
-        onRefresh={handlePullToRefresh}
+        refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handlePullToRefresh} />}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}

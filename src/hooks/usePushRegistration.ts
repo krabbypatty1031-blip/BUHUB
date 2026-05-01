@@ -41,6 +41,7 @@ type PushNavigationTarget =
   | { tab: 'FunctionsTab'; screen: 'PartnerDetail'; params: { id: string } }
   | { tab: 'FunctionsTab'; screen: 'ErrandDetail'; params: { id: string } }
   | { tab: 'FunctionsTab'; screen: 'SecondhandDetail'; params: { id: string } }
+  | { tab: 'FunctionsTab'; screen: 'LockerSFSC' }
   | { tab: 'MessagesTab'; screen: 'NotifyLikes' }
   | { tab: 'MessagesTab'; screen: 'NotifyComments' }
   | { tab: 'MessagesTab'; screen: 'NotifyFollowers' }
@@ -114,6 +115,8 @@ function buildPushNavigationTarget(data: Record<string, unknown>): PushNavigatio
       return id ? { tab: 'FunctionsTab', screen: 'ErrandDetail', params: { id } } : null;
     case 'secondhand':
       return id ? { tab: 'FunctionsTab', screen: 'SecondhandDetail', params: { id } } : null;
+    case 'lockerSFSC':
+      return { tab: 'FunctionsTab', screen: 'LockerSFSC' };
     case 'profile':
       return id ? { tab: 'MeTab', screen: 'UserProfile', params: { userName: id } } : null;
     case 'notifications': {
@@ -185,6 +188,10 @@ function navigateToPushTarget(navigationRef: PushNavigationRef, target: PushNavi
       });
       return;
     case 'FunctionsTab':
+      if (target.screen === 'LockerSFSC') {
+        navigationRef.navigate('FunctionsTab', { screen: 'LockerSFSC' } as never);
+        return;
+      }
       navigationRef.navigate('FunctionsTab', {
         screen: target.screen,
         params: target.params,
@@ -270,6 +277,16 @@ async function getExpoPushToken() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'General',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#6750A4',
+    });
+    // TICKET-004: dedicated channel for direct messages so multiple incoming
+    // messages stack in the notification shade instead of pushing earlier
+    // notifications out, and users can independently configure the messages
+    // sound/priority from system settings.
+    await Notifications.setNotificationChannelAsync('messages', {
+      name: 'Messages',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6750A4',

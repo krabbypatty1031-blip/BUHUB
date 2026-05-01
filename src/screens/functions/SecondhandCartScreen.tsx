@@ -19,6 +19,7 @@ import { colors } from '../../theme/colors';
 import { borderRadius, elevation, spacing } from '../../theme/spacing';
 import { typography, fontFamily } from '../../theme/typography';
 import EmptyState from '../../components/common/EmptyState';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import FunctionForwardSheet from '../../components/common/FunctionForwardSheet';
 import ImagePreviewModal from '../../components/common/ImagePreviewModal';
@@ -301,8 +302,7 @@ export default function SecondhandCartScreen({ navigation }: Props) {
             <Text style={styles.sectionCount}>{section.data.length}</Text>
           </View>
         )}
-        refreshing={isLoading}
-        onRefresh={refetch}
+        refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         SectionSeparatorComponent={() => <View style={styles.sectionSpacer} />}

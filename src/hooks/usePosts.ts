@@ -666,6 +666,13 @@ export function useLikePost() {
       const previousSearchLists = getAllSearchLists(queryClient);
       const previousDetail = queryClient.getQueryData<ForumPost>(postDetailKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
+      // Determine current liked state to bump stats.collection optimistically
+      // (server-computed COUNT shown as "Likes & Saved" on MeScreen).
+      const wasLiked: boolean | null =
+        previousDetail?.liked ??
+        findPostInPostLists(previousPostLists, postId)?.liked ??
+        (previousMyContent?.myLikes.posts.some((p) => p.postId === postId) ? true : null);
+      const collectionDelta = wasLiked === null ? 0 : wasLiked ? -1 : 1;
       const toggle = (p: ForumPost) => ({
         ...p,
         liked: !p.liked,
@@ -702,6 +709,10 @@ export function useLikePost() {
               myBookmarks: {
                 ...old.myBookmarks,
                 posts: old.myBookmarks.posts.map(toggleUserPost),
+              },
+              stats: {
+                ...old.stats,
+                collection: Math.max(0, (old.stats?.collection ?? 0) + collectionDelta),
               },
             }
           : old
@@ -754,7 +765,10 @@ export function useLikePost() {
       queryClient.invalidateQueries({ queryKey: ['posts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['search'], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['myContent'], refetchType: 'inactive' });
+      // Reconcile MeScreen's "Likes & Saved" stat against server truth — refetch
+      // even when MeScreen is the active observer (was previously 'inactive',
+      // which silently skipped the refetch and let the count drift up to 15s).
+      queryClient.invalidateQueries({ queryKey: ['myContent'] });
       if (typeof res?.likeCount !== 'number') {
         queryClient.invalidateQueries({ queryKey: postDetailKey(postId, language), refetchType: 'inactive' });
       }
@@ -773,6 +787,13 @@ export function useLikeComment(postId: string) {
       const previous = queryClient.getQueryData<Comment[]>(commentsKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
 
+      // Determine current liked state to bump stats.collection optimistically
+      // (server-computed COUNT shown as "Likes & Saved" on MeScreen).
+      const wasLiked: boolean | null =
+        findCommentNodeById(previous, commentId)?.liked ??
+        (previousMyContent?.myLikes.comments.some((c) => c.commentId === commentId) ? true : null);
+      const collectionDelta = wasLiked === null ? 0 : wasLiked ? -1 : 1;
+
       queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
         updateCommentTreeById(old, commentId, (node) => ({
           ...node,
@@ -780,13 +801,22 @@ export function useLikeComment(postId: string) {
           likes: node.liked ? Math.max(0, node.likes - 1) : node.likes + 1,
         }))
       );
-      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
-        updateMyContentCommentById(old, commentId, (item) => ({
+      queryClient.setQueryData<MyContent>(['myContent'], (old) => {
+        const updated = updateMyContentCommentById(old, commentId, (item) => ({
           ...item,
           liked: !item.liked,
           likes: item.liked ? Math.max(0, item.likes - 1) : item.likes + 1,
-        }), { includeReactionLists: true })
-      );
+        }), { includeReactionLists: true });
+        return updated
+          ? {
+              ...updated,
+              stats: {
+                ...updated.stats,
+                collection: Math.max(0, (updated.stats?.collection ?? 0) + collectionDelta),
+              },
+            }
+          : updated;
+      });
       return { previous, previousMyContent };
     },
     onSuccess: (res, commentId) => {
@@ -908,18 +938,34 @@ export function useBookmarkComment(postId: string) {
       const previous = queryClient.getQueryData<Comment[]>(commentsKey(postId, language));
       const previousMyContent = queryClient.getQueryData<MyContent>(['myContent']);
 
+      // Determine current bookmarked state to bump stats.collection optimistically
+      // (server-computed COUNT shown as "Likes & Saved" on MeScreen).
+      const wasBookmarked: boolean | null =
+        findCommentNodeById(previous, commentId)?.bookmarked ??
+        (previousMyContent?.myBookmarks.comments.some((c) => c.commentId === commentId) ? true : null);
+      const collectionDelta = wasBookmarked === null ? 0 : wasBookmarked ? -1 : 1;
+
       queryClient.setQueryData<Comment[]>(commentsKey(postId, language), (old) =>
         updateCommentTreeById(old, commentId, (node) => ({
           ...node,
           bookmarked: !node.bookmarked,
         }))
       );
-      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
-        updateMyContentCommentById(old, commentId, (item) => ({
+      queryClient.setQueryData<MyContent>(['myContent'], (old) => {
+        const updated = updateMyContentCommentById(old, commentId, (item) => ({
           ...item,
           bookmarked: !item.bookmarked,
-        }), { includeReactionLists: true })
-      );
+        }), { includeReactionLists: true });
+        return updated
+          ? {
+              ...updated,
+              stats: {
+                ...updated.stats,
+                collection: Math.max(0, (updated.stats?.collection ?? 0) + collectionDelta),
+              },
+            }
+          : updated;
+      });
       return { previous, previousMyContent };
     },
     onSuccess: (res, commentId) => {
@@ -975,6 +1021,19 @@ export function useBookmarkPost() {
       }
       queryClient.setQueryData<MyContent>(['myContent'], (old) =>
         updateMyContentPostBookmark(old, postId, nextBookmarked, sourcePost)
+      );
+      // Bump stats.collection optimistically (drives "Likes & Saved" on MeScreen).
+      const collectionDelta = nextBookmarked ? 1 : -1;
+      queryClient.setQueryData<MyContent>(['myContent'], (old) =>
+        old
+          ? {
+              ...old,
+              stats: {
+                ...old.stats,
+                collection: Math.max(0, (old.stats?.collection ?? 0) + collectionDelta),
+              },
+            }
+          : old
       );
       return { previousPostLists, previousUserPostLists, previousSearchLists, previousDetail, previousMyContent };
     },

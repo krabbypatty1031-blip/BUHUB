@@ -29,6 +29,7 @@ import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import SwipeableBottomSheet from '../../components/common/SwipeableBottomSheet';
 import { MessageListSkeleton } from '../../components/common/Skeleton';
+import { BrandRefreshControl } from '../../components/common/BrandRefreshControl';
 import { fontFamily } from '../../theme/typography';
 import {
   CloseIcon,
@@ -560,8 +561,7 @@ export default function MessagesScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={!showSearch ? renderHeader : undefined}
           contentContainerStyle={styles.listContent}
-          refreshing={isLoading}
-          onRefresh={refetch}
+          refreshControl={<BrandRefreshControl refreshing={isLoading} onRefresh={refetch} />}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           ListEmptyComponent={
