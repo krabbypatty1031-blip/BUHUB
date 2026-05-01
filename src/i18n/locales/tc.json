@@ -497,7 +497,7 @@
   "forwardSuccess": "已轉發給 {{name}}",
   "recording": "錄音中...",
   "voiceNotSupported": "語音轉文字即將推出",
-  "likeNotifications": "讚和收藏",
+  "likeNotifications": "讚",
   "followerNotifications": "新增追蹤",
   "commentNotifications": "評論&@",
   "searchMessagesPlaceholder": "搜尋私信內容...",

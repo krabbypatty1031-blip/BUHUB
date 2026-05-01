@@ -157,7 +157,17 @@ export default function MessagesScreen({ navigation }: Props) {
   const language = useAuthStore((s) => s.language);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const normalizedLanguage = normalizeLanguage(language) ?? 'tc';
-  const { data: contacts, isLoading, isFetching, refetch } = useContacts({ polling: isFocused });
+  const { data: contacts, isLoading, refetch } = useContacts({ polling: isFocused });
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+
+  const handlePullToRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
   const unreadLikes = useNotificationStore((s) => s.unreadLikes);
   const unreadFollowers = useNotificationStore((s) => s.unreadFollowers);
   const unreadComments = useNotificationStore((s) => s.unreadComments);
@@ -561,7 +571,7 @@ export default function MessagesScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={!showSearch ? renderHeader : undefined}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handlePullToRefresh} />}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           ListEmptyComponent={

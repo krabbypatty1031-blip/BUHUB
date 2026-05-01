@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -30,12 +30,22 @@ type Props = NativeStackScreenProps<MessagesStackParamList, 'NotifyComments'>;
 export default function NotifyCommentsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { data: notifications, isLoading, isFetching, refetch } = useCommentNotifications();
+  const { data: notifications, isLoading, refetch } = useCommentNotifications();
   const markAsRead = useMarkAsRead();
   const setUnreadComments = useNotificationStore((s) => s.setUnreadComments);
   const currentUser = useAuthStore((s) => s.user);
   const isFocused = useIsFocused();
   const hasMarkedReadOnFocusRef = useRef(false);
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+
+  const handlePullToRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -151,7 +161,7 @@ export default function NotifyCommentsScreen({ navigation }: Props) {
           renderItem={renderItem}
           keyExtractor={(item, index) => item.id || String(index)}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handlePullToRefresh} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>

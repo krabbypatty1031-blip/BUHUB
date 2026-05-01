@@ -482,7 +482,7 @@
   "forwardSuccess": "Forwarded to {{name}}",
   "recording": "Recording...",
   "voiceNotSupported": "Voice-to-text coming soon",
-  "likeNotifications": "Likes & Bookmarks",
+  "likeNotifications": "Likes",
   "followerNotifications": "Followers",
   "commentNotifications": "Comments&@",
   "searchMessagesPlaceholder": "Search messages...",

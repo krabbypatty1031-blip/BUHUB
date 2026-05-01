@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -122,7 +122,17 @@ function FollowerItem({
 export default function NotifyFollowersScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const { data: notifications, isLoading, isFetching, refetch } = useFollowerNotifications();
+  const { data: notifications, isLoading, refetch } = useFollowerNotifications();
+  const [isUserRefreshing, setIsUserRefreshing] = useState(false);
+
+  const handlePullToRefresh = useCallback(async () => {
+    setIsUserRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsUserRefreshing(false);
+    }
+  }, [refetch]);
 
   // Dedupe repeat follows by the same user (keep newest). The list is already
   // newest-first, so the first occurrence per userName is the latest event.
@@ -199,7 +209,7 @@ export default function NotifyFollowersScreen({ navigation }: Props) {
           renderItem={renderItem}
           keyExtractor={(item, index) => item.userName ?? `anon-${item.time}-${index}`}
           contentContainerStyle={styles.listContent}
-          refreshControl={<BrandRefreshControl refreshing={isFetching} onRefresh={refetch} />}
+          refreshControl={<BrandRefreshControl refreshing={isUserRefreshing} onRefresh={handlePullToRefresh} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
