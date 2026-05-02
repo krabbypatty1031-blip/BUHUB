@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { partnerService } from '../api/services/partner.service';
 import type { PartnerPost, PartnerCategory } from '../types';
 
 const PAGE_LIMIT = 20;
+const MY_MAX_PAGES = 10; // safety cap: 10 pages × 20 = 200 items per category
 
 export type PartnerPage = { items: PartnerPost[]; page: number; hasMore: boolean };
 export type PartnerInfiniteData = InfiniteData<PartnerPage>;
@@ -21,12 +23,27 @@ export function usePartners(category?: PartnerCategory) {
 }
 
 export function useMyPartners(category?: PartnerCategory, enabled = true) {
-  return useQuery({
+  const query = useInfiniteQuery<PartnerPage, Error, PartnerPost[], (string | undefined)[], number>({
     queryKey: ['partners', 'all', category],
-    queryFn: () => partnerService.getList(category || undefined, { includeExpired: true }),
+    queryFn: async ({ pageParam }) => {
+      const items = await partnerService.getList(category || undefined, { page: pageParam, limit: PAGE_LIMIT, includeExpired: true, mine: true });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.page < MY_MAX_PAGES ? lastPage.page + 1 : undefined,
+    select: (data) => data.pages.flatMap((p) => p.items),
     staleTime: 5 * 60 * 1000,
     enabled,
   });
+
+  useEffect(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  return query;
 }
 
 export function usePartnerDetail(id: string) {

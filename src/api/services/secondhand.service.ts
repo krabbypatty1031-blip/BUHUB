@@ -105,17 +105,18 @@ const mapSecondhand = (i: ApiSecondhandRecord): SecondhandItem => ({
 });
 
 export const secondhandService = {
-  async getList(category?: SecondhandCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<SecondhandItem[]> {
+  async getList(category?: SecondhandCategory, options?: { includeExpired?: boolean; mine?: boolean } & PaginationParams): Promise<SecondhandItem[]> {
     if (USE_MOCK) {
       const { mockSecondhandItems } = await import('../../data/mock/secondhand');
       const list = category ? mockSecondhandItems.filter((i) => i.category === category) : [...mockSecondhandItems];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { includeExpired, ...paginationParams } = options || {};
+    const { includeExpired, mine, ...paginationParams } = options || {};
     const { data } = await apiClient.get(ENDPOINTS.SECONDHAND.LIST, {
       params: {
         category: toApiCategory(category),
         ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...(mine !== undefined && { mine: String(mine) }),
         ...paginationParams,
       },
     });

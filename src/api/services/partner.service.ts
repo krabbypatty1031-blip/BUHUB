@@ -69,17 +69,18 @@ const mapPartner = (p: ApiPartnerRecord): PartnerPost => ({
 });
 
 export const partnerService = {
-  async getList(category?: PartnerCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<PartnerPost[]> {
+  async getList(category?: PartnerCategory, options?: { includeExpired?: boolean; mine?: boolean } & PaginationParams): Promise<PartnerPost[]> {
     if (USE_MOCK) {
       const { mockPartnerPosts } = await import('../../data/mock/partner');
       const list = category ? mockPartnerPosts.filter((p) => p.category === category) : [...mockPartnerPosts];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { includeExpired, ...paginationParams } = options || {};
+    const { includeExpired, mine, ...paginationParams } = options || {};
     const { data } = await apiClient.get(ENDPOINTS.PARTNER.LIST, {
       params: {
         category: toApiCategory(category),
         ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...(mine !== undefined && { mine: String(mine) }),
         ...paginationParams,
       },
     });

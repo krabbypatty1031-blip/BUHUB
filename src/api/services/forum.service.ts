@@ -122,6 +122,7 @@ type ApiPostsResponse = {
   posts?: ApiPostRecord[];
   hasMore?: boolean;
   page?: number;
+  nextCursor?: string;
 };
 
 function encodeFunctionRef(
@@ -418,7 +419,9 @@ export const forumService = {
     };
   },
 
-  async getPosts(params?: PaginationParams): Promise<{ posts: ForumPost[]; hasMore: boolean; page: number }> {
+  async getPosts(
+    params?: PaginationParams & { cursor?: string },
+  ): Promise<{ posts: ForumPost[]; hasMore: boolean; page: number; nextCursor?: string }> {
     if (USE_MOCK) {
       const { mockPosts } = await import('../../data/mock/forum');
       return { posts: mockPosts, hasMore: false, page: 1 };
@@ -427,11 +430,12 @@ export const forumService = {
     if (Array.isArray(data)) {
       return { posts: data.map((post: ApiPostRecord) => mapPostRecord(post)), hasMore: false, page: 1 };
     }
-    const { posts: rawPosts, hasMore, page } = data as ApiPostsResponse;
+    const { posts: rawPosts, hasMore, page, nextCursor } = data as ApiPostsResponse;
     return {
       posts: (Array.isArray(rawPosts) ? rawPosts : []).map((post: ApiPostRecord) => mapPostRecord(post)),
       hasMore: !!hasMore,
       page: page ?? 1,
+      nextCursor,
     };
   },
 
@@ -448,7 +452,9 @@ export const forumService = {
     };
   },
 
-  async getFollowingPosts(params?: PaginationParams): Promise<{ posts: ForumPost[]; hasMore: boolean; page: number }> {
+  async getFollowingPosts(
+    params?: PaginationParams & { cursor?: string },
+  ): Promise<{ posts: ForumPost[]; hasMore: boolean; page: number; nextCursor?: string }> {
     if (USE_MOCK) {
       return { posts: [], hasMore: false, page: 1 };
     }
@@ -456,11 +462,12 @@ export const forumService = {
     if (Array.isArray(data)) {
       return { posts: data.map((post: ApiPostRecord) => mapPostRecord(post)), hasMore: false, page: 1 };
     }
-    const { posts: rawPosts, hasMore, page } = data as ApiPostsResponse;
+    const { posts: rawPosts, hasMore, page, nextCursor } = data as ApiPostsResponse;
     return {
       posts: (Array.isArray(rawPosts) ? rawPosts : []).map((post: ApiPostRecord) => mapPostRecord(post)),
       hasMore: !!hasMore,
       page: page ?? 1,
+      nextCursor,
     };
   },
 

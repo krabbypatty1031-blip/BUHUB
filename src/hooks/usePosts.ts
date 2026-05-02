@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { normalizeLanguage } from '../i18n';
 import type { Comment, ForumPost, MyContent, Reply, UserPost } from '../types';
 
-export type PostsPage = { posts: ForumPost[]; hasMore: boolean; page: number };
+export type PostsPage = { posts: ForumPost[]; hasMore: boolean; page: number; nextCursor?: string };
 type PostsInfiniteData = InfiniteData<PostsPage>;
 type MyContentCommentLike = {
   commentId: string;
@@ -377,13 +377,13 @@ const FORUM_LIVE_REFETCH_MS = 15 * 1000;
 
 export function usePosts(enabled = true) {
   const language = resolveForumLanguage(useAuthStore((s) => s.language));
-  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
+  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], string | null>({
     queryKey: postsKey(language) as unknown as string[],
     queryFn: ({ pageParam }) =>
-      forumService.getPosts({ page: pageParam, limit: POSTS_LIMIT }),
-    initialPageParam: 1,
+      forumService.getPosts({ cursor: pageParam ?? undefined, limit: POSTS_LIMIT }),
+    initialPageParam: null,
     getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.page + 1 : undefined,
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -413,13 +413,13 @@ export function useUserPosts(userName: string) {
 
 export function useFollowingPosts(enabled = true) {
   const language = resolveForumLanguage(useAuthStore((s) => s.language));
-  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], number>({
+  return useInfiniteQuery<PostsPage, Error, PostsInfiniteData, string[], string | null>({
     queryKey: followingPostsKey(language) as unknown as string[],
     queryFn: ({ pageParam }) =>
-      forumService.getFollowingPosts({ page: pageParam, limit: POSTS_LIMIT }),
-    initialPageParam: 1,
+      forumService.getFollowingPosts({ cursor: pageParam ?? undefined, limit: POSTS_LIMIT }),
+    initialPageParam: null,
     getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.page + 1 : undefined,
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,

@@ -1,26 +1,82 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '../api/services/notification.service';
-import type { NotificationSettings } from '../types';
+import type {
+  NotificationSettings,
+  LikeNotification,
+  FollowerNotification,
+  CommentNotification,
+} from '../types';
+
+const PAGE_LIMIT = 20;
+const MAX_PAGES = 10; // safety cap: 10 pages × 20 = 200 items per category
+
+type Page<T> = { items: T[]; page: number; hasMore: boolean };
 
 export function useLikeNotifications() {
-  return useQuery({
+  const query = useInfiniteQuery<Page<LikeNotification>, Error, LikeNotification[], string[], number>({
     queryKey: ['notifications', 'likes'],
-    queryFn: () => notificationService.getLikes(),
+    queryFn: async ({ pageParam }) => {
+      const items = await notificationService.getLikes({ page: pageParam, limit: PAGE_LIMIT });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.page < MAX_PAGES ? lastPage.page + 1 : undefined,
+    select: (data) => data.pages.flatMap((p) => p.items),
   });
+
+  useEffect(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  return query;
 }
 
 export function useFollowerNotifications() {
-  return useQuery({
+  const query = useInfiniteQuery<Page<FollowerNotification>, Error, FollowerNotification[], string[], number>({
     queryKey: ['notifications', 'followers'],
-    queryFn: () => notificationService.getFollowers(),
+    queryFn: async ({ pageParam }) => {
+      const items = await notificationService.getFollowers({ page: pageParam, limit: PAGE_LIMIT });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.page < MAX_PAGES ? lastPage.page + 1 : undefined,
+    select: (data) => data.pages.flatMap((p) => p.items),
   });
+
+  useEffect(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  return query;
 }
 
 export function useCommentNotifications() {
-  return useQuery({
+  const query = useInfiniteQuery<Page<CommentNotification>, Error, CommentNotification[], string[], number>({
     queryKey: ['notifications', 'comments'],
-    queryFn: () => notificationService.getComments(),
+    queryFn: async ({ pageParam }) => {
+      const items = await notificationService.getComments({ page: pageParam, limit: PAGE_LIMIT });
+      return { items, page: pageParam, hasMore: items.length === PAGE_LIMIT };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.page < MAX_PAGES ? lastPage.page + 1 : undefined,
+    select: (data) => data.pages.flatMap((p) => p.items),
   });
+
+  useEffect(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      void query.fetchNextPage();
+    }
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  return query;
 }
 
 export function useUnreadCount() {

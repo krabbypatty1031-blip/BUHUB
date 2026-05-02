@@ -110,12 +110,12 @@ function normalizeCommentAction(rawAction: string | undefined, type: CommentType
 }
 
 export const notificationService = {
-  async getLikes(): Promise<LikeNotification[]> {
+  async getLikes(params?: { page?: number; limit?: number }): Promise<LikeNotification[]> {
     if (USE_MOCK) {
       const { mockLikeNotifications } = await import('../../data/mock/notifications');
       return mockLikeNotifications;
     }
-    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.LIKES);
+    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.LIKES, { params });
     const list = Array.isArray(data) ? (data as RawLikeNotification[]) : [];
     const seen = new Set<string>();
     return list.map((item) => {
@@ -142,12 +142,12 @@ export const notificationService = {
     });
   },
 
-  async getFollowers(): Promise<FollowerNotification[]> {
+  async getFollowers(params?: { page?: number; limit?: number }): Promise<FollowerNotification[]> {
     if (USE_MOCK) {
       const { mockFollowerNotifications } = await import('../../data/mock/notifications');
       return mockFollowerNotifications;
     }
-    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.FOLLOWERS);
+    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.FOLLOWERS, { params });
     const list = Array.isArray(data) ? (data as RawFollowerNotification[]) : [];
     return list.map((item) => ({
       user: item.user ?? item.name ?? item.userName ?? '',
@@ -161,12 +161,12 @@ export const notificationService = {
     }));
   },
 
-  async getComments(): Promise<CommentNotification[]> {
+  async getComments(params?: { page?: number; limit?: number }): Promise<CommentNotification[]> {
     if (USE_MOCK) {
       const { mockCommentNotifications } = await import('../../data/mock/notifications');
       return mockCommentNotifications;
     }
-    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.COMMENTS);
+    const { data } = await apiClient.get(ENDPOINTS.NOTIFICATION.COMMENTS, { params });
     const list = Array.isArray(data) ? (data as RawCommentNotification[]) : [];
     const seen = new Set<string>();
     return list.map((item) => {

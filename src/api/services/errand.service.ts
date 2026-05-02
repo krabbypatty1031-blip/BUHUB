@@ -70,17 +70,18 @@ const mapErrand = (e: ApiErrandRecord): Errand => ({
 });
 
 export const errandService = {
-  async getList(category?: ErrandCategory, options?: { includeExpired?: boolean } & PaginationParams): Promise<Errand[]> {
+  async getList(category?: ErrandCategory, options?: { includeExpired?: boolean; mine?: boolean } & PaginationParams): Promise<Errand[]> {
     if (USE_MOCK) {
       const { mockErrands } = await import('../../data/mock/errands');
       const list = category ? mockErrands.filter((e) => e.category === category) : [...mockErrands];
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const { includeExpired, ...paginationParams } = options || {};
+    const { includeExpired, mine, ...paginationParams } = options || {};
     const { data } = await apiClient.get(ENDPOINTS.ERRAND.LIST, {
       params: {
         category: toApiCategory(category),
         ...(includeExpired !== undefined && { includeExpired: String(includeExpired) }),
+        ...(mine !== undefined && { mine: String(mine) }),
         ...paginationParams,
       },
     });

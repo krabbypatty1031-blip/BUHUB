@@ -149,9 +149,9 @@ export default function MeScreen({ navigation }: Props) {
   const nickname = displayUser?.nickname || displayUser?.name || '';
   const publishedItems = useMemo<PublishedItem[]>(() => {
     const items: PublishedItem[] = [];
-    myPartners?.forEach((p) => { if (p.user === nickname) items.push({ kind: 'partner', data: p, id: p.id }); });
-    myErrands?.forEach((e) => { if (e.user === nickname) items.push({ kind: 'errand', data: e, id: e.id }); });
-    mySecondhand?.forEach((s) => { if (s.user === nickname) items.push({ kind: 'secondhand', data: s, id: s.id }); });
+    myPartners?.forEach((p) => items.push({ kind: 'partner', data: p, id: p.id }));
+    myErrands?.forEach((e) => items.push({ kind: 'errand', data: e, id: e.id }));
+    mySecondhand?.forEach((s) => items.push({ kind: 'secondhand', data: s, id: s.id }));
     const kindOrder: Record<string, number> = { partner: 0, errand: 1, secondhand: 2 };
     const getAvailabilityRank = (item: PublishedItem) => {
       const expired = isExpiredNow(item.data.expired, item.data.expiresAt, now);
@@ -165,7 +165,7 @@ export default function MeScreen({ navigation }: Props) {
       return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
     });
     return items;
-  }, [myPartners, myErrands, mySecondhand, nickname, now]);
+  }, [myPartners, myErrands, mySecondhand, now]);
 
   const likePostMutation = useLikePost();
   const bookmarkPostMutation = useBookmarkPost();
