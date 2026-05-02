@@ -3,6 +3,7 @@ export type HKBUMajor = {
   school: string;
   department: string;
   officialUrl: string;
+  concentrationType?: 'primary' | 'second';
 };
 
 export const HKBU_MAJORS: HKBUMajor[] = [
@@ -98,6 +99,13 @@ export const HKBU_MAJORS: HKBUMajor[] = [
       'https://admissions.hkbu.edu.hk/programmes/faculty-of-arts-and-social-sciences/bachelor-of-arts-hons-in-religion-philosophy-and-ethics-year1.html',
   },
   {
+    key: 'majorHKBUSocialWork',
+    school: 'Faculty of Arts and Social Sciences',
+    department: 'Social Work',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/faculty-of-arts-and-social-sciences/bachelor-of-social-work-hons-year1.html',
+  },
+  {
     key: 'majorHKBUPhysicalEducationAndRecreationManagement',
     school: 'Faculty of Arts and Social Sciences',
     department: 'Sport, Physical Education and Health',
@@ -127,6 +135,13 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     key: 'majorHKBUAppliedBiologyEcologyAndConservation',
     school: 'Faculty of Science',
     department: 'Applied Biology',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
+  },
+  {
+    key: 'majorHKBUChemistry',
+    school: 'Faculty of Science',
+    department: 'Chemistry',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
   },
@@ -187,6 +202,13 @@ export const HKBU_MAJORS: HKBUMajor[] = [
       'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
   },
   {
+    key: 'majorHKBUMathematics',
+    school: 'Faculty of Science',
+    department: 'Mathematics',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
+  },
+  {
     key: 'majorHKBUAppliedStatistics',
     school: 'Faculty of Science',
     department: 'Mathematics',
@@ -201,11 +223,27 @@ export const HKBU_MAJORS: HKBUMajor[] = [
       'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
   },
   {
+    key: 'majorHKBUPhysics',
+    school: 'Faculty of Science',
+    department: 'Physics',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/faculty-of-science/bachelor-of-science-hons-year1.html',
+  },
+  {
     key: 'majorHKBUAccounting',
     school: 'School of Business',
     department: 'Accountancy, Economics and Finance',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
+  },
+  {
+    key: 'majorHKBUAppliedEconomics',
+    school: 'School of Business',
+    department: 'Accountancy, Economics and Finance',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUEconomicsAndDataAnalytics',
@@ -213,6 +251,7 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Accountancy, Economics and Finance',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUFinance',
@@ -220,6 +259,15 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Accountancy, Economics and Finance',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
+  },
+  {
+    key: 'majorHKBUChinaBusinessStudies',
+    school: 'School of Business',
+    department: 'Management, Marketing and Information Systems',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUHumanResourcesManagement',
@@ -227,6 +275,7 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Management, Marketing and Information Systems',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUInformationSystemsAndBusinessIntelligence',
@@ -234,6 +283,7 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Management, Marketing and Information Systems',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUMarketing',
@@ -241,6 +291,7 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Management, Marketing and Information Systems',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
   },
   {
     key: 'majorHKBUStrategicRetailManagementAndInnovation',
@@ -248,6 +299,23 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Management, Marketing and Information Systems',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'primary',
+  },
+  {
+    key: 'majorHKBUFinTech',
+    school: 'School of Business',
+    department: 'Accountancy, Economics and Finance',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'second',
+  },
+  {
+    key: 'majorHKBUMarTech',
+    school: 'School of Business',
+    department: 'Management, Marketing and Information Systems',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'second',
   },
   {
     key: 'majorHKBUWealthAndAssetManagement',
@@ -255,9 +323,38 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Accountancy, Economics and Finance',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-business/bachelor-of-business-administration-hons-year1.html',
+    concentrationType: 'second',
   },
   {
     key: 'majorHKBUJournalism',
+    school: 'School of Communication',
+    department: 'Journalism and Digital Media',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-communication/year1-admissions.html',
+  },
+  {
+    key: 'majorHKBUJournalismChineseStream',
+    school: 'School of Communication',
+    department: 'Journalism and Digital Media',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-communication/year1-admissions.html',
+  },
+  {
+    key: 'majorHKBUJournalismInternationalStream',
+    school: 'School of Communication',
+    department: 'Journalism and Digital Media',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-communication/year1-admissions.html',
+  },
+  {
+    key: 'majorHKBUJournalismBroadcastStream',
+    school: 'School of Communication',
+    department: 'Journalism and Digital Media',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-communication/year1-admissions.html',
+  },
+  {
+    key: 'majorHKBUJournalismFinancialStream',
     school: 'School of Communication',
     department: 'Journalism and Digital Media',
     officialUrl:
@@ -346,6 +443,13 @@ export const HKBU_MAJORS: HKBUMajor[] = [
       'https://admissions.hkbu.edu.hk/programmes/school-of-creative-arts/bachelor-of-fine-arts-hons-in-acting-for-global-screen-year1.html',
   },
   {
+    key: 'majorHKBUFilmAndTelevision',
+    school: 'School of Creative Arts',
+    department: 'Academy of Film',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-creative-arts/bachelor-of-arts-hons-in-film-television-and-new-media-production-year1.html',
+  },
+  {
     key: 'majorHKBUChineseMedicineAndBiomedicalScience',
     school: 'School of Chinese Medicine',
     department: 'Chinese Medicine',
@@ -358,6 +462,19 @@ export const HKBU_MAJORS: HKBUMajor[] = [
     department: 'Arts and Technology',
     officialUrl:
       'https://admissions.hkbu.edu.hk/programmes/school-of-creative-arts/bachelor-of-arts-hons-in-arts-and-technology-year1.html',
+  },
+  {
+    key: 'majorHKBUBusinessAdministrationGlobalEntertainment',
+    school: 'Transdisciplinary Programmes',
+    department: 'Global Entertainment',
+    officialUrl:
+      'https://admissions.hkbu.edu.hk/programmes/school-of-creative-arts/bachelor-of-arts-hons-in-business-administration-global-entertainment-year1.html',
+  },
+  {
+    key: 'majorHKBUIndividualisedMajor',
+    school: 'Transdisciplinary Programmes',
+    department: 'Individualised Major',
+    officialUrl: 'https://admissions.hkbu.edu.hk/en/degree-diploma.html',
   },
   {
     key: 'majorHKBUDigitalFuturesAndHumanities',

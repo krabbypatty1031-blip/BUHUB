@@ -288,7 +288,7 @@ function mapPostRecord(p: ApiPostRecord): ForumPost {
     gender: p.isAnonymous ? 'other' : normalizeGenderValue(author.gender ?? p.gender),
     gradeKey: p.isAnonymous ? undefined : (p.gradeKey ?? author.grade),
     majorKey: p.isAnonymous ? undefined : (p.majorKey ?? author.major),
-    meta: p.isAnonymous ? '' : [author.grade, author.major].filter(Boolean).join(' 路 '),
+    meta: '',
     likes: p.likeCount ?? p.likes ?? 0,
     comments: p.commentCount ?? p.comments ?? 0,
     createdAt: normalizeTimestamp(p.createdAt),

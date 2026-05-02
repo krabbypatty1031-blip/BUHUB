@@ -162,7 +162,7 @@ export default function ComposeScreen({ navigation, route }: Props) {
       gender: isAnonymous ? 'other' : (user?.gender || 'other'),
       gradeKey: isAnonymous ? undefined : user?.grade,
       majorKey: isAnonymous ? undefined : user?.major,
-      meta: isAnonymous ? '' : [user?.grade, user?.major].filter(Boolean).join(' · '),
+      meta: '',
       createdAt: new Date().toISOString(),
       lang,
       sourceLanguage: lang as Language,

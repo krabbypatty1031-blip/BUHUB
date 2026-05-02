@@ -66,7 +66,7 @@ import SecondhandCard from '../../components/functions/SecondhandCard';
 import { getVotedOptionIndex } from '../../utils/forum';
 import { handleAvatarPressNavigation } from '../../utils/profileNavigation';
 import { buildChatBackTarget } from '../../utils/chatNavigation';
-import { getLocalizedMajorLabel } from '../../data/hkbuMajors';
+import { getLocalizedMajorShortLabel } from '../../data/hkbuMajors';
 
 type Props = NativeStackScreenProps<MeStackParamList, 'MeHome'>;
 
@@ -946,7 +946,7 @@ export default function MeScreen({ navigation }: Props) {
                 {displayUser?.nickname || displayUser?.name || '---'}
               </Text>
               <Text style={styles.meta}>
-                {[displayUser?.major ? getLocalizedMajorLabel(displayUser.major, t) : undefined, getDisplayGradeLabel(displayUser?.grade, t, { language: lang, abbreviate: true })]
+                {[displayUser?.major ? getLocalizedMajorShortLabel(displayUser.major, t, lang) : undefined, getDisplayGradeLabel(displayUser?.grade, t, { language: lang, abbreviate: true })]
                   .filter(Boolean)
                   .join(' · ')}
               </Text>
