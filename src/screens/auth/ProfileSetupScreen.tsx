@@ -147,8 +147,10 @@ export default function ProfileSetupScreen({ navigation, route }: Props) {
             name: 'avatar.jpg',
           });
           finalAvatarUrl = result.url;
-        } catch {
-          finalAvatarUrl = avatarUri;
+        } catch (uploadErr: unknown) {
+          const { message } = getAuthErrorMessage(uploadErr, t, 'avatarUploadFailed');
+          Alert.alert(message);
+          return;
         }
       }
 

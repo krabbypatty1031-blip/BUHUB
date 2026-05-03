@@ -32,6 +32,7 @@ import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { typography, getLocalizedFontStyle } from '../../theme/typography';
 import { normalizeAvatarUrl } from '../../utils/imageUrl';
+import { getAuthErrorMessage } from '../../utils/network';
 import Avatar from '../../components/common/Avatar';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import {
@@ -134,8 +135,10 @@ export default function EditProfileScreen({ navigation }: Props) {
             name: 'avatar.jpg',
           });
           finalAvatarUrl = result.url;
-        } catch {
-          finalAvatarUrl = pickedAvatar;
+        } catch (uploadErr: unknown) {
+          const { message } = getAuthErrorMessage(uploadErr, t, 'avatarUploadFailed');
+          Alert.alert(message);
+          return;
         }
       }
 
